@@ -36,8 +36,7 @@ export async function onRequest(context) {
     var compromised = 0
     await fetch('https://api.pwnedpasswords.com/range/' + pw_sha1_f5)
       .then(response => {
-        //handle response            
-        console.log(response);
+        response_html += '<li>' + response + '</li>'
       })
       .then(data => {
         response_html += '<li>' + data + '</li>'
