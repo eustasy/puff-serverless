@@ -23,7 +23,7 @@
 Forms and other static content can be found in [public](https://github.com/eustasy/puff-serverless/tree/main/public)
 
 ## API Endpoints
-API endpoints can be found in [_functions/api](https://github.com/eustasy/puff-serverless/tree/main/_functions/api)
+API endpoints can be found in [functions/api](https://github.com/eustasy/puff-serverless/tree/main/functions/api)
 
 ## Utilities
 Utilities can be found in [src](https://github.com/eustasy/puff-serverless/tree/main/src)
