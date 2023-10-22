@@ -44,15 +44,15 @@ export async function onRequest(context) {
         let line_ln = inputArray[i].substring(36)
         //response_html += '<li>' + i + ' : ' + line_f35 + ' : ' + line_ln + '</li>'
         if ( line_f35 == pw_sha1_l35.toUpperCase() ) {
-          compromised = line_ln.parseInt()
+          compromised = parseInt(line_ln)
         }
       }
     })
 
     if ( compromised > 0 ) {
-      response_html += '<li style="color:#7f1d1d">Has been compromised ' + compromised + ' times</li>'
+      response_html += '<li style="color:#7f1d1d">Has been compromised ' + Intl.NumberFormat().format(compromised) + ' times</li>'
     } else {
-      response_html += '<li style="color:#064e3b">Is not compromised</li>'
+      response_html += '<li style="color:#064e3b">Has not been compromised</li>'
     }
   } catch (err) {
       response_html += '<li>' + err + '</li>'
