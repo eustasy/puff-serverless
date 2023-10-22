@@ -31,6 +31,7 @@ export function onRequest(context) {
   var pw_sha1 = SHA1(pw)
   var pw_sha1_f5 = pw_sha1.slice(0, 5)
   var pw_sha1_l35 = pw_sha1.slice(5, 40)
+  response_html += '<li>' + pw_sha1_f5 + ' : ' + pw_sha1_l35 + '</li>'
   try {
     var compromised = 0
     //response_html += '<li>' + pw_sha1 + ':' + pw_sha1_f5 + ':' + pw_sha1_l35 + '</li>'
@@ -38,7 +39,9 @@ export function onRequest(context) {
     .then(data => {
       var inputArray = data.split('\n')
       for (var i = 0; i < inputArray.length; i++) {
-        if ( inputArray.slice(0, 35) == pw_sha1_l35 ) {
+        let line_f35 = inputArray[i].slice(0, 35)
+        response_html += '<li>' + i + ' : ' + line_f35 + '</li>'
+        if ( line_f35 == pw_sha1_l35 ) {
           compromised = inputArray.substring(36).parseInt()
         }
       }
@@ -46,7 +49,7 @@ export function onRequest(context) {
     if ( compromised > 0 ) {
       response_html += '<li style="color:#7f1d1d">Has been compromised ' + compromised + ' times</li>'
     } else {
-      response_html += '<li style="color:#064e3b">Is not be compromised</li>'
+      response_html += '<li style="color:#064e3b">Is not compromised</li>'
     }
   } catch (err) {
       response_html += '<li>' + err + '</li>'
