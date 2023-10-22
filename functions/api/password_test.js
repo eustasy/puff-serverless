@@ -1,3 +1,5 @@
 export function onRequest(context) {
-  return new Response("Hello, world!")
+  const { searchParams } = new URL(context.request.url)
+  let pw = searchParams.get('pw')
+  return new Response("Hello, world! {pw}")
 }
