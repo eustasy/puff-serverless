@@ -31,7 +31,7 @@ export async function onRequest(context) {
   var pw_sha1 = SHA1(pw)
   var pw_sha1_f5 = pw_sha1.slice(0, 5)
   var pw_sha1_l35 = pw_sha1.slice(5, 40)
-  response_html += '<li>' + pw_sha1_f5 + ' : ' + pw_sha1_l35 + '</li>'
+  //response_html += '<li>' + pw_sha1_f5 + ' : ' + pw_sha1_l35 + '</li>'
   try {
     var compromised = 0
     await fetch('https://api.pwnedpasswords.com/range/' + pw_sha1_f5)
@@ -42,8 +42,8 @@ export async function onRequest(context) {
       for (var i = 0; i < inputArray.length; i++) {
         let line_f35 = inputArray[i].slice(0, 35)
         let line_ln = inputArray[i].substring(36)
-        response_html += '<li>' + i + ' : ' + line_f35 + ' : ' + line_ln + '</li>'
-        if ( line_f35 == pw_sha1_l35 ) {
+        //response_html += '<li>' + i + ' : ' + line_f35 + ' : ' + line_ln + '</li>'
+        if ( line_f35 == pw_sha1_l35.toUpperCase() ) {
           compromised = line_ln.parseInt()
         }
       }
