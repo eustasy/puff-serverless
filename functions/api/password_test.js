@@ -52,7 +52,7 @@ export async function onRequest(context) {
     if ( compromised > 0 ) {
       response_html += '<li style="color:#7f1d1d">Has been compromised ' + Intl.NumberFormat().format(compromised) + ' times</li>'
     } else {
-      response_html += '<li style="color:#064e3b">Has not been compromised</li>'
+      response_html += '<li style="color:#064e3b">Should not be compromised</li>'
     }
   } catch (err) {
       response_html += '<li>' + err + '</li>'
