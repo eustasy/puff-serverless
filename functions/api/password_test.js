@@ -31,20 +31,24 @@ export function onRequest(context) {
   var pw_sha1 = SHA1(pw)
   var pw_sha1_f5 = pw_sha1.slice(0, 5)
   var pw_sha1_l35 = pw_sha1.slice(5, 40)
-  //response_html += '<li>' + pw_sha1 + ':' + pw_sha1_f5 + ':' + pw_sha1_l35 + '</li>'
-  fetch('https://api.pwnedpasswords.com/range/' + pw_sha1_f5)
-  .then(data => {
-    var inputArray = data.split('\n')
-    for (var i = 0; i < inputArray.length; i++) {
-      if ( inputArray.slice(0, 35) == pw_sha1_l35 ) {
-        var compromised = inputArray.substring(36).parseInt()
+  try {
+    //response_html += '<li>' + pw_sha1 + ':' + pw_sha1_f5 + ':' + pw_sha1_l35 + '</li>'
+    fetch('https://api.pwnedpasswords.com/range/' + pw_sha1_f5)
+    .then(data => {
+      var inputArray = data.split('\n')
+      for (var i = 0; i < inputArray.length; i++) {
+        if ( inputArray.slice(0, 35) == pw_sha1_l35 ) {
+          var compromised = inputArray.substring(36).parseInt()
+        }
       }
+    })
+    if ( compromised > 0 ) {
+      response_html += '<li style="color:#7f1d1d">Has been compronised ' + compronised + ' times</li>'
+    } else {
+      response_html += '<li style="color:#064e3b">Is not be compronised</li>'
     }
-  })
-  if ( compromised > 0 ) {
-    response_html += '<li style="color:#7f1d1d">Has been compronised ' + compronised + ' times</li>'
-  } else {
-    response_html += '<li style="color:#064e3b">Is not be compronised</li>'
+  } catch (err) {
+      response_html += '<li>' + err + '</li>'
   }
 
   response_html += '</ul></div>'
