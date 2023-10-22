@@ -19,7 +19,7 @@ export async function onRequest(context) {
     response_html += '<li style="color:#7f1d1d">Should contain a number</li>'
   }
 
-  var hasSpecial = /[!-\/:-@[-`{-~]/
+  var hasSpecial = /[^a-zA-Z\d]/
   if ( hasSpecial.test(pw) ) {
     response_html += '<li style="color:#064e3b">Should contain a special character</li>'
   } else {
