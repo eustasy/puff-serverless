@@ -2,7 +2,7 @@ export function onRequest(context) {
   const { searchParams } = new URL(context.request.url)
   let pw = searchParams.get('pw')
 
-  var response_html = '<div id="pw-checklist"><h3>Password Requirements</h3><ul>'
+  var response_html = '<h3>Password Requirements</h3><ul>'
 
   if ( pw.length >= 12 ) {
     response_html += '<li style="color:#064e3b"><strong>Must</strong> be at least 12 characters long</li>'
@@ -35,17 +35,24 @@ export function onRequest(context) {
   try {
     var compromised = 0
     fetch('https://api.pwnedpasswords.com/range/' + pw_sha1_f5)
-    .then(data => {
-      response_html += '<li>' + data + '</li>'
-      var inputArray = data.split('\n')
-      for (var i = 0; i < inputArray.length; i++) {
-        let line_f35 = inputArray[i].slice(0, 35)
-        response_html += '<li>' + i + ' : ' + line_f35 + '</li>'
-        if ( line_f35 == pw_sha1_l35 ) {
-          compromised = inputArray.substring(36).parseInt()
+      .then(response => {
+        //handle response            
+        console.log(response);
+      })
+      .then(data => {
+        response_html += '<li>' + data + '</li>'
+        var inputArray = data.split('\n')
+        for (var i = 0; i < inputArray.length; i++) {
+          let line_f35 = inputArray[i].slice(0, 35)
+          response_html += '<li>' + i + ' : ' + line_f35 + '</li>'
+          if ( line_f35 == pw_sha1_l35 ) {
+            compromised = inputArray.substring(36).parseInt()
+          }
         }
-      }
-    })
+      })
+      .catch(error => {
+        response_html += '<li>' + error + '</li>'
+      })
     if ( compromised > 0 ) {
       response_html += '<li style="color:#7f1d1d">Has been compromised ' + compromised + ' times</li>'
     } else {
@@ -55,6 +62,6 @@ export function onRequest(context) {
       response_html += '<li>' + err + '</li>'
   }
 
-  response_html += '</ul></div>'
+  response_html += '</ul>'
   return new Response(response_html)
 }
