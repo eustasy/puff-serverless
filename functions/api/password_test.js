@@ -43,7 +43,7 @@ export function onRequest(context) {
       }
     })
     if ( compromised > 0 ) {
-      response_html += '<li style="color:#7f1d1d">Has been compronised ' + compronised + ' times</li>'
+      response_html += '<li style="color:#7f1d1d">Has been compronised ' + compromised + ' times</li>'
     } else {
       response_html += '<li style="color:#064e3b">Is not be compronised</li>'
     }
