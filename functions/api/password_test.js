@@ -34,24 +34,19 @@ export async function onRequest(context) {
   response_html += '<li>' + pw_sha1_f5 + ' : ' + pw_sha1_l35 + '</li>'
   try {
     var compromised = 0
-    await fetch('https://api.pwnedpasswords.com/range/' + pw_sha1_f5)
-      .then(response => {
-        response_html += '<li>' + response + '</li>'
-      })
-      .then(data => {
-        response_html += '<li>' + data + '</li>'
-        var inputArray = data.split('\n')
-        for (var i = 0; i < inputArray.length; i++) {
-          let line_f35 = inputArray[i].slice(0, 35)
-          response_html += '<li>' + i + ' : ' + line_f35 + '</li>'
-          if ( line_f35 == pw_sha1_l35 ) {
-            compromised = inputArray.substring(36).parseInt()
-          }
-        }
-      })
-      .catch(error => {
-        response_html += '<li>' + error + '</li>'
-      })
+    const response = await fetch('https://api.pwnedpasswords.com/range/' + pw_sha1_f5)
+    const data = response.text()
+    response_html += '<li>' + response + '</li>'
+    response_html += '<li>' + data + '</li>'
+    var inputArray = data.split('\n')
+    for (var i = 0; i < inputArray.length; i++) {
+      let line_f35 = inputArray[i].slice(0, 35)
+      response_html += '<li>' + i + ' : ' + line_f35 + '</li>'
+      if ( line_f35 == pw_sha1_l35 ) {
+        compromised = inputArray.substring(36).parseInt()
+      }
+    }
+
     if ( compromised > 0 ) {
       response_html += '<li style="color:#7f1d1d">Has been compromised ' + compromised + ' times</li>'
     } else {
