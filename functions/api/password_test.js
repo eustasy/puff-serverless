@@ -34,9 +34,9 @@ export function onRequest(context) {
   response_html += '<li>' + pw_sha1_f5 + ' : ' + pw_sha1_l35 + '</li>'
   try {
     var compromised = 0
-    //response_html += '<li>' + pw_sha1 + ':' + pw_sha1_f5 + ':' + pw_sha1_l35 + '</li>'
     fetch('https://api.pwnedpasswords.com/range/' + pw_sha1_f5)
     .then(data => {
+      response_html += '<li>' + data + '</li>'
       var inputArray = data.split('\n')
       for (var i = 0; i < inputArray.length; i++) {
         let line_f35 = inputArray[i].slice(0, 35)
