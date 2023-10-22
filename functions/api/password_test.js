@@ -41,9 +41,10 @@ export async function onRequest(context) {
       var inputArray = text.split('\n')
       for (var i = 0; i < inputArray.length; i++) {
         let line_f35 = inputArray[i].slice(0, 35)
-        response_html += '<li>' + i + ' : ' + line_f35 + '</li>'
+        let line_ln = inputArray[i].substring(36)
+        response_html += '<li>' + i + ' : ' + line_f35 + ' : ' + line_ln + '</li>'
         if ( line_f35 == pw_sha1_l35 ) {
-          compromised = inputArray[i].substring(36).parseInt()
+          compromised = line_ln.parseInt()
         }
       }
     })
