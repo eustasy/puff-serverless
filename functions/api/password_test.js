@@ -37,12 +37,12 @@ export async function onRequest(context) {
     await fetch('https://api.pwnedpasswords.com/range/' + pw_sha1_f5)
     .then((response) => response.text())
     .then((text) => {
-      response_html += '<li>' + text + '</li>'
+      //response_html += '<li>' + text + '</li>'
       var inputArray = text.split('\n')
       for (var i = 0; i < inputArray.length; i++) {
         let line_f35 = inputArray[i].slice(0, 35)
-        response_html += '<li>' + i + ' : ' + line_f35 + '</li>'
         if ( line_f35 == pw_sha1_l35 ) {
+          response_html += '<li>' + i + ' : ' + line_f35 + '</li>'
           compromised = inputArray.substring(36).parseInt()
         }
       }
