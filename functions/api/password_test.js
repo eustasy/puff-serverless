@@ -31,7 +31,7 @@ export function onRequest(context) {
   var pw_sha1 = SHA1(pw)
   var pw_sha1_f5 = pw_sha1.slice(0, 5)
   var pw_sha1_l35 = pw_sha1.slice(5, 35)
-  response_html += '<li>' pw_sha1 + ':' + pw_sha1_f5 + ':' + pw_sha1_l35 + '</li>' 
+  response_html += '<li>' + pw_sha1 + ':' + pw_sha1_f5 + ':' + pw_sha1_l35 + '</li>' 
 
   response_html += '</ul></div>'
   return new Response(response_html)
