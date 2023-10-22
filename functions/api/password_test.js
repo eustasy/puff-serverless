@@ -43,7 +43,7 @@ export async function onRequest(context) {
         let line_f35 = inputArray[i].slice(0, 35)
         response_html += '<li>' + i + ' : ' + line_f35 + '</li>'
         if ( line_f35 == pw_sha1_l35 ) {
-          compromised = inputArray.substring(36).parseInt()
+          compromised = inputArray[i].substring(36).parseInt()
         }
       }
     })
