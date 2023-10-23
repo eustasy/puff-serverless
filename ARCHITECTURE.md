@@ -8,11 +8,14 @@ Folder | Contents | Deployed to
 [functions/api](https://github.com/eustasy/puff-serverless/tree/main/functions/api) | API Endpoints | Cloudflare Workers
 [src](https://github.com/eustasy/puff-serverless/tree/main/src) | Backend Code | ~
 
-# Libraries
+## Libraries
 Library | Version | Type | Location | Source
 --------|---------|------|----------|-------
 HTMX | 1.9.6 | Client-Side JS | [public/htmx_1.9.6.min.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/htmx_1.9.6.min.js) | [htmx.org](https://htmx.org/)
 Tailwind CSS | 3.3.3 | CSS | ~ | [tailwindcss.com](https://tailwindcss.com/)
+
+## APIs
+https://haveibeenpwned.com/API/v2#SearchingPwnedPasswordsByRange
 
 ## Actions
 - Register
