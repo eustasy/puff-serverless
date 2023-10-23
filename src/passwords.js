@@ -42,7 +42,7 @@ export async function password_requirements(pw) {
     response_html += '<li style="color:#7f1d1d">Should contain a special character</li>'
   }
 
-  var pw_sha1 = SHA1(pw)
+  var pw_sha1 = await SHA1(pw)
   var pw_sha1_f5 = pw_sha1.slice(0, 5)
   var pw_sha1_l35 = pw_sha1.slice(5, 40)
   //response_html += '<li>' + pw_sha1_f5 + ' : ' + pw_sha1_l35 + '</li>'
