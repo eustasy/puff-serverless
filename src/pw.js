@@ -11,5 +11,5 @@ export async function pwcheck(pw) {
   if ( !hasSpecial.test(pw) ) {
     result = false
   }
-  return new Response(result)
+  return result
 }
