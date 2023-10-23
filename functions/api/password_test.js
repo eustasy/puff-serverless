@@ -5,7 +5,7 @@ export async function onRequest(context) {
   let pw = searchParams.get('pw')
 
   var response_html = '<h3>Password Requirements</h3><ul>'
-  var result = pwcheck(pw)
+  var result = await pwcheck(pw)
   response_html += '<li>' + result + '</li>'
 
   if ( pw.length >= 12 ) {
