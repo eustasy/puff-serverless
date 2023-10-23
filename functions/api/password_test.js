@@ -1,8 +1,11 @@
+import { pwcheck } from './../../src/pw.js';
+  
 export async function onRequest(context) {
   const { searchParams } = new URL(context.request.url)
   let pw = searchParams.get('pw')
 
   var response_html = '<h3>Password Requirements</h3><ul>'
+  response_html += '<li>' + pwcheck(pw) + '</li>'
 
   if ( pw.length >= 12 ) {
     response_html += '<li style="color:#064e3b"><strong>Must</strong> be at least 12 characters long</li>'
