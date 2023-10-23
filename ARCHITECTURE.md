@@ -11,6 +11,7 @@
   - Terminate a session
 - Reset password
 - Account Mangement
+  - Verify a session
   - Add backup email
   - Change primary email
   - Change password
