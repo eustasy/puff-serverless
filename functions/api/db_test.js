@@ -8,5 +8,5 @@ export async function onRequest(context) {
   const ps = context.env.DATABASE.prepare('SELECT * from users');
   const data = await ps.first();
 
-  return new Response.json(data);
+  return Response.json(data);
 }
