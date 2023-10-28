@@ -8,6 +8,10 @@ Folder | Contents | Deployed to
 [functions/api](https://github.com/eustasy/puff-serverless/tree/main/functions/api) | API Endpoints | Cloudflare Workers
 [src](https://github.com/eustasy/puff-serverless/tree/main/src) | Backend Code | ~
 
+Folder | Contents | Deployed to
+-------|----------|------------
+[public/_redirects](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_redirects) | Redirect Rules | [Cloudflare Pages Redirects](https://developers.cloudflare.com/pages/platform/redirects/)
+
 ## Libraries
 Library | Version | Type | Location | Source
 --------|---------|------|----------|-------
