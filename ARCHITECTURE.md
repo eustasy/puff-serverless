@@ -11,6 +11,9 @@ Folder | Contents | Deployed to
 File | Contents | Deployed to
 -------|----------|------------
 [public/_redirects](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_redirects) | Redirect Rules | [Cloudflare Pages Redirects](https://developers.cloudflare.com/pages/platform/redirects/)
+[public/_headers](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_headers) | Headers (Pages Only) | [Cloudflare Pages Headers](https://developers.cloudflare.com/pages/platform/headers/)
+[build.sh](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_redirects) | Build Commands | [Cloudflare Pages Build](https://developers.cloudflare.com/pages/how-to/build-commands-branches/))
+
 
 ## Libraries
 Library | Version | Type | Location | Source
