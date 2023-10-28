@@ -9,6 +9,8 @@
 Content-Security-Policy: default-src https:; script-src 'self'; object-src 'none';
 ### This alternative CSP simply does not allow scripts from other domains.
 #Content-Security-Policy: script-src 'self' 'unsafe-inline'; object-src 'none';
+### Disallow powerful features in the browser
+Permissions-Policy: microphone=(), camera=(), geolocation=(), display-capture=(), web-share=()
 ### Always load on HTTPS
 Strict-Transport-Security: max-age=31536000
 ### Disable iFrames
