@@ -6,9 +6,9 @@
 /*
 ### Block content not loaded over HTTPS, and any scripts not from 'self'
 ### Note that script-src 'self' doesn't allow unsafe inline scripts by default
-Content-Security-Policy: default-src https:; script-src 'self'; object-src 'none';
+#Content-Security-Policy: default-src https:; script-src 'self'; object-src 'none';
 ### This alternative CSP simply does not allow scripts from other domains.
-#Content-Security-Policy: script-src 'self' 'unsafe-inline'; object-src 'none';
+Content-Security-Policy: script-src 'self' 'unsafe-inline'; object-src 'none';
 ### Disallow powerful features in the browser
 Permissions-Policy: microphone=(), camera=(), geolocation=(), display-capture=(), web-share=()
 ### Always load on HTTPS
