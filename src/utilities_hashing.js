@@ -14,7 +14,7 @@ async function HextoUint8(f) {
   return f.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')
 }
 
-async function puff_hash(pw, algo) {
+export async function puff_hash(pw, algo) {
   const myText = new TextEncoder().encode(pw)
   const myDigest = await crypto.subtle.digest(
     { name: algo },
