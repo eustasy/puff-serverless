@@ -22,9 +22,9 @@
 
 ## Libraries
 
-| Library      | Version | Type           | Location                                                                                                      | Source                                      |
-| ------------ | ------- | -------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| HTMX         | 1.9.7   | Client-Side JS | [public/htmx_1.9.7.min.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/htmx_1.9.7.min.js) | [htmx.org](https://htmx.org/)               |
+| Library | Version | Type           | Location                                                                                                      | Source                        |
+| ------- | ------- | -------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| HTMX    | 1.9.7   | Client-Side JS | [public/htmx_1.9.7.min.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/htmx_1.9.7.min.js) | [htmx.org](https://htmx.org/) |
 
 ## APIs
 
