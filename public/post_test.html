@@ -1,0 +1,19 @@
+<script src="htmx_1.9.6.min.js"></script>
+
+<input type="text" name="pw"
+    hx-post="/api/post_test"
+    hx-trigger="keyup changed delay:500ms"
+    hx-target="#pw-checklist"
+    placeholder="Password"
+    autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="512" minlength="12"
+>
+
+<div id="pw-checklist">
+    <h3>Password Requirements</h3>
+    <ul>
+        <li><strong>Must</strong> be at least 12 characters long</li>
+        <li>Should contain a number</li>
+        <li>Should contain a special character</li>
+    	<li>Should not be compromised</li>
+    </ul>
+</div>
