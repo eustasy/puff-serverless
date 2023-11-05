@@ -508,64 +508,57 @@ function password_to_bytes(password) {
 
 /*
  * callback: a function that will be passed the hash when it is complete
- * progress: optional - this function will be called every time 1% of hashing
- *      is complete.
  */
-function hashpw(password, salt, callback, progress) {
-    var real_salt;
-    var passwordb = [];
-    var saltb = [];
-    var hashed = [];
-    var minor = String.fromCharCode(0);
-    var rounds = 0;
-    var off = 0;
-
-    if (!progress) {
-        progress = function() {};
-    }
+function hashpw(password, salt, callback) {
+    var real_salt
+    var passwordb = []
+    var saltb = []
+    var hashed = []
+    var minor = String.fromCharCode(0)
+    var rounds = 0
+    var off = 0
 
     if (salt.charAt(0) != '$' || salt.charAt(1) != '2')
-        throw "Invalid salt version";
+        throw "Invalid salt version"
     if (salt.charAt(2) == '$')
-        off = 3;
+        off = 3
     else {
-        minor = salt.charAt(2);
+        minor = salt.charAt(2)
         if ((minor != 'a' && minor != 'b') || salt.charAt(3) != '$')
-            throw "Invalid salt revision";
-        off = 4;
+            throw "Invalid salt revision"
+        off = 4
     }
 
     // Extract number of rounds
     if (salt.charAt(off + 2) > '$')
-        throw "Missing salt rounds";
-    var r1 = parseInt(salt.substring(off, off + 1)) * 10;
-    var r2 = parseInt(salt.substring(off + 1, off + 2));
-    rounds = r1 + r2;
-    real_salt = salt.substring(off + 3, off + 25);
-    password = password + (minor >= 'a' ? "\000" : "");
+        throw "Missing salt rounds"
+    var r1 = parseInt(salt.substring(off, off + 1)) * 10
+    var r2 = parseInt(salt.substring(off + 1, off + 2))
+    rounds = r1 + r2
+    real_salt = salt.substring(off + 3, off + 25)
+    password = password + (minor >= 'a' ? "\000" : "")
     passwordb = password_to_bytes(password)
-    saltb = decode_base64(real_salt, BCRYPT_SALT_LEN);
+    saltb = decode_base64(real_salt, BCRYPT_SALT_LEN)
     crypt_raw(
         passwordb,
         saltb,
         rounds,
         BF_CRYPT_CIPHERTEXT.slice(0),
         function(hashed) {
-            var rs = [];
-            rs.push("$2");
+            var rs = []
+            rs.push("$2")
             if (minor >= 'a')
-                rs.push(minor);
-            rs.push("$");
+                rs.push(minor)
+            rs.push("$")
             if (rounds < 10)
-                rs.push("0");
-            rs.push(rounds.toString());
-            rs.push("$");
-            rs.push(encode_base64(saltb, saltb.length));
-            rs.push(encode_base64(hashed, BF_CRYPT_CIPHERTEXT.length * 4 - 1));
-            callback(rs.join(''));
-        },
-        progress);
-};
+                rs.push("0")
+            rs.push(rounds.toString())
+            rs.push("$")
+            rs.push(encode_base64(saltb, saltb.length))
+            rs.push(encode_base64(hashed, BF_CRYPT_CIPHERTEXT.length * 4 - 1))
+            callback(rs.join(''))
+        })
+}
 
 function gensalt(rounds) {
     var iteration_count = rounds;
