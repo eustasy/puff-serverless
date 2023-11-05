@@ -6,6 +6,6 @@ export async function onRequest(context) {
   const email = formdata.get("email")
   const name = formdata.get("name")
   const pw = formdata.get("pw")
-  const results = user_register(context, name, email, password)
+  const results = user_register(context, name, email, pw)
   return Response.json(results)
 }
