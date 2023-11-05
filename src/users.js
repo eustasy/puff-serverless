@@ -1,4 +1,4 @@
-import { password_check } from "./passwords.js"
+import { puff_hashing_password } from "./utilities_hashing.js"
 
 export async function user_register(context, name, email, password) {
   // Step 0. Prep work
@@ -21,10 +21,12 @@ export async function user_register(context, name, email, password) {
 
   // Step 3. Register the password
   const now = new Date(Date.now()).toISOString()
+  const { hash, salt } = await puff_hashing_password(pw)
+  const secret_value = hash + ":" + salt
   const insert_password = await context.env.DATABASE.prepare(
     'INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_created_at) VALUES (?1, "puff_password_sha-384", ?2, ?3)'
   )
-    .bind(uuid, password, now)
+    .bind(uuid, secret_value, now)
     .run()
 
   let results = {
