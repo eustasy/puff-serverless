@@ -17,7 +17,7 @@ export async function onRequest(context) {
   const sha1 = new Uint8Array(myDigest2)
   let uuid = crypto.randomUUID()
 
-  hashes = {
+  var hashes = {
     'sha384': sha384,
     'sha1': sha1,
     'uuid': uuid
