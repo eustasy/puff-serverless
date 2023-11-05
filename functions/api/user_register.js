@@ -1,4 +1,4 @@
-import { puff_hashing_password } from './../../src/hashing.js';
+import { puff_hashing_password } from './../../src/utilities_hashing.js';
   
 export async function onRequest(context) {
   // Step 0. Prep work
