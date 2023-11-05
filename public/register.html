@@ -7,13 +7,13 @@
     autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="512" minlength="1"
 >
 <input type="password" name="pw" placeholder="Password"
-    hx-get="/api/password_test"
+    hx-post="/api/password_test"
     hx-trigger="keyup changed delay:500ms"
     hx-target="#pw-checklist"
     autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="512" minlength="12"
 >
 <input type="submit"
-    hx-get="/api/user_register"
+    hx-post="/api/user_register"
     hx-trigger="click"
     hx-target="#register"
     hx-include="[name='name'], [name='email'], [name='pw']"
