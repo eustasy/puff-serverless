@@ -7,6 +7,20 @@ export async function onRequest(context) {
     },
     myText // The data you want to hash as an ArrayBuffer
   )
-  const hash = new Uint8Array(myDigest))
-  return Response.json(hash)
+  const sha384 = new Uint8Array(myDigest))
+  const myDigest2 = await crypto.subtle.digest(
+    {
+      name: 'SHA-1',
+    },
+    myText // The data you want to hash as an ArrayBuffer
+  )
+  const sha1 = new Uint8Array(myDigest2))
+  let uuid = crypto.randomUUID()
+
+  hashes = {
+    'sha384': sha384,
+    'sha1': sha1,
+    'uuid': uuid
+  }
+  return Response.json(hashes)
 }
