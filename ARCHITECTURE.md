@@ -9,7 +9,7 @@
 | [public](https://github.com/eustasy/puff-serverless/tree/main/public)               | All static files: HTML, CSS, Client-Side JS.                    | Cloduflare Pages   |
 | [functions](https://github.com/eustasy/puff-serverless/tree/main/functions)         | Dynamic endpoints: pages that must load with pre-inserted data. | Cloudflare Workers |
 | [functions/api](https://github.com/eustasy/puff-serverless/tree/main/functions/api) | API Endpoints                                                   | Cloudflare Workers |
-| [src](https://github.com/eustasy/puff-serverless/tree/main/src)                     | Backend Code                                                    | ~                  |
+| [src](https://github.com/eustasy/puff-serverless/tree/main/src)                     | Backend Code                                                    | Cloudflare Workers |
 
 ### Special Files
 
@@ -17,7 +17,7 @@
 | ------------------------------------------------------------------------------------------------ | ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | [public/\_redirects](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_redirects) | Redirect Rules                     | [Cloudflare Pages Redirects](https://developers.cloudflare.com/pages/platform/redirects/)                 |
 | [public/\_headers](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_headers)     | Headers (Pages Only)               | [Cloudflare Pages Headers](https://developers.cloudflare.com/pages/platform/headers/)                     |
-| _build.sh_                                                                                       | Build Commands                     | [Cloudflare Pages Build](https://developers.cloudflare.com/pages/how-to/build-commands-branches/))        |
+| _build.sh_                                                                                       | Build Commands                     | [Cloudflare Pages Build](https://developers.cloudflare.com/pages/how-to/build-commands-branches/)         |
 | _functions/api/\_middleware.js_                                                                  | Headers and Authentication for API | [Cloudflare Functions Middleware](https://developers.cloudflare.com/pages/platform/functions/middleware/) |
 
 ## Libraries
