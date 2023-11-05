@@ -19,7 +19,7 @@ async function Uint8toHex(bytes) {
   )
 }
 
-export async function puff_hash(pw, algo) {
+export async function hashing_wrapper(pw, algo) {
   const myText = new TextEncoder().encode(pw)
   const myDigest = await crypto.subtle.digest({ name: algo }, myText)
   const bitsBack = new Uint8Array(myDigest)
@@ -35,7 +35,7 @@ export async function puff_hashing_password(pw, salt = "", algo = "SHA-384") {
   }
 
   const toHash = pw + ":" + uuid
-  const hash = await puff_hash(toHash, algo)
+  const hash = await hashing_wrapper(toHash, algo)
 
   const hashes = {
     hash: hash,
@@ -45,7 +45,7 @@ export async function puff_hashing_password(pw, salt = "", algo = "SHA-384") {
 }
 
 export async function puff_hashing_sha1_hibp(pw) {
-  const pw_sha1 = await puff_hash(pw, "SHA-1")
+  const pw_sha1 = await hashing_wrapper(pw, "SHA-1")
 
   const pw_sha1_f5 = pw_sha1.slice(0, 5)
   const pw_sha1_l35 = pw_sha1.slice(5, 40)
