@@ -20,10 +20,11 @@ export async function user_register(context, name, email, password) {
     .run()
 
   // Step 3. Register the password
+  const now = new Date(Date.now()).toISOString()
   const insert_password = await context.env.DATABASE.prepare(
-    'INSERT INTO secrets (user_uuid, secret_type, secret) VALUES (?1, "password", ?2)'
+    'INSERT INTO secrets (user_uuid, secret_type, secret, secret_created_at) VALUES (?1, "password", ?2, ?3)'
   )
-    .bind(uuid, password)
+    .bind(uuid, password, now)
     .run()
 
   let results = {
