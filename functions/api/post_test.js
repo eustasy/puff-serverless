@@ -10,8 +10,8 @@ const getMethods = (obj) => {
 }
 
 export async function onRequest(context) {
-  //const formdata = getMethods(context.request)
-  const formdata = await context.request.formData()
+  const formdata = getMethods(context.request)
+  //const formdata = await context.request.formData()
   //let pw = formdata.get('pw')
   //let response_html = await password_requirements(pw)
   return Response.json(formdata)
