@@ -16,3 +16,4 @@ jobs:
           node-version: latest
       - run: npm install prettier
       - run: npx prettier . --write
+      - run: git diff
