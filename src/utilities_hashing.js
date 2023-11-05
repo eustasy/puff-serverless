@@ -6,11 +6,11 @@
 //console.log(fromHexString('0001022a646566ff'));
 // source: https://stackoverflow.com/a/50868276
 
-async function Uint8toHex(hexString) {
+async function HextoUint8(hexString) {
   return Uint8Array.from(hexString.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)))
 }
 
-async function HextoUint8(bytes) {
+async function Uint8toHex(bytes) {
   return bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')
 }
 
