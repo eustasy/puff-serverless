@@ -6,12 +6,12 @@
 //console.log(fromHexString('0001022a646566ff'));
 // source: https://stackoverflow.com/a/50868276
 
-async function Uint8toHex(f) {
-  return f.from(hexString.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)))
+async function Uint8toHex(hexString) {
+  return Uint8Array.from(hexString.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)))
 }
 
-async function HextoUint8(f) {
-  return f.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')
+async function HextoUint8(bytes) {
+  return bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')
 }
 
 export async function puff_hash(pw, algo) {
