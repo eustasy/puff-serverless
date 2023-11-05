@@ -1,4 +1,4 @@
-import { puff_hashing_sha1_hibp } from './../../src/utilities_hashing.js'
+import { puff_hashing_sha1_hibp } from './utilities_hashing.js'
 
 export async function password_check(pw) {
   var result = true
