@@ -1,8 +1,7 @@
 import { password_check } from './../../src/passwords.js';
   
 export async function onRequest(context) {
-  const { searchParams } = new URL(context.request.url)
-  let pw = searchParams.get('pw')
+  const pw = (await context.request.formData()).get('pw')
   let response_html = await password_check(pw)
   return new Response(response_html)
 }
