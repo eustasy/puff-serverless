@@ -10,10 +10,11 @@ jobs:
   eslint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
         with:
           node-version: latest
       - run: npm install prettier
       - run: npx prettier . --write
-      - run: git diff
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
