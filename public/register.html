@@ -1,32 +1,54 @@
 <script src="htmx_1.9.6.min.js"></script>
 
-<input type="text" name="name" placeholder="Name Please"
-    autocapitalize="words" autocorrect="off" spellcheck="false" maxlength="512" minlength="1"
->
-<input type="email" name="email" placeholder="you@email.com"
-    autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="512" minlength="1"
->
-<input type="password" name="pw" placeholder="Password"
-    hx-post="/api/password_test"
-    hx-trigger="keyup changed delay:500ms"
-    hx-target="#pw-checklist"
-    autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="512" minlength="12"
->
-<input type="submit"
-    hx-post="/api/user_register"
-    hx-trigger="click"
-    hx-target="#register"
-    hx-include="[name='name'], [name='email'], [name='pw']"
->
+<input
+  type="text"
+  name="name"
+  placeholder="Name Please"
+  autocapitalize="words"
+  autocorrect="off"
+  spellcheck="false"
+  maxlength="512"
+  minlength="1"
+/>
+<input
+  type="email"
+  name="email"
+  placeholder="you@email.com"
+  autocapitalize="off"
+  autocorrect="off"
+  spellcheck="false"
+  maxlength="512"
+  minlength="1"
+/>
+<input
+  type="password"
+  name="pw"
+  placeholder="Password"
+  hx-post="/api/password_test"
+  hx-trigger="keyup changed delay:500ms"
+  hx-target="#pw-checklist"
+  autocapitalize="off"
+  autocorrect="off"
+  spellcheck="false"
+  maxlength="512"
+  minlength="12"
+/>
+<input
+  type="submit"
+  hx-post="/api/user_register"
+  hx-trigger="click"
+  hx-target="#register"
+  hx-include="[name='name'], [name='email'], [name='pw']"
+/>
 
 <div id="pw-checklist">
-    <h3>Password Requirements</h3>
-    <ul>
-      <li><strong>Must</strong> be at least 12 characters long</li>
-      <li>Should contain a number</li>
-      <li>Should contain a special character</li>
-      <li>Should not be compromised</li>
-    </ul>
+  <h3>Password Requirements</h3>
+  <ul>
+    <li><strong>Must</strong> be at least 12 characters long</li>
+    <li>Should contain a number</li>
+    <li>Should contain a special character</li>
+    <li>Should not be compromised</li>
+  </ul>
 </div>
 
 <div id="register"></div>
