@@ -6,10 +6,10 @@ export async function onRequest(context) {
   const email = formdata.get('email')
   const pw = formdata.get('pw')
 
-  const result = [
+  const result = {
     'name': name,
     'email': email,
     'pw': pw
-  ]
+  }
   return Response.json(result)
 }
