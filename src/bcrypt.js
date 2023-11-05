@@ -506,10 +506,27 @@ function password_to_bytes(password) {
     return passwordb
 };
 
+export async function gensalt(rounds) {
+    var iteration_count = rounds;
+    if (iteration_count < 4 || iteration_count > 30) {
+        throw "Rounds exceded maximum (30)!"
+    }
+    var output = [];
+    output.push("$2a$");
+    if (iteration_count < 10)
+        output.push("0");
+    output.push(iteration_count.toString());
+    output.push('$');
+    var s1 = new Int8Array(BCRYPT_SALT_LEN);
+    window.crypto.getRandomValues(s1);
+    output.push(encode_base64(s1, BCRYPT_SALT_LEN));
+    return output.join('');
+};
+
 /*
  * callback: a function that will be passed the hash when it is complete
  */
-function hashpw(password, salt, callback) {
+export async function hashpw(password, salt, callback) {
     var real_salt
     var passwordb = []
     var saltb = []
@@ -560,24 +577,7 @@ function hashpw(password, salt, callback) {
         })
 }
 
-function gensalt(rounds) {
-    var iteration_count = rounds;
-    if (iteration_count < 4 || iteration_count > 30) {
-        throw "Rounds exceded maximum (30)!"
-    }
-    var output = [];
-    output.push("$2a$");
-    if (iteration_count < 10)
-        output.push("0");
-    output.push(iteration_count.toString());
-    output.push('$');
-    var s1 = new Int8Array(BCRYPT_SALT_LEN);
-    window.crypto.getRandomValues(s1);
-    output.push(encode_base64(s1, BCRYPT_SALT_LEN));
-    return output.join('');
-};
-
-function checkpw(plaintext, hashed, callback, progress) {
+export async function checkpw(plaintext, hashed, callback, progress) {
     var off = 0;
     if (hashed.charAt(0) != '$' || hashed.charAt(1) != '2')
         throw "Invalid salt version";
