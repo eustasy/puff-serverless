@@ -7,5 +7,5 @@ export async function onRequest(context) {
   const name = formdata.get("name")
   const pw = formdata.get("pw")
   const results = user_register(context, name, email, pw)
-  return Response.json(results)
+  return new Response(results)
 }
