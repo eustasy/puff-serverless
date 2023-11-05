@@ -507,21 +507,21 @@ function password_to_bytes(password) {
 };
 
 export async function gensalt(rounds) {
-    var iteration_count = rounds;
+    var iteration_count = rounds
     if (iteration_count < 4 || iteration_count > 30) {
         throw "Rounds exceded maximum (30)!"
     }
-    var output = [];
-    output.push("$2a$");
+    var output = []
+    output.push("$2a$")
     if (iteration_count < 10)
-        output.push("0");
-    output.push(iteration_count.toString());
-    output.push('$');
-    var s1 = new Int8Array(BCRYPT_SALT_LEN);
-    window.crypto.getRandomValues(s1);
-    output.push(encode_base64(s1, BCRYPT_SALT_LEN));
-    return output.join('');
-};
+        output.push("0")
+    output.push(iteration_count.toString())
+    output.push('$')
+    var s1 = new Int8Array(BCRYPT_SALT_LEN)
+    window.crypto.getRandomValues(s1)
+    output.push(encode_base64(s1, BCRYPT_SALT_LEN))
+    return output.join('')
+}
 
 /*
  * callback: a function that will be passed the hash when it is complete
@@ -577,25 +577,29 @@ export async function hashpw(password, salt, callback) {
         })
 }
 
-export async function checkpw(plaintext, hashed, callback, progress) {
-    var off = 0;
+export async function checkpw(plaintext, hashed, callback) {
+    var off = 0
     if (hashed.charAt(0) != '$' || hashed.charAt(1) != '2')
-        throw "Invalid salt version";
+        throw "Invalid salt version"
     if (hashed.charAt(2) == '$')
-        off = 3;
+        off = 3
     else {
-        minor = hashed.charAt(2);
+        minor = hashed.charAt(2)
         if ((minor != 'a' && minor != 'b') || hashed.charAt(3) != '$') {
-            throw "Invalid salt revision";
+            throw "Invalid salt revision"
         }
-        off = 4;
+        off = 4
     }
-    salt = hashed.substring(0, off + 25);
-    hashpw(plaintext, salt, function(try_pass) {
-        var ret = 0;
-        for (var i = 0; i < hashed.length; i++) {
-            ret |= getByte(hashed[i]) ^ getByte(try_pass[i])
+    salt = hashed.substring(0, off + 25)
+    await hashpw(
+        plaintext,
+        salt,
+        function(try_pass) {
+            var ret = 0
+            for (var i = 0; i < hashed.length; i++) {
+                ret |= getByte(hashed[i]) ^ getByte(try_pass[i])
+            }
+            callback(ret == 0)
         }
-        callback(ret == 0);
-    }, progress);
-};
+    )
+}
