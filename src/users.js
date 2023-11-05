@@ -21,7 +21,7 @@ export async function user_register(context, name, email, password) {
 
   // Step 3. Register the password
   const now = new Date(Date.now()).toISOString()
-  const { hash, salt } = await puff_hashing_password(pw)
+  const { hash, salt } = await puff_hashing_password(password)
   const secret_value = hash + ":" + salt
   const insert_password = await context.env.DATABASE.prepare(
     'INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_created_at) VALUES (?1, "puff_password_sha-384", ?2, ?3)'
