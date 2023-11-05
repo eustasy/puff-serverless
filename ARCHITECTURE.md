@@ -1,6 +1,8 @@
 # Architecture
 
 ## Deployment
+
+### Directories
 Folder | Contents | Deployed to
 -------|----------|------------
 [public](https://github.com/eustasy/puff-serverless/tree/main/public) | All static files: HTML, CSS, Client-Side JS. | Cloduflare Pages
@@ -8,6 +10,7 @@ Folder | Contents | Deployed to
 [functions/api](https://github.com/eustasy/puff-serverless/tree/main/functions/api) | API Endpoints | Cloudflare Workers
 [src](https://github.com/eustasy/puff-serverless/tree/main/src) | Backend Code | ~
 
+### Special Files
 File | Contents | Deployed to
 -------|----------|------------
 [public/_redirects](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_redirects) | Redirect Rules | [Cloudflare Pages Redirects](https://developers.cloudflare.com/pages/platform/redirects/)
