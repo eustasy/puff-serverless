@@ -1,6 +1,6 @@
 quoteProps: "consistent"
 semi: false
-singleQuote: true
-#tabs: false
-#tabWidth: 2
+#singleQuote: true
+#tabs: true
+#tabWidth: 4
 trailingComma: "none"
