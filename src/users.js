@@ -1,4 +1,3 @@
-import { generate_uuidv4 } from "./uuids.js"
 import { password_check } from "./passwords.js"
 
 export async function user_register(context, name, email, password) {
@@ -6,7 +5,7 @@ export async function user_register(context, name, email, password) {
   // TODO Check the email isn't already registered
 
   // Step 1. Register the user
-  const uuid = await generate_uuidv4()
+  const uuid = await crypto.randomUUID()
   const insert_user = await context.env.DATABASE.prepare(
     "INSERT INTO users (user_uuid, user_name) VALUES (?1, ?2)"
   )
