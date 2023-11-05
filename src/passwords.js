@@ -51,6 +51,7 @@ export async function password_requirements(pw) {
     .then((text) => {
       //response_html += '<li>' + text + '</li>'
       var inputArray = text.split('\n')
+      // TODO Minor perf improvement: This for loop always runs the full length, but if we wrap it in a non-exported function we can `return` when we find a match.
       for (var i = 0; i < inputArray.length; i++) {
         let line_f35 = inputArray[i].slice(0, 35)
         let line_ln = inputArray[i].substring(36)
