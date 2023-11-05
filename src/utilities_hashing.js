@@ -31,7 +31,7 @@ export async function puff_hash(pw, algo) {
 // source: https://developers.cloudflare.com/workers/runtime-apis/web-crypto/#supported-algorithms
 export async function puff_hashing_password(pw, salt = "", algo = "SHA-384") {
   if (salt.length === 0) {
-    var uuid = crypto.randomUUID()
+    var uuid = await crypto.randomUUID()
   }
 
   const toHash = pw + ":" + uuid
