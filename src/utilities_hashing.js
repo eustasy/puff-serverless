@@ -34,7 +34,7 @@ export async function puff_hashing_password(pw, salt = "", algo = "SHA-384") {
     salt = await crypto.randomUUID()
   }
 
-  const toHash = pw + ":" + salt
+  const toHash = pw + salt
   const hash = await hashing_wrapper(toHash, algo)
 
   const hashes = {
