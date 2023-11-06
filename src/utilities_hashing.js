@@ -31,15 +31,15 @@ export async function hashing_wrapper(pw, algo) {
 // source: https://developers.cloudflare.com/workers/runtime-apis/web-crypto/#supported-algorithms
 export async function puff_hashing_password(pw, salt = "", algo = "SHA-384") {
   if (salt.length === 0) {
-    var uuid = await crypto.randomUUID()
+    salt = await crypto.randomUUID()
   }
 
-  const toHash = pw + ":" + uuid
+  const toHash = pw + ":" + salt
   const hash = await hashing_wrapper(toHash, algo)
 
   const hashes = {
     hash: hash,
-    salt: uuid
+    salt: salt
   }
   return hashes
 }
