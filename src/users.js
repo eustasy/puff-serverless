@@ -43,5 +43,5 @@ export async function user_exists(context, email) {
   )
     .bind(email)
     .first("total")
-  return Boolean(total)
+  return total
 }
