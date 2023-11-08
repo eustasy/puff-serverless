@@ -1,4 +1,4 @@
-name: Prettier Write
+name: Prettier
 
 on:
   pull_request:
