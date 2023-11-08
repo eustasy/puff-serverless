@@ -2,6 +2,7 @@ name: Prettier Check
 
 on:
   pull_request:
+    branches: [cf-pages]
   push:
     branches:
       - cf-pages
