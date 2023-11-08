@@ -1,0 +1,27 @@
+name: XO
+
+on:
+  pull_request:
+  push:
+    branches:
+      - cf-pages
+
+jobs:
+  xo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: latest
+      - run: npm install xo
+      - run: npx prettier . --write
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: XO Fixes
+          delete-branch: true
+          title: XO Fixes
+          labels: |
+            🌞 Type: Maintenance
+            🔧 Status: In Progress
