@@ -2,7 +2,12 @@ import { user_exists } from "./../../src/users.js"
 
 export async function onRequest(context) {
   const { searchParams } = new URL(context.request.url)
-  let email = searchParams.get("email")
-  const results = await user_exists(context, email)
-  return new Response(results)
+  const email = searchParams.get("email")
+  const count = await user_exists(context, email)
+  const results = {
+    email: email,
+    count: count,
+    bool: Boolean(count)
+  }
+  return Response.json(results)
 }
