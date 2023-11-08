@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: latest
       - run: npm install xo
-      - run: npx prettier . --write
+      - run: xo --fix
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
