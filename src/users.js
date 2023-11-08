@@ -24,7 +24,7 @@ export async function user_register(context, name, email, password) {
   const { hash, salt } = await puff_hashing_password(password)
   const secret_value = hash + ":" + salt
   const insert_password = await context.env.DATABASE.prepare(
-    'INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_created_at) VALUES (?1, "puff_password_sha-384", ?2, ?3)'
+    "INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_created_at) VALUES (?1, 'puff_password_sha-384', ?2, ?3)"
   )
     .bind(uuid, secret_value, now)
     .run()
@@ -35,4 +35,13 @@ export async function user_register(context, name, email, password) {
     ...insert_password
   }
   return results
+}
+
+export async function user_exists(context, email) {
+  const total = await context.env.DATABASE.prepare(
+    "SELECT COUNT(*) AS total FROM emails WHERE email_address = ?1 LIMIT 1"
+  )
+    .bind(email)
+    .first('total')
+  return Boolean(total)
 }
