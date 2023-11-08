@@ -1,0 +1,5 @@
+quoteProps: "consistent"
+semi: false
+singleQuote: false
+tabs: true
+trailingComma: "es5"

@@ -1,7 +1,0 @@
-# .prettierrc or .prettierrc.yaml
-quoteProps: "consistent"
-semi: false
-singleQuote: false
-tabs: false
-tabWidth: 2
-trailingComma: "none"
