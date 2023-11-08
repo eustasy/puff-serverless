@@ -32,7 +32,7 @@ export async function user_register(context, name, email, password) {
   let results = {
     ...insert_user,
     ...insert_email,
-    ...insert_password
+    ...insert_password,
   }
   return results
 }

@@ -39,7 +39,7 @@ export async function puff_hashing_password(pw, salt = "", algo = "SHA-384") {
 
   const hashes = {
     hash: hash,
-    salt: salt
+    salt: salt,
   }
   return hashes
 }
@@ -52,7 +52,7 @@ export async function puff_hashing_sha1_hibp(pw) {
 
   const slices = {
     f5: pw_sha1_f5,
-    l35: pw_sha1_l35
+    l35: pw_sha1_l35,
   }
   return slices
 }

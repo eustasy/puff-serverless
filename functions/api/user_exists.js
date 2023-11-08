@@ -7,7 +7,7 @@ export async function onRequest(context) {
   const results = {
     email: email,
     count: count,
-    bool: Boolean(count)
+    bool: Boolean(count),
   }
   return Response.json(results)
 }
