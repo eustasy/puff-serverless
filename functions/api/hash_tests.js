@@ -1,6 +1,6 @@
 import {
   puff_hashing_password,
-  puff_hashing_sha1_hibp
+  puff_hashing_sha1_hibp,
 } from "./../../src/utilities_hashing.js"
 
 export async function onRequest(context) {
@@ -10,7 +10,7 @@ export async function onRequest(context) {
 
   var hashes = {
     sha384: sha384,
-    sha1: sha1
+    sha1: sha1,
   }
   return Response.json(hashes)
 }

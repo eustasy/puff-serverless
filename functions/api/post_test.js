@@ -9,7 +9,7 @@ export async function onRequest(context) {
   const result = {
     name: name,
     email: email,
-    pw: pw
+    pw: pw,
   }
   return Response.json(result)
 }
