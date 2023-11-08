@@ -42,6 +42,6 @@ export async function user_exists(context, email) {
     "SELECT COUNT(*) AS total FROM emails WHERE email_address = ?1 LIMIT 1"
   )
     .bind(email)
-    .first('total')
+    .first("total")
   return Boolean(total)
 }
