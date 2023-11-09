@@ -1,0 +1,39 @@
+repo_name: eustasy/puff-serverless
+report_id: 8f2d88759f236d525fc261cbda395514
+repo_type: Public
+timestamp: '2023-11-09T19:00:34+00:00'
+requested_by: lewisgoddard
+provider: github
+branch: cf-pages
+detected_tools_count: 3
+tools:
+- name: JavaScript
+  description: Lightweight, interpreted, object-oriented language with first-class
+    functions
+  website_url: https://developer.mozilla.org/en-US/docs/Web/JavaScript
+  open_source: true
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Languages
+  image_url: https://img.stackshare.io/service/1209/javascript.jpeg
+  detection_source: Repo Metadata
+- name: Git
+  description: Fast, scalable, distributed revision control system
+  website_url: http://git-scm.com/
+  open_source: true
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Version Control System
+  image_url: https://img.stackshare.io/service/1046/git.png
+  detection_source: Repo Metadata
+- name: GitHub Actions
+  description: Automate your workflow from idea to production
+  website_url: https://github.com/features/actions
+  open_source: false
+  hosted_saas: true
+  category: Build, Test, Deploy
+  sub_category: Continuous Integration
+  image_url: https://img.stackshare.io/service/11563/actions.png
+  detection_source: ".github/workflows/prettier.yml"
+  last_updated_by: Lewis Goddard
+  last_updated_on: 2023-11-05 19:14:34.000000000 Z
