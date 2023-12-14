@@ -1,11 +1,11 @@
 repo_name: eustasy/puff-serverless
-report_id: 8f2d88759f236d525fc261cbda395514
+report_id: b6bd82b83154997afa964d061be1bfdb
 repo_type: Public
-timestamp: '2023-11-09T19:00:34+00:00'
+timestamp: '2023-12-14T09:55:53+00:00'
 requested_by: lewisgoddard
 provider: github
 branch: cf-pages
-detected_tools_count: 3
+detected_tools_count: 6
 tools:
 - name: JavaScript
   description: Lightweight, interpreted, object-oriented language with first-class
@@ -37,3 +37,37 @@ tools:
   detection_source: ".github/workflows/prettier.yml"
   last_updated_by: Lewis Goddard
   last_updated_on: 2023-11-05 19:14:34.000000000 Z
+- name: Prettier
+  description: 'Prettier is an opinionated code formatter. '
+  website_url: https://prettier.io/
+  version: 3.0.3
+  license: MIT
+  open_source: true
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Code Review
+  image_url: https://img.stackshare.io/service/7035/default_66f265943abed56bcdbfca1c866a4261b1fbb063.jpg
+  detection_source_url: https://github.com/eustasy/puff-serverless/blob/cf-pages/package-lock.json
+  detection_source: package.json
+  last_updated_by: github-actions[bot]
+  last_updated_on: 2023-11-12 01:04:34.000000000 Z
+- name: npm
+  description: The package manager for JavaScript.
+  website_url: https://www.npmjs.com/
+  open_source: false
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Front End Package Manager
+  image_url: https://img.stackshare.io/service/1120/lejvzrnlpb308aftn31u.png
+  detection_source: package.json
+  last_updated_by: github-actions[bot]
+  last_updated_on: 2023-11-12 01:04:34.000000000 Z
+- name: HTML
+  description: Hypertext Markup Language for creating web pages.
+  website_url: http://
+  open_source: false
+  hosted_saas: false
+  image_url: https://img.stackshare.io/service/2270/no-img-open-source.png
+  detection_source: public/password_test.html
+  last_updated_by: Lewis Goddard
+  last_updated_on: 2023-10-22 14:59:02.000000000 Z
