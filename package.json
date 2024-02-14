@@ -1,6 +1,0 @@
-{
-  "devDependencies": {
-    "@cloudflare/workers-types": "^4.20231025.0",
-    "prettier": "^3.2.5"
-  }
-}
