@@ -2,6 +2,6 @@
 quoteProps: "consistent"
 semi: false
 singleQuote: false
-tabs: false
+useTabs: false
 tabWidth: 2
 trailingComma: "es5"
