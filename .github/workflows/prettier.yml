@@ -20,4 +20,4 @@ jobs:
       - name: Prettier Action
         uses: creyD/prettier_action@v4.3
         with:
-          prettier_options: '--write'
+          prettier_options: "'src/**/*.{js,ts,mjs,cjs,json,yml,html,css,less,sass}' --write"
