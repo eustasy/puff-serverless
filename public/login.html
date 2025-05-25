@@ -5,6 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
     <script src="htmx_1.9.7.min.js"></script>
+    <style>
+        #login-result p {
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-top: 10px;
+            border-radius: 4px; /* Optional: for rounded corners */
+        }
+        .htmx-indicator {
+            display: none; /* Hidden by default */
+        }
+        /* Style for the spinner text when it's visible */
+        .htmx-indicator.htmx-request, .htmx-request .htmx-indicator {
+            display: inline-block; /* Shown during HTMX request */
+            font-style: italic;
+            /* Add any other desired spinner styling here, e.g., color */
+        }
+    </style>
 </head>
 <body>
     <h1>Login</h1>
@@ -17,7 +34,10 @@
             <label for="pw">Password:</label>
             <input type="password" id="pw" name="pw" placeholder="Password" required>
         </div>
-        <input type="submit" value="Log In" hx-post="/api/user_login" hx-trigger="click" hx-include="[name='email'], [name='pw']" hx-target="#login-result">
+        <button type="submit" hx-post="/api/user_login" hx-trigger="click" hx-include="[name='email'], [name='pw']" hx-target="#login-result" hx-disabled-elt="this">
+            Log In
+            <span class="htmx-indicator"> Loading...</span>
+        </button>
     </form>
     <div id="login-result"></div>
 </body>
