@@ -1,6 +1,11 @@
 import { puff_hashing_password } from "./utilities_hashing.js"
 
 export async function user_register(context, name, email, password) {
+  // Validate context and DATABASE binding
+  if (!context || !context.env || !context.env.DATABASE) {
+    throw new Error('D1 Database binding [DATABASE] not found. Please check Pages Function configuration.');
+  }
+
   // Step 0. Prep work
   // TODO Check the email isn't already registered
 
@@ -38,6 +43,11 @@ export async function user_register(context, name, email, password) {
 }
 
 export async function user_exists(context, email) {
+  // Validate context and DATABASE binding
+  if (!context || !context.env || !context.env.DATABASE) {
+    throw new Error('D1 Database binding [DATABASE] not found. Please check Pages Function configuration.');
+  }
+
   const total = await context.env.DATABASE.prepare(
     "SELECT COUNT(*) AS total FROM emails WHERE email_address = ?1 LIMIT 1"
   )
@@ -47,6 +57,11 @@ export async function user_exists(context, email) {
 }
 
 export async function getUserByEmail(context, email) {
+  // Validate context and DATABASE binding
+  if (!context || !context.env || !context.env.DATABASE) {
+    throw new Error('D1 Database binding [DATABASE] not found. Please check Pages Function configuration.');
+  }
+
   // Step 1: Fetch User and Email Data
   const emailRecord = await context.env.DATABASE.prepare(
     "SELECT user_uuid FROM emails WHERE email_address = ?1 LIMIT 1"
