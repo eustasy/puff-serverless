@@ -45,7 +45,9 @@ export async function user_register(context, name, email, password) {
 
   // Step 4. Generate and store email verification token
   const verification_token = crypto.randomUUID()
-  const token_expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours from now
+  const token_expires_at = new Date(
+    Date.now() + 24 * 60 * 60 * 1000
+  ).toISOString() // 24 hours from now
 
   const insert_token = await context.env.DATABASE.prepare(
     "INSERT INTO email_verifications (user_uuid, email_address, verification_token, token_expires_at) VALUES (?1, ?2, ?3, ?4)"
@@ -59,7 +61,9 @@ export async function user_register(context, name, email, password) {
   }
 
   // Log the verification link
-  console.log(`Verification link: /api/verify_email?token=${verification_token}`)
+  console.log(
+    `Verification link: /api/verify_email?token=${verification_token}`
+  )
 
   return results
 }
@@ -93,13 +97,13 @@ export async function getUserByEmail(context, email) {
     "SELECT user_uuid, is_verified FROM emails WHERE email_address = ?1 LIMIT 1"
   )
     .bind(email)
-    .first();
+    .first()
 
   if (!emailRecord || !emailRecord.user_uuid) {
-    return null; // User not found by email
+    return null // User not found by email
   }
 
-  const user_uuid = emailRecord.user_uuid;
+  const user_uuid = emailRecord.user_uuid
 
   // Step 2: Fetch Password Secret
   const secretRecord = await context.env.DATABASE.prepare(
@@ -117,8 +121,8 @@ export async function getUserByEmail(context, email) {
 
   if (!hashedPassword || !salt) {
     // Handle error: secret_value is not in the expected "hash:salt" format
-    console.error("Invalid secret_value format for user_uuid:", user_uuid);
-    return null;
+    console.error("Invalid secret_value format for user_uuid:", user_uuid)
+    return null
   }
 
   return {
@@ -127,19 +131,19 @@ export async function getUserByEmail(context, email) {
     is_verified: emailRecord.is_verified, // Add is_verified status
     hashedPassword: hashedPassword,
     salt: salt,
-  };
+  }
 }
 
 export async function user_login(context, email, password) {
-  const { verifyPassword } = await import("./passwords.js"); // Dynamic import
+  const { verifyPassword } = await import("./passwords.js") // Dynamic import
 
-  const user = await getUserByEmail(context, email);
+  const user = await getUserByEmail(context, email)
 
   if (!user) {
     return new Response(
       JSON.stringify({ error: "Invalid email or password." }),
       { status: 401, headers: { "Content-Type": "application/json" } }
-    );
+    )
   }
 
   // Check if email is verified
@@ -147,14 +151,14 @@ export async function user_login(context, email, password) {
     return new Response(
       JSON.stringify({ error: "Please verify your email before logging in." }),
       { status: 403, headers: { "Content-Type": "application/json" } } // 403 Forbidden
-    );
+    )
   }
 
   const passwordMatches = await verifyPassword(
     password,
     user.salt,
     user.hashedPassword
-  );
+  )
 
   if (passwordMatches) {
     // Check if 2FA is enabled for the user
@@ -162,7 +166,7 @@ export async function user_login(context, email, password) {
       "SELECT is_enabled FROM two_factor_secrets WHERE user_uuid = ?1"
     )
       .bind(user.user_uuid)
-      .first();
+      .first()
 
     if (twoFactorRecord && twoFactorRecord.is_enabled === 1) {
       // 2FA is enabled, respond that TOTP is required
@@ -173,45 +177,39 @@ export async function user_login(context, email, password) {
           user_uuid: user.user_uuid, // Send user_uuid for the next step
         }),
         { status: 200, headers: { "Content-Type": "application/json" } } // Status 200 as it's an expected intermediate step
-      );
+      )
     } else {
       // 2FA is not enabled, proceed with direct session creation
-      const session_id = crypto.randomUUID();
+      const session_id = crypto.randomUUID()
       const expires_at = new Date(
         Date.now() + 7 * 24 * 60 * 60 * 1000
-      ).toISOString(); // 7 days from now
-      const user_agent = context.request.headers.get("User-Agent") || "";
-      const ip_address = context.request.headers.get("CF-Connecting-IP") || "";
+      ).toISOString() // 7 days from now
+      const user_agent = context.request.headers.get("User-Agent") || ""
+      const ip_address = context.request.headers.get("CF-Connecting-IP") || ""
 
       try {
         await context.env.DATABASE.prepare(
           "INSERT INTO sessions (session_id, user_uuid, expires_at, user_agent, ip_address) VALUES (?1, ?2, ?3, ?4, ?5)"
         )
-          .bind(
-            session_id,
-            user.user_uuid,
-            expires_at,
-            user_agent,
-            ip_address
-          )
-          .run();
+          .bind(session_id, user.user_uuid, expires_at, user_agent, ip_address)
+          .run()
 
         return new Response(JSON.stringify({ session_token: session_id }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
-        });
+        })
       } catch (dbError) {
-        console.error("Database error during session creation:", dbError);
+        console.error("Database error during session creation:", dbError)
         return new Response(
           JSON.stringify({ error: "Failed to create session." }),
           { status: 500, headers: { "Content-Type": "application/json" } }
-        );
+        )
       }
     }
   } else {
     return new Response(
       JSON.stringify({ error: "Invalid email or password." }),
       { status: 401, headers: { "Content-Type": "application/json" } }
-    );
+    )
   }
 }
