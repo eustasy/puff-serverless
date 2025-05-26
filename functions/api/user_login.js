@@ -6,7 +6,7 @@ export async function onRequest(context) {
   const pw = await formdata.get("pw")
   const results = await user_login(context, email, pw)
   return new Response(
-    JSON.stringify(results),
+    results,
     { 
       status: results.error ? 401 : 200,
       headers: { "Content-Type": "application/json" },
