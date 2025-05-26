@@ -9,4 +9,4 @@ CREATE TABLE IF NOT EXISTS secrets (
 );
 
 CREATE INDEX IF NOT EXISTS idx_secret_user_uuid ON secrets(user_uuid);
-CREATE INDEX IF NOT EXISTS idx_tokens_secret_type ON tokens(secret_type);
+CREATE INDEX IF NOT EXISTS idx_tokens_secret_type ON secrets(secret_type);
