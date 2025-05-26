@@ -16,7 +16,7 @@ export async function password_check(pw) {
   return result
 }
 
-export async function password_requirements(pw) {
+export async function password_requirements_html(pw) {
   var response_html = "<h3>Password Requirements</h3><ul>"
 
   if (pw.length >= 12) {
