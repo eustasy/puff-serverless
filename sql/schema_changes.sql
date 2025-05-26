@@ -5,8 +5,7 @@ CREATE TABLE email_verifications (
     email_address TEXT NOT NULL,
     verification_token TEXT NOT NULL UNIQUE,
     token_expires_at TEXT NOT NULL, -- ISO 8601 format
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, -- ISO 8601 format
-    FOREIGN KEY (user_uuid) REFERENCES users(user_uuid)
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP -- ISO 8601 format
 );
 
 -- DDL for modifying the emails table
