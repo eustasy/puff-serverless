@@ -5,4 +5,4 @@ compatibility_flags = [ "nodejs_compat" ]
 
 [[d1_databases]]
 binding = "DATABASE"
-database_id = "puff-serverless"
+database_id = "1cfba845-7e6d-4960-ba82-472e95422f63"
