@@ -58,7 +58,7 @@ export async function onRequestPost(context) {
 
     // Step 4: Token Validation
     const tokenRecord = await context.env.DATABASE.prepare(
-      "SELECT user_uuid, token_expires_at, is_used FROM password_reset_tokens WHERE reset_token = ?1"
+      "SELECT user_uuid, expires_at, is_used FROM tokens WHERE token_value = ?1 AND token_type = 'password_reset'"
     )
       .bind(token)
       .first();
@@ -70,7 +70,7 @@ export async function onRequestPost(context) {
       );
     }
 
-    if (tokenRecord.is_used === 1) {
+    if (tokenRecord.is_used === 1) { // Check if is_used is 1 (true)
       return new Response(
         JSON.stringify({ error: "Password reset token has already been used." }),
         { status: 400, headers: { "Content-Type": "application/json" } }
@@ -78,8 +78,14 @@ export async function onRequestPost(context) {
     }
 
     const now = new Date();
-    const tokenExpiresAt = new Date(tokenRecord.token_expires_at);
+    const tokenExpiresAt = new Date(tokenRecord.expires_at); // Use expires_at
     if (now > tokenExpiresAt) {
+      // Optionally, mark the token as used if it's expired, to prevent re-querying valid but expired tokens.
+      await context.env.DATABASE.prepare(
+        "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'password_reset'"
+      )
+        .bind(token)
+        .run();
       return new Response(
         JSON.stringify({ error: "Password reset token has expired." }),
         { status: 400, headers: { "Content-Type": "application/json" } }
@@ -109,7 +115,7 @@ export async function onRequestPost(context) {
 
     // Step 7: Invalidate Token
     await context.env.DATABASE.prepare(
-      "UPDATE password_reset_tokens SET is_used = 1 WHERE reset_token = ?1"
+      "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'password_reset'"
     )
       .bind(token)
       .run();

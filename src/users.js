@@ -44,15 +44,15 @@ export async function user_register(context, name, email, password) {
   }
 
   // Step 4. Generate and store email verification token
-  const verification_token = crypto.randomUUID()
+  const token_value = crypto.randomUUID()
   const token_expires_at = new Date(
     Date.now() + 24 * 60 * 60 * 1000
   ).toISOString() // 24 hours from now
 
   const insert_token = await context.env.DATABASE.prepare(
-    "INSERT INTO email_verifications (user_uuid, email_address, verification_token, token_expires_at) VALUES (?1, ?2, ?3, ?4)"
+    "INSERT INTO tokens (user_uuid, email_address, token_type, token_value, expires_at) VALUES (?1, ?2, 'email_verification', ?3, ?4)"
   )
-    .bind(uuid, email, verification_token, token_expires_at)
+    .bind(uuid, email, token_value, token_expires_at)
     .run()
 
   results = {
@@ -61,9 +61,7 @@ export async function user_register(context, name, email, password) {
   }
 
   // Log the verification link
-  console.log(
-    `Verification link: /api/verify_email?token=${verification_token}`
-  )
+  console.log(`Verification link: /api/verify_email?token=${token_value}`)
 
   return results
 }
