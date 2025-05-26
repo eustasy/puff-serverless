@@ -10,7 +10,13 @@
 <body>
     <div class="container">
         <h1>Register</h1>
-        <form>
+        <form
+              hx-validate="true"
+              hx-post="/api/user_register"
+              hx-target="#register"
+              hx-include="[name='name'], [name='email'], [name='pw']"
+              hx-disabled-elt=".btn-register"
+        >
             <div class="form-group">
                 <label for="name">Name:</label>
                 <input
@@ -33,6 +39,7 @@
                   id="email" name="email"
                   placeholder="you@email.com"
                   hx-get="/api/user_exists"
+                  hx-sync="closest form:abort"
                   hx-trigger="keyup changed delay:500ms"
                   hx-target="#email-exists"
                   autocapitalize="off"
@@ -52,6 +59,7 @@
                   id="pw" name="pw"
                   placeholder="Password"
                   hx-post="/api/password_test"
+                  hx-sync="closest form:abort"
                   hx-trigger="keyup changed delay:500ms"
                   hx-target="#pw-checklist"
                   autocapitalize="off"
@@ -73,15 +81,7 @@
                 </div>
             </div>
 
-            <button
-              type="submit"
-              class="btn-register"
-              hx-post="/api/user_register"
-              hx-trigger="click"
-              hx-target="#register"
-              hx-include="[name='name'], [name='email'], [name='pw']"
-              hx-disabled-elt="this"
-            >
+            <button type="submit" class="btn-register">
                 Register
                 <img class="htmx-indicator" src="/assets/bars.svg">
             </button>

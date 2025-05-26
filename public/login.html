@@ -10,7 +10,11 @@
 <body>
     <div class="container">
         <h1>Login</h1>
-        <form>
+        <form hx-validate="true"
+              hx-post="/api/user_login"
+              hx-target="#login-result"
+              hx-include="[name='email'], [name='pw']"
+              hx-disabled-elt=".btn-login">
             <div class="form-group">
                 <label for="email">Email:</label>
                 <input type="email" id="email" name="email" placeholder="you@email.com" required>
@@ -22,11 +26,6 @@
             <button
                 type="submit"
                 class="btn-login"
-                hx-post="/api/user_login"
-                hx-trigger="click"
-                hx-include="[name='email'], [name='pw']"
-                hx-target="#login-result"
-                hx-disabled-elt="this"
             >
                 Log In
                 <img class="htmx-indicator" src="/assets/bars.svg">

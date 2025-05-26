@@ -11,23 +11,32 @@
     <div class="container">
         <h1>Logout</h1>
         <p>Enter your session token and click the button below to log out.</p>
-        <div class="form-group">
-            <label for="sessionToken">Session Token:</label>
-            <input type="text" id="sessionToken" name="sessionToken" placeholder="Paste your session token here">
-        </div>
-        <button
-            id="logoutButton"
-            type="submit"
-            class="btn-logout"
+        <form
+            hx-validate="true"
             hx-post="/api/user_logout"
-            hx-trigger="click"
             hx-target="#logout-result"
-            hx-disabled-elt="this"
             hx-include="[name='sessionToken']"
+            hx-disabled-elt=".btn-logout"
         >
-            Log Out
-            <img class="htmx-indicator" src="/assets/bars.svg">
-        </button>
+            <div class="form-group">
+                <label for="sessionToken">Session Token:</label>
+                <input
+                    type="text"
+                    id="sessionToken"
+                    name="sessionToken"
+                    placeholder="Paste your session token here"
+                    required
+                >
+            </div>
+            <button
+                id="logoutButton"
+                type="submit"
+                class="btn-logout"
+            >
+                Log Out
+                <img class="htmx-indicator" src="/assets/bars.svg">
+            </button>
+        </form>
         <div id="logout-result" class="result-area"></div>
         <p class="centered-link"><a href="/login.html">Go to Login Page</a></p>
     </div>
