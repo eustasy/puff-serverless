@@ -142,16 +142,16 @@ export async function user_login(context, email, password) {
 
   if (!user) {
     return new Response(
-      JSON.stringify({ error: "Invalid email or password." }),
-      { status: 401, headers: { "Content-Type": "application/json" } }
+      "Invalid email or password.",
+      { status: 401 }
     )
   }
 
   // Check if email is verified
   if (!user.is_verified) {
     return new Response(
-      JSON.stringify({ error: "Please verify your email before logging in." }),
-      { status: 403, headers: { "Content-Type": "application/json" } } // 403 Forbidden
+      "Please verify your email before logging in.",
+      { status: 403 }
     )
   }
 
@@ -169,12 +169,8 @@ export async function user_login(context, email, password) {
       // If a record is found, it means secret_enabled was 1
       // 2FA is enabled, respond that TOTP is required
       return new Response(
-        JSON.stringify({
-          status: "2fa_required",
-          message: "Please provide your TOTP code.",
-          user_uuid: user.user_uuid, // Send user_uuid for the next step
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } } // Status 200 as it's an expected intermediate step
+        `Please provide your TOTP code for user "${user.user_uuid}".`,
+        { status: 200 } // Status 200 as it's an expected intermediate step
       )
     } else {
       // 2FA is not enabled, proceed with direct session creation
@@ -192,22 +188,22 @@ export async function user_login(context, email, password) {
           .bind(session_id, user.user_uuid, expires_at, user_agent, ip_address)
           .run()
 
-        return new Response(JSON.stringify({ session_token: session_id }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
+        return new Response(
+          `session_token: "${session_id}"`,
+          { status: 200 }
+        )
       } catch (dbError) {
         console.error("Database error during session creation:", dbError)
         return new Response(
-          JSON.stringify({ error: "Failed to create session." }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
+          "Failed to create session.",
+          { status: 500 }
         )
       }
     }
   } else {
     return new Response(
-      JSON.stringify({ error: "Invalid email or password." }),
-      { status: 401, headers: { "Content-Type": "application/json" } }
+      "Invalid email or password.",
+      { status: 401 }
     )
   }
 }
