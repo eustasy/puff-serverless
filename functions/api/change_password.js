@@ -91,6 +91,7 @@ export async function onRequestPost(context) {
     }
     
     const currentPasswordMatches = await password_verify(
+      context,
       current_password,
       user_uuid
     );

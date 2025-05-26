@@ -3,7 +3,7 @@ import {
   puff_hashing_password,
 } from "./utilities_hashing.js"
 
-export async function password_verify(pw, user_uuid) {
+export async function password_verify(context, pw, user_uuid) {
   // Get the user's password hash and salt from the database
   const query = `
     SELECT secret_value
