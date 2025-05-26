@@ -1,151 +1,153 @@
 body {
-    font-family: sans-serif;
-    margin: 20px;
-    background-color: #f4f4f4;
-    color: #333;
+  font-family: sans-serif;
+  margin: 20px;
+  background-color: #f4f4f4;
+  color: #333;
 }
 
 .container {
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    max-width: 500px;
-    margin: auto;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  max-width: 500px;
+  margin: auto;
 }
 
 h1 {
-    color: #333;
-    text-align: center;
+  color: #333;
+  text-align: center;
 }
 
 input[type="text"],
 input[type="email"],
 input[type="password"] {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
 }
 
 label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
 }
 
-button, input[type="submit"] {
-    color: white;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
-    width: 100%;
-    margin-top: 10px;
+button,
+input[type="submit"] {
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  width: 100%;
+  margin-top: 10px;
 }
 
 /* Button specific colors */
 .btn-login {
-    background-color: #007bff; /* Blue for login */
+  background-color: #007bff; /* Blue for login */
 }
 .btn-login:hover {
-    background-color: #0056b3; /* Darker blue on hover */
+  background-color: #0056b3; /* Darker blue on hover */
 }
 
 .btn-logout {
-    background-color: #dc3545; /* Red for logout */
+  background-color: #dc3545; /* Red for logout */
 }
 .btn-logout:hover {
-    background-color: #c82333; /* Darker red on hover */
+  background-color: #c82333; /* Darker red on hover */
 }
 
 .btn-register {
-    background-color: #28a745; /* Green for register */
+  background-color: #28a745; /* Green for register */
 }
 .btn-register:hover {
-    background-color: #218838; /* Darker green on hover */
+  background-color: #218838; /* Darker green on hover */
 }
 
-
-.result-area { /* Class for #login-result, #logout-result, #register, #email-exists, #pw-checklist */
-    margin-top: 20px;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background-color: #e9ecef;
+.result-area {
+  /* Class for #login-result, #logout-result, #register, #email-exists, #pw-checklist */
+  margin-top: 20px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #e9ecef;
 }
 
 .result-area:empty {
-    display: none;
+  display: none;
 }
 
 .result-positive {
-    color: #064e3b;
+  color: #064e3b;
 }
 .result-negative {
-    color: #7f1d1d;
+  color: #7f1d1d;
 }
 
 /* Specific result areas that don't need margin-top if they are not the primary result */
-#email-exists, #pw-checklist {
-    margin-top: 5px; /* Reduced margin for these specific areas */
+#email-exists,
+#pw-checklist {
+  margin-top: 5px; /* Reduced margin for these specific areas */
 }
-
 
 .htmx-indicator {
-    display: none;
-    margin-left: 10px;
-    font-style: italic;
+  display: none;
+  margin-left: 10px;
+  font-style: italic;
 }
 
-.htmx-indicator.htmx-request, .htmx-request .htmx-indicator {
-    display: inline-block;
+.htmx-indicator.htmx-request,
+.htmx-request .htmx-indicator {
+  display: inline-block;
 }
 
 .form-group {
-    margin-bottom: 15px;
+  margin-bottom: 15px;
 }
 
 #pw-checklist ul {
-    list-style-type: none;
-    padding-left: 0;
-    margin-top: 5px;
+  list-style-type: none;
+  padding-left: 0;
+  margin-top: 5px;
 }
 
 #pw-checklist li {
-    margin-bottom: 3px;
+  margin-bottom: 3px;
 }
 
 .centered-link {
-    margin-top: 20px;
-    text-align: center;
+  margin-top: 20px;
+  text-align: center;
 }
 
 .centered-link-secondary {
-    margin-top: 10px;
-    text-align: center;
+  margin-top: 10px;
+  text-align: center;
 }
 
 /* Input field full width fix for logout page */
 #sessionToken {
-    width: 100%; /* Ensures it takes full width like other inputs */
+  width: 100%; /* Ensures it takes full width like other inputs */
 }
 
 /* Styles for password_test.html specific elements if any, or general utility */
 .password-strength-meter {
-    /* Example style, adjust as needed */
-    height: 10px;
-    background-color: #ddd;
-    border-radius: 5px;
-    margin-top: 5px;
+  /* Example style, adjust as needed */
+  height: 10px;
+  background-color: #ddd;
+  border-radius: 5px;
+  margin-top: 5px;
 }
 
 .strength-bar {
-    height: 100%;
-    background-color: red; /* Default, will be changed by JS */
-    border-radius: 5px;
-    width: 0%; /* Initial width */
+  height: 100%;
+  background-color: red; /* Default, will be changed by JS */
+  border-radius: 5px;
+  width: 0%; /* Initial width */
 }

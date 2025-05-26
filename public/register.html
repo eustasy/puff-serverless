@@ -1,93 +1,99 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Register</title>
     <script src="assets/htmx_2.0.4.min.js"></script>
-    <link rel="stylesheet" href="assets/main.css">
-</head>
-<body>
+    <link rel="stylesheet" href="assets/main.css" />
+  </head>
+  <body>
     <div class="container">
-        <h1>Register</h1>
-        <form
-              hx-validate="true"
-              hx-post="/api/user_register"
-              hx-target="#register"
-              hx-include="[name='name'], [name='email'], [name='pw']"
-              hx-disabled-elt=".btn-register"
-        >
-            <div class="form-group">
-                <label for="name">Name:</label>
-                <input
-                  type="text"
-                  id="name" name="name"
-                  placeholder="Your Name"
-                  autocapitalize="words"
-                  autocorrect="off"
-                  spellcheck="false"
-                  maxlength="512"
-                  minlength="1"
-                  required
-                />
-            </div>
+      <h1>Register</h1>
+      <form
+        hx-validate="true"
+        hx-post="/api/user_register"
+        hx-target="#register"
+        hx-include="[name='name'], [name='email'], [name='pw']"
+        hx-disabled-elt=".btn-register"
+      >
+        <div class="form-group">
+          <label for="name">Name:</label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            placeholder="Your Name"
+            autocapitalize="words"
+            autocorrect="off"
+            spellcheck="false"
+            maxlength="512"
+            minlength="1"
+            required
+          />
+        </div>
 
-            <div class="form-group">
-                <label for="email">Email:</label>
-                <input
-                  type="email"
-                  id="email" name="email"
-                  placeholder="you@email.com"
-                  hx-get="/api/user_exists"
-                  hx-sync="closest form:abort"
-                  hx-trigger="keyup changed delay:500ms"
-                  hx-target="#email-exists"
-                  autocapitalize="off"
-                  autocorrect="off"
-                  spellcheck="false"
-                  maxlength="512"
-                  minlength="1"
-                  required
-                />
-                <div id="email-exists" class="result-area"></div>
-            </div>
+        <div class="form-group">
+          <label for="email">Email:</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="you@email.com"
+            hx-get="/api/user_exists"
+            hx-sync="closest form:abort"
+            hx-trigger="keyup changed delay:500ms"
+            hx-target="#email-exists"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            maxlength="512"
+            minlength="1"
+            required
+          />
+          <div id="email-exists" class="result-area"></div>
+        </div>
 
-            <div class="form-group">
-                <label for="pw">Password:</label>
-                <input
-                  type="password"
-                  id="pw" name="pw"
-                  placeholder="Password"
-                  hx-post="/api/password_test"
-                  hx-sync="closest form:abort"
-                  hx-trigger="keyup changed delay:500ms"
-                  hx-target="#pw-checklist"
-                  autocapitalize="off"
-                  autocorrect="off"
-                  spellcheck="false"
-                  maxlength="512"
-                  minlength="12"
-                  required
-                />
-                <div id="pw-checklist" class="result-area">
-                  <!-- Initial content can be pre-filled or loaded by hx-post -->
-                  <h3>Password Requirements</h3>
-                  <ul>
-                    <li><strong>Must</strong> be at least 12 characters long</li>
-                    <li>Should contain a number</li>
-                    <li>Should contain a special character</li>
-                    <li>Should not be compromised</li>
-                  </ul>
-                </div>
-            </div>
+        <div class="form-group">
+          <label for="pw">Password:</label>
+          <input
+            type="password"
+            id="pw"
+            name="pw"
+            placeholder="Password"
+            hx-post="/api/password_test"
+            hx-sync="closest form:abort"
+            hx-trigger="keyup changed delay:500ms"
+            hx-target="#pw-checklist"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            maxlength="512"
+            minlength="12"
+            required
+          />
+          <div id="pw-checklist" class="result-area">
+            <!-- Initial content can be pre-filled or loaded by hx-post -->
+            <h3>Password Requirements</h3>
+            <ul>
+              <li><strong>Must</strong> be at least 12 characters long</li>
+              <li>Should contain a number</li>
+              <li>Should contain a special character</li>
+              <li>Should not be compromised</li>
+            </ul>
+          </div>
+        </div>
 
-            <button type="submit" class="btn-register">
-                Register
-                <img class="htmx-indicator" src="/assets/bars.svg">
-            </button>
-            <div id="register" class="result-area"></div> <!-- This is where the main registration result will go -->
-        </form>
-        <p class="centered-link"><a href="/login.html">Already have an account? Login</a></p>
+        <button type="submit" class="btn-register">
+          Register
+          <img class="htmx-indicator" src="/assets/bars.svg" />
+        </button>
+        <div id="register" class="result-area"></div>
+        <!-- This is where the main registration result will go -->
+      </form>
+      <p class="centered-link">
+        <a href="/login.html">Already have an account? Login</a>
+      </p>
     </div>
-</body>
+  </body>
 </html>

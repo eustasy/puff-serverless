@@ -1,4 +1,4 @@
-name: 'CI: Prettier'
+name: "CI: Prettier"
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
     branches:
       - cf-pages
   schedule:
-    - cron:  '30 09 * * *'
+    - cron: "30 09 * * *"
 
 jobs:
   prettier:

@@ -1,44 +1,40 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Logout</title>
     <script src="assets/htmx_2.0.4.min.js"></script>
-    <link rel="stylesheet" href="assets/main.css">
-</head>
-<body>
+    <link rel="stylesheet" href="assets/main.css" />
+  </head>
+  <body>
     <div class="container">
-        <h1>Logout</h1>
-        <p>Enter your session token and click the button below to log out.</p>
-        <form
-            hx-validate="true"
-            hx-post="/api/user_logout"
-            hx-target="#logout-result"
-            hx-include="[name='sessionToken']"
-            hx-disabled-elt=".btn-logout"
-        >
-            <div class="form-group">
-                <label for="sessionToken">Session Token:</label>
-                <input
-                    type="text"
-                    id="sessionToken"
-                    name="sessionToken"
-                    placeholder="Paste your session token here"
-                    required
-                >
-            </div>
-            <button
-                id="logoutButton"
-                type="submit"
-                class="btn-logout"
-            >
-                Log Out
-                <img class="htmx-indicator" src="/assets/bars.svg">
-            </button>
-        </form>
-        <div id="logout-result" class="result-area"></div>
-        <p class="centered-link"><a href="/login.html">Go to Login Page</a></p>
+      <h1>Logout</h1>
+      <p>Enter your session token and click the button below to log out.</p>
+      <form
+        hx-validate="true"
+        hx-post="/api/user_logout"
+        hx-target="#logout-result"
+        hx-include="[name='sessionToken']"
+        hx-disabled-elt=".btn-logout"
+      >
+        <div class="form-group">
+          <label for="sessionToken">Session Token:</label>
+          <input
+            type="text"
+            id="sessionToken"
+            name="sessionToken"
+            placeholder="Paste your session token here"
+            required
+          />
+        </div>
+        <button id="logoutButton" type="submit" class="btn-logout">
+          Log Out
+          <img class="htmx-indicator" src="/assets/bars.svg" />
+        </button>
+      </form>
+      <div id="logout-result" class="result-area"></div>
+      <p class="centered-link"><a href="/login.html">Go to Login Page</a></p>
     </div>
-</body>
+  </body>
 </html>
