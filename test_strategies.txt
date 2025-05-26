@@ -70,8 +70,58 @@ This document outlines test strategies for core authentication features, focusin
     *   **Failure Cases:**
         *   Invalid `totp_code`.
         *   Missing `user_uuid` or `totp_code`.
-        *   `user_uuid` provided, but 2FA is not enabled for this user in `two_factor_secrets`.
-        *   `user_uuid` provided, but no corresponding `two_factor_secrets` record exists.
+        *   `user_uuid` provided, but 2FA is not enabled for this user (i.e., no record in `secrets` with `secret_type = 'totp_secret'` and `secret_enabled = 1`).
+        *   `user_uuid` provided, but no corresponding `secrets` record for `secret_type = 'totp_secret'` exists, or it's not enabled.
+
+## 2.1. 2FA Setup (`POST /api/setup_2fa_start` and `POST /api/setup_2fa_verify`)
+
+### Unit Tests:
+*   (Covered by general TOTP unit tests in section 2)
+
+### Integration Tests:
+*   **`POST /api/setup_2fa_start`:**
+    *   **Success Case:**
+        *   User is authenticated.
+        *   Verify a new record is created/replaced in `secrets` with:
+            *   `user_uuid` matching the authenticated user.
+            *   `secret_type = 'totp_secret'`.
+            *   `secret_value` containing the "sim_encrypted::" prefixed TOTP key.
+            *   `secret_name` containing the generated label (e.g., "YourApp:user@email.com").
+            *   `secret_enabled = 0`.
+            *   `secret_created_at` and `secret_last_used` are populated.
+        *   Verify response includes `qr_code_uri` and `manual_setup_code`.
+    *   **Failure Case (2FA Already Enabled):**
+        *   User has an existing `totp_secret` in `secrets` with `secret_enabled = 1`.
+        *   Verify appropriate error response (e.g., "2FA is already enabled").
+*   **`POST /api/setup_2fa_verify`:**
+    *   **Success Case:**
+        *   User is authenticated and has an unverified `totp_secret` in `secrets` (`secret_enabled = 0`).
+        *   Valid `totp_code` provided.
+        *   Verify the `secrets` record for `user_uuid` and `secret_type = 'totp_secret'` is updated:
+            *   `secret_enabled` is set to `1`.
+            *   `secret_last_used` is updated.
+        *   Verify success response.
+    *   **Failure Cases:**
+        *   Invalid `totp_code`.
+        *   No prior `totp_secret` setup found in `secrets` for the user.
+        *   2FA is already enabled (`secret_enabled = 1`).
+
+## 2.2. 2FA Removal (`POST /api/remove_2fa`)
+
+### Unit Tests:
+*   (Covered by general TOTP unit tests in section 2)
+
+### Integration Tests:
+*   **`POST /api/remove_2fa`:**
+    *   **Success Case:**
+        *   User is authenticated and has 2FA enabled (`secrets` record with `secret_type = 'totp_secret'` and `secret_enabled = 1`).
+        *   Valid `totp_code` provided.
+        *   Verify the `totp_secret` record for the user is deleted from the `secrets` table.
+        *   Verify success response.
+    *   **Failure Cases:**
+        *   Invalid `totp_code`.
+        *   2FA is not enabled for the user.
+        *   Missing `totp_code`.
 
 ## 3. Password Reset
 

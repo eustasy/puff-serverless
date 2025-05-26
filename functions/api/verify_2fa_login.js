@@ -40,14 +40,14 @@ export async function onRequestPost(context) {
   }
 
   try {
-    // Step 3: Retrieve 2FA Secret and check if 2FA is enabled
+    // Step 3: Retrieve 2FA Secret from 'secrets' table and check if 2FA is enabled
     const secretRecord = await context.env.DATABASE.prepare(
-      "SELECT encrypted_secret, is_enabled FROM two_factor_secrets WHERE user_uuid = ?1"
+      "SELECT secret_value, secret_enabled FROM secrets WHERE user_uuid = ?1 AND secret_type = 'totp_secret'"
     )
       .bind(user_uuid)
       .first();
 
-    if (!secretRecord || !secretRecord.encrypted_secret) {
+    if (!secretRecord || !secretRecord.secret_value) {
       return new Response(
         JSON.stringify({
           error: "2FA setup not found for this user. Please ensure 2FA is configured.",
@@ -56,25 +56,32 @@ export async function onRequestPost(context) {
       );
     }
 
-    if (secretRecord.is_enabled !== 1) {
+    if (secretRecord.secret_enabled !== 1) {
       return new Response(
         JSON.stringify({ error: "2FA is not enabled for this account." }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // "Decrypt" the secret
-    if (!secretRecord.encrypted_secret.startsWith("sim_encrypted::")) {
-        console.error(`Invalid secret format for user ${user_uuid}.`);
-        return new Response(JSON.stringify({ error: "Internal error with 2FA secret." }), { status: 500, headers: { "Content-Type": "application/json" } });
+    // "Decrypt" the secret_value
+    if (!secretRecord.secret_value.startsWith("sim_encrypted::")) {
+        console.error(`Invalid secret_value format for user ${user_uuid} of type 'totp_secret'.`);
+        return new Response(JSON.stringify({ error: "Internal error with 2FA secret storage." }), { status: 500, headers: { "Content-Type": "application/json" } });
     }
-    const storedSecret = secretRecord.encrypted_secret.replace("sim_encrypted::", "");
+    const storedSecret = secretRecord.secret_value.replace("sim_encrypted::", "");
 
     // Step 4: Verify TOTP Code
     const isValid = authenticator.check(totp_code, storedSecret);
 
     if (isValid) {
-      // Step 5: On Successful TOTP Verification, create a new session
+      // Step 5: On Successful TOTP Verification, update secret_last_used and create a new session
+      const now = new Date().toISOString();
+      await context.env.DATABASE.prepare(
+        "UPDATE secrets SET secret_last_used = ?1 WHERE user_uuid = ?2 AND secret_type = 'totp_secret'"
+      )
+        .bind(now, user_uuid)
+        .run();
+      
       const session_id = crypto.randomUUID();
       const expires_at = new Date(
         Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days from now

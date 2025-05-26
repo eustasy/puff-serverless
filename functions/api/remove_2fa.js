@@ -42,14 +42,14 @@ export async function onRequestPost(context) {
   }
 
   try {
-    // Step 4: Check if 2FA is Enabled and retrieve secret
-    const twoFactorRecord = await context.env.DATABASE.prepare(
-      "SELECT encrypted_secret, is_enabled FROM two_factor_secrets WHERE user_uuid = ?1"
+    // Step 4: Check if 2FA is Enabled and retrieve secret from 'secrets' table
+    const secretRecord = await context.env.DATABASE.prepare(
+      "SELECT secret_value, secret_enabled FROM secrets WHERE user_uuid = ?1 AND secret_type = 'totp_secret'"
     )
       .bind(user_uuid)
       .first();
 
-    if (!twoFactorRecord || twoFactorRecord.is_enabled !== 1) {
+    if (!secretRecord || secretRecord.secret_enabled !== 1) {
       return new Response(
         JSON.stringify({
           error: "2FA is not currently enabled for this account.",
@@ -59,12 +59,12 @@ export async function onRequestPost(context) {
     }
 
     // Step 5: Verify TOTP Code
-    // "Decrypt" the secret
-    if (!twoFactorRecord.encrypted_secret || !twoFactorRecord.encrypted_secret.startsWith("sim_encrypted::")) {
-        console.error(`Invalid or missing secret format for user ${user_uuid} during 2FA removal.`);
+    // "Decrypt" the secret_value
+    if (!secretRecord.secret_value || !secretRecord.secret_value.startsWith("sim_encrypted::")) {
+        console.error(`Invalid or missing secret_value format for user ${user_uuid} of type 'totp_secret' during 2FA removal.`);
         return new Response(JSON.stringify({ error: "Internal error with 2FA configuration." }), { status: 500, headers: { "Content-Type": "application/json" } });
     }
-    const storedSecret = twoFactorRecord.encrypted_secret.replace("sim_encrypted::", "");
+    const storedSecret = secretRecord.secret_value.replace("sim_encrypted::", "");
 
     const isValid = authenticator.check(totp_code, storedSecret);
 
@@ -75,9 +75,9 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Step 6: Remove 2FA Configuration (Delete the row)
+    // Step 6: Remove 2FA Configuration (Delete the row from 'secrets' table)
     const deleteStmt = await context.env.DATABASE.prepare(
-      "DELETE FROM two_factor_secrets WHERE user_uuid = ?1"
+      "DELETE FROM secrets WHERE user_uuid = ?1 AND secret_type = 'totp_secret'"
     )
       .bind(user_uuid)
       .run();

@@ -27,12 +27,12 @@ export async function onRequestPost(context) {
   try {
     // Step 2: Check Existing 2FA
     const existing2FARecord = await context.env.DATABASE.prepare(
-      "SELECT is_enabled FROM two_factor_secrets WHERE user_uuid = ?1"
+      "SELECT secret_enabled FROM secrets WHERE user_uuid = ?1 AND secret_type = 'totp_secret' AND secret_enabled = 1"
     )
       .bind(user_uuid)
       .first();
 
-    if (existing2FARecord && existing2FARecord.is_enabled === 1) {
+    if (existing2FARecord) { // If a record is found, it means secret_enabled was 1
       return new Response(
         JSON.stringify({
           error: "2FA is already enabled. Please remove the existing setup first.",
@@ -65,14 +65,17 @@ export async function onRequestPost(context) {
     const encrypted_secret = `sim_encrypted::${secret}`;
 
     // Step 5: Store Secret (Temporarily/Unverified)
-    // Use REPLACE INTO (or INSERT OR REPLACE) to handle existing incomplete setups
+    // Use REPLACE INTO to handle existing incomplete setups or create a new one.
+    // This assumes (user_uuid, secret_type) is effectively a unique key for TOTP,
+    // or D1's REPLACE INTO handles it by matching on existing primary key if defined,
+    // or by specific unique constraints. For this task, we'll target 'totp_secret' for replacement.
     const now = new Date().toISOString();
     await context.env.DATABASE.prepare(
-      `INSERT OR REPLACE INTO two_factor_secrets 
-       (user_uuid, secret_type, encrypted_secret, is_enabled, created_at, label) 
-       VALUES (?1, 'TOTP', ?2, 0, ?3, ?4)`
+      `REPLACE INTO secrets 
+       (user_uuid, secret_type, secret_value, secret_name, secret_enabled, secret_created_at, secret_last_used) 
+       VALUES (?1, 'totp_secret', ?2, ?3, 0, ?4, ?4)` // secret_last_used initialized to now
     )
-      .bind(user_uuid, encrypted_secret, now, label)
+      .bind(user_uuid, encrypted_secret, label, now)
       .run();
 
     // Step 6: Generate QR Code Data (TOTP Auth URI)
