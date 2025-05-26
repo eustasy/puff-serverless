@@ -20,8 +20,9 @@ export async function user_register(context, name, email, password) {
     .run()
 
   // Step 2. Register the email
+  // Set is_primary = 1 for the initial email, is_verified defaults to 0
   const insert_email = await context.env.DATABASE.prepare(
-    "INSERT INTO emails (user_uuid, email_address) VALUES (?1, ?2)"
+    "INSERT INTO emails (user_uuid, email_address, is_primary) VALUES (?1, ?2, 1)"
   )
     .bind(uuid, email)
     .run()
@@ -41,6 +42,29 @@ export async function user_register(context, name, email, password) {
     ...insert_email,
     ...insert_password,
   }
+
+  // Step 4. Generate and store email verification token
+  const verification_token = crypto.randomUUID()
+  const token_expires_at = new Date(
+    Date.now() + 24 * 60 * 60 * 1000
+  ).toISOString() // 24 hours from now
+
+  const insert_token = await context.env.DATABASE.prepare(
+    "INSERT INTO email_verifications (user_uuid, email_address, verification_token, token_expires_at) VALUES (?1, ?2, ?3, ?4)"
+  )
+    .bind(uuid, email, verification_token, token_expires_at)
+    .run()
+
+  results = {
+    ...results,
+    ...insert_token,
+  }
+
+  // Log the verification link
+  console.log(
+    `Verification link: /api/verify_email?token=${verification_token}`
+  )
+
   return results
 }
 
@@ -70,7 +94,7 @@ export async function getUserByEmail(context, email) {
 
   // Step 1: Fetch User and Email Data
   const emailRecord = await context.env.DATABASE.prepare(
-    "SELECT user_uuid FROM emails WHERE email_address = ?1 LIMIT 1"
+    "SELECT user_uuid, is_verified FROM emails WHERE email_address = ?1 LIMIT 1"
   )
     .bind(email)
     .first()
@@ -104,6 +128,7 @@ export async function getUserByEmail(context, email) {
   return {
     user_uuid: user_uuid,
     email: email, // The input email
+    is_verified: emailRecord.is_verified, // Add is_verified status
     hashedPassword: hashedPassword,
     salt: salt,
   }
@@ -114,21 +139,78 @@ export async function user_login(context, email, password) {
 
   const user = await getUserByEmail(context, email)
 
-  if (user) {
-    // Assuming verifyPassword needs the plain password, the salt, and the stored hash.
-    // And that user.hashedPassword is just the hash, and user.salt is the salt.
-    const passwordMatches = await verifyPassword(
-      password,
-      user.salt,
-      user.hashedPassword
+  if (!user) {
+    return new Response(
+      JSON.stringify({ error: "Invalid email or password." }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
     )
-    if (passwordMatches) {
-      // Session Creation (Placeholder)
-      return "Login successful! Session created."
+  }
+
+  // Check if email is verified
+  if (!user.is_verified) {
+    return new Response(
+      JSON.stringify({ error: "Please verify your email before logging in." }),
+      { status: 403, headers: { "Content-Type": "application/json" } } // 403 Forbidden
+    )
+  }
+
+  const passwordMatches = await verifyPassword(
+    password,
+    user.salt,
+    user.hashedPassword
+  )
+
+  if (passwordMatches) {
+    // Check if 2FA is enabled for the user by querying the 'secrets' table
+    const twoFactorRecord = await context.env.DATABASE.prepare(
+      "SELECT secret_enabled FROM secrets WHERE user_uuid = ?1 AND secret_type = 'totp_secret' AND secret_enabled = 1"
+    )
+      .bind(user.user_uuid)
+      .first()
+
+    if (twoFactorRecord) {
+      // If a record is found, it means secret_enabled was 1
+      // 2FA is enabled, respond that TOTP is required
+      return new Response(
+        JSON.stringify({
+          status: "2fa_required",
+          message: "Please provide your TOTP code.",
+          user_uuid: user.user_uuid, // Send user_uuid for the next step
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } } // Status 200 as it's an expected intermediate step
+      )
     } else {
-      return "Invalid email or password."
+      // 2FA is not enabled, proceed with direct session creation
+      const session_id = crypto.randomUUID()
+      const expires_at = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000
+      ).toISOString() // 7 days from now
+      const user_agent = context.request.headers.get("User-Agent") || ""
+      const ip_address = context.request.headers.get("CF-Connecting-IP") || ""
+
+      try {
+        await context.env.DATABASE.prepare(
+          "INSERT INTO sessions (session_id, user_uuid, expires_at, user_agent, ip_address) VALUES (?1, ?2, ?3, ?4, ?5)"
+        )
+          .bind(session_id, user.user_uuid, expires_at, user_agent, ip_address)
+          .run()
+
+        return new Response(JSON.stringify({ session_token: session_id }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      } catch (dbError) {
+        console.error("Database error during session creation:", dbError)
+        return new Response(
+          JSON.stringify({ error: "Failed to create session." }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        )
+      }
     }
   } else {
-    return "Invalid email or password."
+    return new Response(
+      JSON.stringify({ error: "Invalid email or password." }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    )
   }
 }
