@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Logout</title>
-    <script src="htmx_1.9.7.min.js"></script>
+    <script src="htmx_2.0.4.min.js"></script>
     <style>
         body {
             font-family: sans-serif;
@@ -79,7 +79,7 @@
             hx-trigger="click"
             hx-target="#logout-result"
             hx-disabled-elt="this"
-            hx-include="[name='sessionToken']" <!-- Ensures the token input is included -->
+            hx-include="[name='sessionToken']"
         >
             Log Out
             <span class="htmx-indicator">Processing...</span>
