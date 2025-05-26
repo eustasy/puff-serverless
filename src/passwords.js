@@ -1,4 +1,7 @@
-import { puff_hashing_sha1_hibp, puff_hashing_password } from "./utilities_hashing.js"
+import {
+  puff_hashing_sha1_hibp,
+  puff_hashing_password,
+} from "./utilities_hashing.js"
 
 export async function password_verify(pw, user_uuid) {
   // Get the user's password hash and salt from the database
@@ -7,16 +10,18 @@ export async function password_verify(pw, user_uuid) {
     FROM secrets
     WHERE user_uuid = ?1 AND secret_type = 'puff_password_sha-384'
     LIMIT 1
-  `;
-  const result = await context.env.DATABASE.prepare(query).bind(user_uuid).first();
+  `
+  const result = await context.env.DATABASE.prepare(query)
+    .bind(user_uuid)
+    .first()
   if (!result) {
-    throw new Error("User password record not found");
+    throw new Error("User password record not found")
   }
-  const { secret_value } = result;
+  const { secret_value } = result
   // Split the secret_value into the actual hash and salt
-  const [actual_hash, salt] = secret_value.split(":");
-  const { hash: attempted_hash } = await puff_hashing_password(pw, salt);
-  return attempted_hash === actual_hash;
+  const [actual_hash, salt] = secret_value.split(":")
+  const { hash: attempted_hash } = await puff_hashing_password(pw, salt)
+  return attempted_hash === actual_hash
 }
 
 export async function password_check(pw) {
