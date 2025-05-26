@@ -10,7 +10,7 @@ export async function onRequest(context) {
     bool: Boolean(count),
   }
   if (count > 0) {
-    return Response("This email is already registered.")
+    return new Response("This email is already registered.")
   }
-  return Response("")
+  return new Response("")
 }
