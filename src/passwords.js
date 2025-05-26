@@ -45,10 +45,10 @@ export async function password_requirements_html(pw) {
 
   if (pw.length >= 12) {
     response_html +=
-      '<li style="color:#064e3b"><strong>Must</strong> be at least 12 characters long</li>'
+      '<li class="result-positive"><strong>Must</strong> be at least 12 characters long</li>'
   } else {
     response_html +=
-      '<li style="color:#7f1d1d"><strong>Must</strong> be at least 12 characters long</li>'
+      '<li class="result-negative"><strong>Must</strong> be at least 12 characters long</li>'
   }
 
   var hasNumber = /\d/
@@ -56,18 +56,18 @@ export async function password_requirements_html(pw) {
   //hasNumber.test("ABC33SDF");  // true
   //hasNumber.test("ABCSDF");  // false
   if (hasNumber.test(pw)) {
-    response_html += '<li style="color:#064e3b">Should contain a number</li>'
+    response_html += '<li class="result-positive">Should contain a number</li>'
   } else {
-    response_html += '<li style="color:#7f1d1d">Should contain a number</li>'
+    response_html += '<li class="result-negative">Should contain a number</li>'
   }
 
   var hasSpecial = /[^a-zA-Z\d]/
   if (hasSpecial.test(pw)) {
     response_html +=
-      '<li style="color:#064e3b">Should contain a special character</li>'
+      '<li class="result-positive">Should contain a special character</li>'
   } else {
     response_html +=
-      '<li style="color:#7f1d1d">Should contain a special character</li>'
+      '<li class="result-negative">Should contain a special character</li>'
   }
 
   var pw_sha1 = await puff_hashing_sha1_hibp(pw)
@@ -92,12 +92,12 @@ export async function password_requirements_html(pw) {
 
     if (compromised > 0) {
       response_html +=
-        '<li style="color:#7f1d1d">Has been compromised ' +
+        '<li class="result-negative">Has been compromised ' +
         Intl.NumberFormat().format(compromised) +
         " times</li>"
     } else {
       response_html +=
-        '<li style="color:#064e3b">Should not be compromised</li>'
+        '<li class="result-positive">Should not be compromised</li>'
     }
   } catch (err) {
     response_html += "<li>" + err + "</li>"

@@ -24,7 +24,7 @@
 
 | Library | Version | Type           | Location                                                                                                      | Source                        |
 | ------- | ------- | -------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| HTMX    | 2.0.4   | Client-Side JS | [public/htmx_2.0.4.min.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/htmx_2.0.4.min.js) | [htmx.org](https://htmx.org/) |
+| HTMX    | 2.0.4   | Client-Side JS | [public/assets/htmx_2.0.4.min.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/assets/htmx_2.0.4.min.js) | [htmx.org](https://htmx.org/) |
 | otplib  | ^12.0.1 (or as per package.json) | Server-Side JS | Node module, installed via npm | [npm](https://www.npmjs.com/package/otplib) |
 
 
