@@ -87,9 +87,16 @@
                 <label for="pw">Password:</label>
                 <input type="password" id="pw" name="pw" placeholder="Password" required>
             </div>
-            <button type="submit" hx-post="/api/user_login" hx-trigger="click" hx-include="[name='email'], [name='pw']" hx-target="#login-result" hx-disabled-elt="this">
+            <button
+                type="submit"
+                hx-post="/api/user_login"
+                hx-trigger="click"
+                hx-include="[name='email'], [name='pw']"
+                hx-target="#login-result"
+                hx-disabled-elt="this"
+            >
                 Log In
-                <img class="htmx-indicator" src="/bars.svg"
+                <img class="htmx-indicator" src="/bars.svg">
             </button>
         </form>
         <div id="login-result"></div>
