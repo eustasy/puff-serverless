@@ -1,11 +1,3 @@
-//const fromHexString = (hexString) =>
-//  Uint8Array.from(hexString.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)));
-//const toHexString = (bytes) =>
-//  bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
-//console.log(toHexString(Uint8Array.from([0, 1, 2, 42, 100, 101, 102, 255])));
-//console.log(fromHexString('0001022a646566ff'));
-// source: https://stackoverflow.com/a/50868276
-
 async function HextoUint8(hexString) {
   return Uint8Array.from(
     hexString.match(/.{1,2}/g).map((byte) => parseInt(byte, 16))
@@ -27,8 +19,14 @@ export async function hashing_wrapper(pw, algo) {
   return hash
 }
 
-// SHA-1, SHA-25, SHA-384, SHA-512, MD5
-// source: https://developers.cloudflare.com/workers/runtime-apis/web-crypto/#supported-algorithms
+// puff_hashing_password(pw, salt = "", algo = "SHA-384")
+// salt is optional, if not provided, a random UUID will be generated
+// algo can be "SHA-1", "SHA-256", "SHA-384", "SHA-512", or "MD5"
+// - source: https://developers.cloudflare.com/workers/runtime-apis/web-crypto/#supported-algorithms
+// returns an object with the hash and salt
+// example:
+// const { hash, salt } = await puff_hashing_password("myPassword123", "", "SHA-384")
+// returns { hash: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z", salt: "random-uuid" }
 export async function puff_hashing_password(pw, salt = "", algo = "SHA-384") {
   if (salt.length === 0) {
     salt = await crypto.randomUUID()

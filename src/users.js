@@ -133,7 +133,7 @@ export async function getUserByEmail(context, email) {
 }
 
 export async function user_login(context, email, password) {
-  const { verifyPassword } = await import("./passwords.js") // Dynamic import
+  const { password_verify } = await import("./passwords.js") // Dynamic import
 
   const user = await getUserByEmail(context, email)
 
@@ -152,10 +152,9 @@ export async function user_login(context, email, password) {
     )
   }
 
-  const passwordMatches = await verifyPassword(
+  const passwordMatches = await password_verify(
     password,
-    user.salt,
-    user.hashedPassword
+    user.user_uuid
   )
 
   if (passwordMatches) {

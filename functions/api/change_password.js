@@ -1,5 +1,5 @@
 import { verifySession } from "../../src/session_auth.js"; // Adjust path as needed
-import { password_check, password_requirements_html, verifyPassword } from "../../src/passwords.js"; // Adjust path as needed
+import { password_check, password_requirements_html, password_verify } from "../../src/passwords.js"; // Adjust path as needed
 import { puff_hashing_password } from "../../src/utilities_hashing.js"; // Adjust path as needed
 
 export async function onRequestPost(context) {
@@ -90,10 +90,9 @@ export async function onRequestPost(context) {
       );
     }
     
-    const currentPasswordMatches = await verifyPassword(
+    const currentPasswordMatches = await password_verify(
       current_password,
-      salt,
-      hashedPassword
+      user_uuid
     );
 
     if (!currentPasswordMatches) {

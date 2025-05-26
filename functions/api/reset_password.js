@@ -47,11 +47,7 @@ export async function onRequestPost(context) {
       // You can choose to send back the HTML requirements or a simpler message
       // For this example, sending a simple message with the HTML as part of the error object.
       return new Response(
-        JSON.stringify({
-          error: "Password does not meet requirements.",
-          requirements_html: password_requirements_html(), // Send HTML for client-side display
-          details: passwordCheckResult.error, // More specific error details
-        }),
+        password_requirements_html(),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
