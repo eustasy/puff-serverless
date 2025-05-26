@@ -141,18 +141,14 @@ export async function user_login(context, email, password) {
   const user = await getUserByEmail(context, email)
 
   if (!user) {
-    return new Response(
-      "Invalid email or password.",
-      { status: 401 }
-    )
+    return new Response("Invalid email or password.", { status: 401 })
   }
 
   // Check if email is verified
   if (!user.is_verified) {
-    return new Response(
-      "Please verify your email before logging in.",
-      { status: 403 }
-    )
+    return new Response("Please verify your email before logging in.", {
+      status: 403,
+    })
   }
 
   const passwordMatches = await password_verify(password, user.user_uuid)
@@ -188,22 +184,13 @@ export async function user_login(context, email, password) {
           .bind(session_id, user.user_uuid, expires_at, user_agent, ip_address)
           .run()
 
-        return new Response(
-          `session_token: "${session_id}"`,
-          { status: 200 }
-        )
+        return new Response(`session_token: "${session_id}"`, { status: 200 })
       } catch (dbError) {
         console.error("Database error during session creation:", dbError)
-        return new Response(
-          "Failed to create session.",
-          { status: 500 }
-        )
+        return new Response("Failed to create session.", { status: 500 })
       }
     }
   } else {
-    return new Response(
-      "Invalid email or password.",
-      { status: 401 }
-    )
+    return new Response("Invalid email or password.", { status: 401 })
   }
 }
