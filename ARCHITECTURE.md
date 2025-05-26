@@ -84,21 +84,14 @@ _Note: User registration and initial login (password-only part) are handled by `
 
 ## Database Schema Changes
 
-SQL DDL statements for schema modifications are stored in `.sql` files:
-
-- `schema_changes.sql`: Initial `email_verifications` table, `emails.is_verified`, `emails.verified_at`. (Also contains the main `users`, `emails`, and `secrets` table definitions).
-- `schema_changes_sessions.sql`: `sessions` table.
-- `schema_changes_password_reset.sql`: `password_reset_tokens` table.
-- `schema_changes_backup_email.sql`: `emails.is_primary` column.
-
-Refer to these files for specific table structures and column definitions.
+SQL schema is stored in the sql folder with one file per table.
 
 **Note on `secrets` table usage for 2FA:**
-The `secrets` table is also used for storing Time-based One-Time Password (TOTP) configurations for 2nd Factor Authentication. This consolidation means the previously separate `two_factor_secrets` table (and its corresponding `schema_changes_2fa.sql` file) is now obsolete.
+The `secrets` table is also used for storing Time-based One-Time Password (TOTP) configurations for 2nd Factor Authentication.
 When used for TOTP:
 
 - `secret_type` is set to `'totp_secret'`.
 - `secret_value` stores the (simulated encrypted) TOTP secret key.
 - `secret_name` stores the authenticator app label (e.g., "YourApp:user@example.com").
 - `secret_enabled` indicates if 2FA is active for the user (1 for true, 0 for false).
-- `secret_created_at` and `secret_last_used` track the creation and usage of the TOTP configuration.Okay, I have updated `ARCHITECTURE.md`. Now I will create `test_strategies.txt` with the outlined test strategies.
+- `secret_created_at` and `secret_last_used` track the creation and usage of the TOTP configuration.
