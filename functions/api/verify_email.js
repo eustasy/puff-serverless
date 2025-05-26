@@ -16,24 +16,24 @@ export async function onRequestGet(context) {
 
   try {
     // Step 1: Query the database for the token
-    const verificationRecord = await context.env.DATABASE.prepare(
-      "SELECT * FROM email_verifications WHERE verification_token = ?1"
+    const tokenRecord = await context.env.DATABASE.prepare(
+      "SELECT * FROM tokens WHERE token_value = ?1 AND token_type = 'email_verification'"
     )
       .bind(token)
       .first();
 
-    if (!verificationRecord) {
-      return new Response("Invalid or expired token.", { status: 400 });
+    if (!tokenRecord || tokenRecord.is_used) { // Also check if token is already used
+      return new Response("Invalid, expired, or already used token.", { status: 400 });
     }
 
     // Step 2: Validate token expiration
     const now = new Date();
-    const tokenExpiresAt = new Date(verificationRecord.token_expires_at);
+    const tokenExpiresAt = new Date(tokenRecord.expires_at);
 
     if (now > tokenExpiresAt) {
-      // Optionally, delete the expired token
+      // Mark the token as used if it's expired
       await context.env.DATABASE.prepare(
-        "DELETE FROM email_verifications WHERE verification_token = ?1"
+        "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'email_verification'"
       )
         .bind(token)
         .run();
@@ -41,8 +41,8 @@ export async function onRequestGet(context) {
     }
 
     // Step 3: Mark email as verified
-    const user_uuid = verificationRecord.user_uuid;
-    const email_address = verificationRecord.email_address;
+    const user_uuid = tokenRecord.user_uuid;
+    const email_address = tokenRecord.email_address;
     const verified_at = new Date().toISOString();
 
     const updateEmailStmt = await context.env.DATABASE.prepare(
@@ -57,9 +57,9 @@ export async function onRequestGet(context) {
         return new Response("Failed to verify email. Please try registering again or contact support.", { status: 500 });
     }
     
-    // Step 4: Delete the token from email_verifications to prevent reuse
+    // Step 4: Mark the token as used in the tokens table to prevent reuse
     await context.env.DATABASE.prepare(
-      "DELETE FROM email_verifications WHERE verification_token = ?1"
+      "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'email_verification'"
     )
       .bind(token)
       .run();

@@ -59,21 +59,21 @@ export async function onRequestPost(context) {
 
     if (user && user.user_uuid) {
       // Step 4: Token Generation
-      const reset_token = crypto.randomUUID();
+      const token_value = crypto.randomUUID(); // Renamed from reset_token
       const token_expires_at = new Date(
         Date.now() + 1 * 60 * 60 * 1000 // 1 hour from now
       ).toISOString();
 
       // Step 5: Store Token
       await context.env.DATABASE.prepare(
-        "INSERT INTO password_reset_tokens (user_uuid, reset_token, token_expires_at) VALUES (?1, ?2, ?3)"
+        "INSERT INTO tokens (user_uuid, token_type, token_value, expires_at) VALUES (?1, 'password_reset', ?2, ?3)"
       )
-        .bind(user.user_uuid, reset_token, token_expires_at)
+        .bind(user.user_uuid, token_value, token_expires_at)
         .run();
 
       // Step 6: Email Sending (Simulated)
       console.log(
-        `Password reset link for ${email}: /api/reset_password?token=${reset_token} (Note: This is an API endpoint, a real link would go to a UI page).`
+        `Password reset link for ${email}: /api/reset_password?token=${token_value} (Note: This is an API endpoint, a real link would go to a UI page).`
       );
     } else {
       // Email not found or user_uuid missing, log this internally

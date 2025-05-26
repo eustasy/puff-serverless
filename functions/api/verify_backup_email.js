@@ -23,26 +23,26 @@ export async function onRequestGet(context) {
 
   try {
     // Step 2: Token Validation
-    const verificationRecord = await context.env.DATABASE.prepare(
-      "SELECT user_uuid, email_address, token_expires_at FROM email_verifications WHERE verification_token = ?1"
+    const tokenRecord = await context.env.DATABASE.prepare(
+      "SELECT user_uuid, email_address, expires_at, is_used FROM tokens WHERE token_value = ?1 AND token_type = 'backup_email_verification'"
     )
       .bind(token)
       .first();
 
-    if (!verificationRecord) {
+    if (!tokenRecord || tokenRecord.is_used) { // Check if token exists and is not already used
       return new Response(
-        JSON.stringify({ error: "Invalid or expired verification token." }),
+        JSON.stringify({ error: "Invalid, expired, or already used verification token." }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
     const now = new Date();
-    const tokenExpiresAt = new Date(verificationRecord.token_expires_at);
+    const tokenExpiresAt = new Date(tokenRecord.expires_at); // Use expires_at
 
     if (now > tokenExpiresAt) {
-      // Optionally, delete the expired token
+      // Mark the expired token as used
       await context.env.DATABASE.prepare(
-        "DELETE FROM email_verifications WHERE verification_token = ?1"
+        "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'backup_email_verification'"
       )
         .bind(token)
         .run();
@@ -52,8 +52,8 @@ export async function onRequestGet(context) {
       );
     }
 
-    const user_uuid = verificationRecord.user_uuid;
-    const email_address = verificationRecord.email_address;
+    const user_uuid = tokenRecord.user_uuid;
+    const email_address = tokenRecord.email_address;
 
     // Check if the email is already verified (for this user, as token is user-specific)
     const emailDetails = await context.env.DATABASE.prepare(
@@ -65,6 +65,12 @@ export async function onRequestGet(context) {
     if (!emailDetails) {
         // This implies the email added via add_backup_email was somehow removed before verification
         console.error(`Email ${email_address} for user ${user_uuid} not found during verification token use.`);
+        // Mark token as used to prevent re-querying
+        await context.env.DATABASE.prepare(
+            "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'backup_email_verification'"
+        )
+            .bind(token)
+            .run();
         return new Response(
             JSON.stringify({ error: "Associated email record not found. Please try adding the backup email again." }),
             { status: 400, headers: { "Content-Type": "application/json" } }
@@ -72,15 +78,15 @@ export async function onRequestGet(context) {
     }
     
     if (emailDetails.is_verified === 1) {
-      // Token is valid but email already verified. Still delete token.
+      // Token is valid but email already verified. Mark token as used.
       await context.env.DATABASE.prepare(
-        "DELETE FROM email_verifications WHERE verification_token = ?1"
+        "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'backup_email_verification'"
       )
         .bind(token)
         .run();
       return new Response(
-        JSON.stringify({ message: "This backup email is already verified." }), // Or an error if preferred
-        { status: 200, headers: { "Content-Type": "application/json" } } // Or 400
+        JSON.stringify({ message: "This backup email is already verified." }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -95,12 +101,18 @@ export async function onRequestGet(context) {
     if (updateEmailStmt.meta.changes === 0) {
         // This might happen if the email was somehow marked as primary or deleted between checks.
         console.error(`Failed to update backup email verification status for token: ${token}, user_uuid: ${user_uuid}, email: ${email_address}. Email might have been promoted or deleted.`);
+        // Mark token as used to prevent re-querying
+        await context.env.DATABASE.prepare(
+            "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'backup_email_verification'"
+        )
+            .bind(token)
+            .run();
         return new Response(JSON.stringify({ error: "Failed to verify backup email. Please try adding it again or contact support." }), { status: 500, headers: { "Content-Type": "application/json" } });
     }
 
-    // Step 4: Invalidate Token
+    // Step 4: Invalidate Token (mark as used)
     await context.env.DATABASE.prepare(
-      "DELETE FROM email_verifications WHERE verification_token = ?1"
+      "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'backup_email_verification'"
     )
       .bind(token)
       .run();
