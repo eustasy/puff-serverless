@@ -89,7 +89,7 @@
             </div>
             <button type="submit" hx-post="/api/user_login" hx-trigger="click" hx-include="[name='email'], [name='pw']" hx-target="#login-result" hx-disabled-elt="this">
                 Log In
-                <span class="htmx-indicator"> Loading...</span>
+                <img class="htmx-indicator" src="/bars.svg"
             </button>
         </form>
         <div id="login-result"></div>

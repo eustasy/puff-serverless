@@ -154,15 +154,17 @@
                 </div>
             </div>
 
-            <input
+            <button
               type="submit"
-              value="Register"
               hx-post="/api/user_register"
               hx-trigger="click"
               hx-target="#register"
               hx-include="[name='name'], [name='email'], [name='pw']"
               hx-disabled-elt="this"
-            />
+            >
+                Register
+                <img class="htmx-indicator" src="/bars.svg">
+            </button>
             <div id="register"></div> <!-- This is where the main registration result will go -->
         </form>
         <p style="margin-top: 20px; text-align: center;"><a href="/login.html">Already have an account? Login</a></p>

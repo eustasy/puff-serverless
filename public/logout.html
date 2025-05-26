@@ -75,6 +75,7 @@
         </div>
         <button
             id="logoutButton"
+            type="submit"
             hx-post="/api/user_logout"
             hx-trigger="click"
             hx-target="#logout-result"
@@ -82,7 +83,7 @@
             hx-include="[name='sessionToken']"
         >
             Log Out
-            <span class="htmx-indicator">Processing...</span>
+            <img class="htmx-indicator" src="/bars.svg">
         </button>
         <div id="logout-result"></div>
         <p style="margin-top: 20px;"><a href="/login.html">Go to Login Page</a></p>
