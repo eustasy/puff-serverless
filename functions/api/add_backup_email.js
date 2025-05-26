@@ -64,21 +64,21 @@ export async function onRequestPost(context) {
       .run();
 
     // Step 6: Generate and Store Verification Token
-    const verification_token = crypto.randomUUID();
+    const token_value = crypto.randomUUID(); // Renamed from verification_token
     const token_expires_at = new Date(
       Date.now() + 24 * 60 * 60 * 1000 // 24 hours from now
     ).toISOString();
 
-    // Reusing email_verifications table
+    // Using tokens table
     await context.env.DATABASE.prepare(
-      "INSERT INTO email_verifications (user_uuid, email_address, verification_token, token_expires_at) VALUES (?1, ?2, ?3, ?4)"
+      "INSERT INTO tokens (user_uuid, email_address, token_type, token_value, expires_at) VALUES (?1, ?2, 'backup_email_verification', ?3, ?4)"
     )
-      .bind(user_uuid, backup_email, verification_token, token_expires_at)
+      .bind(user_uuid, backup_email, token_value, token_expires_at)
       .run();
 
     // Step 7: Email Sending (Simulated)
     console.log(
-      `Verification link for backup email ${backup_email}: /api/verify_backup_email?token=${verification_token}`
+      `Verification link for backup email ${backup_email}: /api/verify_backup_email?token=${token_value}` // Use token_value
     );
 
     // Step 8: Response
