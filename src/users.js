@@ -152,7 +152,11 @@ export async function user_login(context, email, password) {
   }
 
   // Pass 'context' as the first argument
-  const passwordMatches = await password_verify(context, password, user.user_uuid)
+  const passwordMatches = await password_verify(
+    context,
+    password,
+    user.user_uuid
+  )
 
   if (passwordMatches) {
     // Check if 2FA is enabled for the user by querying the 'secrets' table
