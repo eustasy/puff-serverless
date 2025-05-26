@@ -22,14 +22,20 @@
         }
         h1 {
             color: #333;
+            text-align: center; /* Center the H1 */
         }
         input[type="text"] {
-            width: calc(100% - 22px);
+            width: calc(100% - 22px); /* Adjusted to take full width considering padding and border */
             padding: 10px;
             margin-bottom: 15px;
             border: 1px solid #ccc;
             border-radius: 4px;
             box-sizing: border-box;
+        }
+        label { /* Added style for label */
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
         }
         button {
             background-color: #dc3545; /* Red color for logout */
@@ -87,7 +93,7 @@
             <img class="htmx-indicator" src="/bars.svg">
         </button>
         <div id="logout-result"></div>
-        <p style="margin-top: 20px;"><a href="/login.html">Go to Login Page</a></p>
+        <p style="margin-top: 20px; text-align: center;"><a href="/login.html">Go to Login Page</a></p>
     </div>
 </body>
 </html>
