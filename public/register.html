@@ -1,59 +1,171 @@
-<script src="htmx_1.9.7.min.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <script src="htmx_1.9.7.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            margin: auto;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px; /* Reduced margin slightly for tighter groups */
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        button, input[type="submit"] {
+            background-color: #28a745; /* Green for register */
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 10px; /* Added margin-top to submit button */
+        }
+        button:hover, input[type="submit"]:hover {
+            background-color: #218838; /* Darker green on hover */
+        }
+        #email-exists,
+        #pw-checklist,
+        #register {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #e9ecef;
+        }
+        #email-exists:empty,
+        #pw-checklist:empty, /* Assuming pw-checklist might be empty initially or styled to hide if so */
+        #register:empty {
+            display: none;
+        }
+        .htmx-indicator {
+            display: none;
+            margin-left: 10px;
+            font-style: italic;
+        }
+        .htmx-indicator.htmx-request, .htmx-request .htmx-indicator {
+            display: inline-block;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        #pw-checklist ul {
+            list-style-type: none;
+            padding-left: 0;
+            margin-top: 5px;
+        }
+        #pw-checklist li {
+            margin-bottom: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Register</h1>
+        <form>
+            <div class="form-group">
+                <label for="name">Name:</label>
+                <input
+                  type="text"
+                  id="name" name="name"
+                  placeholder="Your Name"
+                  autocapitalize="words"
+                  autocorrect="off"
+                  spellcheck="false"
+                  maxlength="512"
+                  minlength="1"
+                  required
+                />
+            </div>
 
-<input
-  type="text"
-  name="name"
-  placeholder="Name Please"
-  autocapitalize="words"
-  autocorrect="off"
-  spellcheck="false"
-  maxlength="512"
-  minlength="1"
-/>
-<input
-  type="email"
-  name="email"
-  placeholder="you@email.com"
-  hx-get="/api/user_exists"
-  hx-trigger="keyup changed delay:500ms"
-  hx-target="#email-exists"
-  autocapitalize="off"
-  autocorrect="off"
-  spellcheck="false"
-  maxlength="512"
-  minlength="1"
-/>
-<input
-  type="password"
-  name="pw"
-  placeholder="Password"
-  hx-post="/api/password_test"
-  hx-trigger="keyup changed delay:500ms"
-  hx-target="#pw-checklist"
-  autocapitalize="off"
-  autocorrect="off"
-  spellcheck="false"
-  maxlength="512"
-  minlength="12"
-/>
-<input
-  type="submit"
-  hx-post="/api/user_register"
-  hx-trigger="click"
-  hx-target="#register"
-  hx-include="[name='name'], [name='email'], [name='pw']"
-/>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input
+                  type="email"
+                  id="email" name="email"
+                  placeholder="you@email.com"
+                  hx-get="/api/user_exists"
+                  hx-trigger="keyup changed delay:500ms"
+                  hx-target="#email-exists"
+                  autocapitalize="off"
+                  autocorrect="off"
+                  spellcheck="false"
+                  maxlength="512"
+                  minlength="1"
+                  required
+                />
+                <div id="email-exists"></div>
+            </div>
 
-<div id="email-exists"></div>
+            <div class="form-group">
+                <label for="pw">Password:</label>
+                <input
+                  type="password"
+                  id="pw" name="pw"
+                  placeholder="Password"
+                  hx-post="/api/password_test"
+                  hx-trigger="keyup changed delay:500ms"
+                  hx-target="#pw-checklist"
+                  autocapitalize="off"
+                  autocorrect="off"
+                  spellcheck="false"
+                  maxlength="512"
+                  minlength="12"
+                  required
+                />
+                <div id="pw-checklist">
+                  <!-- Initial content can be pre-filled or loaded by hx-post -->
+                  <h3>Password Requirements</h3>
+                  <ul>
+                    <li><strong>Must</strong> be at least 12 characters long</li>
+                    <li>Should contain a number</li>
+                    <li>Should contain a special character</li>
+                    <li>Should not be compromised</li>
+                  </ul>
+                </div>
+            </div>
 
-<div id="pw-checklist">
-  <h3>Password Requirements</h3>
-  <ul>
-    <li><strong>Must</strong> be at least 12 characters long</li>
-    <li>Should contain a number</li>
-    <li>Should contain a special character</li>
-    <li>Should not be compromised</li>
-  </ul>
-</div>
-
-<div id="register"></div>
+            <input
+              type="submit"
+              value="Register"
+              hx-post="/api/user_register"
+              hx-trigger="click"
+              hx-target="#register"
+              hx-include="[name='name'], [name='email'], [name='pw']"
+              hx-disabled-elt="this"
+            />
+            <div id="register"></div> <!-- This is where the main registration result will go -->
+        </form>
+        <p style="margin-top: 20px; text-align: center;"><a href="/login.html">Already have an account? Login</a></p>
+    </div>
+</body>
+</html>
