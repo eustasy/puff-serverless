@@ -61,7 +61,9 @@ export async function user_register(context, name, email, password) {
   }
 
   // Log the verification link
-  console.log(`Verification link: /api/verify_email?token=${token_value}`)
+  console.log(
+    `Verification link: /api/verify_email?token=${token_value}`
+  )
 
   return results
 }
