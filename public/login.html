@@ -6,39 +6,95 @@
     <title>Login</title>
     <script src="htmx_1.9.7.min.js"></script>
     <style>
-        #login-result p {
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            margin: auto;
+        }
+        h1 {
+            color: #333;
+            text-align: center; /* Centered h1 like typical forms */
+        }
+        input[type="email"],
+        input[type="password"] { /* Apply to both email and password inputs */
+            width: 100%; /* Full width within their container */
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box; /* Ensures padding doesn't add to width */
+        }
+        label { /* Style for labels */
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        button {
+            background-color: #007bff; /* Blue for login */
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%; /* Full width button */
+        }
+        button:hover {
+            background-color: #0056b3; /* Darker blue on hover */
+        }
+        #login-result {
+            margin-top: 20px;
             padding: 10px;
             border: 1px solid #ccc;
-            margin-top: 10px;
-            border-radius: 4px; /* Optional: for rounded corners */
+            border-radius: 4px;
+            background-color: #e9ecef;
+        }
+        #login-result:empty { /* Hide if empty */
+            display: none;
         }
         .htmx-indicator {
             display: none; /* Hidden by default */
+            margin-left: 10px;
+            font-style: italic;
         }
         /* Style for the spinner text when it's visible */
         .htmx-indicator.htmx-request, .htmx-request .htmx-indicator {
             display: inline-block; /* Shown during HTMX request */
-            font-style: italic;
-            /* Add any other desired spinner styling here, e.g., color */
+        }
+        .form-group { /* Added for better spacing of label-input pairs */
+            margin-bottom: 15px;
         }
     </style>
 </head>
 <body>
-    <h1>Login</h1>
-    <form>
-        <div>
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" placeholder="you@email.com" required>
-        </div>
-        <div>
-            <label for="pw">Password:</label>
-            <input type="password" id="pw" name="pw" placeholder="Password" required>
-        </div>
-        <button type="submit" hx-post="/api/user_login" hx-trigger="click" hx-include="[name='email'], [name='pw']" hx-target="#login-result" hx-disabled-elt="this">
-            Log In
-            <span class="htmx-indicator"> Loading...</span>
-        </button>
-    </form>
-    <div id="login-result"></div>
+    <div class="container">
+        <h1>Login</h1>
+        <form>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" placeholder="you@email.com" required>
+            </div>
+            <div class="form-group">
+                <label for="pw">Password:</label>
+                <input type="password" id="pw" name="pw" placeholder="Password" required>
+            </div>
+            <button type="submit" hx-post="/api/user_login" hx-trigger="click" hx-include="[name='email'], [name='pw']" hx-target="#login-result" hx-disabled-elt="this">
+                Log In
+                <span class="htmx-indicator"> Loading...</span>
+            </button>
+        </form>
+        <div id="login-result"></div>
+        <p style="margin-top: 20px; text-align: center;"><a href="/register.html">Don't have an account? Register</a></p>
+        <p style="margin-top: 10px; text-align: center;"><a href="/logout.html">Go to Logout Page</a></p>
+    </div>
 </body>
 </html>
