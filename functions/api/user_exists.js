@@ -9,5 +9,8 @@ export async function onRequest(context) {
     count: count,
     bool: Boolean(count),
   }
-  return Response.json(results)
+  if (count > 0) {
+    return Response("This email is already registered.")
+  }
+  return Response("")
 }
