@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS secrets (
     secret_name STRING,
     secret_enabled INT,
     secret_created_at STRING NOT NULL,
-    secret_last_used STRING NOT NULL
+    secret_last_used STRING NOT NULL DEFAULT 'never'
 );
 
 CREATE INDEX IF NOT EXISTS idx_secret_user_uuid ON secrets(user_uuid);

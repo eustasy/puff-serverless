@@ -9,7 +9,10 @@ export async function user_register(context, name, email, password) {
   }
 
   // Step 0. Prep work
-  // TODO Check the email isn't already registered
+  const emailExists = await user_exists(context, email)
+  if (emailExists) {
+    throw new Error("Email is already registered.")
+  }
 
   // Step 1. Register the user
   const uuid = await crypto.randomUUID()

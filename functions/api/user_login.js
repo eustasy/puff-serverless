@@ -5,5 +5,11 @@ export async function onRequest(context) {
   const email = await formdata.get("email")
   const pw = await formdata.get("pw")
   const results = await user_login(context, email, pw)
-  return new Response(results)
+  return new Response(
+    JSON.stringify(results),
+    { 
+      status: results.error ? 401 : 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  )
 }
