@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logout</title>
+    <script src="htmx_1.9.7.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            margin: auto;
+        }
+        h1 {
+            color: #333;
+        }
+        input[type="text"] {
+            width: calc(100% - 22px); /* Adjusted for potential padding/border */
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box; /* Ensures padding doesn't add to width */
+        }
+        button {
+            background-color: #dc3545; /* Red color for logout */
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #c82333; /* Darker red on hover */
+        }
+        #logout-result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #e9ecef;
+        }
+        #logout-result:empty {
+            display: none;
+        }
+        .htmx-indicator {
+            display: none; /* Hidden by default */
+            margin-left: 10px;
+            font-style: italic;
+        }
+        /* Style for the spinner text when it's visible */
+        .htmx-indicator.htmx-request, .htmx-request .htmx-indicator {
+            display: inline-block; /* Shown during HTMX request */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Logout</h1>
+        <p>Enter your session token and click the button below to log out.</p>
+        <div>
+            <label for="sessionToken">Session Token:</label>
+            <!-- Ensuring name attribute is present for hx-include -->
+            <input type="text" id="sessionToken" name="sessionToken" placeholder="Paste your session token here" style="width: 100%;">
+        </div>
+        <button
+            id="logoutButton"
+            hx-post="/api/user_logout"
+            hx-trigger="click"
+            hx-target="#logout-result"
+            hx-disabled-elt="this"
+            hx-include="[name='sessionToken']" <!-- Ensures the token input is included -->
+        >
+            Log Out
+            <span class="htmx-indicator">Processing...</span>
+        </button>
+        <div id="logout-result"></div>
+        <p style="margin-top: 20px;"><a href="/login.html">Go to Login Page</a></p>
+    </div>
+</body>
+</html>
