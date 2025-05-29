@@ -1,4 +1,4 @@
-import { user_login } from "./../../src/users.js" // user_login is now pg-ready
+import { user_login } from "../../../src/users.js" // user_login is now pg-ready
 
 export async function onRequest(context) {
   // Validate context and HYPERDRIVE binding (user_login will also do this)

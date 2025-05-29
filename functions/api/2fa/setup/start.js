@@ -1,4 +1,4 @@
-import { verifySession } from "../../src/session_auth.js" // Adjust path as needed
+import { verifySession } from "../../../../src/session_auth.js" // Adjust path as needed
 import { authenticator } from "otplib" // Using otplib
 const { Client } = require("pg")
 

@@ -1,4 +1,4 @@
-import { user_exists } from "./../../src/users.js"
+import { user_exists } from "../../../src/users.js"
 
 export async function onRequest(context) {
   // Validate context and HYPERDRIVE binding (though user_exists will also do this)

@@ -1,4 +1,4 @@
-import { verifySession } from "../../src/session_auth.js" // Adjust path as needed
+import { verifySession } from "../../../../src/session_auth.js" // Adjust path as needed
 import { authenticator } from "otplib" // Using otplib
 const { Client } = require("pg")
 
@@ -6,7 +6,7 @@ export async function onRequestPost(context) {
   // Validate context and HYPERDRIVE binding
   if (!context || !context.env || !context.env.HYPERDRIVE) {
     console.error(
-      "Hyperdrive binding [HYPERDRIVE] not found in remove_2fa. Check Pages Function configuration."
+      "Hyperdrive binding [HYPERDRIVE] not found in setup_2fa_verify. Check Pages Function configuration."
     )
     return new Response(
       JSON.stringify({ error: "Internal server configuration error." }),
@@ -14,14 +14,14 @@ export async function onRequestPost(context) {
     )
   }
 
-  // Step 1: Session Verification
+  // Step 1: Verify the session
   const sessionVerificationResult = await verifySession(context)
   if (sessionVerificationResult instanceof Response) {
-    return sessionVerificationResult // Session invalid or error occurred
+    return sessionVerificationResult // Auth failed or error occurred
   }
   const user_uuid = context.data.user_uuid
 
-  // Step 2: Parse JSON body
+  // Step 2: Parse JSON body for TOTP code
   let requestBody
   try {
     requestBody = await context.request.json()
@@ -33,8 +33,6 @@ export async function onRequestPost(context) {
   }
 
   const totp_code = requestBody.totp_code
-
-  // Step 3: Input Validation
   if (!totp_code || typeof totp_code !== "string") {
     return new Response(
       JSON.stringify({ error: "TOTP code is missing or invalid." }),
@@ -49,7 +47,7 @@ export async function onRequestPost(context) {
   try {
     await client.connect()
 
-    // Step 4: Check if 2FA is Enabled and retrieve secret from \'secrets\' table
+    // Step 3: Retrieve Stored Secret from \'secrets\' table
     const secretQuery = {
       text: "SELECT secret_value, secret_enabled FROM secrets WHERE user_uuid = $1 AND secret_type = \'totp_secret\'",
       values: [user_uuid],
@@ -57,25 +55,32 @@ export async function onRequestPost(context) {
     const secretResult = await client.query(secretQuery)
     const secretRecord = secretResult.rows[0]
 
-    if (!secretRecord || secretRecord.secret_enabled !== true) {
+    if (!secretRecord || !secretRecord.secret_value) {
       return new Response(
         JSON.stringify({
-          error: "2FA is not currently enabled for this account.",
+          error:
+            "2FA setup not initiated or secret not found. Please start setup first.",
         }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       )
     }
 
-    // Step 5: Verify TOTP Code
-    if (
-      !secretRecord.secret_value ||
-      !secretRecord.secret_value.startsWith("sim_encrypted::")
-    ) {
+    if (secretRecord.secret_enabled === true) {
+      return new Response(
+        JSON.stringify({
+          message: "2FA is already verified and enabled.",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    }
+
+    // "Decrypt" the secret_value
+    if (!secretRecord.secret_value.startsWith("sim_encrypted::")) {
       console.error(
-        `Invalid or missing secret_value format for user ${user_uuid} of type \'totp_secret\' during 2FA removal.`
+        `Invalid secret_value format for user ${user_uuid} of type \'totp_secret\'.`
       )
       return new Response(
-        JSON.stringify({ error: "Internal error with 2FA configuration." }),
+        JSON.stringify({ error: "Internal error with 2FA secret storage." }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       )
     }
@@ -84,39 +89,35 @@ export async function onRequestPost(context) {
       ""
     )
 
+    // Step 4: Verify TOTP Code
     const isValid = authenticator.check(totp_code, storedSecret)
 
-    if (!isValid) {
-      return new Response(JSON.stringify({ error: "Invalid TOTP code." }), {
-        status: 400, // Or 401 Unauthorized
-        headers: { "Content-Type": "application/json" },
-      })
-    }
+    if (isValid) {
+      // Step 5: On Successful Verification, enable 2FA in \'secrets\' table
+      const now = new Date().toISOString()
+      const updateSecretQuery = {
+        text: "UPDATE secrets SET secret_enabled = TRUE, secret_last_used = $1 WHERE user_uuid = $2 AND secret_type = \'totp_secret\'",
+        values: [now, user_uuid],
+      }
+      await client.query(updateSecretQuery)
 
-    // Step 6: Remove 2FA Configuration (Delete the row from \'secrets\' table)
-    const deleteQuery = {
-      text: "DELETE FROM secrets WHERE user_uuid = $1 AND secret_type = \'totp_secret\'",
-      values: [user_uuid],
-    }
-    const deleteResult = await client.query(deleteQuery)
-
-    if (deleteResult.rowCount === 0) {
-      console.warn(
-        `Failed to delete 2FA record for user ${user_uuid}, record possibly already deleted.`
+      return new Response(
+        JSON.stringify({ message: "2FA setup successful and enabled." }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    } else {
+      // Step 6: On Failed Verification
+      return new Response(
+        JSON.stringify({ error: "Invalid TOTP code. Please try again." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       )
     }
-
-    // Step 7: Response
+  } catch (error) {
+    console.error("Error during 2FA verification:", error)
     return new Response(
       JSON.stringify({
-        message: "Two-factor authentication has been removed successfully.",
+        error: "Failed to verify 2FA setup due to a server error.",
       }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    )
-  } catch (error) {
-    console.error("Error during 2FA removal:", error)
-    return new Response(
-      JSON.stringify({ error: "Failed to remove 2FA due to a server error." }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )
   } finally {
