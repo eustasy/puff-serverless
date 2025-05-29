@@ -1,4 +1,4 @@
-import { getUserByEmail } from "../../src/users.js" // Adjust path as needed
+import { getUserByEmail } from "../../../../src/users.js" // Adjust path as needed
 const { Client } = require("pg")
 
 export async function onRequestPost(context) {

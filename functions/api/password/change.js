@@ -1,10 +1,10 @@
-import { verifySession } from "../../src/session_auth.js" // verifySession is now pg-ready
+import { verifySession } from "../../../src/session_auth.js" // verifySession is now pg-ready
 import {
   password_check, // Remains non-DB
   // password_requirements_html, // Remains non-DB
   password_verify, // Is now pg-ready
-} from "../../src/passwords.js"
-import { puff_hashing_password } from "../../src/utilities_hashing.js" // Remains non-DB
+} from "../../../src/passwords.js"
+import { puff_hashing_password } from "../../../src/utilities_hashing.js" // Remains non-DB
 
 export async function onRequestPost(context) {
   // Validate context and HYPERDRIVE binding

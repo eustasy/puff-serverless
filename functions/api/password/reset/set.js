@@ -1,8 +1,8 @@
 import {
   password_check,
   password_requirements_html,
-} from "../../src/passwords.js" // Adjust path as needed
-import { puff_hashing_password } from "../../src/utilities_hashing.js" // Adjust path as needed
+} from "../../../../src/passwords.js" // Adjust path as needed
+import { puff_hashing_password } from "../../../../src/utilities_hashing.js" // Adjust path as needed
 const { Client } = require("pg")
 
 export async function onRequestPost(context) {
