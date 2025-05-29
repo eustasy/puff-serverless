@@ -1,11 +1,13 @@
 export async function verifySession(context) {
-  // Validate context and DATABASE binding
-  if (!context || !context.env || !context.env.DATABASE) {
+  // Validate context and HYPERDRIVE binding
+  if (!context || !context.env || !context.env.HYPERDRIVE) {
     console.error(
-      "D1 Database binding [DATABASE] not found in verifySession. Check Pages Function configuration."
+      "Hyperdrive binding [HYPERDRIVE] not found in verifySession. Check Pages Function configuration."
     )
     return new Response("Internal server configuration error.", { status: 500 })
   }
+  const { Client } = require("pg")
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   const authHeader = context.request.headers.get("Authorization")
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -25,11 +27,12 @@ export async function verifySession(context) {
   }
 
   try {
-    const sessionRecord = await context.env.DATABASE.prepare(
-      "SELECT user_uuid, expires_at FROM sessions WHERE session_id = ?1"
+    await client.connect()
+    const sessionRecordResult = await client.query(
+      "SELECT user_uuid, expires_at FROM sessions WHERE session_id = $1",
+      [token]
     )
-      .bind(token)
-      .first()
+    const sessionRecord = sessionRecordResult.rows[0]
 
     if (!sessionRecord) {
       return new Response("Invalid session token.", {
@@ -43,11 +46,7 @@ export async function verifySession(context) {
 
     if (now > expiresAt) {
       // Optionally, delete the expired session token from the database
-      await context.env.DATABASE.prepare(
-        "DELETE FROM sessions WHERE session_id = ?1"
-      )
-        .bind(token)
-        .run()
+      await client.query("DELETE FROM sessions WHERE session_id = $1", [token])
       return new Response("Session token expired.", {
         status: 401,
         headers: {
@@ -73,5 +72,7 @@ export async function verifySession(context) {
         status: 500,
       }
     )
+  } finally {
+    await client.end()
   }
 }

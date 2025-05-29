@@ -1,7 +1,7 @@
 import {
   puff_hashing_password,
   puff_hashing_sha1_hibp,
-} from "./../../src/utilities_hashing.js"
+} from "../../../src/utilities_hashing.js"
 
 export async function onRequest(context) {
   const pw = "B4c0//"

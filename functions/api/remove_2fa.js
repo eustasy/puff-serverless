@@ -1,11 +1,12 @@
 import { verifySession } from "../../src/session_auth.js" // Adjust path as needed
 import { authenticator } from "otplib" // Using otplib
+const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-  // Validate context and DATABASE binding
-  if (!context || !context.env || !context.env.DATABASE) {
+  // Validate context and HYPERDRIVE binding
+  if (!context || !context.env || !context.env.HYPERDRIVE) {
     console.error(
-      "D1 Database binding [DATABASE] not found in remove_2fa. Check Pages Function configuration."
+      "Hyperdrive binding [HYPERDRIVE] not found in remove_2fa. Check Pages Function configuration."
     )
     return new Response(
       JSON.stringify({ error: "Internal server configuration error." }),
@@ -41,15 +42,22 @@ export async function onRequestPost(context) {
     )
   }
 
-  try {
-    // Step 4: Check if 2FA is Enabled and retrieve secret from 'secrets' table
-    const secretRecord = await context.env.DATABASE.prepare(
-      "SELECT secret_value, secret_enabled FROM secrets WHERE user_uuid = ?1 AND secret_type = 'totp_secret'"
-    )
-      .bind(user_uuid)
-      .first()
+  const client = new Client({
+    connectionString: context.env.HYPERDRIVE.connectionString,
+  })
 
-    if (!secretRecord || secretRecord.secret_enabled !== 1) {
+  try {
+    await client.connect()
+
+    // Step 4: Check if 2FA is Enabled and retrieve secret from \'secrets\' table
+    const secretQuery = {
+      text: "SELECT secret_value, secret_enabled FROM secrets WHERE user_uuid = $1 AND secret_type = \'totp_secret\'",
+      values: [user_uuid],
+    }
+    const secretResult = await client.query(secretQuery)
+    const secretRecord = secretResult.rows[0]
+
+    if (!secretRecord || secretRecord.secret_enabled !== true) {
       return new Response(
         JSON.stringify({
           error: "2FA is not currently enabled for this account.",
@@ -59,13 +67,12 @@ export async function onRequestPost(context) {
     }
 
     // Step 5: Verify TOTP Code
-    // "Decrypt" the secret_value
     if (
       !secretRecord.secret_value ||
       !secretRecord.secret_value.startsWith("sim_encrypted::")
     ) {
       console.error(
-        `Invalid or missing secret_value format for user ${user_uuid} of type 'totp_secret' during 2FA removal.`
+        `Invalid or missing secret_value format for user ${user_uuid} of type \'totp_secret\' during 2FA removal.`
       )
       return new Response(
         JSON.stringify({ error: "Internal error with 2FA configuration." }),
@@ -81,27 +88,22 @@ export async function onRequestPost(context) {
 
     if (!isValid) {
       return new Response(JSON.stringify({ error: "Invalid TOTP code." }), {
-        status: 400,
+        status: 400, // Or 401 Unauthorized
         headers: { "Content-Type": "application/json" },
       })
     }
 
-    // Step 6: Remove 2FA Configuration (Delete the row from 'secrets' table)
-    const deleteStmt = await context.env.DATABASE.prepare(
-      "DELETE FROM secrets WHERE user_uuid = ?1 AND secret_type = 'totp_secret'"
-    )
-      .bind(user_uuid)
-      .run()
+    // Step 6: Remove 2FA Configuration (Delete the row from \'secrets\' table)
+    const deleteQuery = {
+      text: "DELETE FROM secrets WHERE user_uuid = $1 AND secret_type = \'totp_secret\'",
+      values: [user_uuid],
+    }
+    const deleteResult = await client.query(deleteQuery)
 
-    if (deleteStmt.meta.changes === 0) {
-      // This would be unusual if the previous checks passed and TOTP was valid.
-      // Could indicate a race condition or that the record was deleted by another process
-      // between the check and the deletion.
+    if (deleteResult.rowCount === 0) {
       console.warn(
         `Failed to delete 2FA record for user ${user_uuid}, record possibly already deleted.`
       )
-      // Still, from the user's perspective, 2FA is not active if the record is gone.
-      // So, we can return a success message, but log a warning.
     }
 
     // Step 7: Response
@@ -117,15 +119,19 @@ export async function onRequestPost(context) {
       JSON.stringify({ error: "Failed to remove 2FA due to a server error." }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )
+  } finally {
+    if (client) {
+      await client.end()
+    }
   }
 }
 
 export async function onRequest(context) {
-  if (context.request.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-      status: 405,
-      headers: { "Allow": "POST", "Content-Type": "application/json" },
-    })
+  if (context.request.method === "POST") {
+    return await onRequestPost(context)
   }
-  // For POST requests, Cloudflare Pages will automatically route to onRequestPost.
+  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+    status: 405,
+    headers: { "Allow": "POST", "Content-Type": "application/json" },
+  })
 }

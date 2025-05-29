@@ -1,10 +1,11 @@
 import { verifySession } from "../../src/session_auth.js" // Adjust path as needed
+const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-  // Validate context and DATABASE binding
-  if (!context || !context.env || !context.env.DATABASE) {
+  // Validate context and HYPERDRIVE binding
+  if (!context || !context.env || !context.env.HYPERDRIVE) {
     console.error(
-      "D1 Database binding [DATABASE] not found in add_backup_email. Check Pages Function configuration."
+      "Hyperdrive binding [HYPERDRIVE] not found in add_backup_email. Check Pages Function configuration."
     )
     return new Response(
       JSON.stringify({ error: "Internal server configuration error." }),
@@ -44,15 +45,21 @@ export async function onRequestPost(context) {
     )
   }
 
-  try {
-    // Step 4: Check if Email Exists for any user
-    const existingEmail = await context.env.DATABASE.prepare(
-      "SELECT email_id FROM emails WHERE email_address = ?1 LIMIT 1"
-    )
-      .bind(backup_email)
-      .first()
+  const client = new Client({
+    connectionString: context.env.HYPERDRIVE.connectionString,
+  })
 
-    if (existingEmail) {
+  try {
+    await client.connect()
+
+    // Step 4: Check if Email Exists for any user
+    const existingEmailQuery = {
+      text: "SELECT email_id FROM emails WHERE email_address = $1 LIMIT 1",
+      values: [backup_email],
+    }
+    const existingEmailResult = await client.query(existingEmailQuery)
+
+    if (existingEmailResult.rowCount > 0) {
       return new Response(
         JSON.stringify({ error: "This email address is already in use." }),
         { status: 409, headers: { "Content-Type": "application/json" } } // 409 Conflict
@@ -60,29 +67,28 @@ export async function onRequestPost(context) {
     }
 
     // Step 5: Store Backup Email (Unverified)
-    // is_verified defaults to 0, verified_at to NULL (if schema defines it), is_primary to 0
-    await context.env.DATABASE.prepare(
-      "INSERT INTO emails (user_uuid, email_address, is_primary) VALUES (?1, ?2, 0)"
-    )
-      .bind(user_uuid, backup_email)
-      .run()
+    // is_verified defaults to FALSE, verified_at to NULL, is_primary to FALSE in PG schema
+    const insertEmailQuery = {
+      text: "INSERT INTO emails (user_uuid, email_address, is_primary, is_verified) VALUES ($1, $2, FALSE, FALSE)",
+      values: [user_uuid, backup_email],
+    }
+    await client.query(insertEmailQuery)
 
     // Step 6: Generate and Store Verification Token
-    const token_value = crypto.randomUUID() // Renamed from verification_token
+    const token_value = crypto.randomUUID()
     const token_expires_at = new Date(
       Date.now() + 24 * 60 * 60 * 1000 // 24 hours from now
     ).toISOString()
 
-    // Using tokens table
-    await context.env.DATABASE.prepare(
-      "INSERT INTO tokens (user_uuid, email_address, token_type, token_value, expires_at) VALUES (?1, ?2, 'backup_email_verification', ?3, ?4)"
-    )
-      .bind(user_uuid, backup_email, token_value, token_expires_at)
-      .run()
+    const insertTokenQuery = {
+      text: "INSERT INTO tokens (user_uuid, email_address, token_type, token_value, expires_at) VALUES ($1, $2, \'backup_email_verification\', $3, $4)",
+      values: [user_uuid, backup_email, token_value, token_expires_at],
+    }
+    await client.query(insertTokenQuery)
 
     // Step 7: Email Sending (Simulated)
     console.log(
-      `Verification link for backup email ${backup_email}: /api/verify_backup_email?token=${token_value}` // Use token_value
+      `Verification link for backup email ${backup_email}: /api/verify_backup_email?token=${token_value}`
     )
 
     // Step 8: Response
@@ -96,11 +102,10 @@ export async function onRequestPost(context) {
   } catch (error) {
     console.error("Error during adding backup email:", error)
     // Check for unique constraint violation on emails (user_uuid, email_address) specifically
+    // PostgreSQL error code for unique_violation is '23505'
     if (
-      error.message &&
-      error.message.includes(
-        "UNIQUE constraint failed: emails.user_uuid, emails.email_address"
-      )
+      error.code === "23505" &&
+      error.constraint === "emails_user_uuid_email_address_key"
     ) {
       return new Response(
         JSON.stringify({
@@ -115,14 +120,19 @@ export async function onRequestPost(context) {
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )
+  } finally {
+    if (client) {
+      await client.end()
+    }
   }
 }
 
 export async function onRequest(context) {
-  if (context.request.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-      status: 405,
-      headers: { "Allow": "POST", "Content-Type": "application/json" },
-    })
+  if (context.request.method === "POST") {
+    return await onRequestPost(context)
   }
+  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+    status: 405,
+    headers: { "Allow": "POST", "Content-Type": "application/json" },
+  })
 }

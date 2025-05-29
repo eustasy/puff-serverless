@@ -1,13 +1,15 @@
-import { verifySession } from "../../src/session_auth.js" // Adjust path as needed
+// import { verifySession } from "../../src/session_auth.js" // verifySession is not used here as per the simplified logic
 
 export async function onRequestPost(context) {
-  // Validate context and DATABASE binding
-  if (!context || !context.env || !context.env.DATABASE) {
+  // Validate context and HYPERDRIVE binding
+  if (!context || !context.env || !context.env.HYPERDRIVE) {
     console.error(
-      "D1 Database binding [DATABASE] not found in user_logout. Check Pages Function configuration."
+      "Hyperdrive binding [HYPERDRIVE] not found in user_logout. Check Pages Function configuration."
     )
     return new Response("Internal server configuration error.", { status: 500 })
   }
+  const { Client } = require("pg")
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   // Step 1: Get the token from FormData
   let token
@@ -27,27 +29,29 @@ export async function onRequestPost(context) {
 
   // Step 2: Attempt to delete the session token
   try {
-    const deleteStmt = await context.env.DATABASE.prepare(
-      "DELETE FROM sessions WHERE session_id = ?1"
+    await client.connect()
+    const deleteResult = await client.query(
+      "DELETE FROM sessions WHERE session_id = $1",
+      [token]
     )
-      .bind(token)
-      .run()
 
-    const changes =
-      deleteStmt.meta.changes !== undefined ? deleteStmt.meta.changes : 0
+    const changes = deleteResult.rowCount
     return new Response(`Sessions deleted: ${changes}`, { status: 200 })
   } catch (error) {
     console.error("Error during session deletion:", error)
     return new Response("Logout failed due to a server error.", { status: 500 })
+  } finally {
+    await client.end()
   }
 }
 
 // Fallback for other methods if needed
 export async function onRequest(context) {
-  if (context.request.method !== "POST") {
-    return new Response("Method Not Allowed", {
-      status: 405,
-      headers: { Allow: "POST" },
-    })
+  if (context.request.method === "POST") {
+    return onRequestPost(context) // Route POST to onRequestPost
   }
+  return new Response("Method Not Allowed", {
+    status: 405,
+    headers: { Allow: "POST" },
+  })
 }

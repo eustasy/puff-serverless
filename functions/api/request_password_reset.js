@@ -1,10 +1,11 @@
 import { getUserByEmail } from "../../src/users.js" // Adjust path as needed
+const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-  // Validate context and DATABASE binding
-  if (!context || !context.env || !context.env.DATABASE) {
+  // Validate context and HYPERDRIVE binding
+  if (!context || !context.env || !context.env.HYPERDRIVE) {
     console.error(
-      "D1 Database binding [DATABASE] not found in request_password_reset. Check Pages Function configuration."
+      "Hyperdrive binding [HYPERDRIVE] not found in request_password_reset. Check Pages Function configuration."
     )
     // Even in this case, return a generic message to avoid leaking info about server state
     return new Response(
@@ -52,24 +53,29 @@ export async function onRequestPost(context) {
     { status: 200, headers: { "Content-Type": "application/json" } }
   )
 
+  const client = new Client({
+    connectionString: context.env.HYPERDRIVE.connectionString,
+  })
+
   try {
     // Step 3: User Lookup
-    // getUserByEmail returns { user_uuid, email, is_verified, hashedPassword, salt } or null
+    // getUserByEmail is already migrated and uses pg client internally
     const user = await getUserByEmail(context, email)
 
     if (user && user.user_uuid) {
+      await client.connect() // Connect only if we need to insert a token
       // Step 4: Token Generation
-      const token_value = crypto.randomUUID() // Renamed from reset_token
+      const token_value = crypto.randomUUID()
       const token_expires_at = new Date(
         Date.now() + 1 * 60 * 60 * 1000 // 1 hour from now
       ).toISOString()
 
       // Step 5: Store Token
-      await context.env.DATABASE.prepare(
-        "INSERT INTO tokens (user_uuid, token_type, token_value, expires_at) VALUES (?1, 'password_reset', ?2, ?3)"
-      )
-        .bind(user.user_uuid, token_value, token_expires_at)
-        .run()
+      const insertTokenQuery = {
+        text: "INSERT INTO tokens (user_uuid, token_type, token_value, expires_at) VALUES ($1, \'password_reset\', $2, $3)",
+        values: [user.user_uuid, token_value, token_expires_at],
+      }
+      await client.query(insertTokenQuery)
 
       // Step 6: Email Sending (Simulated)
       console.log(
@@ -86,18 +92,21 @@ export async function onRequestPost(context) {
     return genericSuccessResponse
   } catch (error) {
     console.error("Error during password reset request:", error)
-    // In case of an unexpected server error, still return the generic message
-    // to avoid leaking any information about the error.
     return genericSuccessResponse
+  } finally {
+    if (client && client._connected) {
+      // Check if client was connected before trying to end
+      await client.end()
+    }
   }
 }
 
 export async function onRequest(context) {
-  if (context.request.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-      status: 405,
-      headers: { "Allow": "POST", "Content-Type": "application/json" },
-    })
+  if (context.request.method === "POST") {
+    return await onRequestPost(context) // Ensure onRequestPost is awaited
   }
-  // For POST requests, Cloudflare Pages will automatically route to onRequestPost.
+  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+    status: 405,
+    headers: { "Allow": "POST", "Content-Type": "application/json" },
+  })
 }

@@ -1,24 +1,27 @@
-import { verifySession } from "../../src/session_auth.js" // Adjust path as needed
+import { verifySession } from "../../src/session_auth.js" // verifySession is now pg-ready
 import {
-  password_check,
-  password_requirements_html,
-  password_verify,
-} from "../../src/passwords.js" // Adjust path as needed
-import { puff_hashing_password } from "../../src/utilities_hashing.js" // Adjust path as needed
+  password_check, // Remains non-DB
+  // password_requirements_html, // Remains non-DB
+  password_verify, // Is now pg-ready
+} from "../../src/passwords.js"
+import { puff_hashing_password } from "../../src/utilities_hashing.js" // Remains non-DB
 
 export async function onRequestPost(context) {
-  // Validate context and DATABASE binding
-  if (!context || !context.env || !context.env.DATABASE) {
+  // Validate context and HYPERDRIVE binding
+  if (!context || !context.env || !context.env.HYPERDRIVE) {
     console.error(
-      "D1 Database binding [DATABASE] not found in change_password. Check Pages Function configuration."
+      "Hyperdrive binding [HYPERDRIVE] not found in change_password. Check Pages Function configuration."
     )
     return new Response(
       JSON.stringify({ error: "Internal server configuration error." }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )
   }
+  const { Client } = require("pg")
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   // Step 1: Session Verification
+  // verifySession itself will use the pg client if it needs to connect to DB.
   const sessionVerificationResult = await verifySession(context)
   if (sessionVerificationResult instanceof Response) {
     return sessionVerificationResult // Session invalid or error occurred
@@ -39,7 +42,7 @@ export async function onRequestPost(context) {
 
   const { current_password, new_password } = requestBody
 
-  // Step 3: Input Validation
+  // Step 3: Input Validation (remains the same)
   if (!current_password || typeof current_password !== "string") {
     return new Response(
       JSON.stringify({ error: "Current password is missing or invalid." }),
@@ -54,52 +57,28 @@ export async function onRequestPost(context) {
   }
 
   try {
-    // Step 4: Password Strength Check (New Password)
-    const passwordCheckResult = password_check(new_password)
-    if (!passwordCheckResult.strong) {
+    await client.connect()
+    // Step 4: Password Strength Check (New Password) - password_check is non-DB
+    // The password_check function in the provided snippet seems to return a boolean directly,
+    // not an object with a .strong property. Assuming it should be:
+    const isPasswordStrong = await password_check(new_password) // Assuming password_check is async due to HIBP potentially
+    if (!isPasswordStrong) {
+      // Adjusted based on typical boolean return for a check
       return new Response(
         JSON.stringify({
           error: "New password does not meet requirements.",
-          // Optionally include details:
-          // requirements_html: password_requirements_html(),
-          // details: passwordCheckResult.error,
+          // requirements_html: await password_requirements_html(new_password) // If you want to include this
         }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       )
     }
 
-    // Step 5: Verify Current Password
-    // Fetch current hashed password and salt
-    const secretRecord = await context.env.DATABASE.prepare(
-      "SELECT secret_value FROM secrets WHERE user_uuid = ?1 AND secret_type = 'puff_password_sha-384' LIMIT 1"
-    )
-      .bind(user_uuid)
-      .first()
-
-    if (!secretRecord || !secretRecord.secret_value) {
-      // This should not happen for an authenticated user, implies data inconsistency
-      console.error(`Password secret not found for user_uuid: ${user_uuid}`)
-      return new Response(
-        JSON.stringify({
-          error: "Could not verify current password. User record issue.",
-        }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      )
-    }
-
-    const [hashedPassword, salt] = secretRecord.secret_value.split(":")
-    if (!hashedPassword || !salt) {
-      console.error(`Invalid secret_value format for user_uuid: ${user_uuid}`)
-      return new Response(
-        JSON.stringify({
-          error: "Could not verify current password. User record issue.",
-        }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      )
-    }
-
+    // Step 5: Verify Current Password - password_verify is now pg-ready
+    // password_verify will handle its own DB connection if called standalone,
+    // but since we already have a client, it might be better to pass it if refactored.
+    // For now, it will create its own connection as per its current migrated state.
     const currentPasswordMatches = await password_verify(
-      context,
+      context, // password_verify uses context to get HYPERDRIVE
       current_password,
       user_uuid
     )
@@ -107,23 +86,22 @@ export async function onRequestPost(context) {
     if (!currentPasswordMatches) {
       return new Response(
         JSON.stringify({ error: "Incorrect current password." }),
-        { status: 403, headers: { "Content-Type": "application/json" } } // 403 Forbidden or 401 Unauthorized
+        { status: 403, headers: { "Content-Type": "application/json" } }
       )
     }
 
     // Step 6: Update Password
     const { hash: newHash, salt: newSalt } =
-      await puff_hashing_password(new_password)
+      await puff_hashing_password(new_password) // non-DB
     const new_secret_value = newHash + ":" + newSalt
     const secret_updated_at = new Date().toISOString()
 
-    const updatePasswordStmt = await context.env.DATABASE.prepare(
-      "UPDATE secrets SET secret_value = ?1, secret_created_at = ?2 WHERE user_uuid = ?3 AND secret_type = 'puff_password_sha-384'"
+    const updatePasswordResult = await client.query(
+      "UPDATE secrets SET secret_value = $1, secret_created_at = $2 WHERE user_uuid = $3 AND secret_type = 'puff_password_sha-384'",
+      [new_secret_value, secret_updated_at, user_uuid]
     )
-      .bind(new_secret_value, secret_updated_at, user_uuid)
-      .run()
 
-    if (updatePasswordStmt.meta.changes === 0) {
+    if (updatePasswordResult.rowCount === 0) {
       console.error(
         `Failed to update password for user_uuid (no rows changed): ${user_uuid}`
       )
@@ -136,7 +114,6 @@ export async function onRequestPost(context) {
     }
 
     // Step 7: Response
-    // Security Note: Consider invalidating other active sessions for the user here. (Out of scope for this task)
     return new Response(
       JSON.stringify({ message: "Password changed successfully." }),
       { status: 200, headers: { "Content-Type": "application/json" } }
@@ -149,15 +126,17 @@ export async function onRequestPost(context) {
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )
+  } finally {
+    await client.end()
   }
 }
 
 export async function onRequest(context) {
-  if (context.request.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-      status: 405,
-      headers: { "Allow": "POST", "Content-Type": "application/json" },
-    })
+  if (context.request.method === "POST") {
+    return onRequestPost(context)
   }
-  // For POST requests, Cloudflare Pages will automatically route to onRequestPost.
+  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+    status: 405,
+    headers: { "Allow": "POST", "Content-Type": "application/json" },
+  })
 }

@@ -1,13 +1,14 @@
 import { verifySession } from "../../src/session_auth.js" // Adjust path as needed
 import { authenticator } from "otplib" // Using otplib
+const { Client } = require("pg")
 
 const APP_NAME = "YourApp" // Could be a configurable value
 
 export async function onRequestPost(context) {
-  // Validate context and DATABASE binding
-  if (!context || !context.env || !context.env.DATABASE) {
+  // Validate context and HYPERDRIVE binding
+  if (!context || !context.env || !context.env.HYPERDRIVE) {
     console.error(
-      "D1 Database binding [DATABASE] not found in setup_2fa_start. Check Pages Function configuration."
+      "Hyperdrive binding [HYPERDRIVE] not found in setup_2fa_start. Check Pages Function configuration."
     )
     return new Response(
       JSON.stringify({ error: "Internal server configuration error." }),
@@ -20,20 +21,23 @@ export async function onRequestPost(context) {
   if (sessionVerificationResult instanceof Response) {
     return sessionVerificationResult // Auth failed or error occurred
   }
-  // If true, context.data.user_uuid is populated
-
   const user_uuid = context.data.user_uuid
 
-  try {
-    // Step 2: Check Existing 2FA
-    const existing2FARecord = await context.env.DATABASE.prepare(
-      "SELECT secret_enabled FROM secrets WHERE user_uuid = ?1 AND secret_type = 'totp_secret' AND secret_enabled = 1"
-    )
-      .bind(user_uuid)
-      .first()
+  const client = new Client({
+    connectionString: context.env.HYPERDRIVE.connectionString,
+  })
 
-    if (existing2FARecord) {
-      // If a record is found, it means secret_enabled was 1
+  try {
+    await client.connect()
+
+    // Step 2: Check Existing 2FA
+    const existing2FAQuery = {
+      text: "SELECT secret_enabled FROM secrets WHERE user_uuid = $1 AND secret_type = \'totp_secret\' AND secret_enabled = TRUE",
+      values: [user_uuid],
+    }
+    const existing2FAResult = await client.query(existing2FAQuery)
+
+    if (existing2FAResult.rowCount > 0) {
       return new Response(
         JSON.stringify({
           error:
@@ -43,19 +47,31 @@ export async function onRequestPost(context) {
       )
     }
 
-    // Fetch user's email for the label
-    const emailRecord = await context.env.DATABASE.prepare(
-      "SELECT email_address FROM emails WHERE user_uuid = ?1 ORDER BY email_id ASC LIMIT 1" // Assuming first email is primary
-    )
-      .bind(user_uuid)
-      .first()
+    // Fetch user\'s email for the label
+    const emailQuery = {
+      text: "SELECT email_address FROM emails WHERE user_uuid = $1 AND is_primary = TRUE LIMIT 1", // Assuming primary email is marked
+      values: [user_uuid],
+    }
+    const emailResult = await client.query(emailQuery)
 
-    if (!emailRecord) {
-      console.error(`No email found for user_uuid: ${user_uuid}`)
-      return new Response(
-        JSON.stringify({ error: "User email not found, cannot setup 2FA." }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      )
+    let emailRecord
+    if (emailResult.rowCount === 0) {
+      console.error(`No primary email found for user_uuid: ${user_uuid}`)
+      // Attempt to get any email if primary is not found, as a fallback for the label
+      const anyEmailQuery = {
+        text: "SELECT email_address FROM emails WHERE user_uuid = $1 ORDER BY created_at ASC LIMIT 1", // Or some other ordering
+        values: [user_uuid],
+      }
+      const anyEmailResult = await client.query(anyEmailQuery)
+      if (anyEmailResult.rowCount === 0) {
+        return new Response(
+          JSON.stringify({ error: "User email not found, cannot setup 2FA." }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        )
+      }
+      emailRecord = anyEmailResult.rows[0]
+    } else {
+      emailRecord = emailResult.rows[0]
     }
     const userEmail = emailRecord.email_address
     const label = `${APP_NAME}:${userEmail}`
@@ -67,18 +83,23 @@ export async function onRequestPost(context) {
     const encrypted_secret = `sim_encrypted::${secret}`
 
     // Step 5: Store Secret (Temporarily/Unverified)
-    // Use REPLACE INTO to handle existing incomplete setups or create a new one.
-    // This assumes (user_uuid, secret_type) is effectively a unique key for TOTP,
-    // or D1's REPLACE INTO handles it by matching on existing primary key if defined,
-    // or by specific unique constraints. For this task, we'll target 'totp_secret' for replacement.
+    // Use INSERT ... ON CONFLICT DO UPDATE to handle existing incomplete setups or create a new one.
     const now = new Date().toISOString()
-    await context.env.DATABASE.prepare(
-      `REPLACE INTO secrets 
-       (user_uuid, secret_type, secret_value, secret_name, secret_enabled, secret_created_at, secret_last_used) 
-       VALUES (?1, 'totp_secret', ?2, ?3, 0, ?4, ?4)` // secret_last_used initialized to now
-    )
-      .bind(user_uuid, encrypted_secret, label, now)
-      .run()
+    const upsertSecretQuery = {
+      text: `
+        INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_name, secret_enabled, secret_created_at, secret_last_used)
+        VALUES ($1, \'totp_secret\', $2, $3, FALSE, $4, $4)
+        ON CONFLICT (user_uuid, secret_type) 
+        DO UPDATE SET 
+          secret_value = EXCLUDED.secret_value,
+          secret_name = EXCLUDED.secret_name,
+          secret_enabled = FALSE, -- Reset to unverified if re-starting setup
+          secret_created_at = EXCLUDED.secret_created_at, -- Could also choose to not update created_at
+          secret_last_used = EXCLUDED.secret_last_used
+      `,
+      values: [user_uuid, encrypted_secret, label, now],
+    }
+    await client.query(upsertSecretQuery)
 
     // Step 6: Generate QR Code Data (TOTP Auth URI)
     const otpauthUri = authenticator.keyuri(userEmail, APP_NAME, secret)
@@ -101,15 +122,19 @@ export async function onRequestPost(context) {
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )
+  } finally {
+    if (client) {
+      await client.end()
+    }
   }
 }
 
 export async function onRequest(context) {
-  if (context.request.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-      status: 405,
-      headers: { "Allow": "POST", "Content-Type": "application/json" },
-    })
+  if (context.request.method === "POST") {
+    return await onRequestPost(context)
   }
-  // For POST requests, onRequestPost will be called by the Cloudflare Pages runtime.
+  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+    status: 405,
+    headers: { "Allow": "POST", "Content-Type": "application/json" },
+  })
 }

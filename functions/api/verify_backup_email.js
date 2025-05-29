@@ -1,8 +1,10 @@
+const { Client } = require("pg")
+
 export async function onRequestGet(context) {
-  // Validate context and DATABASE binding
-  if (!context || !context.env || !context.env.DATABASE) {
+  // Validate context and HYPERDRIVE binding
+  if (!context || !context.env || !context.env.HYPERDRIVE) {
     console.error(
-      "D1 Database binding [DATABASE] not found in verify_backup_email. Check Pages Function configuration."
+      "Hyperdrive binding [HYPERDRIVE] not found in verify_backup_email. Check Pages Function configuration."
     )
     return new Response(
       JSON.stringify({ error: "Internal server configuration error." }),
@@ -21,16 +23,22 @@ export async function onRequestGet(context) {
     )
   }
 
+  const client = new Client({
+    connectionString: context.env.HYPERDRIVE.connectionString,
+  })
+
   try {
+    await client.connect()
+
     // Step 2: Token Validation
-    const tokenRecord = await context.env.DATABASE.prepare(
-      "SELECT user_uuid, email_address, expires_at, is_used FROM tokens WHERE token_value = ?1 AND token_type = 'backup_email_verification'"
-    )
-      .bind(token)
-      .first()
+    const tokenQuery = {
+      text: "SELECT user_uuid, email_address, expires_at, is_used FROM tokens WHERE token_value = $1 AND token_type = \'backup_email_verification\'",
+      values: [token],
+    }
+    const tokenResult = await client.query(tokenQuery)
+    const tokenRecord = tokenResult.rows[0]
 
     if (!tokenRecord || tokenRecord.is_used) {
-      // Check if token exists and is not already used
       return new Response(
         JSON.stringify({
           error: "Invalid, expired, or already used verification token.",
@@ -40,15 +48,15 @@ export async function onRequestGet(context) {
     }
 
     const now = new Date()
-    const tokenExpiresAt = new Date(tokenRecord.expires_at) // Use expires_at
+    const tokenExpiresAt = new Date(tokenRecord.expires_at)
 
     if (now > tokenExpiresAt) {
       // Mark the expired token as used
-      await context.env.DATABASE.prepare(
-        "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'backup_email_verification'"
-      )
-        .bind(token)
-        .run()
+      const updateExpiredTokenQuery = {
+        text: "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = \'backup_email_verification\'",
+        values: [token],
+      }
+      await client.query(updateExpiredTokenQuery)
       return new Response(
         JSON.stringify({ error: "Verification token expired." }),
         { status: 400, headers: { "Content-Type": "application/json" } }
@@ -58,24 +66,23 @@ export async function onRequestGet(context) {
     const user_uuid = tokenRecord.user_uuid
     const email_address = tokenRecord.email_address
 
-    // Check if the email is already verified (for this user, as token is user-specific)
-    const emailDetails = await context.env.DATABASE.prepare(
-      "SELECT is_verified FROM emails WHERE user_uuid = ?1 AND email_address = ?2"
-    )
-      .bind(user_uuid, email_address)
-      .first()
+    // Check if the email is already verified
+    const emailDetailsQuery = {
+      text: "SELECT is_verified FROM emails WHERE user_uuid = $1 AND email_address = $2",
+      values: [user_uuid, email_address],
+    }
+    const emailDetailsResult = await client.query(emailDetailsQuery)
+    const emailDetails = emailDetailsResult.rows[0]
 
     if (!emailDetails) {
-      // This implies the email added via add_backup_email was somehow removed before verification
       console.error(
         `Email ${email_address} for user ${user_uuid} not found during verification token use.`
       )
-      // Mark token as used to prevent re-querying
-      await context.env.DATABASE.prepare(
-        "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'backup_email_verification'"
-      )
-        .bind(token)
-        .run()
+      const updateMissingEmailTokenQuery = {
+        text: "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = \'backup_email_verification\'",
+        values: [token],
+      }
+      await client.query(updateMissingEmailTokenQuery)
       return new Response(
         JSON.stringify({
           error:
@@ -85,13 +92,12 @@ export async function onRequestGet(context) {
       )
     }
 
-    if (emailDetails.is_verified === 1) {
-      // Token is valid but email already verified. Mark token as used.
-      await context.env.DATABASE.prepare(
-        "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'backup_email_verification'"
-      )
-        .bind(token)
-        .run()
+    if (emailDetails.is_verified === true) {
+      const updateVerifiedEmailTokenQuery = {
+        text: "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = \'backup_email_verification\'",
+        values: [token],
+      }
+      await client.query(updateVerifiedEmailTokenQuery)
       return new Response(
         JSON.stringify({ message: "This backup email is already verified." }),
         { status: 200, headers: { "Content-Type": "application/json" } }
@@ -100,23 +106,21 @@ export async function onRequestGet(context) {
 
     // Step 3: Mark Email as Verified
     const verified_at = new Date().toISOString()
-    const updateEmailStmt = await context.env.DATABASE.prepare(
-      "UPDATE emails SET is_verified = 1, verified_at = ?1 WHERE user_uuid = ?2 AND email_address = ?3 AND is_primary = 0"
-    ) // Ensure we only verify backup emails here. is_primary = 0 is an explicit check for backup.
-      .bind(verified_at, user_uuid, email_address)
-      .run()
+    const updateEmailQuery = {
+      text: "UPDATE emails SET is_verified = TRUE, verified_at = $1 WHERE user_uuid = $2 AND email_address = $3 AND is_primary = FALSE",
+      values: [verified_at, user_uuid, email_address],
+    }
+    const updateEmailResult = await client.query(updateEmailQuery)
 
-    if (updateEmailStmt.meta.changes === 0) {
-      // This might happen if the email was somehow marked as primary or deleted between checks.
+    if (updateEmailResult.rowCount === 0) {
       console.error(
         `Failed to update backup email verification status for token: ${token}, user_uuid: ${user_uuid}, email: ${email_address}. Email might have been promoted or deleted.`
       )
-      // Mark token as used to prevent re-querying
-      await context.env.DATABASE.prepare(
-        "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'backup_email_verification'"
-      )
-        .bind(token)
-        .run()
+      const updateFailedUpdateTokenQuery = {
+        text: "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = \'backup_email_verification\'",
+        values: [token],
+      }
+      await client.query(updateFailedUpdateTokenQuery)
       return new Response(
         JSON.stringify({
           error:
@@ -127,11 +131,11 @@ export async function onRequestGet(context) {
     }
 
     // Step 4: Invalidate Token (mark as used)
-    await context.env.DATABASE.prepare(
-      "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'backup_email_verification'"
-    )
-      .bind(token)
-      .run()
+    const invalidateTokenQuery = {
+      text: "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = \'backup_email_verification\'",
+      values: [token],
+    }
+    await client.query(invalidateTokenQuery)
 
     // Step 5: Response
     return new Response(
@@ -140,21 +144,43 @@ export async function onRequestGet(context) {
     )
   } catch (error) {
     console.error("Error during backup email verification:", error)
+    // Attempt to invalidate token even on generic error, if token was involved.
+    if (token && client && client._connected) {
+      try {
+        const emergencyInvalidateTokenQuery = {
+          text: "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = \'backup_email_verification\'",
+          values: [token],
+        }
+        await client.query(emergencyInvalidateTokenQuery)
+        console.log(
+          `Token ${token} marked as used due to an error during verification process.`
+        )
+      } catch (invalidationError) {
+        console.error(
+          `Failed to invalidate token ${token} during error handling:`,
+          invalidationError
+        )
+      }
+    }
     return new Response(
       JSON.stringify({
         error: "Failed to verify backup email due to a server error.",
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )
+  } finally {
+    if (client) {
+      await client.end()
+    }
   }
 }
 
 export async function onRequest(context) {
-  if (context.request.method !== "GET") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-      status: 405,
-      headers: { "Allow": "GET", "Content-Type": "application/json" },
-    })
+  if (context.request.method === "GET") {
+    return await onRequestGet(context)
   }
-  // For GET requests, Cloudflare Pages will automatically route to onRequestGet.
+  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+    status: 405,
+    headers: { "Allow": "GET", "Content-Type": "application/json" },
+  })
 }

@@ -1,10 +1,11 @@
 import { authenticator } from "otplib"
+const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-  // Validate context and DATABASE binding
-  if (!context || !context.env || !context.env.DATABASE) {
+  // Validate context and HYPERDRIVE binding
+  if (!context || !context.env || !context.env.HYPERDRIVE) {
     console.error(
-      "D1 Database binding [DATABASE] not found in verify_2fa_login. Check Pages Function configuration."
+      "Hyperdrive binding [HYPERDRIVE] not found in verify_2fa_login. Check Pages Function configuration."
     )
     return new Response(
       JSON.stringify({ error: "Internal server configuration error." }),
@@ -39,13 +40,20 @@ export async function onRequestPost(context) {
     )
   }
 
+  const client = new Client({
+    connectionString: context.env.HYPERDRIVE.connectionString,
+  })
+
   try {
+    await client.connect()
+
     // Step 3: Retrieve 2FA Secret from 'secrets' table and check if 2FA is enabled
-    const secretRecord = await context.env.DATABASE.prepare(
-      "SELECT secret_value, secret_enabled FROM secrets WHERE user_uuid = ?1 AND secret_type = 'totp_secret'"
-    )
-      .bind(user_uuid)
-      .first()
+    const secretQuery = {
+      text: "SELECT secret_value, secret_enabled FROM secrets WHERE user_uuid = $1 AND secret_type = 'totp_secret'",
+      values: [user_uuid],
+    }
+    const secretResult = await client.query(secretQuery)
+    const secretRecord = secretResult.rows[0]
 
     if (!secretRecord || !secretRecord.secret_value) {
       return new Response(
@@ -57,7 +65,7 @@ export async function onRequestPost(context) {
       )
     }
 
-    if (secretRecord.secret_enabled !== 1) {
+    if (secretRecord.secret_enabled !== true) {
       return new Response(
         JSON.stringify({ error: "2FA is not enabled for this account." }),
         { status: 400, headers: { "Content-Type": "application/json" } }
@@ -85,11 +93,11 @@ export async function onRequestPost(context) {
     if (isValid) {
       // Step 5: On Successful TOTP Verification, update secret_last_used and create a new session
       const now = new Date().toISOString()
-      await context.env.DATABASE.prepare(
-        "UPDATE secrets SET secret_last_used = ?1 WHERE user_uuid = ?2 AND secret_type = 'totp_secret'"
-      )
-        .bind(now, user_uuid)
-        .run()
+      const updateSecretQuery = {
+        text: "UPDATE secrets SET secret_last_used = $1 WHERE user_uuid = $2 AND secret_type = 'totp_secret'",
+        values: [now, user_uuid],
+      }
+      await client.query(updateSecretQuery)
 
       const session_id = crypto.randomUUID()
       const expires_at = new Date(
@@ -98,11 +106,11 @@ export async function onRequestPost(context) {
       const user_agent = context.request.headers.get("User-Agent") || ""
       const ip_address = context.request.headers.get("CF-Connecting-IP") || ""
 
-      await context.env.DATABASE.prepare(
-        "INSERT INTO sessions (session_id, user_uuid, expires_at, user_agent, ip_address) VALUES (?1, ?2, ?3, ?4, ?5)"
-      )
-        .bind(session_id, user_uuid, expires_at, user_agent, ip_address)
-        .run()
+      const insertSessionQuery = {
+        text: "INSERT INTO sessions (session_id, user_uuid, expires_at, user_agent, ip_address) VALUES ($1, $2, $3, $4, $5)",
+        values: [session_id, user_uuid, expires_at, user_agent, ip_address],
+      }
+      await client.query(insertSessionQuery)
 
       return new Response(JSON.stringify({ session_token: session_id }), {
         status: 200,
@@ -123,15 +131,19 @@ export async function onRequestPost(context) {
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )
+  } finally {
+    if (client) {
+      await client.end()
+    }
   }
 }
 
 export async function onRequest(context) {
-  if (context.request.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-      status: 405,
-      headers: { "Allow": "POST", "Content-Type": "application/json" },
-    })
+  if (context.request.method === "POST") {
+    return await onRequestPost(context)
   }
-  // For POST requests, Cloudflare Pages will automatically route to onRequestPost.
+  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+    status: 405,
+    headers: { "Allow": "POST", "Content-Type": "application/json" },
+  })
 }

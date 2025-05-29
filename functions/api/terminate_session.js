@@ -1,10 +1,11 @@
 import { verifySession } from "../../src/session_auth.js" // Adjust path as needed
+const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-  // Validate context and DATABASE binding
-  if (!context || !context.env || !context.env.DATABASE) {
+  // Validate context and HYPERDRIVE binding
+  if (!context || !context.env || !context.env.HYPERDRIVE) {
     console.error(
-      "D1 Database binding [DATABASE] not found in terminate_session. Check Pages Function configuration."
+      "Hyperdrive binding [HYPERDRIVE] not found in terminate_session. Check Pages Function configuration."
     )
     return new Response(
       JSON.stringify({ error: "Internal server configuration error." }),
@@ -42,31 +43,36 @@ export async function onRequestPost(context) {
     )
   }
 
+  const client = new Client({
+    connectionString: context.env.HYPERDRIVE.connectionString,
+  })
+
   try {
+    await client.connect()
+
     // Step 4: Target Session Validation
     // Check if the session exists and belongs to the authenticated user.
-    // No need to check if it's expired, as we're just deleting it.
-    const targetSession = await context.env.DATABASE.prepare(
-      "SELECT session_id FROM sessions WHERE session_id = ?1 AND user_uuid = ?2"
-    )
-      .bind(session_id_to_terminate, user_uuid)
-      .first()
+    const targetSessionQuery = {
+      text: "SELECT session_id FROM sessions WHERE session_id = $1 AND user_uuid = $2",
+      values: [session_id_to_terminate, user_uuid],
+    }
+    const targetSessionResult = await client.query(targetSessionQuery)
 
-    if (!targetSession) {
+    if (targetSessionResult.rowCount === 0) {
       return new Response(
         JSON.stringify({ error: "Session not found or access denied." }),
-        { status: 404, headers: { "Content-Type": "application/json" } } // 404 implies not found, 403 if we confirm it exists but different user
+        { status: 404, headers: { "Content-Type": "application/json" } }
       )
     }
 
     // Step 5: Terminate Session
-    const deleteStmt = await context.env.DATABASE.prepare(
-      "DELETE FROM sessions WHERE session_id = ?1 AND user_uuid = ?2"
-    )
-      .bind(session_id_to_terminate, user_uuid)
-      .run()
+    const deleteQuery = {
+      text: "DELETE FROM sessions WHERE session_id = $1 AND user_uuid = $2",
+      values: [session_id_to_terminate, user_uuid],
+    }
+    const deleteResult = await client.query(deleteQuery)
 
-    if (deleteStmt.meta.changes > 0) {
+    if (deleteResult.rowCount > 0) {
       return new Response(
         JSON.stringify({ message: "Session terminated successfully." }),
         { status: 200, headers: { "Content-Type": "application/json" } }
@@ -91,14 +97,19 @@ export async function onRequestPost(context) {
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )
+  } finally {
+    if (client) {
+      await client.end()
+    }
   }
 }
 
 export async function onRequest(context) {
-  if (context.request.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-      status: 405,
-      headers: { "Allow": "POST", "Content-Type": "application/json" },
-    })
+  if (context.request.method === "POST") {
+    return await onRequestPost(context)
   }
+  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+    status: 405,
+    headers: { "Allow": "POST", "Content-Type": "application/json" },
+  })
 }

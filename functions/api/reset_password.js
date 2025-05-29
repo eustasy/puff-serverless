@@ -3,12 +3,13 @@ import {
   password_requirements_html,
 } from "../../src/passwords.js" // Adjust path as needed
 import { puff_hashing_password } from "../../src/utilities_hashing.js" // Adjust path as needed
+const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-  // Validate context and DATABASE binding
-  if (!context || !context.env || !context.env.DATABASE) {
+  // Validate context and HYPERDRIVE binding
+  if (!context || !context.env || !context.env.HYPERDRIVE) {
     console.error(
-      "D1 Database binding [DATABASE] not found in reset_password. Check Pages Function configuration."
+      "Hyperdrive binding [HYPERDRIVE] not found in reset_password. Check Pages Function configuration."
     )
     return new Response(
       JSON.stringify({ error: "Internal server configuration error." }),
@@ -42,25 +43,28 @@ export async function onRequestPost(context) {
       { status: 400, headers: { "Content-Type": "application/json" } }
     )
   }
+  const client = new Client({
+    connectionString: context.env.HYPERDRIVE.connectionString,
+  })
 
   try {
+    await client.connect()
     // Step 3: Password Strength Check
     const passwordCheckResult = password_check(new_password)
     if (!passwordCheckResult.strong) {
-      // You can choose to send back the HTML requirements or a simpler message
-      // For this example, sending a simple message with the HTML as part of the error object.
       return new Response(password_requirements_html(), {
         status: 400,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/html" }, // Send as HTML
       })
     }
 
     // Step 4: Token Validation
-    const tokenRecord = await context.env.DATABASE.prepare(
-      "SELECT user_uuid, expires_at, is_used FROM tokens WHERE token_value = ?1 AND token_type = 'password_reset'"
-    )
-      .bind(token)
-      .first()
+    const tokenQuery = {
+      text: "SELECT user_uuid, expires_at, is_used FROM tokens WHERE token_value = $1 AND token_type = \'password_reset\'",
+      values: [token],
+    }
+    const tokenResult = await client.query(tokenQuery)
+    const tokenRecord = tokenResult.rows[0]
 
     if (!tokenRecord) {
       return new Response(
@@ -69,8 +73,8 @@ export async function onRequestPost(context) {
       )
     }
 
-    if (tokenRecord.is_used === 1) {
-      // Check if is_used is 1 (true)
+    if (tokenRecord.is_used === true) {
+      // Assuming is_used is BOOLEAN
       return new Response(
         JSON.stringify({
           error: "Password reset token has already been used.",
@@ -80,14 +84,13 @@ export async function onRequestPost(context) {
     }
 
     const now = new Date()
-    const tokenExpiresAt = new Date(tokenRecord.expires_at) // Use expires_at
+    const tokenExpiresAt = new Date(tokenRecord.expires_at)
     if (now > tokenExpiresAt) {
-      // Optionally, mark the token as used if it's expired, to prevent re-querying valid but expired tokens.
-      await context.env.DATABASE.prepare(
-        "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'password_reset'"
-      )
-        .bind(token)
-        .run()
+      const updateExpiredTokenQuery = {
+        text: "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = \'password_reset\'",
+        values: [token],
+      }
+      await client.query(updateExpiredTokenQuery)
       return new Response(
         JSON.stringify({ error: "Password reset token has expired." }),
         { status: 400, headers: { "Content-Type": "application/json" } }
@@ -98,36 +101,50 @@ export async function onRequestPost(context) {
 
     // Step 5: Hash the new password
     const { hash, salt } = await puff_hashing_password(new_password)
-    const secret_value = hash + ":" + salt
+    const secret_value = hash + ":" + salt // Store hash and salt together
     const secret_updated_at = new Date().toISOString()
 
     // Step 6: Update Password in secrets table
-    // Assuming only one 'puff_password_sha-384' per user. If multiple, need more specific logic.
-    const updatePasswordStmt = await context.env.DATABASE.prepare(
-      "UPDATE secrets SET secret_value = ?1, secret_created_at = ?2 WHERE user_uuid = ?3 AND secret_type = 'puff_password_sha-384'"
-    )
-      .bind(secret_value, secret_updated_at, user_uuid)
-      .run()
+    const updatePasswordQuery = {
+      text: "UPDATE secrets SET secret_value = $1, secret_created_at = $2, secret_last_used = $2 WHERE user_uuid = $3 AND secret_type = \'puff_password_sha-384\'",
+      values: [secret_value, secret_updated_at, user_uuid],
+    }
+    const updatePasswordResult = await client.query(updatePasswordQuery)
 
-    if (updatePasswordStmt.meta.changes === 0) {
+    if (updatePasswordResult.rowCount === 0) {
       console.error(
-        `Failed to update password for user_uuid: ${user_uuid}. User or secret type not found.`
+        `Failed to update password for user_uuid: ${user_uuid}. User or secret type not found, or password already matches.`
       )
-      // This could indicate an issue, like the user's primary password record was deleted.
+      // Check if the user exists to provide a more specific error
+      const userExistsQuery = {
+        text: "SELECT 1 FROM users WHERE user_uuid = $1",
+        values: [user_uuid],
+      }
+      const userExistsResult = await client.query(userExistsQuery)
+      if (userExistsResult.rowCount === 0) {
+        return new Response(
+          JSON.stringify({
+            error: "Failed to update password. User record not found.",
+          }),
+          { status: 404, headers: { "Content-Type": "application/json" } }
+        )
+      }
+      // If user exists, but secret wasn\'t updated, it might be a different issue.
       return new Response(
         JSON.stringify({
-          error: "Failed to update password. User record issue.",
+          error:
+            "Failed to update password. Password record issue or no change detected.",
         }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       )
     }
 
     // Step 7: Invalidate Token
-    await context.env.DATABASE.prepare(
-      "UPDATE tokens SET is_used = 1 WHERE token_value = ?1 AND token_type = 'password_reset'"
-    )
-      .bind(token)
-      .run()
+    const invalidateTokenQuery = {
+      text: "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = \'password_reset\'",
+      values: [token],
+    }
+    await client.query(invalidateTokenQuery)
 
     // Step 8: Response
     return new Response(
@@ -142,15 +159,19 @@ export async function onRequestPost(context) {
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )
+  } finally {
+    if (client) {
+      await client.end()
+    }
   }
 }
 
 export async function onRequest(context) {
-  if (context.request.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-      status: 405,
-      headers: { "Allow": "POST", "Content-Type": "application/json" },
-    })
+  if (context.request.method === "POST") {
+    return await onRequestPost(context) // Ensure onRequestPost is awaited
   }
-  // For POST requests, Cloudflare Pages will automatically route to onRequestPost.
+  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+    status: 405,
+    headers: { "Allow": "POST", "Content-Type": "application/json" },
+  })
 }

@@ -4,24 +4,53 @@ import {
 } from "./utilities_hashing.js"
 
 export async function password_verify(context, pw, user_uuid) {
-  // Get the user's password hash and salt from the database
-  const query = `
-    SELECT secret_value
-    FROM secrets
-    WHERE user_uuid = ?1 AND secret_type = 'puff_password_sha-384'
-    LIMIT 1
-  `
-  const result = await context.env.DATABASE.prepare(query)
-    .bind(user_uuid)
-    .first()
-  if (!result) {
-    throw new Error("User password record not found")
+  // Validate context and HYPERDRIVE binding
+  if (!context || !context.env || !context.env.HYPERDRIVE) {
+    throw new Error(
+      "Hyperdrive binding [HYPERDRIVE] not found. Please check Pages Function configuration."
+    )
   }
-  const { secret_value } = result
-  // Split the secret_value into the actual hash and salt
-  const [actual_hash, salt] = secret_value.split(":")
-  const { hash: attempted_hash } = await puff_hashing_password(pw, salt)
-  return attempted_hash === actual_hash
+  const { Client } = require("pg")
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
+
+  try {
+    await client.connect()
+    // Get the user\'s password hash and salt from the database
+    const query = `
+      SELECT secret_value
+      FROM secrets
+      WHERE user_uuid = $1 AND secret_type = \'puff_password_sha-384\'
+      LIMIT 1
+    `
+    const result = await client.query(query, [user_uuid])
+
+    if (result.rows.length === 0) {
+      // It\'s generally better not to reveal if the user exists or not for password verification.
+      // However, the original code threw "User password record not found".
+      // For security, returning false (as if password didn\'t match) is often preferred.
+      // Let\'s stick to a generic false for failed verification if no record.
+      return false
+    }
+    const { secret_value } = result.rows[0]
+    // Split the secret_value into the actual hash and salt
+    const [actual_hash, salt] = secret_value.split(":")
+
+    if (!actual_hash || !salt) {
+      // Invalid format in DB
+      console.error(`Invalid secret_value format for user_uuid: ${user_uuid}`)
+      return false
+    }
+
+    const { hash: attempted_hash } = await puff_hashing_password(pw, salt)
+    return attempted_hash === actual_hash
+  } catch (error) {
+    console.error("Error during password verification:", error)
+    // In case of a system error, rethrow or return false depending on policy
+    // Rethrowing might be better for higher-level error handling to log and respond appropriately
+    throw error
+  } finally {
+    await client.end()
+  }
 }
 
 export async function password_check(pw) {

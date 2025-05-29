@@ -1,4 +1,4 @@
-import { user_register, user_login } from "./../../src/users.js"
+import { user_register, user_login } from "../../../src/users.js"
 
 export async function onRequest(context) {
   const testName = "Login Test User"
