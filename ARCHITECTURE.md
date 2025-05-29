@@ -34,55 +34,6 @@ External APIs used:
 
 - https://haveibeenpwned.com/API/v2#SearchingPwnedPasswordsByRange
 
-## Actions
-
-High-level user actions supported:
-
-- Register
-  - Verify Email (Primary)
-- Log in
-  - Verify password
-  - Verify 2nd factor (TOTP)
-  - Create a session
-- Log out
-  - Terminate a session
-- Reset password
-- Account Mangement
-  - Verify a session (middleware)
-  - Add backup email
-    - Verify Backup Email
-  - Change primary email
-  - Change password
-  - Add 2nd factor (TOTP Setup & Verify)
-  - Remove 2nd factor (TOTP)
-  - List sessions
-  - Terminate specific session
-  - Terminate all other sessions
-
-## API Endpoint Details
-
-This section details the serverless functions acting as API endpoints.
-
-| Path                                      | Method(s) | Description                                                                       |
-| ----------------------------------------- | --------- | --------------------------------------------------------------------------------- |
-| `functions/api/verify_email.js`           | GET       | Verifies a user's primary email address using a token from a link.                |
-| `functions/api/user_logout.js`            | POST      | Terminates the current user's session (requires session token).                   |
-| `functions/api/setup_2fa_start.js`        | POST      | Initiates 2FA setup for a logged-in user, returns QR code URI and manual code.    |
-| `functions/api/setup_2fa_verify.js`       | POST      | Verifies the TOTP code provided by the user during 2FA setup, enables 2FA.        |
-| `functions/api/verify_2fa_login.js`       | POST      | Verifies a TOTP code during login for users with 2FA enabled, creates session.    |
-| `functions/api/request_password_reset.js` | POST      | Initiates password reset for a user by email, sends (simulated) reset link.       |
-| `functions/api/reset_password.js`         | POST      | Resets a user's password using a token and new password.                          |
-| `functions/api/change_password.js`        | POST      | Allows a logged-in user to change their password (requires current password).     |
-| `functions/api/add_backup_email.js`       | POST      | Allows a logged-in user to add a backup email address (sends verification).       |
-| `functions/api/verify_backup_email.js`    | GET       | Verifies a user's backup email address using a token from a link.                 |
-| `functions/api/change_primary_email.js`   | POST      | Allows a logged-in user to change their primary email to a verified backup email. |
-| `functions/api/remove_2fa.js`             | POST      | Allows a logged-in user to remove 2FA after verifying a TOTP code.                |
-| `functions/api/list_sessions.js`          | GET       | Lists all active sessions for the logged-in user.                                 |
-| `functions/api/terminate_session.js`      | POST      | Terminates a specific session for the logged-in user.                             |
-| `functions/api/terminate_all_sessions.js` | POST      | Terminates all sessions for the logged-in user except the current one.            |
-
-_Note: User registration and initial login (password-only part) are handled by `src/users.js` which is not a direct API endpoint but called by other functions (e.g., a hypothetical `functions/api/register.js` or `functions/api/login.js` which would then call these library functions)._
-
 ## Database Schema Changes
 
 SQL schema is stored in the sql folder with one file per table.
