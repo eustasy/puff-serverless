@@ -6,3 +6,7 @@ compatibility_flags = [ "nodejs_compat" ]
 [[d1_databases]]
 binding = "DATABASE"
 database_id = "1cfba845-7e6d-4960-ba82-472e95422f63"
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "404f36162d5341429d55bde35de77b9f"

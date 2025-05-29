@@ -1,13 +1,16 @@
 {
   "scripts": {
-    "dev": "npx wrangler pages dev .",
+    "dev": "npx wrangler pages dev public",
     "lint": "npx prettier --check **/*.{js,ts,mjs,md,cjs,json,yml,html,css,less,sass}",
     "format": "npx prettier --write **/*.{js,ts,mjs,md,cjs,json,yml,html,css,less,sass}"
   },
   "dependencies": {
-    "otplib": "^12.0.1"
+    "otplib": "^12.0.1",
+    "pg": "^8.16.0"
   },
   "devDependencies": {
-    "prettier": "3.5.3"
+    "@types/node": "^22.15.24",
+    "prettier": "3.5.3",
+    "wrangler": "^4.17.0"
   }
 }

@@ -1,7 +1,10 @@
-CREATE TABLE IF NOT EXISTS emails (
-    user_uuid STRING NOT NULL,
-    email_address STRING PRIMARY KEY,
-    is_primary INTEGER NOT NULL DEFAULT 0,
-    is_verified INTEGER DEFAULT 0,
-    verified_at TEXT DEFAULT NULL
-);
+CREATE TABLE public.emails (
+  user_uuid STRING NOT NULL,
+  email_address STRING NOT NULL,
+  is_primary INT8 NOT NULL DEFAULT 0:::INT8,
+  is_verified INT8 NULL DEFAULT 0:::INT8,
+  verified_at STRING NULL,
+  CONSTRAINT emails_pkey PRIMARY KEY (email_address ASC),
+  CONSTRAINT emails_user_uuid_fkey FOREIGN KEY (user_uuid) REFERENCES public.users(user_uuid),
+  INDEX idx_emails_user_uuid (user_uuid ASC)
+) LOCALITY REGIONAL BY TABLE IN PRIMARY REGION

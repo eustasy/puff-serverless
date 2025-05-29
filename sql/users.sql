@@ -1,5 +1,6 @@
-CREATE TABLE IF NOT EXISTS users (
-    user_uuid STRING PRIMARY KEY,
-    user_name STRING NOT NULL,
-    user_active INT NOT NULL DEFAULT 1
-);
+CREATE TABLE public.users (
+  user_uuid STRING NOT NULL,
+  user_name STRING NOT NULL,
+  user_active INT8 NOT NULL DEFAULT 1:::INT8,
+  CONSTRAINT users_pkey PRIMARY KEY (user_uuid ASC)
+) LOCALITY REGIONAL BY TABLE IN PRIMARY REGION
