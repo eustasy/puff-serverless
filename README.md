@@ -27,7 +27,11 @@ _Note: SQL Schema can be found in the SQL folder, one file per table. `users.sql
 
 #### for Local Development
 
-TODO
+You can override the Hyperdrive connection strings by setting the following in `.env`:
+
+```sh
+WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://user:password@localhost:5432/databasename"
+```
 
 #### for Production Deployment
 
