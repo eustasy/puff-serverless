@@ -25,9 +25,24 @@ This document provides instructions for the architecture of the project. It is i
 ## API Design
 
 - The API is fetched with HTMX.
-- As such the API usually takes simple GET and POST requests and usually returns HTML.
+- As such the API usually takes simple GET and POST requests and should return HTML. Avoid returning JSON unless absolutely necessary.
+- The API should return HTML fragments that can be inserted into the page without a full reload.
+- The API can return a full HTML page, but it should be designed to be inserted into the current page context.
+- The API can return a fragment of HTML that can be swapped into the page using HTMX attributes like `hx-swap`.
+- The API can return a fragment of HTML that can be used to update a specific part of the page, such as a form or a list.
 - It can also return a header like HX-Redirect to redirect the user to a different page.
 - The API should be designed to be stateless, meaning that each request should contain all the information needed to process it.
 - Use appropriate HTTP status codes to indicate the result of the request (e.g., 200 for success, 404 for not found, etc.).
 - Ensure that the API is secure and does not expose sensitive information.
 - Additional information on HTMX can be found in the [HTMX reference](https://htmx.org/reference/) and [HTMX documentation](https://htmx.org/docs/).
+
+## General Instructions
+
+These instructions are to avoid unwanted ai activity:
+- Do not add small comments for simple code changes, such as `// Import the new function`
+- Do not add comments that are obvious from the code itself.
+- Do not return JSON unless explicitly requested.
+- Do not check for conditions that are already handled by the codebase.
+- Check all inputs and session security (when required) on the API endpoint.
+- Check for database connections only within the backend logic.
+- Do not check for database connections in the API endpoints.

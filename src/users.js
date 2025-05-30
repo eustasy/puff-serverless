@@ -1,23 +1,23 @@
-import { puff_hashing_password } from "./utilities_hashing.js"
-
 export async function user_register(context, name, email, password) {
   // Validate context and HYPERDRIVE binding
   if (!context || !context.env || !context.env.HYPERDRIVE) {
     throw new Error(
       "Hyperdrive binding [HYPERDRIVE] not found. Please check Pages Function configuration."
-    )
+    );
   }
   const { Client } = require("pg") // Add pg client import
   const client = new Client(context.env.HYPERDRIVE.connectionString)
+  const { addEmail } = require("./emails.js"); // Import addEmail
 
   try {
     await client.connect()
     // Step 0. Prep work
-    const emailExists = await user_exists(context, email) // This will use the updated user_exists
-    if (emailExists) {
-      // It's better to return a Response object or specific error message that the API endpoint can handle
-      // For now, keeping the throw, but this might need adjustment based on how API endpoints handle errors.
-      throw new Error("Email is already registered.")
+    const emailExistsResult = await client.query(
+      "SELECT email_id FROM emails WHERE email_address = $1 LIMIT 1",
+      [email]
+    );
+    if (emailExistsResult.rowCount > 0) {
+      throw new Error("Email is already registered.");
     }
 
     // Step 1. Register the user
@@ -27,35 +27,29 @@ export async function user_register(context, name, email, password) {
       [uuid, name]
     )
 
-    // Step 2. Register the email
-    // Set is_primary = TRUE for the initial email, is_verified defaults to FALSE
-    await client.query(
-      "INSERT INTO emails (user_uuid, email_address, is_primary) VALUES ($1, $2, TRUE)",
-      [uuid, email]
-    )
+    // Step 2. Register the email using addEmail function
+    // addEmail will handle token generation internally
+    const addEmailResult = await addEmail(context, uuid, email, true, false); // true for is_primary, false for is_verified initially
+    if (addEmailResult.error) {
+        // If addEmail itself had an issue (e.g. unique constraint within its own logic if user already had it - though less likely here)
+        // This part might need more robust error handling depending on how addEmail signals errors.
+        // For now, re-throwing a generic error or addEmailResult.message
+        throw new Error(addEmailResult.message || "Failed to add primary email during registration.");
+    }
+    // Log the verification link using the token from addEmailResult
+    if (addEmailResult.token_value) {
+        console.log(`Verification link: /api/email/verify?token=${addEmailResult.token_value}`);
+    }
 
     // Step 3. Register the password
-    const now = new Date().toISOString() // Simplified date creation
+    const now = new Date().toISOString()
+    const { puff_hashing_password } = await import("./passwords.js")
     const { hash, salt } = await puff_hashing_password(password)
     const secret_value = hash + ":" + salt
     await client.query(
       "INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_created_at) VALUES ($1, 'puff_password_sha-384', $2, $3)",
       [uuid, secret_value, now]
     )
-
-    // Step 4. Generate and store email verification token
-    const token_value = crypto.randomUUID()
-    const token_expires_at = new Date(
-      Date.now() + 24 * 60 * 60 * 1000
-    ).toISOString() // 24 hours from now
-
-    await client.query(
-      "INSERT INTO tokens (user_uuid, email_address, token_type, token_value, expires_at) VALUES ($1, $2, 'email_verification', $3, $4)",
-      [uuid, email, token_value, token_expires_at]
-    )
-
-    // Log the verification link
-    console.log(`Verification link: /api/verify_email?token=${token_value}`)
 
     // The D1 driver returns metadata about the insert, pg client.query for INSERT doesn't return the same structure by default.
     // If specific results (like lastID or changes) are needed, the queries might need to be adjusted (e.g., using RETURNING clause).
