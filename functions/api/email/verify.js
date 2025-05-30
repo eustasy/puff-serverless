@@ -1,7 +1,6 @@
 import { verifyEmailByToken } from "../../../src/emails.js"
 
 export async function onRequestGet(context) {
-
   const { searchParams } = new URL(context.request.url)
   const tokenValue = searchParams.get("token")
 

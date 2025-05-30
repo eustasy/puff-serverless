@@ -9,8 +9,14 @@ const { Client } = require("pg")
  * @param {boolean} is_verified - Whether this email is already verified.
  * @returns {Promise<object>} - An object indicating success or failure, and token if generated.
  */
-export async function addEmail(context, user_uuid, email_address, is_primary = false, is_verified = false) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString);
+export async function addEmail(
+  context,
+  user_uuid,
+  email_address,
+  is_primary = false,
+  is_verified = false
+) {
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
     await client.connect()
@@ -116,7 +122,7 @@ export async function addEmail(context, user_uuid, email_address, is_primary = f
  * @returns {Promise<object>} - An object indicating success or failure.
  */
 export async function verifyEmailByToken(context, tokenValue) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString);
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
     await client.connect()
@@ -294,7 +300,7 @@ export async function verifyEmailByToken(context, tokenValue) {
  * @returns {Promise<object>} - An object indicating success or failure.
  */
 export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString);
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
     await client.connect()
@@ -386,7 +392,7 @@ export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
  * @returns {Promise<object>} - An object indicating success or failure.
  */
 export async function removeEmail(context, user_uuid, email_to_remove) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString);
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
     await client.connect()

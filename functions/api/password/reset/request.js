@@ -2,7 +2,6 @@ import { getUserByEmail } from "../../../../src/users.js"
 const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-
   // Step 1: Parse JSON body for email
   let requestBody
   try {

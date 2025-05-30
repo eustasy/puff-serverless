@@ -3,7 +3,6 @@ import { authenticator } from "otplib" // Using otplib
 const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-
   // Step 1: Verify the session
   const sessionVerificationResult = await verifySession(context)
   if (sessionVerificationResult instanceof Response) {

@@ -2,7 +2,6 @@ import { verifySession } from "../../../src/session_auth.js"
 import { setPrimaryEmail } from "../../../src/emails.js"
 
 export async function onRequestPost(context) {
-
   let user_uuid
   try {
     const tempClient = new Client(context.env.HYPERDRIVE.connectionString)

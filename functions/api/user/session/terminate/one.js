@@ -2,7 +2,6 @@ import { verifySession } from "../../../../../src/session_auth.js"
 const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-
   // Step 1: Session Verification
   const sessionVerificationResult = await verifySession(context)
   if (sessionVerificationResult instanceof Response) {

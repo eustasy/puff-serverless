@@ -5,7 +5,6 @@ const { Client } = require("pg")
 const APP_NAME = "YourApp" // Could be a configurable value
 
 export async function onRequestPost(context) {
-
   // Step 1: Verify the session
   const sessionVerificationResult = await verifySession(context)
   if (sessionVerificationResult instanceof Response) {

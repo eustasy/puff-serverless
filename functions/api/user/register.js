@@ -1,7 +1,6 @@
 import { user_register } from "../../../src/users.js" // user_register is now pg-ready
 
 export async function onRequest(context) {
-
   const formdata = await context.request.formData()
   const email = formdata.get("email")
   const name = formdata.get("name")

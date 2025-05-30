@@ -1,5 +1,4 @@
-const { Client } = require("pg");
-
+const { Client } = require("pg")
 
 /**
  * Parses a cookie string and returns the value of a specific cookie.
@@ -9,16 +8,16 @@ const { Client } = require("pg");
  */
 export async function getCookie(cookieString, cookieName) {
   if (!cookieString) {
-    return null;
+    return null
   }
-  const cookies = cookieString.split(';');
+  const cookies = cookieString.split(";")
   for (let cookie of cookies) {
-    const [name, value] = cookie.trim().split('=');
+    const [name, value] = cookie.trim().split("=")
     if (name === cookieName) {
-      return decodeURIComponent(value);
+      return decodeURIComponent(value)
     }
   }
-  return null;
+  return null
 }
 
 /**
@@ -74,69 +73,78 @@ export async function verifyTokenAndGetUser(client, token) {
  *                                   If authentication is successful, context.data.user_uuid will be set.
  */
 export async function sessionAuthWithCookie(context) {
-
-
   // Initialize context.data if it doesn't exist
   if (!context.data) {
-    context.data = {};
+    context.data = {}
   }
 
   // 2. Cookie Parsing
-  const cookieHeader = context.request.headers.get('Cookie');
-  const sessionToken = getCookie(cookieHeader, 'session_token'); // Standard cookie name for sessions
+  const cookieHeader = context.request.headers.get("Cookie")
+  const sessionToken = getCookie(cookieHeader, "session_token") // Standard cookie name for sessions
 
-  let authResult = null;
+  let authResult = null
 
   if (sessionToken) {
-    const client = new Client(context.env.HYPERDRIVE.connectionString);
+    const client = new Client(context.env.HYPERDRIVE.connectionString)
     try {
-      await client.connect();
-      authResult = await verifyTokenAndGetUser(client, sessionToken);
+      await client.connect()
+      authResult = await verifyTokenAndGetUser(client, sessionToken)
 
       if (authResult && authResult.user_uuid) {
-        context.data.user_uuid = authResult.user_uuid; // Authentication successful, add user_uuid
+        context.data.user_uuid = authResult.user_uuid // Authentication successful, add user_uuid
       }
       // If authResult has an error, it will be handled by the requireAuth logic below.
     } catch (dbError) {
-      console.error("Database connection or query error in middleware:", dbError);
-      authResult = { error: "An internal server error occurred during authentication.", status: 500 };
+      console.error(
+        "Database connection or query error in middleware:",
+        dbError
+      )
+      authResult = {
+        error: "An internal server error occurred during authentication.",
+        status: 500,
+      }
     } finally {
       // Ensure the client is defined and has a `connected` state or similar before ending
       // pg client's `end` can be called regardless of connection state.
       if (client) {
-        await client.end();
+        await client.end()
       }
     }
   } else {
     // No session token found in cookies
-    authResult = { error: "Session token not found in cookies.", status: 401 };
+    authResult = { error: "Session token not found in cookies.", status: 401 }
   }
 
   // 3. Handle `requireAuth` option
   if (options.requireAuth) {
     // Check if authentication was required and failed (no token, or token verification failed)
     if (!sessionToken || (authResult && authResult.error)) {
-      const defaultErrorMessage = "Authentication required to access this resource.";
-      const defaultErrorStatus = 401;
+      const defaultErrorMessage =
+        "Authentication required to access this resource."
+      const defaultErrorStatus = 401
 
-      const errorMessage = authResult && authResult.error ? authResult.error : defaultErrorMessage;
-      const errorStatus = authResult && authResult.status ? authResult.status : defaultErrorStatus;
+      const errorMessage =
+        authResult && authResult.error ? authResult.error : defaultErrorMessage
+      const errorStatus =
+        authResult && authResult.status ? authResult.status : defaultErrorStatus
 
-      let errorTitle = "Access Denied";
-      let errorGuidance = '<p>Please <a href="/login.html">log in</a> to continue.</p>';
+      let errorTitle = "Access Denied"
+      let errorGuidance =
+        '<p>Please <a href="/login.html">log in</a> to continue.</p>'
 
       if (errorStatus >= 500) {
-        errorTitle = "Server Error";
-        errorGuidance = "<p>We encountered an issue while trying to authenticate your session. Please try again later.</p>";
+        errorTitle = "Server Error"
+        errorGuidance =
+          "<p>We encountered an issue while trying to authenticate your session. Please try again later.</p>"
       }
 
       return new Response(
         `<h1>${errorTitle}</h1><p>${errorMessage}</p>${errorGuidance}`,
         {
           status: errorStatus,
-          headers: { 'Content-Type': 'text/html' },
+          headers: { "Content-Type": "text/html" },
         }
-      );
+      )
     }
     // If requireAuth is true and we are here, it means authentication was successful.
     // user_uuid is already in context.data.
@@ -144,5 +152,5 @@ export async function sessionAuthWithCookie(context) {
 
   // If requireAuth is false, or if requireAuth is true and authentication succeeded,
   // the request can proceed. context.data.user_uuid will be populated if auth was successful.
-  return null; // Signal to continue to the main Cloudflare Function handler
+  return null // Signal to continue to the main Cloudflare Function handler
 }

@@ -2,7 +2,6 @@ import { authenticator } from "otplib"
 const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-
   // Step 1: Parse JSON body for user_uuid and TOTP code
   let requestBody
   try {

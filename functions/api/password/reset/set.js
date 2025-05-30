@@ -6,7 +6,6 @@ import { puff_hashing_password } from "../../../../src/utilities_hashing.js"
 const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-
   // Step 1: Parse JSON body
   let requestBody
   try {
