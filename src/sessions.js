@@ -86,7 +86,6 @@ export async function sessionAuthWithCookie(context) {
       if (authResult && authResult.user_uuid) {
         return authResult.user_uuid
       }
-
     } catch (dbError) {
       console.error(
         "Database connection or query error in middleware:",
@@ -105,5 +104,4 @@ export async function sessionAuthWithCookie(context) {
     // No session token found in cookies
     return null
   }
-
 }
