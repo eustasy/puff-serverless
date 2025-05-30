@@ -1,5 +1,5 @@
-import { verifySession } from "../../../src/session_auth.js";
-import { removeEmail } from "../../../src/emails.js";
+import { verifySession } from "../../../src/session_auth.js"
+import { removeEmail } from "../../../src/emails.js"
 
 export async function onRequestPost(context) {
 
@@ -15,7 +15,9 @@ export async function onRequestPost(context) {
     if (!sessionToken || !emailToRemove) {
       await tempClient.end()
       return new Response(
-        JSON.stringify({ error: "Session token and email address are required." }),
+        JSON.stringify({
+          error: "Session token and email address are required.",
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       )
     }
@@ -50,12 +52,16 @@ export async function onRequestPost(context) {
     // Check if it's a form data parsing error or other type of error
     if (error instanceof TypeError && error.message.includes("formData")) {
       return new Response(
-        JSON.stringify({ error: "Invalid request format. Expected form data." }),
+        JSON.stringify({
+          error: "Invalid request format. Expected form data.",
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       )
     }
     return new Response(
-      JSON.stringify({ error: "Failed to remove email due to a server error." }),
+      JSON.stringify({
+        error: "Failed to remove email due to a server error.",
+      }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )
   }

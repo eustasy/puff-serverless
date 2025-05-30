@@ -16,21 +16,23 @@ export async function onRequestGet(context) {
     const result = await verifyEmailByToken(context, tokenValue)
 
     if (result.error) {
-      return new Response(
-        JSON.stringify({ error: result.message }),
-        { status: result.status || 500, headers: { "Content-Type": "application/json" } }
-      )
+      return new Response(JSON.stringify({ error: result.message }), {
+        status: result.status || 500,
+        headers: { "Content-Type": "application/json" },
+      })
     }
 
     // Success
-    return new Response(
-      JSON.stringify({ message: result.message }),
-      { status: result.status || 200, headers: { "Content-Type": "application/json" } }
-    )
+    return new Response(JSON.stringify({ message: result.message }), {
+      status: result.status || 200,
+      headers: { "Content-Type": "application/json" },
+    })
   } catch (error) {
     console.error("Error in verify email endpoint:", error)
     return new Response(
-      JSON.stringify({ error: "An internal server error occurred during email verification." }),
+      JSON.stringify({
+        error: "An internal server error occurred during email verification.",
+      }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )
   }

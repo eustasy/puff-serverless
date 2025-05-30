@@ -1,4 +1,4 @@
-const { Client } = require("pg");
+const { Client } = require("pg")
 
 /**
  * Adds an email address for a user and optionally generates a verification token.
@@ -13,16 +13,20 @@ export async function addEmail(context, user_uuid, email_address, is_primary = f
   const client = new Client(context.env.HYPERDRIVE.connectionString);
 
   try {
-    await client.connect();
+    await client.connect()
 
     // Check if the email already exists for this user
     const existingEmailQuery = {
       text: "SELECT email_id FROM emails WHERE user_uuid = $1 AND email_address = $2",
       values: [user_uuid, email_address],
-    };
-    const existingEmailResult = await client.query(existingEmailQuery);
+    }
+    const existingEmailResult = await client.query(existingEmailQuery)
     if (existingEmailResult.rowCount > 0) {
-      return { error: true, message: "This email address is already associated with your account." , status: 409 };
+      return {
+        error: true,
+        message: "This email address is already associated with your account.",
+        status: 409,
+      }
     }
 
     // Check if the email exists for ANY user (if we are adding a new one, it shouldn't be globally unique yet unless it's an error)
@@ -32,41 +36,78 @@ export async function addEmail(context, user_uuid, email_address, is_primary = f
 
     const insertEmailQuery = {
       text: "INSERT INTO emails (user_uuid, email_address, is_primary, is_verified, verified_at) VALUES ($1, $2, $3, $4, $5) RETURNING email_id",
-      values: [user_uuid, email_address, is_primary, is_verified, is_verified ? new Date().toISOString() : null],
-    };
-    await client.query(insertEmailQuery);
+      values: [
+        user_uuid,
+        email_address,
+        is_primary,
+        is_verified,
+        is_verified ? new Date().toISOString() : null,
+      ],
+    }
+    await client.query(insertEmailQuery)
 
-    let token_value = null;
+    let token_value = null
     if (!is_verified) {
-      token_value = crypto.randomUUID();
-      const token_expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
-      const token_type = is_primary ? 'email_verification' : 'backup_email_verification';
+      token_value = crypto.randomUUID()
+      const token_expires_at = new Date(
+        Date.now() + 24 * 60 * 60 * 1000
+      ).toISOString() // 24 hours
+      const token_type = is_primary
+        ? "email_verification"
+        : "backup_email_verification"
 
       const insertTokenQuery = {
         text: "INSERT INTO tokens (user_uuid, email_address, token_type, token_value, expires_at) VALUES ($1, $2, $3, $4, $5)",
-        values: [user_uuid, email_address, token_type, token_value, token_expires_at],
-      };
-      await client.query(insertTokenQuery);
-      console.log(`Verification token ${token_value} generated for ${email_address} (type: ${token_type})`);
+        values: [
+          user_uuid,
+          email_address,
+          token_type,
+          token_value,
+          token_expires_at,
+        ],
+      }
+      await client.query(insertTokenQuery)
+      console.log(
+        `Verification token ${token_value} generated for ${email_address} (type: ${token_type})`
+      )
     }
 
-    return { success: true, email_address, is_primary, is_verified, token_value };
-
+    return {
+      success: true,
+      email_address,
+      is_primary,
+      is_verified,
+      token_value,
+    }
   } catch (error) {
-    console.error("Error in addEmail:", error);
+    console.error("Error in addEmail:", error)
     // PostgreSQL error code for unique_violation is '23505'
-    if (error.code === "23505" && error.constraint === "emails_user_uuid_email_address_key") {
-         return { error: true, message: "This email address is already associated with your account.", status: 409 };
+    if (
+      error.code === "23505" &&
+      error.constraint === "emails_user_uuid_email_address_key"
+    ) {
+      return {
+        error: true,
+        message: "This email address is already associated with your account.",
+        status: 409,
+      }
     }
-    if (error.code === "23505" && error.constraint === "emails_email_address_key"){ // Assuming a global unique constraint on email_address
-        return { error: true, message: "This email address is already in use by another account.", status: 409 };
+    if (
+      error.code === "23505" &&
+      error.constraint === "emails_email_address_key"
+    ) {
+      // Assuming a global unique constraint on email_address
+      return {
+        error: true,
+        message: "This email address is already in use by another account.",
+        status: 409,
+      }
     }
-    throw error; // Re-throw other errors to be handled by the caller
+    throw error // Re-throw other errors to be handled by the caller
   } finally {
-    await client.end();
+    await client.end()
   }
 }
-
 
 /**
  * Verifies an email address using a token.
@@ -78,99 +119,170 @@ export async function verifyEmailByToken(context, tokenValue) {
   const client = new Client(context.env.HYPERDRIVE.connectionString);
 
   try {
-    await client.connect();
+    await client.connect()
 
     const tokenQuery = {
       text: "SELECT user_uuid, email_address, expires_at, is_used, token_type FROM tokens WHERE token_value = $1 AND (token_type = 'email_verification' OR token_type = 'backup_email_verification')",
       values: [tokenValue],
-    };
-    const tokenResult = await client.query(tokenQuery);
-    const tokenRecord = tokenResult.rows[0];
+    }
+    const tokenResult = await client.query(tokenQuery)
+    const tokenRecord = tokenResult.rows[0]
 
     if (!tokenRecord || tokenRecord.is_used) {
-      return { error: true, message: "Invalid, expired, or already used verification token.", status: 400 };
+      return {
+        error: true,
+        message: "Invalid, expired, or already used verification token.",
+        status: 400,
+      }
     }
 
-    const now = new Date();
-    const tokenExpiresAt = new Date(tokenRecord.expires_at);
+    const now = new Date()
+    const tokenExpiresAt = new Date(tokenRecord.expires_at)
 
     if (now > tokenExpiresAt) {
-      await client.query("UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2", [tokenValue, tokenRecord.token_type]);
-      return { error: true, message: "Verification token expired.", status: 400 };
+      await client.query(
+        "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
+        [tokenValue, tokenRecord.token_type]
+      )
+      return {
+        error: true,
+        message: "Verification token expired.",
+        status: 400,
+      }
     }
 
-    const { user_uuid, email_address, token_type } = tokenRecord;
-    const verified_at = new Date().toISOString();
+    const { user_uuid, email_address, token_type } = tokenRecord
+    const verified_at = new Date().toISOString()
 
     // Check if email exists and if it needs verification for the given type
     const emailCheckQuery = {
-        text: "SELECT email_id, is_verified, is_primary FROM emails WHERE user_uuid = $1 AND email_address = $2",
-        values: [user_uuid, email_address]
-    };
-    const emailCheckResult = await client.query(emailCheckQuery);
-    const emailRecord = emailCheckResult.rows[0];
+      text: "SELECT email_id, is_verified, is_primary FROM emails WHERE user_uuid = $1 AND email_address = $2",
+      values: [user_uuid, email_address],
+    }
+    const emailCheckResult = await client.query(emailCheckQuery)
+    const emailRecord = emailCheckResult.rows[0]
 
     if (!emailRecord) {
-        await client.query("UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2", [tokenValue, token_type]);
-        return { error: true, message: "Associated email record not found.", status: 404 };
+      await client.query(
+        "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
+        [tokenValue, token_type]
+      )
+      return {
+        error: true,
+        message: "Associated email record not found.",
+        status: 404,
+      }
     }
 
     if (emailRecord.is_verified) {
-        // If it's already verified, and it's a backup email token for a non-primary email, or primary for primary, it's fine.
-        // If it's a backup_email_verification token but the email is_primary, that's an inconsistent state.
-        if (token_type === 'backup_email_verification' && emailRecord.is_primary) {
-             await client.query("UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2", [tokenValue, token_type]);
-            return { error: true, message: "Cannot verify a primary email with a backup email token.", status: 400 };
+      // If it's already verified, and it's a backup email token for a non-primary email, or primary for primary, it's fine.
+      // If it's a backup_email_verification token but the email is_primary, that's an inconsistent state.
+      if (
+        token_type === "backup_email_verification" &&
+        emailRecord.is_primary
+      ) {
+        await client.query(
+          "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
+          [tokenValue, token_type]
+        )
+        return {
+          error: true,
+          message: "Cannot verify a primary email with a backup email token.",
+          status: 400,
         }
-        await client.query("UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2", [tokenValue, token_type]);
-        const message = token_type === 'email_verification' ? "This email is already verified." : "This backup email is already verified.";
-        return { success: true, message: message, status: 200 };
+      }
+      await client.query(
+        "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
+        [tokenValue, token_type]
+      )
+      const message =
+        token_type === "email_verification"
+          ? "This email is already verified."
+          : "This backup email is already verified."
+      return { success: true, message: message, status: 200 }
     }
 
     // Proceed with verification
-    let updateEmailResult;
-    if (token_type === 'email_verification') { // Typically for primary email registration
+    let updateEmailResult
+    if (token_type === "email_verification") {
+      // Typically for primary email registration
       updateEmailResult = await client.query(
         "UPDATE emails SET is_verified = TRUE, verified_at = $1 WHERE user_uuid = $2 AND email_address = $3",
         [verified_at, user_uuid, email_address]
-      );
-    } else if (token_type === 'backup_email_verification') { // For backup emails
-      if (emailRecord.is_primary) { // Should not verify a primary email with a backup token if it wasn't verified before
-        await client.query("UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2", [tokenValue, token_type]);
-        return { error: true, message: "Cannot verify a primary email with a backup email token if it is not yet verified.", status: 400 };
+      )
+    } else if (token_type === "backup_email_verification") {
+      // For backup emails
+      if (emailRecord.is_primary) {
+        // Should not verify a primary email with a backup token if it wasn't verified before
+        await client.query(
+          "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
+          [tokenValue, token_type]
+        )
+        return {
+          error: true,
+          message:
+            "Cannot verify a primary email with a backup email token if it is not yet verified.",
+          status: 400,
+        }
       }
       updateEmailResult = await client.query(
         "UPDATE emails SET is_verified = TRUE, verified_at = $1 WHERE user_uuid = $2 AND email_address = $3 AND is_primary = FALSE",
         [verified_at, user_uuid, email_address]
-      );
+      )
     } else {
       // Should not happen due to the initial query filter
-      return { error: true, message: "Invalid token type.", status: 500 };
+      return { error: true, message: "Invalid token type.", status: 500 }
     }
 
     if (updateEmailResult.rowCount === 0) {
-      await client.query("UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2", [tokenValue, token_type]);
-      return { error: true, message: "Failed to verify email. Conditions not met or email not found.", status: 500 };
+      await client.query(
+        "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
+        [tokenValue, token_type]
+      )
+      return {
+        error: true,
+        message:
+          "Failed to verify email. Conditions not met or email not found.",
+        status: 500,
+      }
     }
 
-    await client.query("UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2", [tokenValue, token_type]);
-    
-    const successMessage = token_type === 'email_verification' ? "Email verified successfully." : "Backup email verified successfully.";
-    return { success: true, message: successMessage, status: 200 };
+    await client.query(
+      "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
+      [tokenValue, token_type]
+    )
 
+    const successMessage =
+      token_type === "email_verification"
+        ? "Email verified successfully."
+        : "Backup email verified successfully."
+    return { success: true, message: successMessage, status: 200 }
   } catch (error) {
-    console.error("Error in verifyEmailByToken:", error);
+    console.error("Error in verifyEmailByToken:", error)
     // Attempt to invalidate token on generic error if possible
-    if (tokenValue && client && client._connected && typeof tokenRecord !== 'undefined' && tokenRecord && tokenRecord.token_type) {
-        try {
-            await client.query("UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2", [tokenValue, tokenRecord.token_type]);
-        } catch (invalidationError) {
-            console.error("Failed to invalidate token during error handling in verifyEmailByToken:", invalidationError);
-        }
+    if (
+      tokenValue &&
+      client &&
+      client._connected &&
+      typeof tokenRecord !== "undefined" &&
+      tokenRecord &&
+      tokenRecord.token_type
+    ) {
+      try {
+        await client.query(
+          "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
+          [tokenValue, tokenRecord.token_type]
+        )
+      } catch (invalidationError) {
+        console.error(
+          "Failed to invalidate token during error handling in verifyEmailByToken:",
+          invalidationError
+        )
+      }
     }
-    throw error;
+    throw error
   } finally {
-    await client.end();
+    await client.end()
   }
 }
 
@@ -185,57 +297,84 @@ export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
   const client = new Client(context.env.HYPERDRIVE.connectionString);
 
   try {
-    await client.connect();
-    await client.query("BEGIN");
+    await client.connect()
+    await client.query("BEGIN")
 
     const targetEmailQuery = {
       text: "SELECT email_id, is_verified, is_primary FROM emails WHERE user_uuid = $1 AND email_address = $2 FOR UPDATE",
       values: [user_uuid, new_primary_email],
-    };
-    const targetEmailResult = await client.query(targetEmailQuery);
-    const targetEmailRecord = targetEmailResult.rows[0];
+    }
+    const targetEmailResult = await client.query(targetEmailQuery)
+    const targetEmailRecord = targetEmailResult.rows[0]
 
     if (!targetEmailRecord) {
-      await client.query("ROLLBACK");
-      return { error: true, message: "Email address not found for this account.", status: 404 };
+      await client.query("ROLLBACK")
+      return {
+        error: true,
+        message: "Email address not found for this account.",
+        status: 404,
+      }
     }
 
     if (!targetEmailRecord.is_verified) {
-      await client.query("ROLLBACK");
-      return { error: true, message: "This email address must be verified before it can be made primary.", status: 400 };
+      await client.query("ROLLBACK")
+      return {
+        error: true,
+        message:
+          "This email address must be verified before it can be made primary.",
+        status: 400,
+      }
     }
 
     if (targetEmailRecord.is_primary) {
-      await client.query("ROLLBACK");
-      return { success: true, message: "This email address is already your primary email.", status: 200 }; // Not an error
+      await client.query("ROLLBACK")
+      return {
+        success: true,
+        message: "This email address is already your primary email.",
+        status: 200,
+      } // Not an error
     }
 
     // Demote current primary
-    await client.query("UPDATE emails SET is_primary = FALSE WHERE user_uuid = $1 AND is_primary = TRUE", [user_uuid]);
+    await client.query(
+      "UPDATE emails SET is_primary = FALSE WHERE user_uuid = $1 AND is_primary = TRUE",
+      [user_uuid]
+    )
 
     // Promote new primary
     const promoteResult = await client.query(
       "UPDATE emails SET is_primary = TRUE WHERE user_uuid = $1 AND email_id = $2",
       [user_uuid, targetEmailRecord.email_id]
-    );
+    )
 
     if (promoteResult.rowCount > 0) {
-      await client.query("COMMIT");
-      return { success: true, message: "Primary email changed successfully.", status: 200 };
+      await client.query("COMMIT")
+      return {
+        success: true,
+        message: "Primary email changed successfully.",
+        status: 200,
+      }
     } else {
-      await client.query("ROLLBACK");
+      await client.query("ROLLBACK")
       // This case should ideally not be reached if FOR UPDATE lock worked and checks passed
-      return { error: true, message: "Failed to change primary email due to an unexpected issue.", status: 500 };
+      return {
+        error: true,
+        message: "Failed to change primary email due to an unexpected issue.",
+        status: 500,
+      }
     }
-
   } catch (error) {
     if (client && client._connected) {
-      try { await client.query("ROLLBACK"); } catch (rbError) { console.error("Error rolling back transaction:", rbError); }
+      try {
+        await client.query("ROLLBACK")
+      } catch (rbError) {
+        console.error("Error rolling back transaction:", rbError)
+      }
     }
-    console.error("Error in setPrimaryEmail:", error);
-    throw error;
+    console.error("Error in setPrimaryEmail:", error)
+    throw error
   } finally {
-    await client.end();
+    await client.end()
   }
 }
 
@@ -250,41 +389,61 @@ export async function removeEmail(context, user_uuid, email_to_remove) {
   const client = new Client(context.env.HYPERDRIVE.connectionString);
 
   try {
-    await client.connect();
+    await client.connect()
 
     const emailCheckQuery = {
       text: "SELECT is_primary FROM emails WHERE user_uuid = $1 AND email_address = $2",
       values: [user_uuid, email_to_remove],
-    };
-    const emailCheckResult = await client.query(emailCheckQuery);
+    }
+    const emailCheckResult = await client.query(emailCheckQuery)
 
     if (emailCheckResult.rows.length === 0) {
-      return { error: true, message: "Email address not found for this user.", status: 404 };
+      return {
+        error: true,
+        message: "Email address not found for this user.",
+        status: 404,
+      }
     }
 
     if (emailCheckResult.rows[0].is_primary) {
-      return { error: true, message: "Cannot remove the primary email address. Please set another email as primary first.", status: 400 };
+      return {
+        error: true,
+        message:
+          "Cannot remove the primary email address. Please set another email as primary first.",
+        status: 400,
+      }
     }
 
     // Also delete any associated tokens for this email
-    await client.query("DELETE FROM tokens WHERE user_uuid = $1 AND email_address = $2", [user_uuid, email_to_remove]);
-    
+    await client.query(
+      "DELETE FROM tokens WHERE user_uuid = $1 AND email_address = $2",
+      [user_uuid, email_to_remove]
+    )
+
     const deleteResult = await client.query(
       "DELETE FROM emails WHERE user_uuid = $1 AND email_address = $2 AND is_primary = FALSE",
       [user_uuid, email_to_remove]
-    );
+    )
 
     if (deleteResult.rowCount === 0) {
       // Should not happen if previous checks passed, unless race condition or already deleted
-      return { error: true, message: "Failed to remove email. It might have been already removed or was primary.", status: 404 };
+      return {
+        error: true,
+        message:
+          "Failed to remove email. It might have been already removed or was primary.",
+        status: 404,
+      }
     }
 
-    return { success: true, message: "Email address removed successfully.", status: 200 };
-
+    return {
+      success: true,
+      message: "Email address removed successfully.",
+      status: 200,
+    }
   } catch (error) {
-    console.error("Error in removeEmail:", error);
-    throw error;
+    console.error("Error in removeEmail:", error)
+    throw error
   } finally {
-    await client.end();
+    await client.end()
   }
 }
