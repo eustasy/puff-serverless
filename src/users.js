@@ -3,11 +3,11 @@ export async function user_register(context, name, email, password) {
   if (!context || !context.env || !context.env.HYPERDRIVE) {
     throw new Error(
       "Hyperdrive binding [HYPERDRIVE] not found. Please check Pages Function configuration."
-    );
+    )
   }
   const { Client } = require("pg") // Add pg client import
   const client = new Client(context.env.HYPERDRIVE.connectionString)
-  const { addEmail } = require("./emails.js"); // Import addEmail
+  const { addEmail } = require("./emails.js") // Import addEmail
 
   try {
     await client.connect()
@@ -15,9 +15,9 @@ export async function user_register(context, name, email, password) {
     const emailExistsResult = await client.query(
       "SELECT email_id FROM emails WHERE email_address = $1 LIMIT 1",
       [email]
-    );
+    )
     if (emailExistsResult.rowCount > 0) {
-      throw new Error("Email is already registered.");
+      throw new Error("Email is already registered.")
     }
 
     // Step 1. Register the user
@@ -29,16 +29,21 @@ export async function user_register(context, name, email, password) {
 
     // Step 2. Register the email using addEmail function
     // addEmail will handle token generation internally
-    const addEmailResult = await addEmail(context, uuid, email, true, false); // true for is_primary, false for is_verified initially
+    const addEmailResult = await addEmail(context, uuid, email, true, false) // true for is_primary, false for is_verified initially
     if (addEmailResult.error) {
-        // If addEmail itself had an issue (e.g. unique constraint within its own logic if user already had it - though less likely here)
-        // This part might need more robust error handling depending on how addEmail signals errors.
-        // For now, re-throwing a generic error or addEmailResult.message
-        throw new Error(addEmailResult.message || "Failed to add primary email during registration.");
+      // If addEmail itself had an issue (e.g. unique constraint within its own logic if user already had it - though less likely here)
+      // This part might need more robust error handling depending on how addEmail signals errors.
+      // For now, re-throwing a generic error or addEmailResult.message
+      throw new Error(
+        addEmailResult.message ||
+          "Failed to add primary email during registration."
+      )
     }
     // Log the verification link using the token from addEmailResult
     if (addEmailResult.token_value) {
-        console.log(`Verification link: /api/email/verify?token=${addEmailResult.token_value}`);
+      console.log(
+        `Verification link: /api/email/verify?token=${addEmailResult.token_value}`
+      )
     }
 
     // Step 3. Register the password

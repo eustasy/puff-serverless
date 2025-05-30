@@ -39,6 +39,7 @@ This document provides instructions for the architecture of the project. It is i
 ## General Instructions
 
 These instructions are to avoid unwanted ai activity:
+
 - Do not add small comments for simple code changes, such as `// Import the new function`
 - Do not add comments that are obvious from the code itself.
 - Do not return JSON unless explicitly requested.
