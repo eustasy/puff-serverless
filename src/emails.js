@@ -10,9 +10,6 @@ const { Client } = require("pg");
  * @returns {Promise<object>} - An object indicating success or failure, and token if generated.
  */
 export async function addEmail(context, user_uuid, email_address, is_primary = false, is_verified = false) {
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    throw new Error("Hyperdrive binding [HYPERDRIVE] not found.");
-  }
   const client = new Client(context.env.HYPERDRIVE.connectionString);
 
   try {
@@ -78,9 +75,6 @@ export async function addEmail(context, user_uuid, email_address, is_primary = f
  * @returns {Promise<object>} - An object indicating success or failure.
  */
 export async function verifyEmailByToken(context, tokenValue) {
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    throw new Error("Hyperdrive binding [HYPERDRIVE] not found.");
-  }
   const client = new Client(context.env.HYPERDRIVE.connectionString);
 
   try {
@@ -188,9 +182,6 @@ export async function verifyEmailByToken(context, tokenValue) {
  * @returns {Promise<object>} - An object indicating success or failure.
  */
 export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    throw new Error("Hyperdrive binding [HYPERDRIVE] not found.");
-  }
   const client = new Client(context.env.HYPERDRIVE.connectionString);
 
   try {
@@ -256,9 +247,6 @@ export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
  * @returns {Promise<object>} - An object indicating success or failure.
  */
 export async function removeEmail(context, user_uuid, email_to_remove) {
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    throw new Error("Hyperdrive binding [HYPERDRIVE] not found.");
-  }
   const client = new Client(context.env.HYPERDRIVE.connectionString);
 
   try {

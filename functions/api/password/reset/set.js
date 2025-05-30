@@ -6,16 +6,6 @@ import { puff_hashing_password } from "../../../../src/utilities_hashing.js"
 const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-  // Validate context and HYPERDRIVE binding
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    console.error(
-      "Hyperdrive binding [HYPERDRIVE] not found in reset_password. Check Pages Function configuration."
-    )
-    return new Response(
-      JSON.stringify({ error: "Internal server configuration error." }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    )
-  }
 
   // Step 1: Parse JSON body
   let requestBody

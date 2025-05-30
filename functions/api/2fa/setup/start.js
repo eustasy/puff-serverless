@@ -5,16 +5,6 @@ const { Client } = require("pg")
 const APP_NAME = "YourApp" // Could be a configurable value
 
 export async function onRequestPost(context) {
-  // Validate context and HYPERDRIVE binding
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    console.error(
-      "Hyperdrive binding [HYPERDRIVE] not found in setup_2fa_start. Check Pages Function configuration."
-    )
-    return new Response(
-      JSON.stringify({ error: "Internal server configuration error." }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    )
-  }
 
   // Step 1: Verify the session
   const sessionVerificationResult = await verifySession(context)

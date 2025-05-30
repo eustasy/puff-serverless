@@ -44,5 +44,5 @@ These instructions are to avoid unwanted ai activity:
 - Do not return JSON unless explicitly requested.
 - Do not check for conditions that are already handled by the codebase.
 - Check all inputs and session security (when required) on the API endpoint.
-- Check for database connections only within the backend logic.
-- Do not check for database connections in the API endpoints.
+- Check for database connectivity only in middleware.
+- Do not check for database connectivity in the API endpoint or in backend code.

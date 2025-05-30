@@ -1,11 +1,5 @@
 export async function user_register(context, name, email, password) {
-  // Validate context and HYPERDRIVE binding
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    throw new Error(
-      "Hyperdrive binding [HYPERDRIVE] not found. Please check Pages Function configuration."
-    );
-  }
-  const { Client } = require("pg") // Add pg client import
+  const { Client } = require("pg")
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   const { addEmail } = require("./emails.js"); // Import addEmail
 
@@ -65,12 +59,6 @@ export async function user_register(context, name, email, password) {
 }
 
 export async function user_exists(context, email) {
-  // Validate context and HYPERDRIVE binding
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    throw new Error(
-      "Hyperdrive binding [HYPERDRIVE] not found. Please check Pages Function configuration."
-    )
-  }
   const { Client } = require("pg")
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 
@@ -91,12 +79,6 @@ export async function user_exists(context, email) {
 }
 
 export async function getUserByEmail(context, email) {
-  // Validate context and HYPERDRIVE binding
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    throw new Error(
-      "Hyperdrive binding [HYPERDRIVE] not found. Please check Pages Function configuration."
-    )
-  }
   const { Client } = require("pg")
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 
@@ -151,13 +133,13 @@ export async function getUserByEmail(context, email) {
 }
 
 export async function user_login(context, email, password) {
-  const { password_verify } = await import("./passwords.js") // Dynamic import
-  const { Client } = require("pg") // Add pg client import
-  const pgClient = new Client(context.env.HYPERDRIVE.connectionString) // Use a different variable name to avoid conflict
+  const { password_verify } = await import("./passwords.js")
+  const { Client } = require("pg")
+  const pgClient = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
     await pgClient.connect()
-    const user = await getUserByEmail(context, email) // getUserByEmail already uses pg
+    const user = await getUserByEmail(context, email)
 
     if (!user) {
       return new Response("Invalid email or password.", { status: 401 })

@@ -4,12 +4,6 @@ import {
 } from "./utilities_hashing.js"
 
 export async function password_verify(context, pw, user_uuid) {
-  // Validate context and HYPERDRIVE binding
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    throw new Error(
-      "Hyperdrive binding [HYPERDRIVE] not found. Please check Pages Function configuration."
-    )
-  }
   const { Client } = require("pg")
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 

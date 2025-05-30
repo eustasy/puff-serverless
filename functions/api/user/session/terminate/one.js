@@ -2,16 +2,6 @@ import { verifySession } from "../../../../../src/session_auth.js"
 const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-  // Validate context and HYPERDRIVE binding
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    console.error(
-      "Hyperdrive binding [HYPERDRIVE] not found in terminate_session. Check Pages Function configuration."
-    )
-    return new Response(
-      JSON.stringify({ error: "Internal server configuration error." }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    )
-  }
 
   // Step 1: Session Verification
   const sessionVerificationResult = await verifySession(context)

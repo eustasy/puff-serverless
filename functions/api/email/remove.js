@@ -2,12 +2,6 @@ import { verifySession } from "../../../src/session_auth.js";
 import { removeEmail } from "../../../src/emails.js";
 
 export async function onRequestPost(context) {
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    return new Response(
-      JSON.stringify({ error: "Internal server configuration error." }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    )
-  }
 
   let user_uuid
   try {

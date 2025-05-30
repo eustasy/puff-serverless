@@ -1,13 +1,6 @@
 import { user_exists } from "../../../src/users.js"
 
 export async function onRequest(context) {
-  // Validate context and HYPERDRIVE binding (though user_exists will also do this)
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    return new Response(
-      "Hyperdrive binding [HYPERDRIVE] not found. Please check Pages Function configuration.",
-      { status: 500 }
-    )
-  }
 
   const { searchParams } = new URL(context.request.url)
   const email = searchParams.get("email")

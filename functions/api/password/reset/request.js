@@ -2,20 +2,6 @@ import { getUserByEmail } from "../../../../src/users.js"
 const { Client } = require("pg")
 
 export async function onRequestPost(context) {
-  // Validate context and HYPERDRIVE binding
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    console.error(
-      "Hyperdrive binding [HYPERDRIVE] not found in request_password_reset. Check Pages Function configuration."
-    )
-    // Even in this case, return a generic message to avoid leaking info about server state
-    return new Response(
-      JSON.stringify({
-        message:
-          "If an account exists for the provided email, a password reset link has been sent.",
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    )
-  }
 
   // Step 1: Parse JSON body for email
   let requestBody

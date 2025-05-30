@@ -1,13 +1,6 @@
 // import { verifySession } from "../../src/session_auth.js" // verifySession is not used here as per the simplified logic
 
 export async function onRequestPost(context) {
-  // Validate context and HYPERDRIVE binding
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    console.error(
-      "Hyperdrive binding [HYPERDRIVE] not found in user_logout. Check Pages Function configuration."
-    )
-    return new Response("Internal server configuration error.", { status: 500 })
-  }
   const { Client } = require("pg")
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 

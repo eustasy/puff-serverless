@@ -1,13 +1,6 @@
 import { user_register } from "../../../src/users.js" // user_register is now pg-ready
 
 export async function onRequest(context) {
-  // Validate context and HYPERDRIVE binding (user_register will also do this)
-  if (!context || !context.env || !context.env.HYPERDRIVE) {
-    return new Response(
-      "Hyperdrive binding [HYPERDRIVE] not found. Please check Pages Function configuration.",
-      { status: 500 }
-    )
-  }
 
   const formdata = await context.request.formData()
   const email = formdata.get("email")
