@@ -1,3 +1,5 @@
+import { startSession } from "./sessions.js"
+
 export async function user_register(context, name, email, password) {
   const { Client } = require("pg")
   const client = new Client(context.env.HYPERDRIVE.connectionString)
@@ -150,53 +152,42 @@ export async function user_login(context, email, password) {
       return new Response("Invalid email or password.", { status: 401 })
     }
 
-    // Check if email is verified
     if (!user.is_verified) {
       return new Response("Please verify your email before logging in.", {
         status: 403,
       })
     }
 
-    // Pass 'context' as the first argument. password_verify will need migration too.
     const passwordMatches = await password_verify(
-      context, // password_verify will need access to the DB via context or a direct client
+      context,
       password,
       user.user_uuid
     )
 
-    if (passwordMatches) {
-      // Check if 2FA is enabled for the user by querying the 'secrets' table
-      const twoFactorRecordResult = await pgClient.query(
-        "SELECT secret_enabled FROM secrets WHERE user_uuid = $1 AND secret_type = 'totp_secret' AND secret_enabled = TRUE",
-        [user.user_uuid]
-      )
-      const twoFactorRecord = twoFactorRecordResult.rows[0]
-
-      if (twoFactorRecord) {
-        // If a record is found, it means secret_enabled was TRUE
-        // 2FA is enabled, respond that TOTP is required
-        return new Response(
-          `Please provide your TOTP code for user "${user.user_uuid}".`,
-          { status: 200 } // Status 200 as it's an expected intermediate step
-        )
-      } else {
-        // 2FA is not enabled, proceed with direct session creation
-        const session_id = crypto.randomUUID()
-        const expires_at = new Date(
-          Date.now() + 7 * 24 * 60 * 60 * 1000
-        ).toISOString() // 7 days from now
-        const user_agent = context.request.headers.get("User-Agent") || ""
-        const ip_address = context.request.headers.get("CF-Connecting-IP") || ""
-
-        await pgClient.query(
-          "INSERT INTO sessions (session_id, user_uuid, expires_at, user_agent, ip_address) VALUES ($1, $2, $3, $4, $5)",
-          [session_id, user.user_uuid, expires_at, user_agent, ip_address]
-        )
-
-        return new Response(`session_token: "${session_id}"`, { status: 200 })
-      }
-    } else {
+    if (!passwordMatches) {
       return new Response("Invalid email or password.", { status: 401 })
+    }
+
+    const twoFactorRecordResult = await pgClient.query(
+      "SELECT secret_enabled FROM secrets WHERE user_uuid = $1 AND secret_type = 'totp_secret' AND secret_enabled = TRUE",
+      [user.user_uuid]
+    )
+    const twoFactorRecord = twoFactorRecordResult.rows[0]
+
+    if (twoFactorRecord) {
+      // 2FA is enabled, respond that TOTP is required
+      return {
+        next_step: "totp",
+        user_uuid: user.user_uuid,
+        totp_required: true,
+        message: `Please provide your TOTP code for user "${user.user_uuid}".`,
+        status: 200,
+      }
+    }
+
+    return {
+      user_uuid: user.user_uuid,
+      status: 200,
     }
   } catch (dbError) {
     console.error("Error during user login:", dbError)

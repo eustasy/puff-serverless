@@ -35,6 +35,7 @@ This document provides instructions for the architecture of the project. It is i
 - Use appropriate HTTP status codes to indicate the result of the request (e.g., 200 for success, 404 for not found, etc.).
 - Ensure that the API is secure and does not expose sensitive information.
 - Additional information on HTMX can be found in the [HTMX reference](https://htmx.org/reference/) and [HTMX documentation](https://htmx.org/docs/).
+- Reference table schema in `sql` files for database interactions.
 
 ## General Instructions
 

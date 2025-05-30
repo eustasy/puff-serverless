@@ -1,4 +1,4 @@
-import { user } from "pg/lib/defaults.js"
+import { randomBytes } from "node:crypto"
 
 const { Client } = require("pg")
 
@@ -127,6 +127,60 @@ export async function endSession(client, token) {
     console.error("Error during session deletion:", error)
     return {
       error: "Failed to end session due to a server error.",
+      status: 500,
+    }
+  }
+}
+
+/**
+ * Starts a new session by inserting it into the database.
+ * The session ID is generated internally and expires in 24 hours.
+ *
+ * @param {Client} client - An active pg Client instance.
+ * @param {string} user_uuid - The UUID of the user starting the session.
+ * @param {string} [user_agent] - (Optional) The user agent string from the request.
+ * @param {string} [ip_address] - (Optional) The IP address from the request.
+ * @returns {Promise<object>} An object with the session_id if successful, or an `error` message and `status` if failed.
+ */
+export async function startSession(client, user_uuid, user_agent, ip_address) {
+  if (!user_uuid) {
+    return { error: "User UUID is required.", status: 400 }
+  }
+  try {
+    const session_id = randomBytes(32).toString("hex")
+    const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000) // Session expires in 24 hours
+
+    // Base query and parameters
+    let query = "INSERT INTO sessions (user_uuid, session_id, expires_at"
+    let params = [user_uuid, session_id, expires_at]
+    let valuePlaceholders = "$1, $2, $3"
+
+    // Add user_agent if provided
+    if (user_agent) {
+      query += ", user_agent"
+      params.push(user_agent)
+      valuePlaceholders += `, $${params.length}`
+    }
+
+    // Add ip_address if provided
+    if (ip_address) {
+      query += ", ip_address"
+      params.push(ip_address)
+      valuePlaceholders += `, $${params.length}`
+    }
+
+    query += `) VALUES (${valuePlaceholders})`
+
+    await client.query(query, params)
+    return {
+      session_id: session_id,
+      status: 200,
+      expires_at: expires_at,
+    }
+  } catch (error) {
+    console.error("Error during session creation:", error)
+    return {
+      error: "Failed to start session due to a server error.",
       status: 500,
     }
   }
