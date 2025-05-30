@@ -1,5 +1,5 @@
 const { Client } = require("pg")
-const { verifySession } = require("../../../src/session_auth.js") // Adjust path as needed
+const { verifySession } = require("../../../src/session_auth.js")
 
 export async function onRequestPost(context) {
   // Validate context and HYPERDRIVE binding
