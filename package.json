@@ -9,7 +9,7 @@
     "pg": "^8.16.0"
   },
   "devDependencies": {
-    "@types/node": "^22.15.24",
+    "@types/node": "^22.15.26",
     "prettier": "3.5.3",
     "wrangler": "^4.18.0"
   }
