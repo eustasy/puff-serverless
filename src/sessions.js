@@ -105,3 +105,29 @@ export async function sessionAuthWithCookie(context) {
     return null
   }
 }
+
+/**
+ * Ends a session by deleting it from the database.
+ *
+ * @param {Client} client - An active pg Client instance.
+ * @param {string} token - The session token to delete.
+ * @returns {Promise<object>} An object with `rowCount` if successful, or an `error` message and `status` if failed.
+ */
+export async function endSession(client, token) {
+  if (!token) {
+    return { error: "Session token is required.", status: 400 }
+  }
+  try {
+    const deleteResult = await client.query(
+      "DELETE FROM sessions WHERE session_id = $1",
+      [token]
+    )
+    return { rowCount: deleteResult.rowCount, status: 200 }
+  } catch (error) {
+    console.error("Error during session deletion:", error)
+    return {
+      error: "Failed to end session due to a server error.",
+      status: 500,
+    }
+  }
+}
