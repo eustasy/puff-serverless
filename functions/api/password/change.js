@@ -1,6 +1,6 @@
 import { sessionAuthWithCookie } from "../../../src/sessions.js" // sessionAuthWithCookie is now pg-ready
 import {
-  password_check, // Remains non-DB
+  password_requirements, // Remains non-DB
   // password_requirements_html, // Remains non-DB
   password_verify, // Is now pg-ready
 } from "../../../src/passwords.js"
@@ -48,10 +48,10 @@ export async function onRequestPost(context) {
 
   try {
     await client.connect()
-    // Step 4: Password Strength Check (New Password) - password_check is non-DB
-    // The password_check function in the provided snippet seems to return a boolean directly,
+    // Step 4: Password Strength Check (New Password) - password_requirements is non-DB
+    // The password_requirements function in the provided snippet seems to return a boolean directly,
     // not an object with a .strong property. Assuming it should be:
-    const isPasswordStrong = await password_check(new_password) // Assuming password_check is async due to HIBP potentially
+    const isPasswordStrong = await password_requirements(new_password) // Assuming password_requirements is async due to HIBP potentially
     if (!isPasswordStrong) {
       // Adjusted based on typical boolean return for a check
       return new Response(

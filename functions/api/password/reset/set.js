@@ -1,5 +1,5 @@
 import {
-  password_check,
+  password_requirements,
   password_requirements_html,
 } from "../../../../src/passwords.js"
 import { puff_hashing_password } from "../../../../src/utilities_hashing.js"
@@ -39,7 +39,7 @@ export async function onRequestPost(context) {
   try {
     await client.connect()
     // Step 3: Password Strength Check
-    const passwordCheckResult = password_check(new_password)
+    const passwordCheckResult = password_requirements(new_password)
     if (!passwordCheckResult.strong) {
       return new Response(password_requirements_html(), {
         status: 400,

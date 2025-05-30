@@ -3,6 +3,13 @@ import {
   puff_hashing_password,
 } from "./utilities_hashing.js"
 
+/**
+ * Verifies a user's password against the stored hash in the database.
+ * @param {*} context - The context object containing environment variables and other configurations.
+ * @param {*} pw - The plain text password to verify.
+ * @param {*} user_uuid - The UUID of the user to verify the password for.
+ * @returns {boolean} True if the password is verified, false otherwise.
+ */
 export async function password_verify(context, pw, user_uuid) {
   const { Client } = require("pg")
   const client = new Client(context.env.HYPERDRIVE.connectionString)
@@ -47,7 +54,12 @@ export async function password_verify(context, pw, user_uuid) {
   }
 }
 
-export async function password_check(pw) {
+/**
+ * Checks if a password meets the requirements for length, number, and special characters.
+ * @param {string} pw - The password to check.
+ * @returns {boolean} True if the password meets all requirements, false otherwise.
+ */
+export async function password_requirements(pw) {
   var result = true
   if (pw.length < 12) {
     result = false
@@ -63,6 +75,11 @@ export async function password_check(pw) {
   return result
 }
 
+/**
+ * Checks if a password meets the requirements for length, number, and special characters.
+ * @param {string} pw - The password to check.
+ * @returns {string} HTML string with the results of the password requirements check.
+ */
 export async function password_requirements_html(pw) {
   var response_html = "<h3>Password Requirements</h3><ul>"
 
