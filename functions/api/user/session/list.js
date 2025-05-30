@@ -1,9 +1,9 @@
-import { verifySession } from "../../../../src/session_auth.js"
+import { sessionAuthWithCookie } from "../../../../src/sessions.js"
 const { Client } = require("pg")
 
 export async function onRequestGet(context) {
   // Step 1: Session Verification
-  const sessionVerificationResult = await verifySession(context)
+  const sessionVerificationResult = await sessionAuthWithCookie(context)
   if (sessionVerificationResult instanceof Response) {
     return sessionVerificationResult // Session invalid or error occurred
   }

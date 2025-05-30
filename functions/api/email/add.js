@@ -1,10 +1,10 @@
-import { verifySession } from "../../../src/session_auth.js"
+import { sessionAuthWithCookie } from "../../../src/sessions.js"
 import { addEmail } from "../../../src/emails.js"
 
 export async function onRequestPost(context) {
   let user_uuid
   try {
-    const sessionResult = await verifySession(
+    const sessionResult = await sessionAuthWithCookie(
       context.request.headers.get("Authorization")?.split(" ")[1]
     )
 

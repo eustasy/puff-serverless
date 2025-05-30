@@ -1,10 +1,10 @@
-import { verifySession } from "../../../../src/session_auth.js"
+import { sessionAuthWithCookie } from "../../../../src/sessions.js"
 import { authenticator } from "otplib" // Using otplib
 const { Client } = require("pg")
 
 export async function onRequestPost(context) {
   // Step 1: Verify the session
-  const sessionVerificationResult = await verifySession(context)
+  const sessionVerificationResult = await sessionAuthWithCookie(context)
   if (sessionVerificationResult instanceof Response) {
     return sessionVerificationResult // Auth failed or error occurred
   }

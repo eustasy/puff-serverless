@@ -1,4 +1,4 @@
-import { verifySession } from "../../../src/session_auth.js" // verifySession is now pg-ready
+import { sessionAuthWithCookie } from "../../../src/sessions.js" // sessionAuthWithCookie is now pg-ready
 import {
   password_check, // Remains non-DB
   // password_requirements_html, // Remains non-DB
@@ -11,8 +11,8 @@ export async function onRequestPost(context) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   // Step 1: Session Verification
-  // verifySession itself will use the pg client if it needs to connect to DB.
-  const sessionVerificationResult = await verifySession(context)
+  // sessionAuthWithCookie itself will use the pg client if it needs to connect to DB.
+  const sessionVerificationResult = await sessionAuthWithCookie(context)
   if (sessionVerificationResult instanceof Response) {
     return sessionVerificationResult // Session invalid or error occurred
   }

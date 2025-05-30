@@ -1,4 +1,4 @@
-// import { verifySession } from "../../src/session_auth.js" // verifySession is not used here as per the simplified logic
+// import { sessionAuthWithCookie } from "../../src/sessions.js" // sessionAuthWithCookie is not used here as per the simplified logic
 
 export async function onRequestPost(context) {
   const { Client } = require("pg")

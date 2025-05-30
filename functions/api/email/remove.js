@@ -1,4 +1,4 @@
-import { verifySession } from "../../../src/session_auth.js"
+import { sessionAuthWithCookie } from "../../../src/sessions.js"
 import { removeEmail } from "../../../src/emails.js"
 
 export async function onRequestPost(context) {
@@ -21,7 +21,7 @@ export async function onRequestPost(context) {
       )
     }
 
-    const sessionResult = await verifySession(tempClient, sessionToken)
+    const sessionResult = await sessionAuthWithCookie(tempClient, sessionToken)
     await tempClient.end()
 
     if (sessionResult.error) {

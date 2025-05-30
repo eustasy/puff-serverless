@@ -1,9 +1,9 @@
-import { verifySession } from "../../../../../src/session_auth.js"
+import { sessionAuthWithCookie } from "../../../../../src/sessions.js"
 const { Client } = require("pg")
 
 export async function onRequestPost(context) {
   // Step 1: Session Verification
-  const sessionVerificationResult = await verifySession(context)
+  const sessionVerificationResult = await sessionAuthWithCookie(context)
   if (sessionVerificationResult instanceof Response) {
     return sessionVerificationResult // Session invalid or error occurred
   }
@@ -17,10 +17,10 @@ export async function onRequestPost(context) {
   }
 
   if (!currentSessionToken) {
-    // This should ideally be caught by verifySession if it\'s strict about the token being present
+    // This should ideally be caught by sessionAuthWithCookie if it\'s strict about the token being present
     // for a session to be valid, but an explicit check here is good.
     console.error(
-      `Current session token could not be identified for user ${user_uuid} during terminate_all_sessions, though verifySession passed.`
+      `Current session token could not be identified for user ${user_uuid} during terminate_all_sessions, though sessionAuthWithCookie passed.`
     )
     return new Response(
       JSON.stringify({
