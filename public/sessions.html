@@ -6,6 +6,7 @@
     <meta
       name="htmx-config"
       content='{"responseHandling": [
+      {"code":"200", "swap": true},
       {"code":"400", "swap": true},
       {"code":"401", "swap": true},
       {"code":"403", "swap": true},
@@ -19,33 +20,42 @@
     <script src="/assets/htmx_2.0.4.min.js"></script>
   </head>
   <body>
-    <header>
-      <h1>Manage Your Active Sessions</h1>
-    </header>
-    <main>
-      <div id="session-controls" style="margin-bottom: 1em">
-        <button
-          hx-post="/api/session/terminate/all"
-          hx-target="#session-list-container"
-          hx-swap="innerHTML"
-          hx-confirm="Are you sure you want to terminate all other sessions? This will not affect your current session."
-        >
-          Terminate All Other Sessions
-        </button>
-      </div>
+    <div class="container">
+      <header>
+        <h1>Manage Your Active Sessions</h1>
+      </header>
+      <main>
+        <div id="session-controls" style="margin-bottom: 1em">
+          <button
+            hx-post="/api/session/terminate/all"
+            hx-target="#session-list-container"
+            hx-swap="innerHTML"
+            hx-confirm="Are you sure you want to terminate all other sessions? This will not affect your current session."
+          >
+            Terminate All Other Sessions
+          </button>
+          <button
+            hx-get="/api/session/list"
+            hx-target="#session-list-container"
+            hx-swap="innerHTML"
+          >
+            Refresh Sessions
+          </button>
+        </div>
 
-      <h2>Current Sessions</h2>
-      <div
-        id="session-list-container"
-        hx-get="/api/session/list"
-        hx-trigger="load"
-        hx-swap="innerHTML"
-      >
-        <p>Loading sessions...</p>
-      </div>
-    </main>
-    <footer>
-      <p><a href="/">Go back to Home</a></p>
-    </footer>
+        <h2>Current Sessions</h2>
+        <div
+          id="session-list-container"
+          hx-get="/api/session/list"
+          hx-trigger="load"
+          hx-swap="innerHTML"
+        >
+          <p>Loading sessions...</p>
+        </div>
+      </main>
+      <footer>
+        <p><a href="/">Go back to Home</a></p>
+      </footer>
+    </div>
   </body>
 </html>
