@@ -99,15 +99,34 @@ export async function user_exists(context, email) {
 export async function user_login(context, email, password) {
   let client
   try {
-    // client instantiation and connection remains as it's used for TOTP and sessions.
     client = new Client(context.env.HYPERDRIVE.connectionString)
     await client.connect()
 
-    const user = await readEmail(context, email)
+    const emailReadResult = await readEmail(context, email)
 
-    if (!user) {
-      return { error: true, message: "Invalid email or password.", status: 401 }
+    // Handle cases where readEmail indicates an error, email not found, or unexpected structure
+    if (
+      !emailReadResult ||
+      emailReadResult.error ||
+      !emailReadResult.success ||
+      !emailReadResult.email
+    ) {
+      console.error(
+        "Error reading email:",
+        emailReadResult ? emailReadResult.message : "Unknown error"
+      )
+      // If readEmail returns a message, use it, otherwise default to a generic message
+      const message =
+        emailReadResult && emailReadResult.message
+          ? emailReadResult.message
+          : "Invalid email or password."
+      // If readEmail returns a status for its error, use it, otherwise default to 401
+      const status =
+        emailReadResult && emailReadResult.status ? emailReadResult.status : 401
+      return { error: true, message: message, status: status }
     }
+
+    const user = emailReadResult.email
 
     if (!user.is_verified) {
       return {
