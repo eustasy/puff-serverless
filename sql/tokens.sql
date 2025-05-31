@@ -4,10 +4,9 @@ CREATE TABLE public.tokens (
   token_value STRING NOT NULL,
   expires_at TIMESTAMP NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT current_timestamp():::TIMESTAMP,
-  is_used INT8 NOT NULL DEFAULT 0:::INT8,
+  is_used BOOLEAN NOT NULL DEFAULT FALSE,
   email_address STRING NULL,
   CONSTRAINT tokens_pkey PRIMARY KEY (token_value ASC),
   CONSTRAINT tokens_user_uuid_fkey FOREIGN KEY (user_uuid) REFERENCES public.users(user_uuid) ON DELETE CASCADE,
-  INDEX idx_tokens_user_uuid (user_uuid ASC),
-  INDEX idx_tokens_token_type (token_type ASC)
+  INDEX idx_tokens_user_uuid (user_uuid, token_type ASC)
 ) LOCALITY REGIONAL BY TABLE IN PRIMARY REGION
