@@ -1,75 +1,85 @@
-import { sessionAuthWithCookie } from "../../../src/sessions.js"
-const { Client } = require("pg")
+import {
+  sessionAuthWithCookie,
+  listActiveSessionsForUser,
+  getCookie,
+} from "../../../src/sessions.js"
 
 export async function onRequestGet(context) {
-  // Step 1: Session Verification
   const sessionVerificationResult = await sessionAuthWithCookie(context)
-  if (sessionVerificationResult instanceof Response) {
-    return sessionVerificationResult // Session invalid or error occurred
+  if (sessionVerificationResult && sessionVerificationResult.error) {
+    if (sessionVerificationResult instanceof Response)
+      return sessionVerificationResult
+    return new Response(
+      `<p class=\"error\">${sessionVerificationResult.message || "Session validation failed."}</p>`,
+      {
+        status: sessionVerificationResult.status || 401,
+        headers: { "Content-Type": "text/html" },
+      }
+    )
   }
   const user_uuid = context.data.user_uuid
-
-  // Step 2: Get current session token (for marking)
-  let currentSessionToken = null
-  const authHeader = context.request.headers.get("Authorization")
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    currentSessionToken = authHeader.substring(7)
+  if (!user_uuid) {
+    return new Response(
+      '<p class="error">Unauthorized. No user UUID found after session auth.</p>',
+      {
+        status: 401,
+        headers: { "Content-Type": "text/html" },
+      }
+    )
   }
 
-  const client = new Client({
-    connectionString: context.env.HYPERDRIVE.connectionString,
-  })
+  const cookieHeader = context.request.headers.get("Cookie")
+  const currentSessionToken = await getCookie(cookieHeader, "session_token")
 
   try {
-    await client.connect()
+    const result = await listActiveSessionsForUser(context, user_uuid)
 
-    // Step 3: Retrieve Active Sessions
-    const nowISO = new Date().toISOString()
-    const sessionsQuery = {
-      text: "SELECT session_id, created_at, expires_at, user_agent, ip_address FROM sessions WHERE user_uuid = $1 AND expires_at > $2 ORDER BY created_at DESC",
-      values: [user_uuid, nowISO],
+    if (result.error) {
+      return new Response(`<p class=\"error\">${result.error}</p>`, {
+        status: result.status,
+        headers: { "Content-Type": "text/html" },
+      })
     }
-    const sessionsResult = await client.query(sessionsQuery)
-    const activeSessions = sessionsResult.rows
 
-    // Step 4: Data Formatting & Identify Current Session
-    const formattedSessions = activeSessions.map((session) => {
-      return {
-        session_id: session.session_id,
-        created_at: session.created_at,
-        expires_at: session.expires_at,
-        user_agent: session.user_agent,
-        ip_address: session.ip_address,
-        is_current_session: session.session_id === currentSessionToken,
-      }
-    })
+    let html =
+      "<table><thead><tr><th>Created At</th><th>Expires At</th><th>User Agent</th><th>IP Address</th><th>Status</th></tr></thead><tbody>"
+    if (result.sessions && result.sessions.length > 0) {
+      result.sessions.forEach((session) => {
+        html += `<tr>
+          <td>${new Date(session.created_at).toLocaleString()}</td>
+          <td>${new Date(session.expires_at).toLocaleString()}</td>
+          <td>${session.user_agent || "N/A"}</td>
+          <td>${session.ip_address || "N/A"}</td>
+          <td>${session.session_id === currentSessionToken ? "<strong>Current Session</strong>" : "Active"}</td>
+        </tr>`
+      })
+    } else {
+      html += '<tr><td colspan="5">No active sessions found.</td></tr>'
+    }
+    html += "</tbody></table>"
 
-    // Step 5: Response
-    return new Response(JSON.stringify(formattedSessions), {
+    return new Response(html, {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/html" },
     })
   } catch (error) {
     console.error("Error listing active sessions:", error)
     return new Response(
-      JSON.stringify({
-        error: "Failed to list sessions due to a server error.",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      '<p class="error">Failed to list sessions due to a server error.</p>',
+      {
+        status: 500,
+        headers: { "Content-Type": "text/html" },
+      }
     )
-  } finally {
-    if (client) {
-      await client.end()
-    }
   }
 }
 
 export async function onRequest(context) {
   if (context.request.method === "GET") {
-    return await onRequestGet(context) // Ensure onRequestGet is awaited
+    return await onRequestGet(context)
   }
-  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+  return new Response('<p class="error">Method Not Allowed</p>', {
     status: 405,
-    headers: { "Allow": "GET", "Content-Type": "application/json" },
+    headers: { "Allow": "GET", "Content-Type": "text/html" },
   })
 }

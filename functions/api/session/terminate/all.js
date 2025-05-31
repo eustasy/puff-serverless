@@ -1,78 +1,77 @@
-import { sessionAuthWithCookie } from "../../../../src/sessions.js"
-const { Client } = require("pg")
+import {
+  sessionAuthWithCookie,
+  terminateAllOtherSessions,
+  getCookie,
+} from "../../../../src/sessions.js"
 
 export async function onRequestPost(context) {
   // Step 1: Session Verification
-  const sessionVerificationResult = await sessionAuthWithCookie(context)
-  if (sessionVerificationResult instanceof Response) {
-    return sessionVerificationResult // Session invalid or error occurred
+  const user_uuid = await sessionAuthWithCookie(context)
+  if (!user_uuid || typeof user_uuid !== "string") {
+    // sessionAuthWithCookie now returns user_uuid directly or null/error object
+    // If sessionAuthWithCookie returned an error object, it might be a Response already
+    if (user_uuid instanceof Response) return user_uuid
+    // Handle cases where user_uuid is not returned or is not a string (e.g. error object from verifyTokenAndGetUser)
+    // For simplicity, returning a generic unauthorized response. Adjust as needed based on sessionAuthWithCookie's error structure.
+    return new Response(
+      "<p>Session invalid or expired. Please log in again.</p>",
+      {
+        status: 401,
+        headers: { "Content-Type": "text/html" },
+      }
+    )
   }
-  const user_uuid = context.data.user_uuid
+  context.data.user_uuid = user_uuid // Ensure user_uuid is in context.data if needed by other parts
 
-  // Step 2: Identify Current Session
-  const authHeader = context.request.headers.get("Authorization")
-  let currentSessionToken = null
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    currentSessionToken = authHeader.substring(7)
-  }
+  // Step 2: Identify Current Session Token from Cookie
+  // It's more robust to get the current session token directly from the cookie
+  // that sessionAuthWithCookie would have used for verification.
+  const cookieHeader = context.request.headers.get("Cookie")
+  const currentSessionToken = await getCookie(cookieHeader, "session_token")
 
   if (!currentSessionToken) {
-    // This should ideally be caught by sessionAuthWithCookie if it\'s strict about the token being present
-    // for a session to be valid, but an explicit check here is good.
     console.error(
-      `Current session token could not be identified for user ${user_uuid} during terminate_all_sessions, though sessionAuthWithCookie passed.`
+      `Current session token could not be identified from cookie for user ${user_uuid} during terminate_all_sessions.`
     )
     return new Response(
-      JSON.stringify({
-        error: "Could not identify current session to preserve.",
-      }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
+      "<p>Error: Could not identify current session to preserve. Your session might be invalid.</p>",
+      { status: 400, headers: { "Content-Type": "text/html" } }
     )
   }
 
-  const client = new Client({
-    connectionString: context.env.HYPERDRIVE.connectionString,
-  })
+  // Step 3: Terminate Other Sessions using the helper function
+  const terminationResult = await terminateAllOtherSessions(
+    context,
+    user_uuid,
+    currentSessionToken
+  )
 
-  try {
-    await client.connect()
-
-    // Step 3: Terminate Other Sessions
-    const deleteQuery = {
-      text: "DELETE FROM sessions WHERE user_uuid = $1 AND session_id != $2",
-      values: [user_uuid, currentSessionToken],
-    }
-    const deleteResult = await client.query(deleteQuery)
-
-    // Step 4: Response
-    return new Response(
-      JSON.stringify({
-        message: "All other active sessions terminated successfully.",
-        terminated_count: deleteResult.rowCount || 0,
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    )
-  } catch (error) {
-    console.error("Error terminating all other sessions:", error)
-    return new Response(
-      JSON.stringify({
-        error: "Failed to terminate other sessions due to a server error.",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    )
-  } finally {
-    if (client) {
-      await client.end()
-    }
+  if (terminationResult.error) {
+    return new Response(`<p>Error: ${terminationResult.error}</p>`, {
+      status: terminationResult.status || 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
+
+  // Step 4: Response
+  // Consider what HTML response is most appropriate.
+  // For HTMX, you might want to return a partial that updates the UI, or a redirect.
+  // For now, a simple success message.
+  return new Response(
+    `<p>All other active sessions (count: ${terminationResult.terminated_count}) terminated successfully. This session remains active.</p>`,
+    { status: 200, headers: { "Content-Type": "text/html" } }
+  )
 }
 
 export async function onRequest(context) {
   if (context.request.method === "POST") {
     return await onRequestPost(context)
   }
-  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-    status: 405,
-    headers: { "Allow": "POST", "Content-Type": "application/json" },
-  })
+  return new Response(
+    "<p>Error: Method Not Allowed. Only POST requests are accepted.</p>",
+    {
+      status: 405,
+      headers: { "Allow": "POST", "Content-Type": "text/html" },
+    }
+  )
 }

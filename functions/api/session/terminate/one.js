@@ -1,95 +1,93 @@
-import { sessionAuthWithCookie } from "../../../../src/sessions.js"
-const { Client } = require("pg")
+import {
+  sessionAuthWithCookie,
+  terminateSpecificSession,
+} from "../../../../src/sessions.js"
 
 export async function onRequestPost(context) {
   // Step 1: Session Verification
-  const sessionVerificationResult = await sessionAuthWithCookie(context)
-  if (sessionVerificationResult instanceof Response) {
-    return sessionVerificationResult // Session invalid or error occurred
+  const user_uuid = await sessionAuthWithCookie(context)
+  if (!user_uuid || typeof user_uuid !== "string") {
+    if (user_uuid instanceof Response) return user_uuid
+    return new Response(
+      "<p>Session invalid or expired. Please log in again.</p>",
+      {
+        status: 401,
+        headers: { "Content-Type": "text/html" },
+      }
+    )
   }
-  const user_uuid = context.data.user_uuid
+  // context.data.user_uuid = user_uuid; // Not strictly needed if only used here
 
-  // Step 2: Parse JSON body
+  // Step 2: Parse JSON body for session_id_to_terminate
   let requestBody
   try {
     requestBody = await context.request.json()
   } catch (e) {
-    return new Response(JSON.stringify({ error: "Invalid JSON body." }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    })
+    return new Response(
+      "<p>Error: Invalid request format. Expected JSON body.</p>",
+      {
+        status: 400,
+        headers: { "Content-Type": "text/html" },
+      }
+    )
   }
 
-  const session_id_to_terminate = requestBody.session_id
+  const { session_id_to_terminate } = requestBody
 
   // Step 3: Input Validation
   if (!session_id_to_terminate || typeof session_id_to_terminate !== "string") {
     return new Response(
-      JSON.stringify({
-        error: "Session ID to terminate is missing or invalid.",
-      }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
+      "<p>Error: Session ID to terminate is missing or invalid in the request.</p>",
+      { status: 400, headers: { "Content-Type": "text/html" } }
     )
   }
 
-  const client = new Client({
-    connectionString: context.env.HYPERDRIVE.connectionString,
-  })
+  // Step 4: Terminate Specific Session using the helper function
+  const terminationResult = await terminateSpecificSession(
+    context,
+    user_uuid,
+    session_id_to_terminate
+  )
 
-  try {
-    await client.connect()
-
-    // Step 4: Target Session Validation
-    // Check if the session exists and belongs to the authenticated user.
-    const targetSessionQuery = {
-      text: "SELECT session_id FROM sessions WHERE session_id = $1 AND user_uuid = $2",
-      values: [session_id_to_terminate, user_uuid],
+  if (terminationResult.error) {
+    // Specific error for session not found or not owned
+    if (terminationResult.status === 404) {
+      return new Response(`<p>Error: ${terminationResult.error}</p>`, {
+        status: 404,
+        headers: { "Content-Type": "text/html" },
+      })
     }
-    const targetSessionResult = await client.query(targetSessionQuery)
+    // Generic server error
+    return new Response(`<p>Error: ${terminationResult.error}</p>`, {
+      status: terminationResult.status || 500,
+      headers: { "Content-Type": "text/html" },
+    })
+  }
 
-    if (targetSessionResult.rowCount === 0) {
-      return new Response(
-        JSON.stringify({ error: "Session not found or access denied." }),
-        { status: 404, headers: { "Content-Type": "application/json" } }
-      )
-    }
-
-    // Step 5: Terminate Session
-    const deleteQuery = {
-      text: "DELETE FROM sessions WHERE session_id = $1 AND user_uuid = $2",
-      values: [session_id_to_terminate, user_uuid],
-    }
-    const deleteResult = await client.query(deleteQuery)
-
-    if (deleteResult.rowCount > 0) {
-      return new Response(
-        JSON.stringify({ message: "Session terminated successfully." }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      )
-    } else {
-      // This case means the session existed (from the check above) but was not deleted.
-      // This could happen if it was deleted by another request between the check and this delete.
-      // Or if it expired and a cleanup process removed it.
-      // For the client, the session is gone, so it's effectively a success.
-      return new Response(
-        JSON.stringify({
-          message: "Session already terminated or not found for deletion.",
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      )
-    }
-  } catch (error) {
-    console.error("Error terminating session:", error)
+  // Step 5: Response
+  if (terminationResult.rowCount > 0) {
+    // For HTMX, you might want to trigger a refresh of the session list or show a success message.
+    // An empty 200 OK response with an HX-Trigger header can be useful if the page should re-fetch data.
+    // Or, return a partial HTML to replace the row of the terminated session.
     return new Response(
-      JSON.stringify({
-        error: "Failed to terminate session due to a server error.",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      "<p>Session terminated successfully.</p>", // Or an empty string if using HX-Trigger effectively
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html",
+          // Example: "HX-Trigger": "sessionListChanged"
+        },
+      }
     )
-  } finally {
-    if (client) {
-      await client.end()
-    }
+  } else {
+    // This means the session was not found for this user, or was already terminated.
+    // The helper function `terminateSpecificSession` now returns a 404 in this case if it wasn't found initially.
+    // If it was found then deleted, rowCount would be 1. If it was found then couldn't be deleted (e.g. already gone), rowCount would be 0.
+    // For simplicity, we can treat rowCount === 0 after a successful call (no error) as "it's gone".
+    return new Response("<p>Session was already terminated or not found.</p>", {
+      status: 200,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 }
 
@@ -97,8 +95,11 @@ export async function onRequest(context) {
   if (context.request.method === "POST") {
     return await onRequestPost(context)
   }
-  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-    status: 405,
-    headers: { "Allow": "POST", "Content-Type": "application/json" },
-  })
+  return new Response(
+    "<p>Error: Method Not Allowed. Only POST requests are accepted.</p>",
+    {
+      status: 405,
+      headers: { "Allow": "POST", "Content-Type": "text/html" },
+    }
+  )
 }

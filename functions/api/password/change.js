@@ -1,132 +1,137 @@
-import { sessionAuthWithCookie } from "../../../src/sessions.js" // sessionAuthWithCookie is now pg-ready
+import { sessionAuthWithCookie } from "../../../../src/sessions.js"
 import {
-  password_requirements, // Remains non-DB
-  // password_requirements_html, // Remains non-DB
-  password_verify, // Is now pg-ready
-} from "../../../src/passwords.js"
-import { puff_hashing_password } from "../../../src/utilities_hashing.js" // Remains non-DB
+  password_requirements,
+  password_requirements_html,
+  password_verify,
+  updatePassword, // Import updatePassword
+} from "../../../../src/passwords.js"
+// puff_hashing_password is used by updatePassword internally, so not directly needed here if updatePassword is used.
+// However, if we want to keep the structure where hash/salt are generated before calling update,
+// then updatePassword might need to be adjusted or we use a different helper.
+// For now, assuming updatePassword takes the new plain password.
 
 export async function onRequestPost(context) {
-  const { Client } = require("pg")
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
-
   // Step 1: Session Verification
-  // sessionAuthWithCookie itself will use the pg client if it needs to connect to DB.
-  const sessionVerificationResult = await sessionAuthWithCookie(context)
-  if (sessionVerificationResult instanceof Response) {
-    return sessionVerificationResult // Session invalid or error occurred
+  const user_uuid = await sessionAuthWithCookie(context)
+  if (!user_uuid || typeof user_uuid !== "string") {
+    if (user_uuid instanceof Response) return user_uuid
+    return new Response(
+      "<p>Session invalid or expired. Please log in again.</p>",
+      {
+        status: 401,
+        headers: { "Content-Type": "text/html" },
+      }
+    )
   }
-  // If true, context.data.user_uuid is populated
-  const user_uuid = context.data.user_uuid
+  // context.data.user_uuid is populated by sessionAuthWithCookie if successful and it modifies context.data
+  // If sessionAuthWithCookie only returns user_uuid, we might need to set it:
+  if (!context.data) context.data = {}
+  context.data.user_uuid = user_uuid
 
   // Step 2: Parse JSON body
   let requestBody
   try {
     requestBody = await context.request.json()
   } catch (e) {
-    return new Response(JSON.stringify({ error: "Invalid JSON body." }), {
+    return new Response("<p>Error: Invalid JSON body.</p>", {
       status: 400,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/html" },
     })
   }
 
   const { current_password, new_password } = requestBody
 
-  // Step 3: Input Validation (remains the same)
+  // Step 3: Input Validation
   if (!current_password || typeof current_password !== "string") {
     return new Response(
-      JSON.stringify({ error: "Current password is missing or invalid." }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
+      "<p>Error: Current password is missing or invalid.</p>",
+      { status: 400, headers: { "Content-Type": "text/html" } }
     )
   }
   if (!new_password || typeof new_password !== "string") {
-    return new Response(
-      JSON.stringify({ error: "New password is missing or invalid." }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    )
+    return new Response("<p>Error: New password is missing or invalid.</p>", {
+      status: 400,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 
   try {
-    await client.connect()
-    // Step 4: Password Strength Check (New Password) - password_requirements is non-DB
-    // The password_requirements function in the provided snippet seems to return a boolean directly,
-    // not an object with a .strong property. Assuming it should be:
-    const isPasswordStrong = await password_requirements(new_password) // Assuming password_requirements is async due to HIBP potentially
+    // Step 4: Password Strength Check (New Password)
+    const isPasswordStrong = await password_requirements(new_password)
     if (!isPasswordStrong) {
-      // Adjusted based on typical boolean return for a check
+      const requirementsHtml = await password_requirements_html(new_password)
       return new Response(
-        JSON.stringify({
-          error: "New password does not meet requirements.",
-          // requirements_html: await password_requirements_html(new_password) // If you want to include this
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        `<div>
+           <p>Error: New password does not meet requirements.</p>
+           ${requirementsHtml}
+         </div>`,
+        { status: 400, headers: { "Content-Type": "text/html" } }
       )
     }
 
-    // Step 5: Verify Current Password - password_verify is now pg-ready
-    // password_verify will handle its own DB connection if called standalone,
-    // but since we already have a client, it might be better to pass it if refactored.
-    // For now, it will create its own connection as per its current migrated state.
+    // Step 5: Verify Current Password
+    // password_verify handles its own DB connection via context
     const currentPasswordMatches = await password_verify(
-      context, // password_verify uses context to get HYPERDRIVE
+      context,
       current_password,
       user_uuid
     )
 
     if (!currentPasswordMatches) {
-      return new Response(
-        JSON.stringify({ error: "Incorrect current password." }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      )
+      return new Response("<p>Error: Incorrect current password.</p>", {
+        status: 403,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
-    // Step 6: Update Password
-    const { hash: newHash, salt: newSalt } =
-      await puff_hashing_password(new_password) // non-DB
-    const new_secret_value = newHash + ":" + newSalt
-    const secret_updated_at = new Date().toISOString()
-
-    const updatePasswordResult = await client.query(
-      "UPDATE secrets SET secret_value = $1, secret_created_at = $2 WHERE user_uuid = $3 AND secret_type = 'puff_password_sha-384'",
-      [new_secret_value, secret_updated_at, user_uuid]
+    // Step 6: Update Password using the helper function
+    const passwordUpdated = await updatePassword(
+      context,
+      user_uuid,
+      new_password
     )
 
-    if (updatePasswordResult.rowCount === 0) {
+    if (!passwordUpdated) {
+      // This might indicate the user record wasn't found for update, or a DB error occurred within updatePassword
       console.error(
-        `Failed to update password for user_uuid (no rows changed): ${user_uuid}`
+        `Failed to update password for user_uuid (updatePassword returned false): ${user_uuid}`
       )
       return new Response(
-        JSON.stringify({
-          error: "Failed to update password. Please try again.",
-        }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        "<p>Error: Failed to update password. The user record might not exist or an internal error occurred.</p>",
+        { status: 500, headers: { "Content-Type": "text/html" } }
       )
     }
 
     // Step 7: Response
+    // For HTMX, a redirect to a profile page or a success message might be appropriate.
+    // Example: Redirect to /profile with a success message query parameter
+    // Or, return a partial HTML to update a section of the page.
+    // For now, a simple success message.
     return new Response(
-      JSON.stringify({ message: "Password changed successfully." }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+      "<p>Password changed successfully.</p>", // Consider an HX-Redirect if applicable
+      { status: 200, headers: { "Content-Type": "text/html" } }
     )
   } catch (error) {
+    // This catch block will now primarily catch errors from password_verify or updatePassword if they throw,
+    // or issues with sessionAuthWithCookie if it throws instead of returning a Response.
     console.error("Error during password change:", error)
     return new Response(
-      JSON.stringify({
-        error: "Failed to change password due to a server error.",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      "<p>Error: Failed to change password due to a server error.</p>",
+      { status: 500, headers: { "Content-Type": "text/html" } }
     )
-  } finally {
-    await client.end()
   }
+  // No finally block needed here as individual helpers manage their own DB connections.
 }
 
 export async function onRequest(context) {
   if (context.request.method === "POST") {
     return onRequestPost(context)
   }
-  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-    status: 405,
-    headers: { "Allow": "POST", "Content-Type": "application/json" },
-  })
+  return new Response(
+    "<p>Error: Method Not Allowed. Only POST requests are accepted.</p>",
+    {
+      status: 405,
+      headers: { "Allow": "POST", "Content-Type": "text/html" },
+    }
+  )
 }
