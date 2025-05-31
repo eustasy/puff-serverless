@@ -152,7 +152,11 @@ export async function user_login(context, email, password) {
     }
 
     if (!user.is_verified) {
-      return { error: true, message: "Please verify your email before logging in.", status: 403 }
+      return {
+        error: true,
+        message: "Please verify your email before logging in.",
+        status: 403,
+      }
     }
 
     const passwordMatches = await password_verify(
@@ -177,7 +181,7 @@ export async function user_login(context, email, password) {
         user_uuid: user.user_uuid,
         totp_required: true,
         message: `Please provide your TOTP code for user \"${user.user_uuid}\".`,
-        status: 200, 
+        status: 200,
       }
     }
 
@@ -207,7 +211,11 @@ export async function user_login(context, email, password) {
     }
   } catch (dbError) {
     console.error("Error during user login:", dbError)
-    return { error: true, message: "Login failed due to a server error.", status: 500 }
+    return {
+      error: true,
+      message: "Login failed due to a server error.",
+      status: 500,
+    }
   } finally {
     if (client) {
       await client.end()
