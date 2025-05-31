@@ -31,17 +31,21 @@
             hx-post="/api/session/terminate/all"
             hx-target="#session-list-container"
             hx-swap="innerHTML"
+            hx-disabled-elt="this"
             hx-confirm="Are you sure you want to terminate all other sessions? This will not affect your current session."
           >
             Terminate All Other Sessions
+            <img class="htmx-indicator" src="/assets/bars.svg" />
           </button>
           <button
             class="btn-safe"
             hx-get="/api/session/list"
             hx-target="#session-list-container"
             hx-swap="innerHTML"
+            hx-disabled-elt="this"
           >
             Refresh Sessions
+            <img class="htmx-indicator" src="/assets/bars.svg" />
           </button>
         </div>
 

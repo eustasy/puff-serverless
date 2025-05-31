@@ -62,8 +62,10 @@ export async function onRequestGet(context) {
                 hx-target="#session-list-container"
                 hx-swap="innerHTML"
                 hx-confirm="Are you sure you want to terminate this session?"
+                hx-disable-elt="this"
             >
                 Terminate
+                <img class="htmx-indicator" src="/assets/bars.svg" />
             </button>`
               : "" // No button for the current session
           }</td>
