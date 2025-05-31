@@ -1,4 +1,4 @@
-import { sessionAuthWithCookie } from "../../src/sessions.js"
+import { sessionAuthWithCookie } from "../../../src/sessions.js"
 const { Client } = require("pg")
 
 export async function onRequestGet(context) {
