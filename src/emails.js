@@ -23,7 +23,7 @@ export async function addEmail(
 
     // Check if the email already exists for this user
     const existingEmailQuery = {
-      text: "SELECT email_id FROM emails WHERE user_uuid = $1 AND email_address = $2",
+      text: "SELECT email_address FROM emails WHERE user_uuid = $1 AND email_address = $2",
       values: [user_uuid, email_address],
     }
     const existingEmailResult = await client.query(existingEmailQuery)
@@ -41,7 +41,7 @@ export async function addEmail(
     // For now, let's assume the calling API does the global check if needed.
 
     const insertEmailQuery = {
-      text: "INSERT INTO emails (user_uuid, email_address, is_primary, is_verified, verified_at) VALUES ($1, $2, $3, $4, $5) RETURNING email_id",
+      text: "INSERT INTO emails (user_uuid, email_address, is_primary, is_verified, verified_at) VALUES ($1, $2, $3, $4, $5)",
       values: [
         user_uuid,
         email_address,
@@ -162,7 +162,7 @@ export async function verifyEmailByToken(context, tokenValue) {
 
     // Check if email exists and if it needs verification for the given type
     const emailCheckQuery = {
-      text: "SELECT email_id, is_verified, is_primary FROM emails WHERE user_uuid = $1 AND email_address = $2",
+      text: "SELECT is_verified, is_primary FROM emails WHERE user_uuid = $1 AND email_address = $2",
       values: [user_uuid, email_address],
     }
     const emailCheckResult = await client.query(emailCheckQuery)
@@ -307,7 +307,7 @@ export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
     await client.query("BEGIN")
 
     const targetEmailQuery = {
-      text: "SELECT email_id, is_verified, is_primary FROM emails WHERE user_uuid = $1 AND email_address = $2 FOR UPDATE",
+      text: "SELECT is_verified, is_primary FROM emails WHERE user_uuid = $1 AND email_address = $2 FOR UPDATE",
       values: [user_uuid, new_primary_email],
     }
     const targetEmailResult = await client.query(targetEmailQuery)
@@ -349,8 +349,8 @@ export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
 
     // Promote new primary
     const promoteResult = await client.query(
-      "UPDATE emails SET is_primary = TRUE WHERE user_uuid = $1 AND email_id = $2",
-      [user_uuid, targetEmailRecord.email_id]
+      "UPDATE emails SET is_primary = TRUE WHERE user_uuid = $1 AND email_address = $2",
+      [user_uuid, new_primary_email]
     )
 
     if (promoteResult.rowCount > 0) {
