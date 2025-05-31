@@ -9,21 +9,15 @@ export async function onRequest(context) {
   }
 
   try {
-    const count = await user_exists(context, email) // user_exists is now async and uses pg
-    // const results = { // This part is not strictly needed for the current response logic
-    //   email: email,
-    //   count: count,
-    //   bool: Boolean(count),
-    // }
+    const count = await user_exists(context, email)
     if (count > 0) {
       return new Response(
         '<span class="result-negative">This email is already registered.</span>'
       )
     }
-    return new Response("", { headers: { "Content-Type": "text/html" } }) // Ensure empty response is HTML
+    return new Response("", { headers: { "Content-Type": "text/html" } })
   } catch (error) {
     console.error("Error in user_exists endpoint:", error)
-    // It's good practice to not expose raw error messages to the client
     return new Response("Error checking email existence.", { status: 500 })
   }
 }

@@ -163,15 +163,17 @@ export async function createSession(client, user_uuid, user_agent, ip_address) {
 /**
  * Ends a session by deleting it from the database.
  *
- * @param {Client} client - An active pg Client instance.
+ * @param {object} context - The Cloudflare Pages context object, containing request, env, and data.
  * @param {string} token - The session token to delete.
  * @returns {Promise<object>} An object with `rowCount` if successful, or an `error` message and `status` if failed.
  */
-export async function deleteSession(client, token) {
+export async function deleteSession(context, token) {
   if (!token) {
     return { error: "Session token is required.", status: 400 }
   }
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
   try {
+    await client.connect()
     const deleteResult = await client.query(
       "DELETE FROM sessions WHERE session_id = $1",
       [token]
@@ -182,6 +184,10 @@ export async function deleteSession(client, token) {
     return {
       error: "Failed to end session due to a server error.",
       status: 500,
+    }
+  } finally {
+    if (client) {
+      await client.end()
     }
   }
 }

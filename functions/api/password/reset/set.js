@@ -1,166 +1,137 @@
 import {
   password_requirements,
   password_requirements_html,
+  updatePassword, // Import updatePassword
 } from "../../../../src/passwords.js"
-import { puff_hashing_password } from "../../../../src/utilities_hashing.js"
-const { Client } = require("pg")
+import { readToken, updateToken } from "../../../../src/tokens.js"
+import { user_exists_by_uuid } from "../../../../src/users.js"
 
 export async function onRequestPost(context) {
-  // Step 1: Parse JSON body
   let requestBody
   try {
     requestBody = await context.request.json()
   } catch (e) {
-    return new Response(JSON.stringify({ error: "Invalid JSON body." }), {
+    return new Response('<p class="error">Invalid JSON body.</p>', {
       status: 400,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/html" },
     })
   }
 
   const { token, new_password } = requestBody
 
-  // Step 2: Input Validation
   if (!token || typeof token !== "string") {
     return new Response(
-      JSON.stringify({ error: "Reset token is missing or invalid." }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
+      '<p class="error">Reset token is missing or invalid.</p>',
+      {
+        status: 400,
+        headers: { "Content-Type": "text/html" },
+      }
     )
   }
   if (!new_password || typeof new_password !== "string") {
     return new Response(
-      JSON.stringify({ error: "New password is missing or invalid." }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
+      '<p class="error">New password is missing or invalid.</p>',
+      {
+        status: 400,
+        headers: { "Content-Type": "text/html" },
+      }
     )
   }
-  const client = new Client({
-    connectionString: context.env.HYPERDRIVE.connectionString,
-  })
 
   try {
-    await client.connect()
-    // Step 3: Password Strength Check
-    const passwordCheckResult = password_requirements(new_password)
-    if (!passwordCheckResult.strong) {
-      return new Response(password_requirements_html(), {
+    const passwordCheckResult = await password_requirements(new_password) // Await the promise
+    if (!passwordCheckResult) {
+      // password_requirements returns boolean
+      const requirementsHTML = await password_requirements_html(new_password) // Await the promise
+      return new Response(requirementsHTML, {
         status: 400,
-        headers: { "Content-Type": "text/html" }, // Send as HTML
+        headers: { "Content-Type": "text/html" },
       })
     }
 
-    // Step 4: Token Validation
-    const tokenQuery = {
-      text: "SELECT user_uuid, expires_at, is_used FROM tokens WHERE token_value = $1 AND token_type = \'password_reset\'",
-      values: [token],
-    }
-    const tokenResult = await client.query(tokenQuery)
-    const tokenRecord = tokenResult.rows[0]
+    const tokenReadResult = await readToken(context, token, ["password_reset"])
 
-    if (!tokenRecord) {
+    if (!tokenReadResult.success || !tokenReadResult.token) {
       return new Response(
-        JSON.stringify({ error: "Invalid or expired password reset token." }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        '<p class="error">Invalid or expired password reset token.</p>',
+        {
+          status: 400,
+          headers: { "Content-Type": "text/html" },
+        }
       )
     }
 
+    const tokenRecord = tokenReadResult.token
+
     if (tokenRecord.is_used === true) {
-      // Assuming is_used is BOOLEAN
       return new Response(
-        JSON.stringify({
-          error: "Password reset token has already been used.",
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        '<p class="error">Password reset token has already been used.</p>',
+        {
+          status: 400,
+          headers: { "Content-Type": "text/html" },
+        }
       )
     }
 
     const now = new Date()
     const tokenExpiresAt = new Date(tokenRecord.expires_at)
     if (now > tokenExpiresAt) {
-      const updateExpiredTokenQuery = {
-        text: "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = \'password_reset\'",
-        values: [token],
-      }
-      await client.query(updateExpiredTokenQuery)
+      await updateToken(context, token, "password_reset", { is_used: true })
       return new Response(
-        JSON.stringify({ error: "Password reset token has expired." }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        '<p class="error">Password reset token has expired.</p>',
+        {
+          status: 400,
+          headers: { "Content-Type": "text/html" },
+        }
       )
     }
 
     const user_uuid = tokenRecord.user_uuid
 
-    // Step 5: Hash the new password
-    const { hash, salt } = await puff_hashing_password(new_password)
-    const secret_value = hash + ":" + salt // Store hash and salt together
-    const secret_updated_at = new Date().toISOString()
-
-    // Step 6: Update Password in secrets table
-    const updatePasswordQuery = {
-      text: "UPDATE secrets SET secret_value = $1, secret_created_at = $2, secret_last_used = $2 WHERE user_uuid = $3 AND secret_type = \'puff_password_sha-384\'",
-      values: [secret_value, secret_updated_at, user_uuid],
-    }
-    const updatePasswordResult = await client.query(updatePasswordQuery)
-
-    if (updatePasswordResult.rowCount === 0) {
-      console.error(
-        `Failed to update password for user_uuid: ${user_uuid}. User or secret type not found, or password already matches.`
-      )
-      // Check if the user exists to provide a more specific error
-      const userExistsQuery = {
-        text: "SELECT 1 FROM users WHERE user_uuid = $1",
-        values: [user_uuid],
-      }
-      const userExistsResult = await client.query(userExistsQuery)
-      if (userExistsResult.rowCount === 0) {
-        return new Response(
-          JSON.stringify({
-            error: "Failed to update password. User record not found.",
-          }),
-          { status: 404, headers: { "Content-Type": "application/json" } }
-        )
-      }
-      // If user exists, but secret wasn\'t updated, it might be a different issue.
-      return new Response(
-        JSON.stringify({
-          error:
-            "Failed to update password. Password record issue or no change detected.",
-        }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      )
-    }
-
-    // Step 7: Invalidate Token
-    const invalidateTokenQuery = {
-      text: "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = \'password_reset\'",
-      values: [token],
-    }
-    await client.query(invalidateTokenQuery)
-
-    // Step 8: Response
-    return new Response(
-      JSON.stringify({ message: "Password has been reset successfully." }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+    const passwordUpdated = await updatePassword(
+      context,
+      user_uuid,
+      new_password
     )
+
+    if (!passwordUpdated) {
+      return new Response(
+        '<p class="error">Failed to update password. Password record issue or no change detected.</p>',
+        {
+          status: 500,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
+    }
+
+    await updateToken(context, token, "password_reset", { is_used: true })
+
+    // Redirect to login page on successful password reset
+    return new Response(null, {
+      status: 303, // See Other
+      headers: {
+        "HX-Redirect":
+          "/login.html?message=Password has been reset successfully.",
+      },
+    })
   } catch (error) {
     console.error("Error during password reset:", error)
     return new Response(
-      JSON.stringify({
-        error: "Failed to reset password due to a server error.",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      '<p class="error">Failed to reset password due to a server error.</p>',
+      {
+        status: 500,
+        headers: { "Content-Type": "text/html" },
+      }
     )
-  } finally {
-    if (client) {
-      await client.end()
-    }
   }
 }
 
 export async function onRequest(context) {
   if (context.request.method === "POST") {
-    return await onRequestPost(context) // Ensure onRequestPost is awaited
+    return await onRequestPost(context)
   }
-  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+  return new Response('<p class="error">Method Not Allowed</p>', {
     status: 405,
-    headers: { "Allow": "POST", "Content-Type": "application/json" },
+    headers: { "Allow": "POST", "Content-Type": "text/html" },
   })
 }
