@@ -9,35 +9,22 @@ export async function onRequestPost(context) {
   if (!user_uuid || typeof user_uuid !== "string") {
     if (user_uuid instanceof Response) return user_uuid
     return new Response(
-      "<p>Session invalid or expired. Please log in again.</p>",
+      '<p class="result-negative">Session invalid or expired. Please log in again.</p>',
       {
         status: 401,
         headers: { "Content-Type": "text/html" },
       }
     )
   }
-  // context.data.user_uuid = user_uuid; // Not strictly needed if only used here
 
-  // Step 2: Parse JSON body for session_id_to_terminate
-  let requestBody
-  try {
-    requestBody = await context.request.json()
-  } catch (e) {
-    return new Response(
-      "<p>Error: Invalid request format. Expected JSON body.</p>",
-      {
-        status: 400,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
-  }
-
-  const { session_id_to_terminate } = requestBody
+  // Step 2: Get session_id_to_terminate from URL query parameter
+  const url = new URL(context.request.url)
+  const session_id_to_terminate = url.searchParams.get("id")
 
   // Step 3: Input Validation
   if (!session_id_to_terminate || typeof session_id_to_terminate !== "string") {
     return new Response(
-      "<p>Error: Session ID to terminate is missing or invalid in the request.</p>",
+      '<p class="result-negative">Error: Session ID to terminate is missing or invalid in the request URL.</p>',
       { status: 400, headers: { "Content-Type": "text/html" } }
     )
   }
@@ -52,16 +39,22 @@ export async function onRequestPost(context) {
   if (terminationResult.error) {
     // Specific error for session not found or not owned
     if (terminationResult.status === 404) {
-      return new Response(`<p>Error: ${terminationResult.error}</p>`, {
-        status: 404,
-        headers: { "Content-Type": "text/html" },
-      })
+      return new Response(
+        `<p class="result-negative">Error: ${terminationResult.error}</p>`,
+        {
+          status: 404,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
     }
     // Generic server error
-    return new Response(`<p>Error: ${terminationResult.error}</p>`, {
-      status: terminationResult.status || 500,
-      headers: { "Content-Type": "text/html" },
-    })
+    return new Response(
+      `<p class="result-negative">Error: ${terminationResult.error}</p>`,
+      {
+        status: terminationResult.status || 500,
+        headers: { "Content-Type": "text/html" },
+      }
+    )
   }
 
   // Step 5: Response
@@ -70,7 +63,7 @@ export async function onRequestPost(context) {
     // An empty 200 OK response with an HX-Trigger header can be useful if the page should re-fetch data.
     // Or, return a partial HTML to replace the row of the terminated session.
     return new Response(
-      "<p>Session terminated successfully.</p>", // Or an empty string if using HX-Trigger effectively
+      '<p class="result-positive">Session terminated successfully.</p>', // Or an empty string if using HX-Trigger effectively
       {
         status: 200,
         headers: {
@@ -84,10 +77,13 @@ export async function onRequestPost(context) {
     // The helper function `terminateSpecificSession` now returns a 404 in this case if it wasn't found initially.
     // If it was found then deleted, rowCount would be 1. If it was found then couldn't be deleted (e.g. already gone), rowCount would be 0.
     // For simplicity, we can treat rowCount === 0 after a successful call (no error) as "it's gone".
-    return new Response("<p>Session was already terminated or not found.</p>", {
-      status: 200,
-      headers: { "Content-Type": "text/html" },
-    })
+    return new Response(
+      '<p class="result-negative">Session was already terminated or not found.</p>',
+      {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+      }
+    )
   }
 }
 
@@ -96,7 +92,7 @@ export async function onRequest(context) {
     return await onRequestPost(context)
   }
   return new Response(
-    "<p>Error: Method Not Allowed. Only POST requests are accepted.</p>",
+    '<p class="result-negative">Error: Method Not Allowed. Only POST requests are accepted.</p>',
     {
       status: 405,
       headers: { "Allow": "POST", "Content-Type": "text/html" },
