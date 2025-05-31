@@ -165,10 +165,10 @@ export async function createPassword(context, user_uuid, password) {
     const secret_type = "puff_password_sha-384"
 
     const query = `
-      INSERT INTO secrets (user_uuid, secret_type, secret_value)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (user_uuid, secret_type) DO UPDATE SET secret_value = $3, updated_at = NOW()
-      RETURNING secret_uuid;
+      INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_created_at)
+      VALUES ($1, $2, $3, NOW())
+      ON CONFLICT (user_uuid, secret_type) DO UPDATE SET secret_value = EXCLUDED.secret_value
+      RETURNING user_uuid;
     `
     // Using ON CONFLICT to handle cases where a password might already exist (e.g. during initial setup or a reset flow that calls create)
     // This effectively makes createPassword also an "upsert" operation for the password.
