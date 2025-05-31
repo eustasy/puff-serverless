@@ -8,5 +8,5 @@ CREATE TABLE public.secrets (
   secret_last_used TIMESTAMP NULL,
   CONSTRAINT secrets_pkey PRIMARY KEY (user_uuid, secret_type),
   CONSTRAINT secrets_user_uuid_fkey FOREIGN KEY (user_uuid) REFERENCES public.users(user_uuid),
-  INDEX idx_tokens_secret_value (secret_value ASC)
+  INDEX idx_secrets_secret_value (secret_value ASC)
 ) LOCALITY REGIONAL BY TABLE IN PRIMARY REGION

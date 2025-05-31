@@ -170,7 +170,7 @@ export async function user_login(context, email, password) {
     }
 
     const twoFactorRecordResult = await client.query(
-      "SELECT secret_enabled FROM secrets WHERE user_uuid = $1 AND secret_type = 'totp_secret' AND secret_enabled = TRUE",
+      "SELECT is_enabled FROM secrets WHERE user_uuid = $1 AND secret_type = 'totp_secret' AND is_enabled = TRUE",
       [user.user_uuid]
     )
     const twoFactorRecord = twoFactorRecordResult.rows[0]
