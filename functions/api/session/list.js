@@ -3,6 +3,7 @@ import {
   listActiveSessionsForUser,
   getCookie,
 } from "../../../src/sessions.js"
+import { parseUserAgent } from "../../../src/utilities.js"
 
 export async function onRequestGet(context) {
   const sessionVerificationResult = await sessionAuthWithCookie(context)
@@ -42,17 +43,18 @@ export async function onRequestGet(context) {
     }
 
     let html =
-      "<table><thead><tr><th>Created At</th><th>Expires At</th><th>User Agent</th><th>IP Address</th><th>Status</th><th>Action</th></tr></thead><tbody>"
+      "<table><thead><tr><th>Created</th><th>Expires</th><th>Client</th><th>IP Address</th><th>Action</th></tr></thead><tbody>"
     if (result.sessions && result.sessions.length > 0) {
       result.sessions.forEach((session) => {
         const isCurrentSession = session.session_id === currentSessionToken
+        const clientInfo = parseUserAgent(session.user_agent)
         html += `<tr>
           <td>${new Date(session.created_at).toLocaleString()}</td>
           <td>${new Date(session.expires_at).toLocaleString()}</td>
-          <td>${session.user_agent || "N/A"}</td>
+          <td>${clientInfo}</td>
           <td>${session.ip_address || "N/A"}</td>
-          <td>${isCurrentSession ? "<strong>Current Session</strong>" : "Active"}</td>
-          <td>${
+          <td>${isCurrentSession ? "<strong>Current Session</strong>" : "Active"}
+          ${
             !isCurrentSession
               ? `<button
                 class="btn-danger"
@@ -68,7 +70,7 @@ export async function onRequestGet(context) {
         </tr>`
       })
     } else {
-      html += '<tr><td colspan="6">No active sessions found.</td></tr>' // Adjusted colspan
+      html += '<tr><td colspan="5">No active sessions found.</td></tr>' // Adjusted colspan to 5
     }
     html += "</tbody></table>"
 

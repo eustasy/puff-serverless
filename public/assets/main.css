@@ -13,6 +13,9 @@ body {
   max-width: 500px;
   margin: auto;
 }
+.container.wide {
+  max-width: 80rem;
+}
 
 h1 {
   color: #333;
