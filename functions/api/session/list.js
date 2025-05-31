@@ -53,7 +53,7 @@ export async function onRequestGet(context) {
           <td>${new Date(session.expires_at).toLocaleString()}</td>
           <td>${clientInfo}</td>
           <td>${session.ip_address || "N/A"}</td>
-          <td>${isCurrentSession ? "<strong>Current Session</strong>" : "Active"}
+          <td>${isCurrentSession ? "<strong>Current Session</strong>" : ""}
           ${
             !isCurrentSession
               ? `<button

@@ -1,4 +1,4 @@
-export async function parseUserAgent(userAgentString) {
+export function parseUserAgent(userAgentString) {
   if (!userAgentString) return "N/A"
 
   let browser = "Unknown Browser"
