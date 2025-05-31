@@ -3,11 +3,11 @@ const { Client } = require("pg")
 
 export async function user_register(context, name, email, password) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
-  const { addEmail } = require("./emails.js") // Import addEmail
+  const { addEmail } = require("./emails.js")
 
   try {
     await client.connect()
-    // Step 0. Prep work
+    // Step 0. Check if the email already exists
     const emailExistsResult = await client.query(
       "SELECT email_address FROM emails WHERE email_address = $1 LIMIT 1",
       [email]
@@ -17,7 +17,7 @@ export async function user_register(context, name, email, password) {
     }
 
     // Step 1. Register the user
-    const uuid = crypto.randomUUID() // Assuming crypto.randomUUID() is available
+    const uuid = crypto.randomUUID()
     await client.query(
       "INSERT INTO users (user_uuid, user_name) VALUES ($1, $2)",
       [uuid, name]
