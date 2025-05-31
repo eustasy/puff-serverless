@@ -1,10 +1,5 @@
 const { Client } = require("pg")
-import {
-  createToken,
-  readToken,
-  updateToken,
-  deleteToken,
-} from "./tokens.js"
+import { createToken, readToken, updateToken, deleteToken } from "./tokens.js"
 
 /**
  * Adds an email address for a user and optionally generates a verification token.
@@ -15,7 +10,13 @@ import {
  * @param {boolean} is_verified - Whether this email is already verified.
  * @returns {Promise<object>} - An object indicating success or failure, and token if generated.
  */
-export async function createEmail(context, user_uuid, email_address, is_primary = false, is_verified = false) {
+export async function createEmail(
+  context,
+  user_uuid,
+  email_address,
+  is_primary = false,
+  is_verified = false
+) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
@@ -70,13 +71,15 @@ export async function createEmail(context, user_uuid, email_address, is_primary 
 
       if (createTokenResult.error) {
         // Handle token creation error - potentially rollback email insertion or log critical error
-        console.error("Failed to create verification token:", createTokenResult.message)
+        console.error(
+          "Failed to create verification token:",
+          createTokenResult.message
+        )
         // Depending on desired atomicity, you might want to throw an error here
         // or return an error state that indicates partial success (email added, token failed)
         return {
           error: true,
           message: "Email added, but failed to create verification token.",
-          status: 500,
           status: 500,
         }
       }
@@ -141,7 +144,10 @@ export async function verifyEmailByToken(context, tokenValue) {
     ])
 
     if (readTokenResult.error) {
-      console.error("Error reading token in verifyEmailByToken:", readTokenResult.message)
+      console.error(
+        "Error reading token in verifyEmailByToken:",
+        readTokenResult.message
+      )
       return { error: true, message: "Error verifying token.", status: 500 }
     }
 
@@ -154,7 +160,8 @@ export async function verifyEmailByToken(context, tokenValue) {
     }
 
     tokenRecordFromRead = readTokenResult.token
-    const { user_uuid, email_address, token_type, expires_at, is_used } = tokenRecordFromRead
+    const { user_uuid, email_address, token_type, expires_at, is_used } =
+      tokenRecordFromRead
 
     if (is_used) {
       return {
@@ -273,7 +280,9 @@ export async function verifyEmailByToken(context, tokenValue) {
     ) {
       try {
         // Use updateToken to invalidate
-        await updateToken(context, tokenValue, tokenRecordFromRead.token_type, { is_used: true })
+        await updateToken(context, tokenValue, tokenRecordFromRead.token_type, {
+          is_used: true,
+        })
       } catch (invalidationError) {
         console.error(
           "Failed to invalidate token during error handling in verifyEmailByToken:",
@@ -416,12 +425,22 @@ export async function deleteEmail(context, user_uuid, email_to_remove) {
     }
 
     // Also delete any associated tokens for this email
-    const deleteTokenResult = await deleteToken(context, user_uuid, email_to_remove)
+    const deleteTokenResult = await deleteToken(
+      context,
+      user_uuid,
+      email_to_remove
+    )
     if (deleteTokenResult.error) {
       // Log or handle error if token deletion fails, but proceed with email removal
-      console.error("Error deleting tokens for email:", email_to_remove, deleteTokenResult.message)
+      console.error(
+        "Error deleting tokens for email:",
+        email_to_remove,
+        deleteTokenResult.message
+      )
     } else {
-      console.log(`Deleted ${deleteTokenResult.rowCount} tokens for email: ${email_to_remove}`)
+      console.log(
+        `Deleted ${deleteTokenResult.rowCount} tokens for email: ${email_to_remove}`
+      )
     }
 
     const deleteResult = await client.query(
@@ -459,24 +478,28 @@ export async function deleteEmail(context, user_uuid, email_to_remove) {
  * @returns {Promise<object>} - An object with { success: true, email: record } or { success: false/error: true, message: string }.
  */
 export async function readEmail(context, email_address) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString);
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
   try {
-    await client.connect();
+    await client.connect()
     const query = {
       text: "SELECT user_uuid, email_address, is_primary, is_verified, verified_at FROM emails WHERE email_address = $1 LIMIT 1",
       values: [email_address],
-    };
-    const result = await client.query(query);
+    }
+    const result = await client.query(query)
     if (result.rows.length > 0) {
-      return { success: true, email: result.rows[0] };
+      return { success: true, email: result.rows[0] }
     } else {
-      return { success: false, message: "Email not found." };
+      return { success: false, message: "Email not found." }
     }
   } catch (error) {
-    console.error("Error in readEmail:", error);
-    return { error: true, message: "Server error while reading email.", details: error.message };
+    console.error("Error in readEmail:", error)
+    return {
+      error: true,
+      message: "Server error while reading email.",
+      details: error.message,
+    }
   } finally {
-    await client.end();
+    await client.end()
   }
 }
 
@@ -487,19 +510,23 @@ export async function readEmail(context, email_address) {
  * @returns {Promise<object>} - An object with { success: true, exists: boolean } or { error: true, message: string }.
  */
 export async function existsEmail(context, email_address) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString);
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
   try {
-    await client.connect();
+    await client.connect()
     const query = {
       text: "SELECT 1 FROM emails WHERE email_address = $1 LIMIT 1",
       values: [email_address],
-    };
-    const result = await client.query(query);
-    return { success: true, exists: result.rowCount > 0 };
+    }
+    const result = await client.query(query)
+    return { success: true, exists: result.rowCount > 0 }
   } catch (error) {
-    console.error("Error in existsEmail:", error);
-    return { error: true, message: "Server error while checking email existence.", details: error.message };
+    console.error("Error in existsEmail:", error)
+    return {
+      error: true,
+      message: "Server error while checking email existence.",
+      details: error.message,
+    }
   } finally {
-    await client.end();
+    await client.end()
   }
 }

@@ -1,18 +1,18 @@
 import { createSession } from "./sessions.js"
 const { Client } = require("pg")
-import { createEmail, existsEmail, readEmail } from "./emails.js";
-import { createPassword, password_verify } from "./passwords.js";
-import { has2fa } from "./2fa.js";
+import { createEmail, existsEmail, readEmail } from "./emails.js"
+import { createPassword, password_verify } from "./passwords.js"
+import { has2fa } from "./2fa.js"
 
 export async function user_register(context, name, email, password) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
     // Step 0. Check if the email already exists using existsEmail
-    const emailCheck = await existsEmail(context, email);
+    const emailCheck = await existsEmail(context, email)
     if (emailCheck.error) {
-      console.error("Error checking email existence:", emailCheck.message);
-      throw new Error("Failed to verify email existence during registration.");
+      console.error("Error checking email existence:", emailCheck.message)
+      throw new Error("Failed to verify email existence during registration.")
     }
     if (emailCheck.exists) {
       throw new Error("Email is already registered.")
@@ -29,7 +29,13 @@ export async function user_register(context, name, email, password) {
 
     // Step 2. Register the email using createEmail function
     // createEmail will handle token generation internally
-    const createEmailResult = await createEmail(context, uuid, email, true, false) // true for is_primary, false for is_verified initially
+    const createEmailResult = await createEmail(
+      context,
+      uuid,
+      email,
+      true,
+      false
+    ) // true for is_primary, false for is_verified initially
     if (createEmailResult.error) {
       // If createEmail itself had an issue (e.g. unique constraint within its own logic if user already had it - though less likely here)
       // This part might need more robust error handling depending on how createEmail signals errors.
@@ -47,12 +53,12 @@ export async function user_register(context, name, email, password) {
     }
 
     // Step 3. Register the password using createPassword
-    const passwordCreated = await createPassword(context, uuid, password);
+    const passwordCreated = await createPassword(context, uuid, password)
     if (!passwordCreated) {
       // This case implies an issue within createPassword, like a DB error it couldn't handle.
       // createPassword itself throws an error on failure, so this might be redundant if not caught and returned as false.
       // However, if createPassword is modified to return false on specific logical failures (not just DB exceptions), this check is useful.
-      throw new Error("Failed to create password during registration.");
+      throw new Error("Failed to create password during registration.")
     }
 
     return { success: true, user_uuid: uuid, email: email }
@@ -62,8 +68,9 @@ export async function user_register(context, name, email, password) {
     throw error // Or return { error: true, message: error.message }
   } finally {
     // Ensure client is ended only if it was connected by this function
-    if (client && client._connected) { // Check if client was connected
-        await client.end()
+    if (client && client._connected) {
+      // Check if client was connected
+      await client.end()
     }
   }
 }
@@ -73,13 +80,16 @@ export async function user_exists(context, email) {
 
   try {
     // await client.connect() // Handled by existsEmail
-    const emailCheck = await existsEmail(context, email);
+    const emailCheck = await existsEmail(context, email)
     if (emailCheck.error) {
-        console.error("Error in user_exists calling existsEmail:", emailCheck.message);
-        // Decide on how to propagate this error. Throwing it might be consistent.
-        throw new Error(emailCheck.message || "Failed to check if user exists.");
+      console.error(
+        "Error in user_exists calling existsEmail:",
+        emailCheck.message
+      )
+      // Decide on how to propagate this error. Throwing it might be consistent.
+      throw new Error(emailCheck.message || "Failed to check if user exists.")
     }
-    return emailCheck.exists ? 1 : 0; // Return 1 if exists, 0 if not, to match previous logic (parseInt on COUNT)
+    return emailCheck.exists ? 1 : 0 // Return 1 if exists, 0 if not, to match previous logic (parseInt on COUNT)
   } catch (error) {
     console.error("Error in user_exists:", error) // This will catch errors from existsEmail or here
     throw error
@@ -112,13 +122,13 @@ export async function user_login(context, email, password) {
       context,
       password,
       user.user_uuid
-    );
+    )
 
     if (!passwordMatches) {
       return { error: true, message: "Invalid email or password.", status: 401 }
     }
 
-    const twoFactorEnabled = await has2fa(client, user.user_uuid);
+    const twoFactorEnabled = await has2fa(client, user.user_uuid)
 
     if (twoFactorEnabled) {
       return {

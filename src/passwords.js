@@ -155,30 +155,34 @@ export async function password_requirements_html(pw) {
  * @returns {Promise<boolean>} True if the password was created successfully, false otherwise.
  */
 export async function createPassword(context, user_uuid, password) {
-  const { Client } = require("pg");
-  const client = new Client(context.env.HYPERDRIVE.connectionString);
+  const { Client } = require("pg")
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
-    await client.connect();
-    const { hash, salt } = await puff_hashing_password(password);
-    const secret_value = `${hash}:${salt}`;
-    const secret_type = 'puff_password_sha-384';
+    await client.connect()
+    const { hash, salt } = await puff_hashing_password(password)
+    const secret_value = `${hash}:${salt}`
+    const secret_type = "puff_password_sha-384"
 
     const query = `
       INSERT INTO secrets (user_uuid, secret_type, secret_value)
       VALUES ($1, $2, $3)
       ON CONFLICT (user_uuid, secret_type) DO UPDATE SET secret_value = $3, updated_at = NOW()
       RETURNING secret_uuid;
-    `;
+    `
     // Using ON CONFLICT to handle cases where a password might already exist (e.g. during initial setup or a reset flow that calls create)
     // This effectively makes createPassword also an "upsert" operation for the password.
-    const result = await client.query(query, [user_uuid, secret_type, secret_value]);
-    return result.rows.length > 0;
+    const result = await client.query(query, [
+      user_uuid,
+      secret_type,
+      secret_value,
+    ])
+    return result.rows.length > 0
   } catch (error) {
-    console.error("Error creating password:", error);
-    throw error; // Rethrow to allow higher-level error handling
+    console.error("Error creating password:", error)
+    throw error // Rethrow to allow higher-level error handling
   } finally {
-    await client.end();
+    await client.end()
   }
 }
 
@@ -189,27 +193,27 @@ export async function createPassword(context, user_uuid, password) {
  * @returns {Promise<string|null>} The secret_value (hash:salt) or null if not found.
  */
 export async function readPassword(context, user_uuid) {
-  const { Client } = require("pg");
-  const client = new Client(context.env.HYPERDRIVE.connectionString);
+  const { Client } = require("pg")
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
-    await client.connect();
+    await client.connect()
     const query = `
       SELECT secret_value
       FROM secrets
       WHERE user_uuid = $1 AND secret_type = 'puff_password_sha-384'
       LIMIT 1;
-    `;
-    const result = await client.query(query, [user_uuid]);
+    `
+    const result = await client.query(query, [user_uuid])
     if (result.rows.length === 0) {
-      return null;
+      return null
     }
-    return result.rows[0].secret_value;
+    return result.rows[0].secret_value
   } catch (error) {
-    console.error("Error reading password:", error);
-    throw error;
+    console.error("Error reading password:", error)
+    throw error
   } finally {
-    await client.end();
+    await client.end()
   }
 }
 
@@ -221,28 +225,32 @@ export async function readPassword(context, user_uuid) {
  * @returns {Promise<boolean>} True if the password was updated successfully, false otherwise.
  */
 export async function updatePassword(context, user_uuid, newPassword) {
-  const { Client } = require("pg");
-  const client = new Client(context.env.HYPERDRIVE.connectionString);
+  const { Client } = require("pg")
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
-    await client.connect();
-    const { hash, salt } = await puff_hashing_password(newPassword);
-    const secret_value = `${hash}:${salt}`;
-    const secret_type = 'puff_password_sha-384';
+    await client.connect()
+    const { hash, salt } = await puff_hashing_password(newPassword)
+    const secret_value = `${hash}:${salt}`
+    const secret_type = "puff_password_sha-384"
 
     const query = `
       UPDATE secrets
       SET secret_value = $1, updated_at = NOW()
       WHERE user_uuid = $2 AND secret_type = $3
       RETURNING secret_uuid;
-    `;
-    const result = await client.query(query, [secret_value, user_uuid, secret_type]);
-    return result.rows.length > 0;
+    `
+    const result = await client.query(query, [
+      secret_value,
+      user_uuid,
+      secret_type,
+    ])
+    return result.rows.length > 0
   } catch (error) {
-    console.error("Error updating password:", error);
-    throw error;
+    console.error("Error updating password:", error)
+    throw error
   } finally {
-    await client.end();
+    await client.end()
   }
 }
 
@@ -253,23 +261,23 @@ export async function updatePassword(context, user_uuid, newPassword) {
  * @returns {Promise<boolean>} True if the password was deleted successfully, false otherwise.
  */
 export async function deletePassword(context, user_uuid) {
-  const { Client } = require("pg");
-  const client = new Client(context.env.HYPERDRIVE.connectionString);
+  const { Client } = require("pg")
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
-    await client.connect();
-    const secret_type = 'puff_password_sha-384';
+    await client.connect()
+    const secret_type = "puff_password_sha-384"
     const query = `
       DELETE FROM secrets
       WHERE user_uuid = $1 AND secret_type = $2
       RETURNING secret_uuid;
-    `;
-    const result = await client.query(query, [user_uuid, secret_type]);
-    return result.rows.length > 0;
+    `
+    const result = await client.query(query, [user_uuid, secret_type])
+    return result.rows.length > 0
   } catch (error) {
-    console.error("Error deleting password:", error);
-    throw error;
+    console.error("Error deleting password:", error)
+    throw error
   } finally {
-    await client.end();
+    await client.end()
   }
 }

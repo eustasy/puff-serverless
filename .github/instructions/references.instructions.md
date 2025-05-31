@@ -8,4 +8,3 @@ applyTo: "**"
 - [Cloudflare Middleware](https://developers.cloudflare.com/pages/functions/middleware/)
 - [Cloudflare Hyperdrive](https://developers.cloudflare.com/hyperdrive/)
 - [CoackroachDB Documentation](https://www.cockroachlabs.com/docs/stable/)
-    
