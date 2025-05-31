@@ -75,7 +75,7 @@ export async function sessionAuthWithCookie(context) {
 
   // 2. Cookie parsing to get the session token
   const cookieHeader = context.request.headers.get("Cookie")
-  const sessionToken = getCookie(cookieHeader, "session_token")
+  const sessionToken = await getCookie(cookieHeader, "session_token")
 
   // 3. Check the session token is valid
   if (sessionToken) {
@@ -83,12 +83,24 @@ export async function sessionAuthWithCookie(context) {
     try {
       await client.connect()
       const authResult = await verifyTokenAndGetUser(client, sessionToken)
+
       if (authResult && authResult.user_uuid) {
-        return authResult.user_uuid
+        // Set context.data.user_uuid as per documentation and for reliable access by callers
+        context.data.user_uuid = authResult.user_uuid
+        return authResult.user_uuid // Return user_uuid string as many callers expect
+      } else if (authResult && authResult.error) {
+        // Propagate error object from verifyTokenAndGetUser
+        return authResult
+      } else {
+        // Token was present, but verifyTokenAndGetUser didn't return user_uuid or a recognized error.
+        return {
+          error: "Session token validation failed unexpectedly.",
+          status: 401,
+        }
       }
     } catch (dbError) {
       console.error(
-        "Database connection or query error in middleware:",
+        "Database connection or query error in sessionAuthWithCookie:",
         dbError
       )
       return {
@@ -101,8 +113,9 @@ export async function sessionAuthWithCookie(context) {
       }
     }
   } else {
-    // No session token found in cookies
-    return null
+    // No session token found in cookies.
+    // Return an error object for clarity and consistency.
+    return { error: "No session token provided.", status: 401 }
   }
 }
 
