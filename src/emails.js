@@ -53,7 +53,7 @@ export async function createEmail(
     }
     await client.query(insertEmailQuery)
 
-    let token_value = null;
+    let token_value = null
     if (!is_verified) {
       const token_expires_at = new Date(
         Date.now() + 24 * 60 * 60 * 1000
