@@ -21,10 +21,13 @@ export async function onRequestGet(context) {
       })
     }
 
-    // Success
-    return new Response(JSON.stringify({ message: result.message }), {
-      status: result.status || 200,
-      headers: { "Content-Type": "application/json" },
+    // Redirect to login page on successful email verification
+    return new Response(null, {
+      status: 303,
+      headers: {
+        "HX-Redirect":
+          "/login?message=Email verification successful. Please log in.",
+      },
     })
   } catch (error) {
     console.error("Error in verify email endpoint:", error)
