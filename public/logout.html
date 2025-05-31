@@ -13,7 +13,7 @@
       <p>Enter your session token and click the button below to log out.</p>
       <form
         hx-validate="true"
-        hx-post="/api/user_logout"
+        hx-post="/api/user/logout"
         hx-target="#logout-result"
         hx-include="[name='sessionToken']"
         hx-disabled-elt=".btn-logout"

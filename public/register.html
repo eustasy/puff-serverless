@@ -12,7 +12,7 @@
       <h1>Register</h1>
       <form
         hx-validate="true"
-        hx-post="/api/user_register"
+        hx-post="/api/user/register"
         hx-target="#register"
         hx-include="[name='name'], [name='email'], [name='pw']"
         hx-disabled-elt=".btn-register"
@@ -40,7 +40,7 @@
             id="email"
             name="email"
             placeholder="you@email.com"
-            hx-get="/api/user_exists"
+            hx-get="/api/user/exists"
             hx-sync="closest form:abort"
             hx-trigger="keyup changed delay:500ms"
             hx-target="#email-exists"
