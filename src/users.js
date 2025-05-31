@@ -147,7 +147,7 @@ export async function user_login(context, email, password) {
       return { error: true, message: "Invalid email or password.", status: 401 }
     }
 
-    const twoFactorEnabled = await has2fa(client, user.user_uuid)
+    const twoFactorEnabled = await has2fa(context, user.user_uuid)
 
     if (twoFactorEnabled) {
       return {
