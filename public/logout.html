@@ -16,7 +16,7 @@
         hx-post="/api/user/logout"
         hx-target="#logout-result"
         hx-include="[name='sessionToken']"
-        hx-disabled-elt=".btn-logout"
+        hx-disabled-elt=".btn-danger"
       >
         <div class="form-group">
           <label for="sessionToken">Session Token:</label>
@@ -28,7 +28,7 @@
             required
           />
         </div>
-        <button id="logoutButton" type="submit" class="btn-logout">
+        <button id="logoutButton" type="submit" class="btn-danger">
           Log Out
           <img class="htmx-indicator" src="/assets/bars.svg" />
         </button>

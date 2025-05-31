@@ -55,6 +55,7 @@ export async function onRequestGet(context) {
           <td>${
             !isCurrentSession
               ? `<button
+                class="btn-danger"
                 hx-post="/api/session/terminate/one?id=${session.session_id}"
                 hx-target="#session-list-container"
                 hx-swap="innerHTML"

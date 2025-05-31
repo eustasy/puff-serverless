@@ -27,6 +27,7 @@
       <main>
         <div id="session-controls" style="margin-bottom: 1em">
           <button
+            class="btn-danger"
             hx-post="/api/session/terminate/all"
             hx-target="#session-list-container"
             hx-swap="innerHTML"
@@ -35,6 +36,7 @@
             Terminate All Other Sessions
           </button>
           <button
+            class="btn-safe"
             hx-get="/api/session/list"
             hx-target="#session-list-container"
             hx-swap="innerHTML"

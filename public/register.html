@@ -15,7 +15,7 @@
         hx-post="/api/user/register"
         hx-target="#register"
         hx-include="[name='name'], [name='email'], [name='pw']"
-        hx-disabled-elt=".btn-register"
+        hx-disabled-elt=".btn-save"
       >
         <div class="form-group">
           <label for="name">Name:</label>
@@ -84,7 +84,7 @@
           </div>
         </div>
 
-        <button type="submit" class="btn-register">
+        <button type="submit" class="btn-save">
           Register
           <img class="htmx-indicator" src="/assets/bars.svg" />
         </button>

@@ -49,24 +49,24 @@ input[type="submit"] {
 }
 
 /* Button specific colors */
-.btn-login {
+.btn-safe {
   background-color: #007bff; /* Blue for login */
 }
-.btn-login:hover {
+.btn-safe:hover {
   background-color: #0056b3; /* Darker blue on hover */
 }
 
-.btn-logout {
+.btn-danger {
   background-color: #dc3545; /* Red for logout */
 }
-.btn-logout:hover {
+.btn-danger:hover {
   background-color: #c82333; /* Darker red on hover */
 }
 
-.btn-register {
+.btn-save {
   background-color: #28a745; /* Green for register */
 }
-.btn-register:hover {
+.btn-save:hover {
   background-color: #218838; /* Darker green on hover */
 }
 
