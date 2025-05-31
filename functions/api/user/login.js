@@ -11,7 +11,7 @@ export async function onRequestPost(context) {
         '<p class="error">Email and password are required.</p>',
         {
           status: 400,
-          headers: { "Content-Type": "text/html" },
+          headers: { "Content-Type": "text/html", "HX-Reswap": "innerHTML" },
         }
       )
     }
@@ -23,7 +23,7 @@ export async function onRequestPost(context) {
         `<p class="error">${loginResult.message || "Login failed"}</p>`,
         {
           status: loginResult.status || 500,
-          headers: { "Content-Type": "text/html" },
+          headers: { "Content-Type": "text/html", "HX-Reswap": "innerHTML" },
         }
       )
     }
@@ -74,7 +74,7 @@ export async function onRequestPost(context) {
         '<p class="error">An unexpected error occurred during login.</p>',
         {
           status: 500,
-          headers: { "Content-Type": "text/html" },
+          headers: { "Content-Type": "text/html", "HX-Reswap": "innerHTML" },
         }
       )
     }
@@ -89,7 +89,7 @@ export async function onRequestPost(context) {
         '<p class="error">Invalid request format. Expected form data.</p>',
         {
           status: 400,
-          headers: { "Content-Type": "text/html" },
+          headers: { "Content-Type": "text/html", "HX-Reswap": "innerHTML" },
         }
       )
     }
@@ -97,7 +97,7 @@ export async function onRequestPost(context) {
       '<p class="error">An unexpected server error occurred.</p>',
       {
         status: 500,
-        headers: { "Content-Type": "text/html" },
+        headers: { "Content-Type": "text/html", "HX-Reswap": "innerHTML" },
       }
     )
   }
