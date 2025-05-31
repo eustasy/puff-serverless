@@ -154,3 +154,17 @@ input[type="submit"] {
   border-radius: 5px;
   width: 0%; /* Initial width */
 }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+th, td {
+  padding: 10px;
+  border: 1px solid #ccc;
+  text-align: left;
+}
+th {
+  background-color: #f2f2f2;
+}
