@@ -1,7 +1,7 @@
 import { startSession } from "./sessions.js"
+const { Client } = require("pg")
 
 export async function user_register(context, name, email, password) {
-  const { Client } = require("pg")
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   const { addEmail } = require("./emails.js") // Import addEmail
 
@@ -9,7 +9,7 @@ export async function user_register(context, name, email, password) {
     await client.connect()
     // Step 0. Prep work
     const emailExistsResult = await client.query(
-      "SELECT email_id FROM emails WHERE email_address = $1 LIMIT 1",
+      "SELECT email_address FROM emails WHERE email_address = $1 LIMIT 1",
       [email]
     )
     if (emailExistsResult.rowCount > 0) {
@@ -66,7 +66,6 @@ export async function user_register(context, name, email, password) {
 }
 
 export async function user_exists(context, email) {
-  const { Client } = require("pg")
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
@@ -86,7 +85,6 @@ export async function user_exists(context, email) {
 }
 
 export async function getUserByEmail(context, email) {
-  const { Client } = require("pg")
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
@@ -141,21 +139,20 @@ export async function getUserByEmail(context, email) {
 
 export async function user_login(context, email, password) {
   const { password_verify } = await import("./passwords.js")
-  const { Client } = require("pg")
-  const pgClient = new Client(context.env.HYPERDRIVE.connectionString)
+  let client
 
   try {
-    await pgClient.connect()
+    client = new Client(context.env.HYPERDRIVE.connectionString)
+    await client.connect()
+
     const user = await getUserByEmail(context, email)
 
     if (!user) {
-      return new Response("Invalid email or password.", { status: 401 })
+      return { error: true, message: "Invalid email or password.", status: 401 }
     }
 
     if (!user.is_verified) {
-      return new Response("Please verify your email before logging in.", {
-        status: 403,
-      })
+      return { error: true, message: "Please verify your email before logging in.", status: 403 }
     }
 
     const passwordMatches = await password_verify(
@@ -165,34 +162,55 @@ export async function user_login(context, email, password) {
     )
 
     if (!passwordMatches) {
-      return new Response("Invalid email or password.", { status: 401 })
+      return { error: true, message: "Invalid email or password.", status: 401 }
     }
 
-    const twoFactorRecordResult = await pgClient.query(
+    const twoFactorRecordResult = await client.query(
       "SELECT secret_enabled FROM secrets WHERE user_uuid = $1 AND secret_type = 'totp_secret' AND secret_enabled = TRUE",
       [user.user_uuid]
     )
     const twoFactorRecord = twoFactorRecordResult.rows[0]
 
     if (twoFactorRecord) {
-      // 2FA is enabled, respond that TOTP is required
       return {
         next_step: "totp",
         user_uuid: user.user_uuid,
         totp_required: true,
-        message: `Please provide your TOTP code for user "${user.user_uuid}".`,
-        status: 200,
+        message: `Please provide your TOTP code for user \"${user.user_uuid}\".`,
+        status: 200, 
+      }
+    }
+
+    const user_agent = context.request.headers.get("User-Agent")
+    const ip_address = context.request.headers.get("CF-Connecting-IP")
+
+    const sessionDetails = await startSession(
+      client,
+      user.user_uuid,
+      user_agent,
+      ip_address
+    )
+
+    if (sessionDetails.error) {
+      return {
+        error: true,
+        message: sessionDetails.message || "Session creation failed.",
+        status: sessionDetails.status || 500,
       }
     }
 
     return {
       user_uuid: user.user_uuid,
+      session_id: sessionDetails.session_id,
+      expires_at: sessionDetails.expires_at,
       status: 200,
     }
   } catch (dbError) {
     console.error("Error during user login:", dbError)
-    return new Response("Login failed due to a server error.", { status: 500 })
+    return { error: true, message: "Login failed due to a server error.", status: 500 }
   } finally {
-    await pgClient.end()
+    if (client) {
+      await client.end()
+    }
   }
 }
