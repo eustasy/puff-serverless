@@ -29,7 +29,7 @@ export async function createToken(
     const result = await client.query(query)
 
     if (result.rows.length > 0) {
-      return { success: true, token_value: result.rows[0].token_value }
+      return { success: true, token_value: token_value }
     } else {
       return { error: true, message: "Failed to create token." }
     }

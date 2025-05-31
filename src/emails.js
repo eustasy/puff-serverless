@@ -53,6 +53,7 @@ export async function createEmail(
     }
     await client.query(insertEmailQuery)
 
+    let token_value = null;
     if (!is_verified) {
       const token_expires_at = new Date(
         Date.now() + 24 * 60 * 60 * 1000
@@ -86,6 +87,7 @@ export async function createEmail(
       console.log(
         `Verification token ${createTokenResult.token_value} generated for ${email_address} (type: ${token_type})`
       )
+      token_value = createTokenResult.token_value
     }
 
     return {
@@ -93,7 +95,7 @@ export async function createEmail(
       email_address,
       is_primary,
       is_verified,
-      token_value: createTokenResult.token_value,
+      token_value,
     }
   } catch (error) {
     console.error("Error in createEmail:", error)
