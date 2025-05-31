@@ -160,7 +160,8 @@ table {
   border-collapse: collapse;
   margin-top: 20px;
 }
-th, td {
+th,
+td {
   padding: 10px;
   border: 1px solid #ccc;
   text-align: left;
