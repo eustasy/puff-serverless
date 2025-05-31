@@ -55,6 +55,7 @@ input[type="submit"] {
 }
 button.float-right {
   width: auto;
+  margin: 0 0 1rem 1rem;
 }
 
 /* Button specific colors */
