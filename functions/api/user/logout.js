@@ -39,7 +39,7 @@ export async function onRequestPost(context) {
       status: 303,
       headers: {
         "Set-Cookie": cookieOptions.join("; "),
-        "HX-Redirect": "/login.html?message=Logout successful.",
+        "HX-Redirect": "/login?message=Logout successful.",
       },
     })
   } catch (error) {

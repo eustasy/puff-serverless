@@ -25,7 +25,7 @@ export async function onRequest(context) {
         status: 303, // See Other, to redirect after POST
         headers: {
           "HX-Redirect":
-            "/login.html?message=Registration successful. Please check your email to verify.",
+            "/login?message=Registration successful. Please check your email to verify.",
         },
       })
     } else {

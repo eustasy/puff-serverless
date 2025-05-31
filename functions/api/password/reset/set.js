@@ -107,10 +107,10 @@ export async function onRequestPost(context) {
 
     // Redirect to login page on successful password reset
     return new Response(null, {
-      status: 303, // See Other
+      status: 303,
       headers: {
         "HX-Redirect":
-          "/login.html?message=Password has been reset successfully.",
+          "/login?message=Password reset successful. Please log in with your new password.",
       },
     })
   } catch (error) {

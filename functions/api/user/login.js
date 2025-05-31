@@ -35,16 +35,15 @@ export async function onRequestPost(context) {
         "Path=/",
         "HttpOnly",
         "Secure",
-        `Max-Age=${5 * 60}`, // 5 minutes expiry for TOTP process
+        `Max-Age=${5 * 60}`,
         "SameSite=Lax",
       ]
       // Redirect to a TOTP verification page or return HTML to swap in a TOTP form
-      // For now, redirecting to a hypothetical /2fa/verify page
       return new Response(null, {
-        status: 303, // See Other
+        status: 303,
         headers: {
           "Set-Cookie": totpCookieOptions.join("; "),
-          "HX-Redirect": "/2fa/verify.html", // Assumes a page like /2fa/verify.html exists
+          "HX-Redirect": "/2fa",
         },
       })
     }
@@ -60,11 +59,10 @@ export async function onRequestPost(context) {
       ]
 
       return new Response(null, {
-        // No body needed for redirect
-        status: 303, // See Other, to redirect after POST
+        status: 303,
         headers: {
           "Set-Cookie": cookieOptions.join("; "),
-          "HX-Redirect": "/",
+          "HX-Redirect": "/sessions",
         },
       })
     } else {
