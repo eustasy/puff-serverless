@@ -1,17 +1,22 @@
-### Secure Defaults
-### Recommended by https://securityheaders.com/
-
 ### Match all Pages
-### Does NOT affect any Functions
+# Does NOT affect any Functions
 /*
-### Block content not loaded over HTTPS, and any scripts not from 'self'
-### Note that script-src 'self' doesn't allow unsafe inline scripts by default
-Content-Security-Policy: default-src https:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none';
-### This alternative CSP simply does not allow scripts from other domains.
-#Content-Security-Policy: script-src 'self' 'unsafe-inline'; object-src 'none';
-### Disallow powerful features in the browser
-Permissions-Policy: microphone=(), camera=(), geolocation=(), display-capture=(), web-share=()
-### Always load on HTTPS
-Strict-Transport-Security: max-age=31536000
-### Disable iFrames
-X-Frame-Options: DENY
+  ### Secure Defaults
+  ## Recommended by https://securityheaders.com/
+  # Block content not loaded over HTTPS, and any scripts not from 'self'
+  # Note that script-src 'self' doesn't allow unsafe inline scripts by default
+  Content-Security-Policy: default-src https:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none';
+  # This alternative CSP simply does not allow scripts from other domains.
+  #Content-Security-Policy: script-src 'self' 'unsafe-inline'; object-src 'none';
+  # Disallow powerful features in the browser
+  Permissions-Policy: microphone=(), camera=(), geolocation=(), display-capture=(), web-share=()
+  # Always load on HTTPS
+  Strict-Transport-Security: max-age=31536000
+  # Disable iFrames
+  X-Frame-Options: DENY
+  ### Preload links 
+  #Link: </assets/main.css>; rel=preload; as=style
+
+### Do not index workers.dev domain
+https://*.workers.dev/*
+  X-Robots-Tag: noindex
