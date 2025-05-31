@@ -4,7 +4,6 @@ import {
   updatePassword, // Import updatePassword
 } from "../../../../src/passwords.js"
 import { readToken, updateToken } from "../../../../src/tokens.js"
-import { user_exists_by_uuid } from "../../../../src/users.js"
 
 export async function onRequestPost(context) {
   let requestBody

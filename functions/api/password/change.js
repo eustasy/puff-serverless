@@ -1,10 +1,10 @@
-import { sessionAuthWithCookie } from "../../../../src/sessions.js"
+import { sessionAuthWithCookie } from "../../../src/sessions.js"
 import {
   password_requirements,
   password_requirements_html,
   password_verify,
   updatePassword, // Import updatePassword
-} from "../../../../src/passwords.js"
+} from "../../../src/passwords.js"
 // puff_hashing_password is used by updatePassword internally, so not directly needed here if updatePassword is used.
 // However, if we want to keep the structure where hash/salt are generated before calling update,
 // then updatePassword might need to be adjusted or we use a different helper.

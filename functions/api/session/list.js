@@ -42,19 +42,32 @@ export async function onRequestGet(context) {
     }
 
     let html =
-      "<table><thead><tr><th>Created At</th><th>Expires At</th><th>User Agent</th><th>IP Address</th><th>Status</th></tr></thead><tbody>"
+      "<table><thead><tr><th>Created At</th><th>Expires At</th><th>User Agent</th><th>IP Address</th><th>Status</th><th>Action</th></tr></thead><tbody>"
     if (result.sessions && result.sessions.length > 0) {
       result.sessions.forEach((session) => {
+        const isCurrentSession = session.session_id === currentSessionToken
         html += `<tr>
           <td>${new Date(session.created_at).toLocaleString()}</td>
           <td>${new Date(session.expires_at).toLocaleString()}</td>
           <td>${session.user_agent || "N/A"}</td>
           <td>${session.ip_address || "N/A"}</td>
-          <td>${session.session_id === currentSessionToken ? "<strong>Current Session</strong>" : "Active"}</td>
+          <td>${isCurrentSession ? "<strong>Current Session</strong>" : "Active"}</td>
+          <td>${
+            !isCurrentSession
+              ? `<button
+                hx-post="/api/session/terminate/one?id=${session.session_id}"
+                hx-target="#session-list-container"
+                hx-swap="innerHTML"
+                hx-confirm="Are you sure you want to terminate this session?"
+            >
+                Terminate
+            </button>`
+              : "" // No button for the current session
+          }</td>
         </tr>`
       })
     } else {
-      html += '<tr><td colspan="5">No active sessions found.</td></tr>'
+      html += '<tr><td colspan="6">No active sessions found.</td></tr>' // Adjusted colspan
     }
     html += "</tbody></table>"
 
