@@ -60,7 +60,7 @@
         <div
           id="session-list-container"
           hx-get="/api/session/list"
-          hx-trigger="load sessionListChanged"
+          hx-trigger="load sessionListChanged from:body"
           hx-swap="innerHTML"
         >
           <p>Loading sessions...</p>
