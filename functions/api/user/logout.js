@@ -1,4 +1,4 @@
-import { getCookie, endSession } from "../../../src/sessions.js"
+import { getCookie, deleteSession } from "../../../src/sessions.js"
 
 export async function onRequestPost(context) {
   const { Client } = require("pg")
@@ -17,7 +17,7 @@ export async function onRequestPost(context) {
   // Step 2: Attempt to delete the session token
   try {
     await client.connect()
-    const result = await endSession(client, token)
+    const result = await deleteSession(client, token)
 
     if (result.error) {
       console.error("Error ending session:", result.error)
@@ -40,7 +40,7 @@ export async function onRequestPost(context) {
       },
     })
   } catch (error) {
-    // This catch block might be redundant if endSession handles all its errors
+    // This catch block might be redundant if deleteSession handles all its errors
     // and returns them in the result object. However, it's good for catching
     // unexpected errors like client.connect() failing.
     console.error("Error during logout process:", error)

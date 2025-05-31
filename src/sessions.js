@@ -107,32 +107,6 @@ export async function sessionAuthWithCookie(context) {
 }
 
 /**
- * Ends a session by deleting it from the database.
- *
- * @param {Client} client - An active pg Client instance.
- * @param {string} token - The session token to delete.
- * @returns {Promise<object>} An object with `rowCount` if successful, or an `error` message and `status` if failed.
- */
-export async function endSession(client, token) {
-  if (!token) {
-    return { error: "Session token is required.", status: 400 }
-  }
-  try {
-    const deleteResult = await client.query(
-      "DELETE FROM sessions WHERE session_id = $1",
-      [token]
-    )
-    return { rowCount: deleteResult.rowCount, status: 200 }
-  } catch (error) {
-    console.error("Error during session deletion:", error)
-    return {
-      error: "Failed to end session due to a server error.",
-      status: 500,
-    }
-  }
-}
-
-/**
  * Starts a new session by inserting it into the database.
  * The session ID is generated internally and expires in 24 hours.
  *
@@ -142,7 +116,7 @@ export async function endSession(client, token) {
  * @param {string} [ip_address] - (Optional) The IP address from the request.
  * @returns {Promise<object>} An object with the session_id if successful, or an `error` message and `status` if failed.
  */
-export async function startSession(client, user_uuid, user_agent, ip_address) {
+export async function createSession(client, user_uuid, user_agent, ip_address) {
   if (!user_uuid) {
     return { error: "User UUID is required.", status: 400 }
   }
@@ -181,6 +155,32 @@ export async function startSession(client, user_uuid, user_agent, ip_address) {
     console.error("Error during session creation:", error)
     return {
       error: "Failed to start session due to a server error.",
+      status: 500,
+    }
+  }
+}
+
+/**
+ * Ends a session by deleting it from the database.
+ *
+ * @param {Client} client - An active pg Client instance.
+ * @param {string} token - The session token to delete.
+ * @returns {Promise<object>} An object with `rowCount` if successful, or an `error` message and `status` if failed.
+ */
+export async function deleteSession(client, token) {
+  if (!token) {
+    return { error: "Session token is required.", status: 400 }
+  }
+  try {
+    const deleteResult = await client.query(
+      "DELETE FROM sessions WHERE session_id = $1",
+      [token]
+    )
+    return { rowCount: deleteResult.rowCount, status: 200 }
+  } catch (error) {
+    console.error("Error during session deletion:", error)
+    return {
+      error: "Failed to end session due to a server error.",
       status: 500,
     }
   }

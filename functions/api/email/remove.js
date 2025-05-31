@@ -1,5 +1,5 @@
 import { sessionAuthWithCookie } from "../../../src/sessions.js"
-import { removeEmail } from "../../../src/emails.js"
+import { deleteEmail } from "../../../src/emails.js"
 
 export async function onRequestPost(context) {
   let user_uuid
@@ -32,8 +32,8 @@ export async function onRequestPost(context) {
     }
     user_uuid = sessionResult.user_uuid
 
-    // Call the centralized removeEmail function
-    const result = await removeEmail(context, user_uuid, emailToRemove)
+    // Call the centralized deleteEmail function
+    const result = await deleteEmail(context, user_uuid, emailToRemove)
 
     if (result.error) {
       return new Response(JSON.stringify({ error: result.message }), {

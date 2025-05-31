@@ -1,4 +1,10 @@
 const { Client } = require("pg")
+import {
+  createToken,
+  readToken,
+  updateToken,
+  deleteToken,
+} from "./tokens.js"
 
 /**
  * Adds an email address for a user and optionally generates a verification token.
@@ -9,13 +15,7 @@ const { Client } = require("pg")
  * @param {boolean} is_verified - Whether this email is already verified.
  * @returns {Promise<object>} - An object indicating success or failure, and token if generated.
  */
-export async function addEmail(
-  context,
-  user_uuid,
-  email_address,
-  is_primary = false,
-  is_verified = false
-) {
+export async function createEmail(context, user_uuid, email_address, is_primary = false, is_verified = false) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
@@ -52,9 +52,7 @@ export async function addEmail(
     }
     await client.query(insertEmailQuery)
 
-    let token_value = null
     if (!is_verified) {
-      token_value = crypto.randomUUID()
       const token_expires_at = new Date(
         Date.now() + 24 * 60 * 60 * 1000
       ).toISOString() // 24 hours
@@ -62,19 +60,28 @@ export async function addEmail(
         ? "email_verification"
         : "backup_email_verification"
 
-      const insertTokenQuery = {
-        text: "INSERT INTO tokens (user_uuid, email_address, token_type, token_value, expires_at) VALUES ($1, $2, $3, $4, $5)",
-        values: [
-          user_uuid,
-          email_address,
-          token_type,
-          token_value,
-          token_expires_at,
-        ],
+      const createTokenResult = await createToken(
+        context,
+        user_uuid,
+        token_type,
+        token_expires_at,
+        email_address
+      )
+
+      if (createTokenResult.error) {
+        // Handle token creation error - potentially rollback email insertion or log critical error
+        console.error("Failed to create verification token:", createTokenResult.message)
+        // Depending on desired atomicity, you might want to throw an error here
+        // or return an error state that indicates partial success (email added, token failed)
+        return {
+          error: true,
+          message: "Email added, but failed to create verification token.",
+          status: 500,
+          status: 500,
+        }
       }
-      await client.query(insertTokenQuery)
       console.log(
-        `Verification token ${token_value} generated for ${email_address} (type: ${token_type})`
+        `Verification token ${createTokenResult.token_value} generated for ${email_address} (type: ${token_type})`
       )
     }
 
@@ -83,10 +90,10 @@ export async function addEmail(
       email_address,
       is_primary,
       is_verified,
-      token_value,
+      token_value: createTokenResult.token_value,
     }
   } catch (error) {
-    console.error("Error in addEmail:", error)
+    console.error("Error in createEmail:", error)
     // PostgreSQL error code for unique_violation is '23505'
     if (
       error.code === "23505" &&
@@ -123,18 +130,33 @@ export async function addEmail(
  */
 export async function verifyEmailByToken(context, tokenValue) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
+  let tokenRecordFromRead
 
   try {
     await client.connect()
 
-    const tokenQuery = {
-      text: "SELECT user_uuid, email_address, expires_at, is_used, token_type FROM tokens WHERE token_value = $1 AND (token_type = 'email_verification' OR token_type = 'backup_email_verification')",
-      values: [tokenValue],
-    }
-    const tokenResult = await client.query(tokenQuery)
-    const tokenRecord = tokenResult.rows[0]
+    const readTokenResult = await readToken(context, tokenValue, [
+      "email_verification",
+      "backup_email_verification",
+    ])
 
-    if (!tokenRecord || tokenRecord.is_used) {
+    if (readTokenResult.error) {
+      console.error("Error reading token in verifyEmailByToken:", readTokenResult.message)
+      return { error: true, message: "Error verifying token.", status: 500 }
+    }
+
+    if (!readTokenResult.success || !readTokenResult.token) {
+      return {
+        error: true,
+        message: "Invalid, expired, or already used verification token.",
+        status: 400,
+      }
+    }
+
+    tokenRecordFromRead = readTokenResult.token
+    const { user_uuid, email_address, token_type, expires_at, is_used } = tokenRecordFromRead
+
+    if (is_used) {
       return {
         error: true,
         message: "Invalid, expired, or already used verification token.",
@@ -143,13 +165,10 @@ export async function verifyEmailByToken(context, tokenValue) {
     }
 
     const now = new Date()
-    const tokenExpiresAt = new Date(tokenRecord.expires_at)
+    const tokenExpiresAt = new Date(expires_at)
 
     if (now > tokenExpiresAt) {
-      await client.query(
-        "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
-        [tokenValue, tokenRecord.token_type]
-      )
+      await updateToken(context, tokenValue, token_type, { is_used: true })
       return {
         error: true,
         message: "Verification token expired.",
@@ -157,7 +176,6 @@ export async function verifyEmailByToken(context, tokenValue) {
       }
     }
 
-    const { user_uuid, email_address, token_type } = tokenRecord
     const verified_at = new Date().toISOString()
 
     // Check if email exists and if it needs verification for the given type
@@ -169,10 +187,7 @@ export async function verifyEmailByToken(context, tokenValue) {
     const emailRecord = emailCheckResult.rows[0]
 
     if (!emailRecord) {
-      await client.query(
-        "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
-        [tokenValue, token_type]
-      )
+      await updateToken(context, tokenValue, token_type, { is_used: true })
       return {
         error: true,
         message: "Associated email record not found.",
@@ -187,20 +202,14 @@ export async function verifyEmailByToken(context, tokenValue) {
         token_type === "backup_email_verification" &&
         emailRecord.is_primary
       ) {
-        await client.query(
-          "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
-          [tokenValue, token_type]
-        )
+        await updateToken(context, tokenValue, token_type, { is_used: true })
         return {
           error: true,
           message: "Cannot verify a primary email with a backup email token.",
           status: 400,
         }
       }
-      await client.query(
-        "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
-        [tokenValue, token_type]
-      )
+      await updateToken(context, tokenValue, token_type, { is_used: true })
       const message =
         token_type === "email_verification"
           ? "This email is already verified."
@@ -220,10 +229,7 @@ export async function verifyEmailByToken(context, tokenValue) {
       // For backup emails
       if (emailRecord.is_primary) {
         // Should not verify a primary email with a backup token if it wasn't verified before
-        await client.query(
-          "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
-          [tokenValue, token_type]
-        )
+        await updateToken(context, tokenValue, token_type, { is_used: true })
         return {
           error: true,
           message:
@@ -241,10 +247,7 @@ export async function verifyEmailByToken(context, tokenValue) {
     }
 
     if (updateEmailResult.rowCount === 0) {
-      await client.query(
-        "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
-        [tokenValue, token_type]
-      )
+      await updateToken(context, tokenValue, token_type, { is_used: true })
       return {
         error: true,
         message:
@@ -253,10 +256,7 @@ export async function verifyEmailByToken(context, tokenValue) {
       }
     }
 
-    await client.query(
-      "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
-      [tokenValue, token_type]
-    )
+    await updateToken(context, tokenValue, token_type, { is_used: true })
 
     const successMessage =
       token_type === "email_verification"
@@ -268,17 +268,12 @@ export async function verifyEmailByToken(context, tokenValue) {
     // Attempt to invalidate token on generic error if possible
     if (
       tokenValue &&
-      client &&
-      client._connected &&
-      typeof tokenRecord !== "undefined" &&
-      tokenRecord &&
-      tokenRecord.token_type
+      tokenRecordFromRead && // Use the record obtained from readToken
+      tokenRecordFromRead.token_type
     ) {
       try {
-        await client.query(
-          "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2",
-          [tokenValue, tokenRecord.token_type]
-        )
+        // Use updateToken to invalidate
+        await updateToken(context, tokenValue, tokenRecordFromRead.token_type, { is_used: true })
       } catch (invalidationError) {
         console.error(
           "Failed to invalidate token during error handling in verifyEmailByToken:",
@@ -391,7 +386,7 @@ export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
  * @param {string} email_to_remove - The email address to remove.
  * @returns {Promise<object>} - An object indicating success or failure.
  */
-export async function removeEmail(context, user_uuid, email_to_remove) {
+export async function deleteEmail(context, user_uuid, email_to_remove) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
@@ -421,10 +416,13 @@ export async function removeEmail(context, user_uuid, email_to_remove) {
     }
 
     // Also delete any associated tokens for this email
-    await client.query(
-      "DELETE FROM tokens WHERE user_uuid = $1 AND email_address = $2",
-      [user_uuid, email_to_remove]
-    )
+    const deleteTokenResult = await deleteToken(context, user_uuid, email_to_remove)
+    if (deleteTokenResult.error) {
+      // Log or handle error if token deletion fails, but proceed with email removal
+      console.error("Error deleting tokens for email:", email_to_remove, deleteTokenResult.message)
+    } else {
+      console.log(`Deleted ${deleteTokenResult.rowCount} tokens for email: ${email_to_remove}`)
+    }
 
     const deleteResult = await client.query(
       "DELETE FROM emails WHERE user_uuid = $1 AND email_address = $2 AND is_primary = FALSE",
@@ -447,9 +445,61 @@ export async function removeEmail(context, user_uuid, email_to_remove) {
       status: 200,
     }
   } catch (error) {
-    console.error("Error in removeEmail:", error)
+    console.error("Error in deleteEmail:", error)
     throw error
   } finally {
     await client.end()
+  }
+}
+
+/**
+ * Reads a single email record from the database by email address.
+ * @param {object} context - The Cloudflare Pages context object.
+ * @param {string} email_address - The email address to look up.
+ * @returns {Promise<object>} - An object with { success: true, email: record } or { success: false/error: true, message: string }.
+ */
+export async function readEmail(context, email_address) {
+  const client = new Client(context.env.HYPERDRIVE.connectionString);
+  try {
+    await client.connect();
+    const query = {
+      text: "SELECT user_uuid, email_address, is_primary, is_verified, verified_at FROM emails WHERE email_address = $1 LIMIT 1",
+      values: [email_address],
+    };
+    const result = await client.query(query);
+    if (result.rows.length > 0) {
+      return { success: true, email: result.rows[0] };
+    } else {
+      return { success: false, message: "Email not found." };
+    }
+  } catch (error) {
+    console.error("Error in readEmail:", error);
+    return { error: true, message: "Server error while reading email.", details: error.message };
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * Checks if an email address exists in the database.
+ * @param {object} context - The Cloudflare Pages context object.
+ * @param {string} email_address - The email address to check.
+ * @returns {Promise<object>} - An object with { success: true, exists: boolean } or { error: true, message: string }.
+ */
+export async function existsEmail(context, email_address) {
+  const client = new Client(context.env.HYPERDRIVE.connectionString);
+  try {
+    await client.connect();
+    const query = {
+      text: "SELECT 1 FROM emails WHERE email_address = $1 LIMIT 1",
+      values: [email_address],
+    };
+    const result = await client.query(query);
+    return { success: true, exists: result.rowCount > 0 };
+  } catch (error) {
+    console.error("Error in existsEmail:", error);
+    return { error: true, message: "Server error while checking email existence.", details: error.message };
+  } finally {
+    await client.end();
   }
 }

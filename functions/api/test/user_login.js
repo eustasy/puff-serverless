@@ -15,8 +15,7 @@ export async function onRequest(context) {
       testEmail,
       testPassword
     )
-    // Assuming user_register returns an object like { success: true, ... } or throws error
-    // and that D1Result.success is true on successful insert
+
     if (registrationResult && registrationResult.success === true) {
       testResults.push({ test: "User Registration", status: "success" })
     } else {
