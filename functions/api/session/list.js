@@ -48,26 +48,23 @@ export async function onRequestGet(context) {
       result.sessions.forEach((session) => {
         const isCurrentSession = session.session_id === currentSessionToken
         const clientInfo = parseUserAgent(session.user_agent)
-        html += `<tr>
+        html += `<tr id="session-${session.session_id}">
           <td>${new Date(session.created_at).toLocaleString()}</td>
           <td>${new Date(session.expires_at).toLocaleString()}</td>
           <td>${clientInfo}</td>
           <td>${session.ip_address || "N/A"}</td>
-          <td>${isCurrentSession ? "<strong>Current Session</strong>" : ""}
-          ${
-            !isCurrentSession
-              ? `<button
-                class="btn-danger"
-                hx-post="/api/session/terminate/one?id=${session.session_id}"
-                hx-target="#session-list-container"
-                hx-swap="innerHTML"
-                hx-confirm="Are you sure you want to terminate this session?"
-                hx-disable-elt="this"
-            >
-                Terminate
-                <img class="htmx-indicator" src="/assets/bars.svg" />
-            </button>`
-              : "" // No button for the current session
+          <td>${
+            isCurrentSession
+              ? "<strong>Current Session</strong>"
+              : `<button
+                  class="btn-danger"
+                  hx-post="/api/session/terminate/one?id=${session.session_id}"
+                  hx-target="#session-message-area" 
+                  hx-swap="innerHTML"
+                  hx-confirm="Are you sure you want to terminate this session?"
+                >
+                  Terminate
+                </button>`
           }</td>
         </tr>`
       })

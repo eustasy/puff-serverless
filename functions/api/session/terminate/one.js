@@ -59,29 +59,25 @@ export async function onRequestPost(context) {
 
   // Step 5: Response
   if (terminationResult.rowCount > 0) {
-    // For HTMX, you might want to trigger a refresh of the session list or show a success message.
-    // An empty 200 OK response with an HX-Trigger header can be useful if the page should re-fetch data.
-    // Or, return a partial HTML to replace the row of the terminated session.
     return new Response(
-      '<p class="result-positive">Session terminated successfully.</p>', // Or an empty string if using HX-Trigger effectively
+      '<p class="result-positive">Session terminated successfully.</p>',
       {
         status: 200,
         headers: {
           "Content-Type": "text/html",
-          // Example: "HX-Trigger": "sessionListChanged"
+          "HX-Trigger": "sessionListChanged",
         },
       }
     )
   } else {
-    // This means the session was not found for this user, or was already terminated.
-    // The helper function `terminateSpecificSession` now returns a 404 in this case if it wasn't found initially.
-    // If it was found then deleted, rowCount would be 1. If it was found then couldn't be deleted (e.g. already gone), rowCount would be 0.
-    // For simplicity, we can treat rowCount === 0 after a successful call (no error) as "it's gone".
     return new Response(
       '<p class="result-negative">Session was already terminated or not found.</p>',
       {
-        status: 200,
-        headers: { "Content-Type": "text/html" },
+        status: 200, // Or consider 404 if appropriate for your frontend logic
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Trigger": "sessionListChanged", // Also trigger refresh here to ensure UI consistency
+        },
       }
     )
   }
