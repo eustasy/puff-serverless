@@ -26,10 +26,9 @@
         <h1>Account Management</h1>
       </header>
       <main>
-        <h2>Email Addresses</h2>
-        <div id="email-controls" style="margin-bottom: 1em">
+        <div id="email-controls" class="float-right" style="margin-bottom: 1em">
           <button
-            class="btn-safe float-right"
+            class="btn-safe"
             hx-get="/api/email/list"
             hx-target="#email-list-container"
             hx-swap="innerHTML"
@@ -39,7 +38,7 @@
             <img class="htmx-indicator" src="/assets/bars.svg" />
           </button>
           <button
-            class="btn-save float-right"
+            class="btn-save"
             hx-post="/api/email/add"
             hx-target="#email-message-area"
             hx-swap="innerHTML"
@@ -52,6 +51,7 @@
             <img class="htmx-indicator" src="/assets/bars.svg" />
           </button>
         </div>
+        <h2>Email Addresses</h2>
 
         <div
           id="email-message-area"
@@ -68,10 +68,13 @@
           <p>Loading email addresses...</p>
         </div>
 
-        <h2>Current Sessions</h2>
-        <div id="session-controls" style="margin-bottom: 1em">
+        <div
+          id="session-controls"
+          class="float-right"
+          style="margin-bottom: 1em"
+        >
           <button
-            class="btn-safe float-right"
+            class="btn-safe"
             hx-get="/api/session/list"
             hx-target="#session-list-container"
             hx-swap="innerHTML"
@@ -81,7 +84,7 @@
             <img class="htmx-indicator" src="/assets/bars.svg" />
           </button>
           <button
-            class="btn-danger float-right"
+            class="btn-danger"
             hx-post="/api/session/terminate/all"
             hx-target="#session-list-container"
             hx-swap="innerHTML"
@@ -92,6 +95,7 @@
             <img class="htmx-indicator" src="/assets/bars.svg" />
           </button>
         </div>
+        <h2>Current Sessions</h2>
 
         <div
           id="session-message-area"
