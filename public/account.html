@@ -28,7 +28,7 @@
       <main>
         <div id="email-controls" class="float-right" style="margin-bottom: 1em">
           <button
-            class="btn-safe"
+            class="btn-safe float-right"
             hx-get="/api/email/list"
             hx-target="#email-list-container"
             hx-swap="innerHTML"
@@ -38,7 +38,7 @@
             <img class="htmx-indicator" src="/assets/bars.svg" />
           </button>
           <button
-            class="btn-save"
+            class="btn-save float-right"
             hx-post="/api/email/add"
             hx-target="#email-message-area"
             hx-swap="innerHTML"
@@ -74,7 +74,7 @@
           style="margin-bottom: 1em"
         >
           <button
-            class="btn-safe"
+            class="btn-safe float-right"
             hx-get="/api/session/list"
             hx-target="#session-list-container"
             hx-swap="innerHTML"
@@ -84,7 +84,7 @@
             <img class="htmx-indicator" src="/assets/bars.svg" />
           </button>
           <button
-            class="btn-danger"
+            class="btn-danger float-right"
             hx-post="/api/session/terminate/all"
             hx-target="#session-list-container"
             hx-swap="innerHTML"
