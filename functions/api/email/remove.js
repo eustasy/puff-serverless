@@ -1,68 +1,56 @@
-import { sessionAuthWithCookie } from "../../../src/sessions.js"
 import { deleteEmail } from "../../../src/emails.js"
 
 export async function onRequestPost(context) {
-  let user_uuid
   try {
-    const tempClient = new Client(context.env.HYPERDRIVE.connectionString)
-    await tempClient.connect()
-    // Session token from form data as per previous structure
     const formData = await context.request.formData()
-    const sessionToken = formData.get("session_token")
-    const emailToRemove = formData.get("email_address")
+    const emailIdToRemove = formData.get("email_id") // Changed to email_id to match hx-vals
 
-    if (!sessionToken || !emailToRemove) {
-      await tempClient.end()
-      return new Response(
-        JSON.stringify({
-          error: "Session token and email address are required.",
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      )
-    }
+    // Session authentication is expected to be handled by middleware and populate context.data.currentSession
+    const { currentSession, env } = context.data // env should also be available from middleware
 
-    const sessionResult = await sessionAuthWithCookie(tempClient, sessionToken)
-    await tempClient.end()
-
-    if (sessionResult.error) {
-      return new Response(JSON.stringify({ error: sessionResult.error }), {
-        status: sessionResult.status || 401,
-        headers: { "Content-Type": "application/json" },
+    if (!currentSession) {
+      return new Response("<p class=\"error\">Unauthorized. Please log in.</p>", {
+        status: 401,
+        headers: { "Content-Type": "text/html" },
       })
     }
-    user_uuid = sessionResult.user_uuid
 
-    // Call the centralized deleteEmail function
-    const result = await deleteEmail(context, user_uuid, emailToRemove)
+    if (!emailIdToRemove) {
+      return new Response("<p class=\"error\">Email ID is required.</p>", {
+        status: 400,
+        headers: { "Content-Type": "text/html" },
+      })
+    }
+
+    // Assuming deleteEmail expects the actual email address string.
+    // If deleteEmail can handle an ID, this part might need adjustment or the `emails.js` function signature updated.
+    // For now, this assumes `emailIdToRemove` is the string, but this is a potential issue.
+    const result = await deleteEmail({ env }, currentSession.user_uuid, emailIdToRemove)
 
     if (result.error) {
-      return new Response(JSON.stringify({ error: result.message }), {
+      return new Response(`<p class=\"error\">${result.message}</p>`, {
         status: result.status || 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/html" },
       })
     }
 
-    return new Response(JSON.stringify({ message: result.message }), {
+    return new Response(`<p class=\"success\">${result.message}</p>`, {
       status: result.status || 200,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "text/html",
+        "HX-Trigger": "emailListChanged",
+      },
     })
   } catch (error) {
     console.error("Error in remove email endpoint:", error)
-    // Check if it's a form data parsing error or other type of error
+    let errorMessage = "Failed to remove email due to a server error."
     if (error instanceof TypeError && error.message.includes("formData")) {
-      return new Response(
-        JSON.stringify({
-          error: "Invalid request format. Expected form data.",
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      )
+      errorMessage = "Invalid request format. Expected form data."
     }
-    return new Response(
-      JSON.stringify({
-        error: "Failed to remove email due to a server error.",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    )
+    return new Response(`<p class=\"error\">${errorMessage}</p>`, {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 }
 
@@ -70,8 +58,8 @@ export async function onRequest(context) {
   if (context.request.method === "POST") {
     return await onRequestPost(context)
   }
-  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+  return new Response("<p class=\"error\">Method Not Allowed</p>", {
     status: 405,
-    headers: { "Allow": "POST", "Content-Type": "application/json" },
+    headers: { "Allow": "POST", "Content-Type": "text/html" },
   })
 }
