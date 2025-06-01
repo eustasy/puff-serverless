@@ -1,7 +1,12 @@
 const { Client } = require("pg")
 const SECRET_TYPE = "totp_secret"
 
-export async function create2fa(context, user_uuid, secret_value, secret_name = null) {
+export async function create2fa(
+  context,
+  user_uuid,
+  secret_value,
+  secret_name = null
+) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_name, secret_created_at, is_enabled)
@@ -30,7 +35,6 @@ export async function create2fa(context, user_uuid, secret_value, secret_name = 
 }
 
 export async function read2fa(context, user_uuid) {
- 
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     SELECT user_uuid, secret_type, secret_value, secret_name, is_enabled, secret_created_at, secret_last_used
@@ -54,7 +58,6 @@ export async function read2fa(context, user_uuid) {
 }
 
 export async function delete2fa(context, user_uuid) {
- 
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     DELETE FROM secrets
@@ -80,7 +83,6 @@ export async function delete2fa(context, user_uuid) {
 }
 
 export async function has2fa(context, user_uuid) {
- 
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     SELECT 1
@@ -106,7 +108,6 @@ export async function has2fa(context, user_uuid) {
 }
 
 export async function enable2fa(context, user_uuid) {
- 
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     UPDATE secrets
@@ -144,7 +145,6 @@ export async function enable2fa(context, user_uuid) {
 
 // disable2fa is not directly used by the remove flow but good to update for consistency
 export async function disable2fa(context, user_uuid) {
- 
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     UPDATE secrets
@@ -176,7 +176,6 @@ export async function disable2fa(context, user_uuid) {
 }
 
 export async function update2faLastUsed(context, user_uuid) {
- 
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     UPDATE secrets
