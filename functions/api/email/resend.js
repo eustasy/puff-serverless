@@ -91,46 +91,14 @@ export async function onRequestPost(context) {
       )
     }
 
-    // Check for an existing, valid token first
-    const existingTokenResult = await readToken(
-      context,
-      emailToVerify.token_value
-    )
-
-    if (existingTokenResult.success && existingTokenResult.token) {
-      // Found an existing, valid token
-      return new Response(
-        `<p class="result-positive">Existing verification token is still valid: ${existingTokenResult.token.token_value}.</p>`,
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Trigger": "emailListChanged",
-          },
-        }
-      )
-    } else if (existingTokenResult.error) {
-      // An error occurred trying to read the token, other than not found
-      console.error(
-        "Failed to read existing email token:",
-        existingTokenResult.message
-      )
-      return new Response(
-        `<p class="result-negative">Could not check for existing token: ${existingTokenResult.message}</p>`,
-        {
-          status: 500,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
-    }
-
-    // No existing valid token, or an error occurred that allows us to proceed to create a new one.
-    // Proceed to create a new token
+    // If the email is not verified, proceed to create a new token.
+    // The previous logic to read an existing token using emailToVerify.token_value was flawed
+    // as emails table doesn't store token_value directly.
+    // A user requesting to resend implies they need a new (or resent) token.
     const tokenResult = await createEmailToken(
       context,
       user_uuid,
-      email_address,
-      emailToVerify.is_primary // Pass whether the email is primary
+      email_address
     )
 
     if (tokenResult.error) {
