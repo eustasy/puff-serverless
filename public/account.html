@@ -29,6 +29,19 @@
         <h2>Email Addresses</h2>
         <div id="email-controls" style="margin-bottom: 1em">
           <button
+            class="btn-save float-right"
+            hx-post="/api/email/add"
+            hx-target="#email-message-area"
+            hx-swap="innerHTML"
+            hx-disabled-elt="this"
+            name="email_address"
+            hx-prompt="Enter an email address to add:"
+            hx-confirm="Are you sure you want to add this email address? It can be used for login and account recovery."
+          >
+            Add Email
+            <img class="htmx-indicator" src="/assets/bars.svg" />
+          </button>
+          <button
             class="btn-safe float-right"
             hx-get="/api/email/list"
             hx-target="#email-list-container"

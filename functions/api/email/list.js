@@ -1,13 +1,18 @@
 import { readEmails } from "../../../src/emails";
+import { sessionAuthWithCookie } from "../../../src/sessions.js";
 
-export async function onRequestGet({context}) {
-  const { currentSession } = data;
-  if (!currentSession) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
+export async function onRequestGet(context) { // Changed to receive full context object
   try {
-    const emails = await readEmails(context, currentSession.user_id);
+    const sessionResult = await sessionAuthWithCookie(context);
+    if (sessionResult.error) {
+      return new Response(`<p class="error">${sessionResult.error}</p>`, {
+        status: sessionResult.status || 401,
+        headers: { "Content-Type": "text/html" },
+      });
+    }
+    const { user_uuid } = sessionResult;
+
+    const emails = await readEmails(context, user_uuid);
     if (!emails || emails.length === 0) {
       return new Response("<p>No email addresses found for this account.</p>", {
         headers: { "Content-Type": "text/html" },

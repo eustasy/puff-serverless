@@ -3,18 +3,17 @@ import { setPrimaryEmail } from "../../../src/emails.js";
 
 export async function onRequestPost(context) {
   try {
-    const formData = await context.request.formData();
-    const new_primary_email = formData.get("email_id"); // Assuming email_id is sent, which corresponds to an email address
-
-    // Session authentication is expected to be handled by middleware and populate context.data.currentSession
-    const { currentSession, env } = context.data; // env should also be available from middleware
-
-    if (!currentSession) {
-      return new Response("<p class=\"error\">Unauthorized. Please log in.</p>", {
-        status: 401,
+    const sessionResult = await sessionAuthWithCookie(context);
+    if (sessionResult.error) {
+      return new Response(`<p class="error">${sessionResult.error}</p>`, {
+        status: sessionResult.status || 401,
         headers: { "Content-Type": "text/html" },
       });
     }
+    const { user_uuid } = sessionResult;
+
+    const formData = await context.request.formData();
+    const new_primary_email = formData.get("email_id"); // Assuming email_id is sent, which corresponds to an email address
 
     if (!new_primary_email || typeof new_primary_email !== "string" || !new_primary_email.includes("@")) {
       // This check might be redundant if email_id is a UUID, adjust as per actual data model
@@ -26,7 +25,7 @@ export async function onRequestPost(context) {
       });
     }
 
-    const result = await setPrimaryEmail({ env }, currentSession.user_uuid, new_primary_email);
+    const result = await setPrimaryEmail(context, user_uuid, new_primary_email);
 
     if (result.error) {
       return new Response(`<p class=\"error\">${result.message}</p>`, {

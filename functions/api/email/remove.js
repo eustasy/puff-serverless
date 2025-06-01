@@ -1,19 +1,19 @@
+import { sessionAuthWithCookie } from "../../../src/sessions.js"
 import { deleteEmail } from "../../../src/emails.js"
 
 export async function onRequestPost(context) {
   try {
-    const formData = await context.request.formData()
-    const emailIdToRemove = formData.get("email_id") // Changed to email_id to match hx-vals
-
-    // Session authentication is expected to be handled by middleware and populate context.data.currentSession
-    const { currentSession, env } = context.data // env should also be available from middleware
-
-    if (!currentSession) {
-      return new Response("<p class=\"error\">Unauthorized. Please log in.</p>", {
-        status: 401,
+    const sessionResult = await sessionAuthWithCookie(context)
+    if (sessionResult.error) {
+      return new Response(`<p class=\"error\">${sessionResult.error}</p>`, {
+        status: sessionResult.status || 401,
         headers: { "Content-Type": "text/html" },
       })
     }
+    const { user_uuid } = sessionResult
+
+    const formData = await context.request.formData()
+    const emailIdToRemove = formData.get("email_id") // Changed to email_id to match hx-vals
 
     if (!emailIdToRemove) {
       return new Response("<p class=\"error\">Email ID is required.</p>", {
@@ -25,7 +25,7 @@ export async function onRequestPost(context) {
     // Assuming deleteEmail expects the actual email address string.
     // If deleteEmail can handle an ID, this part might need adjustment or the `emails.js` function signature updated.
     // For now, this assumes `emailIdToRemove` is the string, but this is a potential issue.
-    const result = await deleteEmail({ env }, currentSession.user_uuid, emailIdToRemove)
+    const result = await deleteEmail(context, user_uuid, emailIdToRemove)
 
     if (result.error) {
       return new Response(`<p class=\"error\">${result.message}</p>`, {
