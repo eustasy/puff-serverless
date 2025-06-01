@@ -1,5 +1,5 @@
 import { sessionAuthWithCookie } from "../../../src/sessions.js"
-import { createEmailToken, readEmailToken } from "../../../src/tokens.js" // Updated imports
+import { createEmailToken, readToken } from "../../../src/tokens.js"
 import { readEmail } from "../../../src/emails.js"
 
 export async function onRequestPost(context) {
@@ -92,10 +92,9 @@ export async function onRequestPost(context) {
     }
 
     // Check for an existing, valid token first
-    const existingTokenResult = await readEmailToken(
+    const existingTokenResult = await readToken(
       context,
-      user_uuid,
-      email_address
+      emailToVerify.token_value
     )
 
     if (existingTokenResult.success && existingTokenResult.token) {

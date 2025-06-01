@@ -1,9 +1,9 @@
 import {
   password_requirements,
   password_requirements_html,
-  updatePassword, // Import updatePassword
+  updatePassword,
 } from "../../../../src/passwords.js"
-import { readToken, updateToken } from "../../../../src/tokens.js"
+import { readToken, usedToken } from "../../../../src/tokens.js"
 
 export async function onRequestPost(context) {
   let requestBody
@@ -75,7 +75,7 @@ export async function onRequestPost(context) {
     const now = new Date()
     const tokenExpiresAt = new Date(tokenRecord.expires_at)
     if (now > tokenExpiresAt) {
-      await updateToken(context, token, "password_reset", { is_used: true })
+      await usedToken(context, token)
       return new Response(
         '<p class="result-negative">Password reset token has expired.</p>',
         {
