@@ -10,7 +10,7 @@ export async function onRequestPost(context) {
         headers: { "Content-Type": "text/html" },
       })
     }
-    const { user_uuid } = sessionResult
+    const user_uuid = sessionResult
 
     const formData = await context.request.formData()
     const emailIdToRemove = formData.get("email_id") // Changed to email_id to match hx-vals

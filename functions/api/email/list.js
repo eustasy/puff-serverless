@@ -11,7 +11,7 @@ export async function onRequestGet(context) {
         headers: { "Content-Type": "text/html" },
       })
     }
-    const { user_uuid } = sessionResult
+    const user_uuid = sessionResult
 
     const emails = await readEmails(context, user_uuid)
     if (!emails || emails.length === 0) {

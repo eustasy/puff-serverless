@@ -10,7 +10,7 @@ export async function onRequestPost(context) {
         headers: { "Content-Type": "text/html" },
       })
     }
-    const { user_uuid } = sessionResult
+    const user_uuid = sessionResult
 
     const formData = await context.request.formData()
     const email_address = formData.get("email_address")
