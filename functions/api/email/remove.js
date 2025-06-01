@@ -16,10 +16,13 @@ export async function onRequestPost(context) {
     const emailIdToRemove = formData.get("email_id") // Changed to email_id to match hx-vals
 
     if (!emailIdToRemove) {
-      return new Response('<p class="result-negative">Email ID is required.</p>', {
-        status: 400,
-        headers: { "Content-Type": "text/html" },
-      })
+      return new Response(
+        '<p class="result-negative">Email ID is required.</p>',
+        {
+          status: 400,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
     }
 
     // Assuming deleteEmail expects the actual email address string.

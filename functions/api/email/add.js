@@ -5,10 +5,13 @@ export async function onRequestPost(context) {
   try {
     const sessionResult = await sessionAuthWithCookie(context)
     if (sessionResult.error) {
-      return new Response(`<p class="result-negative">${sessionResult.error}</p>`, {
-        status: sessionResult.status || 401,
-        headers: { "Content-Type": "text/html" },
-      })
+      return new Response(
+        `<p class="result-negative">${sessionResult.error}</p>`,
+        {
+          status: sessionResult.status || 401,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
     }
     const user_uuid = sessionResult
 
@@ -21,7 +24,7 @@ export async function onRequestPost(context) {
       !email_address.includes("@")
     ) {
       return new Response(
-        '<p class="result-negative">Email address is missing or invalid.</p>',
+        `<p class="result-negative">Email address is missing or invalid. You submitted "${email_address}".</p>`,
         {
           status: 400,
           headers: { "Content-Type": "text/html" },
