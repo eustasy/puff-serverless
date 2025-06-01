@@ -31,6 +31,7 @@ export async function onRequestGet({context}) {
                     hx-vals='{"email_id": "${email.id}"}'
                     hx-target="#email-list-container"
                     hx-swap="innerHTML"
+                    hx-trigger="click, emailListChanged from:body"
                     hx-disabled-elt="this"
                 >Make Primary</button> `;
         html += `<button
@@ -39,9 +40,10 @@ export async function onRequestGet({context}) {
                     hx-vals='{"email_id": "${email.id}"}'
                     hx-target="#email-list-container"
                     hx-swap="innerHTML"
+                    hx-trigger="click, emailListChanged from:body"
                     hx-disabled-elt="this"
+                    hx-confirm="Are you sure you want to remove this email address?"
                 >Remove</button>`;
-
       }
       html += `</div>
         </div>

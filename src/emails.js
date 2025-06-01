@@ -532,3 +532,28 @@ export async function readEmail(context, email_address) {
     await client.end()
   }
 }
+
+/**
+ * Reads all email records for a given user from the database.
+ * @param {object} context - The Cloudflare Pages context object.
+ * @param {string} user_uuid - The UUID of the user.
+ * @returns {Promise<Array<object>>} - An array of email objects or an empty array if none found.
+ * @throws Will throw an error if the database query fails.
+ */
+export async function readEmails(context, user_uuid) {
+  const client = new Client(context.env.HYPERDRIVE.connectionString);
+  try {
+    await client.connect();
+    const query = {
+      text: "SELECT email_address, is_primary, is_verified, verified_at FROM emails WHERE user_uuid = $1 ORDER BY is_primary DESC, verified_at ASC",
+      values: [user_uuid],
+    };
+    const result = await client.query(query);
+    return result.rows;
+  } catch (error) {
+    console.error("Error in readEmails:", error);
+    throw error; // Re-throw the error to be handled by the caller
+  } finally {
+    await client.end();
+  }
+}
