@@ -42,6 +42,7 @@ label {
 button,
 input[type="submit"] {
   color: white;
+  background: #333333;
   padding: 10px 15px;
   border: none;
   border-radius: 4px;
