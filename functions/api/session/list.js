@@ -43,7 +43,13 @@ export async function onRequestGet(context) {
     }
 
     let html =
-      "<table><thead><tr><th>Client</th><th>IP Address</th<th>Created</th><th>Expires</th>><th>Action</th></tr></thead><tbody>"
+      `<table><thead><tr>
+        <th>Client</th>
+        <th>IP Address</th>
+        <th>Created</th>
+        <th>Expires</th>
+        <th>Action</th>
+      </tr></thead><tbody>`
     if (result.sessions && result.sessions.length > 0) {
       result.sessions.forEach((session) => {
         const isCurrentSession = session.session_id === currentSessionToken
