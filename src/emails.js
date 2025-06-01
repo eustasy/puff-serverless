@@ -474,6 +474,34 @@ export async function deleteEmail(context, user_uuid, email_to_remove) {
 }
 
 /**
+ * Checks if an email address exists in the database.
+ * @param {object} context - The Cloudflare Pages context object.
+ * @param {string} email_address - The email address to check.
+ * @returns {Promise<object>} - An object with { success: true, exists: boolean } or { error: true, message: string }.
+ */
+export async function existsEmail(context, email_address) {
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
+  try {
+    await client.connect()
+    const query = {
+      text: "SELECT 1 FROM emails WHERE email_address = $1 LIMIT 1",
+      values: [email_address],
+    }
+    const result = await client.query(query)
+    return { success: true, exists: result.rowCount > 0 }
+  } catch (error) {
+    console.error("Error in existsEmail:", error)
+    return {
+      error: true,
+      message: "Server error while checking email existence.",
+      details: error.message,
+    }
+  } finally {
+    await client.end()
+  }
+}
+
+/**
  * Reads a single email record from the database by email address.
  * @param {object} context - The Cloudflare Pages context object.
  * @param {string} email_address - The email address to look up.
@@ -498,34 +526,6 @@ export async function readEmail(context, email_address) {
     return {
       error: true,
       message: "Server error while reading email.",
-      details: error.message,
-    }
-  } finally {
-    await client.end()
-  }
-}
-
-/**
- * Checks if an email address exists in the database.
- * @param {object} context - The Cloudflare Pages context object.
- * @param {string} email_address - The email address to check.
- * @returns {Promise<object>} - An object with { success: true, exists: boolean } or { error: true, message: string }.
- */
-export async function existsEmail(context, email_address) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
-  try {
-    await client.connect()
-    const query = {
-      text: "SELECT 1 FROM emails WHERE email_address = $1 LIMIT 1",
-      values: [email_address],
-    }
-    const result = await client.query(query)
-    return { success: true, exists: result.rowCount > 0 }
-  } catch (error) {
-    console.error("Error in existsEmail:", error)
-    return {
-      error: true,
-      message: "Server error while checking email existence.",
       details: error.message,
     }
   } finally {

@@ -26,6 +26,35 @@
         <h1>Account Management</h1>
       </header>
       <main>
+        <h2>Email Addresses</h2>
+        <div id="email-controls" style="margin-bottom: 1em">
+          <button
+            class="btn-safe float-right"
+            hx-get="/api/email/list"
+            hx-target="#email-list-container"
+            hx-swap="innerHTML"
+            hx-disabled-elt="this"
+          >
+            Refresh Emails
+            <img class="htmx-indicator" src="/assets/bars.svg" />
+          </button>
+        </div>
+
+        <div
+          id="email-message-area"
+          class="result-area"
+          style="margin-bottom: 1em"
+        ></div>
+
+        <div
+          id="email-list-container"
+          hx-get="/api/email/list"
+          hx-trigger="load, emailListChanged from:body"
+          hx-swap="innerHTML"
+        >
+          <p>Loading email addresses...</p>
+        </div>
+
         <h2>Current Sessions</h2>
         <div id="session-controls" style="margin-bottom: 1em">
           <button
