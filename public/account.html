@@ -29,6 +29,16 @@
         <h2>Email Addresses</h2>
         <div id="email-controls" style="margin-bottom: 1em">
           <button
+            class="btn-safe float-right"
+            hx-get="/api/email/list"
+            hx-target="#email-list-container"
+            hx-swap="innerHTML"
+            hx-disabled-elt="this"
+          >
+            Refresh Emails
+            <img class="htmx-indicator" src="/assets/bars.svg" />
+          </button>
+          <button
             class="btn-save float-right"
             hx-post="/api/email/add"
             hx-target="#email-message-area"
@@ -39,16 +49,6 @@
             hx-confirm="Are you sure you want to add this email address? It can be used for login and account recovery."
           >
             Add Email
-            <img class="htmx-indicator" src="/assets/bars.svg" />
-          </button>
-          <button
-            class="btn-safe float-right"
-            hx-get="/api/email/list"
-            hx-target="#email-list-container"
-            hx-swap="innerHTML"
-            hx-disabled-elt="this"
-          >
-            Refresh Emails
             <img class="htmx-indicator" src="/assets/bars.svg" />
           </button>
         </div>
@@ -71,6 +71,16 @@
         <h2>Current Sessions</h2>
         <div id="session-controls" style="margin-bottom: 1em">
           <button
+            class="btn-safe float-right"
+            hx-get="/api/session/list"
+            hx-target="#session-list-container"
+            hx-swap="innerHTML"
+            hx-disabled-elt="this"
+          >
+            Refresh Sessions
+            <img class="htmx-indicator" src="/assets/bars.svg" />
+          </button>
+          <button
             class="btn-danger float-right"
             hx-post="/api/session/terminate/all"
             hx-target="#session-list-container"
@@ -79,16 +89,6 @@
             hx-confirm="Are you sure you want to terminate all other sessions? This will not affect your current session."
           >
             Terminate All Other Sessions
-            <img class="htmx-indicator" src="/assets/bars.svg" />
-          </button>
-          <button
-            class="btn-safe float-right"
-            hx-get="/api/session/list"
-            hx-target="#session-list-container"
-            hx-swap="innerHTML"
-            hx-disabled-elt="this"
-          >
-            Refresh Sessions
             <img class="htmx-indicator" src="/assets/bars.svg" />
           </button>
         </div>

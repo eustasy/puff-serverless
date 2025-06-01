@@ -20,51 +20,80 @@ export async function onRequestGet(context) {
       })
     }
 
-    let html = '<ul class="list-group">'
+    let html =
+      "<table><thead><tr><th>Email Address</th><th>Status</th><th>Actions</th></tr></thead><tbody>"
     for (const email of emails) {
-      html += `<li class="list-group-item">
-        <div class="row">
-          <div class="col-md-8">
-            ${email.email_address}
+      html += `<tr>
+        <td>${email.email_address}</td>
+        <td>
             ${email.is_primary ? '<span class="badge bg-primary">Primary</span>' : ""}
             ${email.is_verified ? '<span class="badge bg-success">Verified</span>' : '<span class="badge bg-warning">Unverified</span>'}
-          </div>
-          <div class="col-md-4 text-right">`
+        </td>
+        <td>`
       if (!email.is_primary) {
         html += `<button
                     class="btn btn-save"
                     hx-post="/api/email/primary"
-                    hx-vals='{"email_id": "${email.id}"}'
+                    hx-vals='{"email_address": "${email.email_address}"}'
                     hx-target="#email-list-container"
                     hx-swap="innerHTML"
                     hx-trigger="click, emailListChanged from:body"
                     hx-disabled-elt="this"
                 >Make Primary</button> `
+      }
+      // Add other actions like 'Remove' or 'Resend Verification' here if needed
+      if (!email.is_primary && email.is_verified) {
+        // Only allow removing verified, non-primary emails
         html += `<button
                     class="btn btn-danger"
                     hx-post="/api/email/remove"
-                    hx-vals='{"email_id": "${email.id}"}'
-                    hx-target="#email-list-container"
+                    hx-vals='{"email_address": "${email.email_address}"}'
+                    hx-target="#email-message-area"
                     hx-swap="innerHTML"
-                    hx-trigger="click, emailListChanged from:body"
-                    hx-disabled-elt="this"
+                    hx-trigger="click"
                     hx-confirm="Are you sure you want to remove this email address?"
-                >Remove</button>`
+                    hx-disabled-elt="this"
+                >Remove</button> `
       }
-      html += `</div>
-        </div>
-      </li>`
+      if (!email.is_verified) {
+        // Assuming you have an endpoint for resending verification
+        html += `<button
+                    class="btn btn-warning"
+                    hx-post="/api/email/verify/resend"
+                    hx-vals='{"email_address": "${email.email_address}"}'
+                    hx-target="#email-message-area"
+                    hx-swap="innerHTML"
+                    hx-trigger="click"
+                    hx-disabled-elt="this"
+                >Resend Verification</button>`
+      }
+      html += `</td></tr>`
     }
-    html += "</ul>"
+    html += "</tbody></table>"
 
     return new Response(html, {
+      status: 200,
       headers: { "Content-Type": "text/html" },
     })
   } catch (error) {
-    console.error("Error fetching emails:", error)
-    return new Response("<p>Error loading email addresses.</p>", {
-      status: 500,
-      headers: { "Content-Type": "text/html" },
-    })
+    console.error("Error in onRequestGet for /api/email/list:", error)
+    return new Response(
+      '<p class="error">Failed to load email addresses due to a server error.</p>',
+      {
+        status: 500,
+        headers: { "Content-Type": "text/html" },
+      }
+    )
   }
+}
+
+export async function onRequest(context) {
+  // Ensure only GET requests are handled by onRequestGet
+  if (context.request.method === "GET") {
+    return onRequestGet(context)
+  }
+  return new Response('<p class="error">Method Not Allowed</p>', {
+    status: 405,
+    headers: { "Allow": "GET", "Content-Type": "text/html" },
+  })
 }
