@@ -2,9 +2,9 @@ import { verifyEmailByToken } from "../../../src/emails.js"
 
 export async function onRequestGet(context) {
   const { searchParams } = new URL(context.request.url)
-  const tokenValue = searchParams.get("token")
+  const token_value = searchParams.get("token")
 
-  if (!tokenValue) {
+  if (!token_value) {
     return new Response(
       JSON.stringify({ error: "Verification token is missing." }),
       { status: 400, headers: { "Content-Type": "application/json" } }
@@ -12,7 +12,7 @@ export async function onRequestGet(context) {
   }
 
   try {
-    const result = await verifyEmailByToken(context, tokenValue)
+    const result = await verifyEmailByToken(context, token_value)
 
     if (result.error) {
       return new Response(JSON.stringify({ error: result.message }), {

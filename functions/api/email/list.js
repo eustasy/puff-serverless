@@ -61,8 +61,8 @@ export async function onRequestGet(context) {
       // TODO Add an endpoint for resending verification
       if (!email.is_verified) {
         html += `<button
-                    class="btn btn-warning"
-                    hx-post="/api/email/verify/resend"
+                    class="btn btn-save"
+                    hx-post="/api/email/resend"
                     hx-vals='{"email_address": "${email.email_address}"}'
                     hx-target="#email-message-area"
                     hx-swap="innerHTML"

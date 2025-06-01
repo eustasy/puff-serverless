@@ -1,6 +1,11 @@
 const { Client } = require("pg")
 const crypto = require("crypto")
 
+// This module provides functions to manage tokens in a PostgreSQL database.
+// Tokens can be used for various purposes such as email verification, password resets, etc.
+// token_type can be 'email_verification' or 'password_reset' by default, but can be extended for other uses.
+// SQL schema for tokens table: sql/tokens.sql
+
 /**
  * Creates a new token in the database.
  * @param {object} context - The Cloudflare Pages context object.
@@ -49,31 +54,17 @@ export async function createToken(
 /**
  * Reads a token from the database.
  * @param {object} context - The Cloudflare Pages context object.
- * @param {string} tokenValue - The value of the token to read.
- * @param {string[]} expected_token_types - An array of expected token types.
+ * @param {string} token_value - The value of the token to read.
  * @returns {Promise<object|null>} - The token record if found and valid, null otherwise, or an error object.
  */
-export async function readToken(
-  context,
-  tokenValue,
-  expected_token_types = []
-) {
+export async function readToken(context, token_value) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   try {
     await client.connect()
-    // Ensure expected_token_types is an array
-    const types = Array.isArray(expected_token_types)
-      ? expected_token_types
-      : [expected_token_types].filter((t) => t)
 
     let queryString =
       "SELECT user_uuid, email_address, token_type, expires_at, is_used FROM tokens WHERE token_value = $1"
-    const queryParams = [tokenValue]
-
-    if (types.length > 0) {
-      queryString += " AND token_type = ANY($2::text[])" // Use ANY for array comparison
-      queryParams.push(types)
-    }
+    const queryParams = [token_value]
 
     const query = {
       text: queryString,
@@ -84,7 +75,7 @@ export async function readToken(
     if (result.rows.length > 0) {
       return { success: true, token: result.rows[0] }
     } else {
-      return { success: false, message: "Token not found or type mismatch." } // Distinguish from error
+      return { error: true, message: "Token not found." }
     }
   } catch (error) {
     console.error("Error in readToken:", error)
@@ -101,29 +92,23 @@ export async function readToken(
 /**
  * Updates a token in the database, typically to mark it as used.
  * @param {object} context - The Cloudflare Pages context object.
- * @param {string} tokenValue - The value of the token to update.
- * @param {string} token_type - The specific type of the token being updated (for precise targeting).
- * @param {object} updates - An object containing fields to update, e.g., { is_used: true }.
+ * @param {string} token_value - The value of the token to update.
  * @returns {Promise<object>} - An object indicating success or failure.
  */
-export async function updateToken(context, tokenValue, token_type, updates) {
+export async function usedToken(context, token_value) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   try {
     await client.connect()
 
     // For now, we only support updating is_used. This can be expanded later.
-    if (updates.hasOwnProperty("is_used")) {
-      const query = {
-        text: "UPDATE tokens SET is_used = $1 WHERE token_value = $2 AND token_type = $3",
-        values: [updates.is_used, tokenValue, token_type],
-      }
-      const result = await client.query(query)
-      return { success: result.rowCount > 0, rowCount: result.rowCount }
-    } else {
-      return { error: true, message: "No valid fields provided for update." }
+    const query = {
+      text: "UPDATE tokens SET is_used = $1 WHERE token_value = $2",
+      values: [true, token_value],
     }
+    const result = await client.query(query)
+    return { success: result.rowCount > 0, rowCount: result.rowCount }
   } catch (error) {
-    console.error("Error in updateToken:", error)
+    console.error("Error in usedToken:", error)
     return {
       error: true,
       message: "Server error while updating token.",
@@ -139,27 +124,16 @@ export async function updateToken(context, tokenValue, token_type, updates) {
  * Can be expanded to delete by token_value or other criteria if needed.
  * @param {object} context - The Cloudflare Pages context object.
  * @param {string} user_uuid - The UUID of the user.
- * @param {string} email_address - The email address for which to delete tokens.
- * @param {string} [token_type] - (Optional) Specific token type to delete.
+ * @param {string} token_value - The token value for which to delete tokens.
  * @returns {Promise<object>} - An object indicating success (rowCount) or failure.
  */
-export async function deleteToken(
-  context,
-  user_uuid,
-  email_address,
-  token_type = null
-) {
+export async function deleteToken(context, user_uuid, token_value) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   try {
     await client.connect()
     let queryString =
-      "DELETE FROM tokens WHERE user_uuid = $1 AND email_address = $2"
-    const queryParams = [user_uuid, email_address]
-
-    if (token_type) {
-      queryString += " AND token_type = $3"
-      queryParams.push(token_type)
-    }
+      "DELETE FROM tokens WHERE user_uuid = $1 AND token_value = $2"
+    const queryParams = [user_uuid, token_value]
 
     const query = {
       text: queryString,
@@ -176,5 +150,35 @@ export async function deleteToken(
     }
   } finally {
     await client.end()
+  }
+}
+
+/**
+ * Creates a new email verification token in the database.
+ * @param {object} context - The Cloudflare Pages context object.
+ * @param {string} user_uuid - The UUID of the user.
+ * @param {string} email_address - The email address associated with this token.
+ * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
+ */
+export async function createEmailToken(context, user_uuid, email_address) {
+  try {
+    const token_type = "email_verification"
+    const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
+    // Call createToken to insert the email token
+    return await createToken(
+      context,
+      user_uuid,
+      token_type,
+      expires_at,
+      email_address
+    )
+  } catch (error) {
+    console.error("Error in createEmailToken:", error)
+    return {
+      error: true,
+      message: "Server error while creating email token.",
+      details: error.message,
+    }
   }
 }
