@@ -30,7 +30,8 @@ export async function onRequestGet(context) {
             ${email.is_verified ? '<span class="badge bg-success">Verified</span>' : '<span class="badge bg-warning">Unverified</span>'}
         </td>
         <td>`
-      if (!email.is_primary) {
+      // Only allow making an email primary if it is not already primary and is verified
+      if (!email.is_primary && email.is_verified) {
         html += `<button
                     class="btn btn-save"
                     hx-post="/api/email/primary"
@@ -41,9 +42,8 @@ export async function onRequestGet(context) {
                     hx-disabled-elt="this"
                 >Make Primary</button> `
       }
-      // Add other actions like 'Remove' or 'Resend Verification' here if needed
+      // Only allow removing verified, non-primary emails
       if (!email.is_primary && email.is_verified) {
-        // Only allow removing verified, non-primary emails
         html += `<button
                     class="btn btn-danger"
                     hx-post="/api/email/remove"
@@ -55,8 +55,8 @@ export async function onRequestGet(context) {
                     hx-disabled-elt="this"
                 >Remove</button> `
       }
+      // TODO Add an endpoint for resending verification
       if (!email.is_verified) {
-        // Assuming you have an endpoint for resending verification
         html += `<button
                     class="btn btn-warning"
                     hx-post="/api/email/verify/resend"
