@@ -8,7 +8,7 @@ export async function onRequestPost(context) {
 
     if (!email || !pw) {
       return new Response(
-        '<p class="error">Email and password are required.</p>',
+        '<p class="result-negative">Email and password are required.</p>',
         {
           status: 400,
           headers: { "Content-Type": "text/html" },
@@ -20,7 +20,7 @@ export async function onRequestPost(context) {
 
     if (loginResult.error) {
       return new Response(
-        `<p class="error">${loginResult.message || "Login failed"}</p>`,
+        `<p class="result-negative">${loginResult.message || "Login failed"}</p>`,
         {
           status: loginResult.status || 500,
           headers: { "Content-Type": "text/html" },
@@ -71,7 +71,7 @@ export async function onRequestPost(context) {
         loginResult
       )
       return new Response(
-        '<p class="error">An unexpected error occurred during login.</p>',
+        '<p class="result-negative">An unexpected error occurred during login.</p>',
         {
           status: 500,
           headers: { "Content-Type": "text/html" },
@@ -86,7 +86,7 @@ export async function onRequestPost(context) {
         error.message.toLowerCase().includes("request body"))
     ) {
       return new Response(
-        '<p class="error">Invalid request format. Expected form data.</p>',
+        '<p class="result-negative">Invalid request format. Expected form data.</p>',
         {
           status: 400,
           headers: { "Content-Type": "text/html" },
@@ -94,7 +94,7 @@ export async function onRequestPost(context) {
       )
     }
     return new Response(
-      '<p class="error">An unexpected server error occurred.</p>',
+      '<p class="result-negative">An unexpected server error occurred.</p>',
       {
         status: 500,
         headers: { "Content-Type": "text/html" },

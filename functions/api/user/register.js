@@ -9,7 +9,7 @@ export async function onRequest(context) {
   // Basic validation for required fields
   if (!email || !name || !pw) {
     return new Response(
-      '<p class="error">Name, email, and password are required.</p>',
+      '<p class="result-negative">Name, email, and password are required.</p>',
       {
         status: 400,
         headers: { "Content-Type": "text/html" },
@@ -31,7 +31,7 @@ export async function onRequest(context) {
     } else {
       // This case might be hit if user_register returns something unexpected without throwing an error
       return new Response(
-        '<p class="error">Registration failed. Please try again.</p>',
+        '<p class="result-negative">Registration failed. Please try again.</p>',
         {
           status: 500,
           headers: { "Content-Type": "text/html" },
@@ -41,13 +41,13 @@ export async function onRequest(context) {
   } catch (error) {
     console.error("Error in user_register endpoint:", error)
     if (error.message === "Email is already registered.") {
-      return new Response(`<p class="error">${error.message}</p>`, {
+      return new Response(`<p class="result-negative">${error.message}</p>`, {
         status: 409, // 409 Conflict is appropriate for existing email
         headers: { "Content-Type": "text/html" },
       })
     }
     return new Response(
-      '<p class="error">An unexpected error occurred during registration.</p>',
+      '<p class="result-negative">An unexpected error occurred during registration.</p>',
       {
         status: 500,
         headers: { "Content-Type": "text/html" },

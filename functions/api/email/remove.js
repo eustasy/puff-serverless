@@ -16,7 +16,7 @@ export async function onRequestPost(context) {
     const emailIdToRemove = formData.get("email_id") // Changed to email_id to match hx-vals
 
     if (!emailIdToRemove) {
-      return new Response('<p class="error">Email ID is required.</p>', {
+      return new Response('<p class="result-negative">Email ID is required.</p>', {
         status: 400,
         headers: { "Content-Type": "text/html" },
       })
@@ -58,7 +58,7 @@ export async function onRequest(context) {
   if (context.request.method === "POST") {
     return await onRequestPost(context)
   }
-  return new Response('<p class="error">Method Not Allowed</p>', {
+  return new Response('<p class="result-negative">Method Not Allowed</p>', {
     status: 405,
     headers: { "Allow": "POST", "Content-Type": "text/html" },
   })

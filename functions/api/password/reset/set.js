@@ -10,7 +10,7 @@ export async function onRequestPost(context) {
   try {
     requestBody = await context.request.json()
   } catch (e) {
-    return new Response('<p class="error">Invalid JSON body.</p>', {
+    return new Response('<p class="result-negative">Invalid JSON body.</p>', {
       status: 400,
       headers: { "Content-Type": "text/html" },
     })
@@ -20,7 +20,7 @@ export async function onRequestPost(context) {
 
   if (!token || typeof token !== "string") {
     return new Response(
-      '<p class="error">Reset token is missing or invalid.</p>',
+      '<p class="result-negative">Reset token is missing or invalid.</p>',
       {
         status: 400,
         headers: { "Content-Type": "text/html" },
@@ -29,7 +29,7 @@ export async function onRequestPost(context) {
   }
   if (!new_password || typeof new_password !== "string") {
     return new Response(
-      '<p class="error">New password is missing or invalid.</p>',
+      '<p class="result-negative">New password is missing or invalid.</p>',
       {
         status: 400,
         headers: { "Content-Type": "text/html" },
@@ -52,7 +52,7 @@ export async function onRequestPost(context) {
 
     if (!tokenReadResult.success || !tokenReadResult.token) {
       return new Response(
-        '<p class="error">Invalid or expired password reset token.</p>',
+        '<p class="result-negative">Invalid or expired password reset token.</p>',
         {
           status: 400,
           headers: { "Content-Type": "text/html" },
@@ -64,7 +64,7 @@ export async function onRequestPost(context) {
 
     if (tokenRecord.is_used === true) {
       return new Response(
-        '<p class="error">Password reset token has already been used.</p>',
+        '<p class="result-negative">Password reset token has already been used.</p>',
         {
           status: 400,
           headers: { "Content-Type": "text/html" },
@@ -77,7 +77,7 @@ export async function onRequestPost(context) {
     if (now > tokenExpiresAt) {
       await updateToken(context, token, "password_reset", { is_used: true })
       return new Response(
-        '<p class="error">Password reset token has expired.</p>',
+        '<p class="result-negative">Password reset token has expired.</p>',
         {
           status: 400,
           headers: { "Content-Type": "text/html" },
@@ -95,7 +95,7 @@ export async function onRequestPost(context) {
 
     if (!passwordUpdated) {
       return new Response(
-        '<p class="error">Failed to update password. Password record issue or no change detected.</p>',
+        '<p class="result-negative">Failed to update password. Password record issue or no change detected.</p>',
         {
           status: 500,
           headers: { "Content-Type": "text/html" },
@@ -116,7 +116,7 @@ export async function onRequestPost(context) {
   } catch (error) {
     console.error("Error during password reset:", error)
     return new Response(
-      '<p class="error">Failed to reset password due to a server error.</p>',
+      '<p class="result-negative">Failed to reset password due to a server error.</p>',
       {
         status: 500,
         headers: { "Content-Type": "text/html" },
@@ -129,7 +129,7 @@ export async function onRequest(context) {
   if (context.request.method === "POST") {
     return await onRequestPost(context)
   }
-  return new Response('<p class="error">Method Not Allowed</p>', {
+  return new Response('<p class="result-negative">Method Not Allowed</p>', {
     status: 405,
     headers: { "Allow": "POST", "Content-Type": "text/html" },
   })

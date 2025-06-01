@@ -21,7 +21,7 @@ export async function onRequestGet(context) {
   const user_uuid = context.data.user_uuid
   if (!user_uuid) {
     return new Response(
-      '<p class="error">Unauthorized. No user UUID found after session auth.</p>',
+      '<p class="result-negative">Unauthorized. No user UUID found after session auth.</p>',
       {
         status: 401,
         headers: { "Content-Type": "text/html" },
@@ -80,7 +80,7 @@ export async function onRequestGet(context) {
   } catch (error) {
     console.error("Error listing active sessions:", error)
     return new Response(
-      '<p class="error">Failed to list sessions due to a server error.</p>',
+      '<p class="result-negative">Failed to list sessions due to a server error.</p>',
       {
         status: 500,
         headers: { "Content-Type": "text/html" },
@@ -93,7 +93,7 @@ export async function onRequest(context) {
   if (context.request.method === "GET") {
     return await onRequestGet(context)
   }
-  return new Response('<p class="error">Method Not Allowed</p>', {
+  return new Response('<p class="result-negative">Method Not Allowed</p>', {
     status: 405,
     headers: { "Allow": "GET", "Content-Type": "text/html" },
   })

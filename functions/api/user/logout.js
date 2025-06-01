@@ -6,7 +6,7 @@ export async function onRequestPost(context) {
 
   if (!token) {
     return new Response(
-      '<p class="error">Session token is missing in request cookie.</p>',
+      '<p class="result-negative">Session token is missing in request cookie.</p>',
       {
         status: 400,
         headers: { "Content-Type": "text/html" },
@@ -19,7 +19,7 @@ export async function onRequestPost(context) {
 
     if (result.error) {
       console.error("Error ending session:", result.error)
-      return new Response(`<p class="error">${result.error}</p>`, {
+      return new Response(`<p class="result-negative">${result.error}</p>`, {
         status: result.status,
         headers: { "Content-Type": "text/html" },
       })
@@ -45,7 +45,7 @@ export async function onRequestPost(context) {
   } catch (error) {
     console.error("Error during logout process:", error)
     return new Response(
-      '<p class="error">Logout failed due to a server error.</p>',
+      '<p class="result-negative">Logout failed due to a server error.</p>',
       {
         status: 500,
         headers: { "Content-Type": "text/html" },
@@ -58,7 +58,7 @@ export async function onRequest(context) {
   if (context.request.method === "POST") {
     return await onRequestPost(context)
   }
-  return new Response('<p class="error">Method Not Allowed</p>', {
+  return new Response('<p class="result-negative">Method Not Allowed</p>', {
     status: 405,
     headers: { "Allow": "POST", "Content-Type": "text/html" },
   })

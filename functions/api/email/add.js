@@ -5,7 +5,7 @@ export async function onRequestPost(context) {
   try {
     const sessionResult = await sessionAuthWithCookie(context)
     if (sessionResult.error) {
-      return new Response(`<p class="error">${sessionResult.error}</p>`, {
+      return new Response(`<p class="result-negative">${sessionResult.error}</p>`, {
         status: sessionResult.status || 401,
         headers: { "Content-Type": "text/html" },
       })
@@ -21,7 +21,7 @@ export async function onRequestPost(context) {
       !email_address.includes("@")
     ) {
       return new Response(
-        '<p class="error">Email address is missing or invalid.</p>',
+        '<p class="result-negative">Email address is missing or invalid.</p>',
         {
           status: 400,
           headers: { "Content-Type": "text/html" },
@@ -71,7 +71,7 @@ export async function onRequest(context) {
   if (context.request.method === "POST") {
     return await onRequestPost(context)
   }
-  return new Response('<p class="error">Method Not Allowed</p>', {
+  return new Response('<p class="result-negative">Method Not Allowed</p>', {
     status: 405,
     headers: { "Allow": "POST", "Content-Type": "text/html" },
   })
