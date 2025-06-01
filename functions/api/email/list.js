@@ -41,7 +41,7 @@ export async function onRequestGet(context) {
                     hx-vals='{"email_address": "${email.email_address}"}'
                     hx-target="#email-list-container"
                     hx-swap="innerHTML"
-                    hx-trigger="click, emailListChanged from:body"
+                    hx-trigger="click"
                     hx-disabled-elt="this"
                 >Make Primary</button> `
       }
