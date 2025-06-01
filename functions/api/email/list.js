@@ -45,8 +45,8 @@ export async function onRequestGet(context) {
                     hx-disabled-elt="this"
                 >Make Primary</button> `
       }
-      // Only allow removing verified, non-primary emails
-      if (!email.is_primary && email.is_verified) {
+      // Only allow removing non-primary emails
+      if (!email.is_primary) {
         html += `<button
                     class="btn btn-danger"
                     hx-post="/api/email/remove"
