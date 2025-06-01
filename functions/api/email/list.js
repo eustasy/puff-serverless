@@ -58,7 +58,7 @@ export async function onRequestGet(context) {
                     hx-disabled-elt="this"
                 >Remove</button> `
       }
-      // TODO Add an endpoint for resending verification
+      // Always allow resending verification for unverified emails
       if (!email.is_verified) {
         html += `<button
                     class="btn btn-save"
