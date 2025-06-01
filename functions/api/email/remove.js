@@ -13,11 +13,15 @@ export async function onRequestPost(context) {
     const user_uuid = sessionResult
 
     const formData = await context.request.formData()
-    const emailIdToRemove = formData.get("email_id") // Changed to email_id to match hx-vals
+    const email_address_to_remove = formData.get("email_address")
 
-    if (!emailIdToRemove) {
+    if (
+      !email_address_to_remove ||
+      typeof email_address_to_remove !== "string" ||
+      !email_address_to_remove.includes("@")
+    ) {
       return new Response(
-        '<p class="result-negative">Email ID is required.</p>',
+        `<p class="result-negative">Email address is missing or invalid. You submitted "${email_address_to_remove}".</p>`,
         {
           status: 400,
           headers: { "Content-Type": "text/html" },
@@ -25,10 +29,11 @@ export async function onRequestPost(context) {
       )
     }
 
-    // Assuming deleteEmail expects the actual email address string.
-    // If deleteEmail can handle an ID, this part might need adjustment or the `emails.js` function signature updated.
-    // For now, this assumes `emailIdToRemove` is the string, but this is a potential issue.
-    const result = await deleteEmail(context, user_uuid, emailIdToRemove)
+    const result = await deleteEmail(
+      context,
+      user_uuid,
+      email_address_to_remove
+    )
 
     if (result.error) {
       return new Response(`<p class=\"error\">${result.message}</p>`, {

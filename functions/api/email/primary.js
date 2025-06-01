@@ -16,18 +16,15 @@ export async function onRequestPost(context) {
     const user_uuid = sessionResult
 
     const formData = await context.request.formData()
-    const new_primary_email = formData.get("email_id") // Assuming email_id is sent, which corresponds to an email address
+    const new_primary_email_address = formData.get("email_address")
 
     if (
-      !new_primary_email ||
-      typeof new_primary_email !== "string" ||
-      !new_primary_email.includes("@")
+      !new_primary_email_address ||
+      typeof new_primary_email_address !== "string" ||
+      !new_primary_email_address.includes("@")
     ) {
-      // This check might be redundant if email_id is a UUID, adjust as per actual data model
-      // If email_id is an actual email address string, this validation is fine.
-      // For now, assuming new_primary_email is the actual email string based on setPrimaryEmail function signature
       return new Response(
-        '<p class="result-negative">New primary email is missing or invalid.</p>',
+        `<p class="result-negative">New primary email address is missing or invalid. You submitted "${new_primary_email_address}".</p>`,
         {
           status: 400,
           headers: { "Content-Type": "text/html" },
@@ -35,7 +32,11 @@ export async function onRequestPost(context) {
       )
     }
 
-    const result = await setPrimaryEmail(context, user_uuid, new_primary_email)
+    const result = await setPrimaryEmail(
+      context,
+      user_uuid,
+      new_primary_email_address
+    )
 
     if (result.error) {
       return new Response(`<p class=\"error\">${result.message}</p>`, {

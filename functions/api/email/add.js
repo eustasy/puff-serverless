@@ -16,15 +16,43 @@ export async function onRequestPost(context) {
     const user_uuid = sessionResult
 
     const formData = await context.request.formData()
-    const email_address = formData.get("email_address")
+    let email_address = formData.get("email_address")
 
+    // If email_address from form data is not a string or is empty,
+    // try to get it from the HX-Prompt header. HTMX sends the prompted value in this header,
+    // which can be more reliable when the hx-prompt is on a button element.
     if (
-      !email_address ||
-      typeof email_address !== "string" ||
-      !email_address.includes("@")
+      (typeof email_address !== "string" || email_address.trim() === "") &&
+      context.request.headers.has("HX-Prompt")
     ) {
+      const promptedValue = context.request.headers.get("HX-Prompt")
+      // Only use the header value if it's a non-empty string
+      if (
+        promptedValue &&
+        typeof promptedValue === "string" &&
+        promptedValue.trim() !== ""
+      ) {
+        email_address = promptedValue
+      }
+    }
+
+    // Validate the retrieved email address
+    if (typeof email_address !== "string") {
       return new Response(
-        `<p class="result-negative">Email address is missing or invalid. You submitted "${email_address}".</p>`,
+        '<p class="result-negative">Email address is missing or submitted in an invalid format.</p>',
+        {
+          status: 400,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
+    }
+
+    // Now we know email_address is a string.
+    const trimmed_email_address = email_address.trim()
+
+    if (trimmed_email_address === "" || !trimmed_email_address.includes("@")) {
+      return new Response(
+        `<p class="result-negative">Email address is invalid. It must contain an "@" symbol. You submitted "${trimmed_email_address}".</p>`,
         {
           status: 400,
           headers: { "Content-Type": "text/html" },
@@ -35,7 +63,7 @@ export async function onRequestPost(context) {
     const result = await createEmail(
       context,
       user_uuid,
-      email_address,
+      trimmed_email_address, // Use the potentially corrected and trimmed email
       false, // is_primary
       false // is_verified
     )
