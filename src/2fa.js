@@ -1,13 +1,8 @@
-const { Client } = require("pg") // Add pg client
+const { Client } = require("pg")
 const SECRET_TYPE = "totp_secret"
 
-export async function create2fa(
-  context, // Changed client to context
-  user_uuid,
-  secret_value,
-  secret_name = null
-) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString) // Create client
+export async function create2fa(context, user_uuid, secret_value, secret_name = null) {
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_name, secret_created_at, is_enabled)
     VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, FALSE) // Set is_enabled to FALSE by default
@@ -20,7 +15,7 @@ export async function create2fa(
   `
   const values = [user_uuid, SECRET_TYPE, secret_value, secret_name]
   try {
-    await client.connect() // Connect client
+    await client.connect()
     const { rows } = await client.query(query, values)
     return rows && rows.length > 0 ? rows[0] : null
   } catch (error) {
@@ -29,14 +24,14 @@ export async function create2fa(
     return { error: "Could not create or update 2FA secret.", status: 500 }
   } finally {
     if (client) {
-      await client.end() // Close client
+      await client.end()
     }
   }
 }
 
 export async function read2fa(context, user_uuid) {
-  // Changed client to context
-  const client = new Client(context.env.HYPERDRIVE.connectionString) // Create client
+ 
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     SELECT user_uuid, secret_type, secret_value, secret_name, is_enabled, secret_created_at, secret_last_used
     FROM secrets
@@ -44,7 +39,7 @@ export async function read2fa(context, user_uuid) {
   `
   const values = [user_uuid, SECRET_TYPE]
   try {
-    await client.connect() // Connect client
+    await client.connect()
     const { rows } = await client.query(query, values)
     return rows && rows.length > 0 ? rows[0] : null
   } catch (error) {
@@ -53,14 +48,14 @@ export async function read2fa(context, user_uuid) {
     return { error: "Could not read 2FA secret.", status: 500 }
   } finally {
     if (client) {
-      await client.end() // Close client
+      await client.end()
     }
   }
 }
 
 export async function delete2fa(context, user_uuid) {
-  // Changed client to context
-  const client = new Client(context.env.HYPERDRIVE.connectionString) // Create client
+ 
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     DELETE FROM secrets
     WHERE user_uuid = $1 AND secret_type = $2
@@ -70,7 +65,7 @@ export async function delete2fa(context, user_uuid) {
   // For consistency with other similar functions, let's return an object indicating success/failure.
   const values = [user_uuid, SECRET_TYPE]
   try {
-    await client.connect() // Connect client
+    await client.connect()
     const result = await client.query(query, values)
     // Return rowCount for confirmation
     return { rowCount: result.rowCount, status: 200 }
@@ -79,14 +74,14 @@ export async function delete2fa(context, user_uuid) {
     return { error: "Could not delete 2FA secret.", status: 500 }
   } finally {
     if (client) {
-      await client.end() // Close client
+      await client.end()
     }
   }
 }
 
 export async function has2fa(context, user_uuid) {
-  // Changed client to context
-  const client = new Client(context.env.HYPERDRIVE.connectionString) // Create client
+ 
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     SELECT 1
     FROM secrets
@@ -94,7 +89,7 @@ export async function has2fa(context, user_uuid) {
   `
   const values = [user_uuid, SECRET_TYPE]
   try {
-    await client.connect() // Connect client
+    await client.connect()
     const { rows } = await client.query(query, values)
     return rows && rows.length > 0 // Returns true if enabled 2FA exists, false otherwise
   } catch (error) {
@@ -105,14 +100,14 @@ export async function has2fa(context, user_uuid) {
     return { error: "Could not check 2FA status.", status: 500 }
   } finally {
     if (client) {
-      await client.end() // Close client
+      await client.end()
     }
   }
 }
 
 export async function enable2fa(context, user_uuid) {
-  // Changed client to context
-  const client = new Client(context.env.HYPERDRIVE.connectionString) // Create client
+ 
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     UPDATE secrets
     SET is_enabled = TRUE, secret_last_used = NULL -- Reset last_used upon enabling
@@ -122,7 +117,7 @@ export async function enable2fa(context, user_uuid) {
   // RETURNING * to get the updated record.
   const values = [user_uuid, SECRET_TYPE]
   try {
-    await client.connect() // Connect client
+    await client.connect()
     const { rows } = await client.query(query, values)
     // Check if update was successful (a row was affected)
     if (rows && rows.length > 0) {
@@ -142,15 +137,15 @@ export async function enable2fa(context, user_uuid) {
     return { error: "Could not enable 2FA secret.", status: 500 }
   } finally {
     if (client) {
-      await client.end() // Close client
+      await client.end()
     }
   }
 }
 
 // disable2fa is not directly used by the remove flow but good to update for consistency
 export async function disable2fa(context, user_uuid) {
-  // Changed client to context
-  const client = new Client(context.env.HYPERDRIVE.connectionString) // Create client
+ 
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     UPDATE secrets
     SET is_enabled = FALSE
@@ -159,7 +154,7 @@ export async function disable2fa(context, user_uuid) {
   `
   const values = [user_uuid, SECRET_TYPE]
   try {
-    await client.connect() // Connect client
+    await client.connect()
     const { rows } = await client.query(query, values)
     if (rows && rows.length > 0) {
       return { success: true, record: rows[0], status: 200 }
@@ -175,14 +170,14 @@ export async function disable2fa(context, user_uuid) {
     return { error: "Could not disable 2FA secret.", status: 500 }
   } finally {
     if (client) {
-      await client.end() // Close client
+      await client.end()
     }
   }
 }
 
 export async function update2faLastUsed(context, user_uuid) {
-  // Changed client to context
-  const client = new Client(context.env.HYPERDRIVE.connectionString) // Create client
+ 
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     UPDATE secrets
     SET secret_last_used = CURRENT_TIMESTAMP
@@ -192,7 +187,7 @@ export async function update2faLastUsed(context, user_uuid) {
   // Only update if 2FA is enabled.
   const values = [user_uuid, SECRET_TYPE]
   try {
-    await client.connect() // Connect client
+    await client.connect()
     const { rows } = await client.query(query, values)
     if (rows && rows.length > 0) {
       return { success: true, record: rows[0], status: 200 }
@@ -209,7 +204,7 @@ export async function update2faLastUsed(context, user_uuid) {
     return { error: "Could not update 2FA last used timestamp.", status: 500 }
   } finally {
     if (client) {
-      await client.end() // Close client
+      await client.end()
     }
   }
 }

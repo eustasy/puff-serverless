@@ -43,7 +43,7 @@ The `secrets` table is also used for storing Time-based One-Time Password (TOTP)
 When used for TOTP:
 
 - `secret_type` is set to `'totp_secret'`.
-- `secret_value` stores the (simulated encrypted) TOTP secret key.
+- `secret_value` stores the TOTP secret key.
 - `secret_name` stores the authenticator app label (e.g., "YourApp:user@example.com").
 - `secret_enabled` indicates if 2FA is active for the user (1 for true, 0 for false).
 - `secret_created_at` and `secret_last_used` track the creation and usage of the TOTP configuration.
