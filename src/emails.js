@@ -1,9 +1,5 @@
 const { Client } = require("pg")
-import {
-  createEmailToken,
-  readToken,
-  usedToken,
-} from "./tokens.js"
+import { createEmailToken, readToken, usedToken } from "./tokens.js"
 
 /**
  * Checks if an email address exists in the database.
@@ -90,7 +86,6 @@ export async function readEmails(context, user_uuid) {
   }
 }
 
-
 /**
  * Adds an email address for a user and optionally generates a verification token.
  * @param {object} context - The Cloudflare Pages context object.
@@ -114,7 +109,11 @@ export async function createEmail(
 
     // Check if the email already exists for this user
     const existingEmailResult = await readEmail(context, email_address)
-    if (existingEmailResult.success && existingEmailResult.email && existingEmailResult.email.user_uuid === user_uuid) {
+    if (
+      existingEmailResult.success &&
+      existingEmailResult.email &&
+      existingEmailResult.email.user_uuid === user_uuid
+    ) {
       return {
         error: true,
         message: "This email address is already associated with your account.",
@@ -255,13 +254,19 @@ export async function verifyEmailByToken(context, token_value) {
     // Use readEmail to get the email record
     const emailReadResult = await readEmail(context, email_address)
 
-    if (emailReadResult.error || !emailReadResult.success || !emailReadResult.email) {
+    if (
+      emailReadResult.error ||
+      !emailReadResult.success ||
+      !emailReadResult.email
+    ) {
       // Token is valid but email doesn't exist for user? Should be rare.
       // Or an error occurred reading the email.
       await usedToken(context, token_value)
       return {
         error: true,
-        message: emailReadResult.message || "Email address not found for this user, though token was valid.",
+        message:
+          emailReadResult.message ||
+          "Email address not found for this user, though token was valid.",
         status: emailReadResult.status || 404,
       }
     }
@@ -270,12 +275,12 @@ export async function verifyEmailByToken(context, token_value) {
 
     // Ensure the email from the token matches the user_uuid from the email record
     if (emailRecord.user_uuid !== user_uuid) {
-        await usedToken(context, token_value)
-        return {
-            error: true,
-            message: "Token-email mismatch with user account.",
-            status: 400, // Bad request, token doesn't align with email's user
-        }
+      await usedToken(context, token_value)
+      return {
+        error: true,
+        message: "Token-email mismatch with user account.",
+        status: 400, // Bad request, token doesn't align with email's user
+      }
     }
 
     if (emailRecord.is_verified) {
@@ -331,7 +336,7 @@ export async function verifyEmailByToken(context, token_value) {
     }
   } finally {
     if (client && client._connected) {
-        await client.end()
+      await client.end()
     }
   }
 }
@@ -349,7 +354,11 @@ export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
   try {
     const emailReadResult = await readEmail(context, new_primary_email)
 
-    if (emailReadResult.error || !emailReadResult.success || !emailReadResult.email) {
+    if (
+      emailReadResult.error ||
+      !emailReadResult.success ||
+      !emailReadResult.email
+    ) {
       return {
         error: true,
         message: emailReadResult.message || "Email address not found.",
@@ -370,7 +379,8 @@ export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
     if (!targetEmailRecord.is_verified) {
       return {
         error: true,
-        message: "This email address must be verified before it can be made primary.",
+        message:
+          "This email address must be verified before it can be made primary.",
         status: 400,
       }
     }
@@ -422,7 +432,11 @@ export async function deleteEmail(context, user_uuid, email_to_remove) {
   try {
     const emailReadResult = await readEmail(context, email_to_remove)
 
-    if (emailReadResult.error || !emailReadResult.success || !emailReadResult.email) {
+    if (
+      emailReadResult.error ||
+      !emailReadResult.success ||
+      !emailReadResult.email
+    ) {
       return {
         error: true,
         message: emailReadResult.message || "Email address not found.",
