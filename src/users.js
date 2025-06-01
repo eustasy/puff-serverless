@@ -47,6 +47,7 @@ export async function user_register(context, name, email, password) {
     }
     // Log the verification link using the token from createEmailResult
     if (createEmailResult.token_value) {
+      // TODO Wait for email messaging to be implemented
       console.log(
         `Verification link: /api/email/verify?token=${createEmailResult.token_value}`
       )
