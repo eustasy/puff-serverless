@@ -42,8 +42,7 @@ export async function onRequestGet(context) {
       })
     }
 
-    let html =
-      `<table><thead><tr>
+    let html = `<table><thead><tr>
         <th>Client</th>
         <th>IP Address</th>
         <th>Created</th>
