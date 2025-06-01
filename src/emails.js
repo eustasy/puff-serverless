@@ -3,8 +3,93 @@ import {
   createEmailToken,
   readToken,
   usedToken,
-  deleteToken,
 } from "./tokens.js"
+
+/**
+ * Checks if an email address exists in the database.
+ * @param {object} context - The Cloudflare Pages context object.
+ * @param {string} email_address - The email address to check.
+ * @returns {Promise<object>} - An object with { success: true, exists: boolean } or { error: true, message: string }.
+ */
+export async function existsEmail(context, email_address) {
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
+  try {
+    await client.connect()
+    const query = {
+      text: "SELECT 1 FROM emails WHERE email_address = $1 LIMIT 1",
+      values: [email_address],
+    }
+    const result = await client.query(query)
+    return { success: true, exists: result.rowCount > 0 }
+  } catch (error) {
+    console.error("Error in existsEmail:", error)
+    return {
+      error: true,
+      message: "Server error while checking email existence.",
+      details: error.message,
+    }
+  } finally {
+    await client.end()
+  }
+}
+
+/**
+ * Reads a single email record from the database by email address.
+ * @param {object} context - The Cloudflare Pages context object.
+ * @param {string} email_address - The email address to look up.
+ * @returns {Promise<object>} - An object with { success: true, email: record } or { success: false/error: true, message: string }.
+ */
+export async function readEmail(context, email_address) {
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
+  try {
+    await client.connect()
+    const query = {
+      text: "SELECT user_uuid, email_address, is_primary, is_verified, verified_at FROM emails WHERE email_address = $1 LIMIT 1",
+      values: [email_address],
+    }
+    const result = await client.query(query)
+    if (result.rows.length > 0) {
+      return { success: true, email: result.rows[0] }
+    } else {
+      return { success: false, message: "Email not found." }
+    }
+  } catch (error) {
+    console.error("Error in readEmail:", error)
+    return {
+      error: true,
+      message: "Server error while reading email.",
+      details: error.message,
+    }
+  } finally {
+    await client.end()
+  }
+}
+
+/**
+ * Reads all email records for a given user from the database.
+ * @param {object} context - The Cloudflare Pages context object.
+ * @param {string} user_uuid - The UUID of the user.
+ * @returns {Promise<Array<object>>} - An array of email objects or an empty array if none found.
+ * @throws Will throw an error if the database query fails.
+ */
+export async function readEmails(context, user_uuid) {
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
+  try {
+    await client.connect()
+    const query = {
+      text: "SELECT email_address, is_primary, is_verified, verified_at FROM emails WHERE user_uuid = $1 ORDER BY is_primary DESC, verified_at ASC",
+      values: [user_uuid],
+    }
+    const result = await client.query(query)
+    return result.rows
+  } catch (error) {
+    console.error("Error in readEmails:", error)
+    throw error // Re-throw the error to be handled by the caller
+  } finally {
+    await client.end()
+  }
+}
+
 
 /**
  * Adds an email address for a user and optionally generates a verification token.
@@ -28,23 +113,16 @@ export async function createEmail(
     await client.connect()
 
     // Check if the email already exists for this user
-    const existingEmailQuery = {
-      text: "SELECT email_address FROM emails WHERE user_uuid = $1 AND email_address = $2",
-      values: [user_uuid, email_address],
-    }
-    const existingEmailResult = await client.query(existingEmailQuery)
-    if (existingEmailResult.rowCount > 0) {
+    const existingEmailResult = await readEmail(context, email_address)
+    if (existingEmailResult.success && existingEmailResult.email && existingEmailResult.email.user_uuid === user_uuid) {
       return {
         error: true,
         message: "This email address is already associated with your account.",
         status: 409,
       }
     }
-
-    // Check if the email exists for ANY user (if we are adding a new one, it shouldn't be globally unique yet unless it's an error)
-    // This check is more relevant for the API endpoint calling this, to give a generic "email in use"
-    // but for internal logic, we primarily care about *this* user.
-    // For now, let's assume the calling API does the global check if needed.
+    // If readEmail returned an error or the email belongs to another user,
+    // we might still have a global collision, which the INSERT will catch.
 
     const insertEmailQuery = {
       text: "INSERT INTO emails (user_uuid, email_address, is_primary, is_verified, verified_at) VALUES ($1, $2, $3, $4, $5)",
@@ -134,8 +212,6 @@ export async function verifyEmailByToken(context, token_value) {
   let tokenRecordFromRead
 
   try {
-    await client.connect()
-
     // Use readToken to get general token details first
     const readTokenResult = await readToken(context, token_value)
 
@@ -176,22 +252,30 @@ export async function verifyEmailByToken(context, token_value) {
 
     const verified_at = new Date().toISOString()
 
-    const emailCheckQuery = {
-      text: "SELECT is_verified, is_primary FROM emails WHERE user_uuid = $1 AND email_address = $2",
-      values: [user_uuid, email_address],
-    }
-    const emailCheckResult = await client.query(emailCheckQuery)
-    const emailRecord = emailCheckResult.rows[0]
+    // Use readEmail to get the email record
+    const emailReadResult = await readEmail(context, email_address)
 
-    if (!emailRecord) {
+    if (emailReadResult.error || !emailReadResult.success || !emailReadResult.email) {
       // Token is valid but email doesn't exist for user? Should be rare.
+      // Or an error occurred reading the email.
       await usedToken(context, token_value)
       return {
         error: true,
-        message:
-          "Email address not found for this user, though token was valid.",
-        status: 404,
+        message: emailReadResult.message || "Email address not found for this user, though token was valid.",
+        status: emailReadResult.status || 404,
       }
+    }
+
+    const emailRecord = emailReadResult.email
+
+    // Ensure the email from the token matches the user_uuid from the email record
+    if (emailRecord.user_uuid !== user_uuid) {
+        await usedToken(context, token_value)
+        return {
+            error: true,
+            message: "Token-email mismatch with user account.",
+            status: 400, // Bad request, token doesn't align with email's user
+        }
     }
 
     if (emailRecord.is_verified) {
@@ -205,6 +289,7 @@ export async function verifyEmailByToken(context, token_value) {
       }
     }
 
+    await client.connect()
     const updateEmailQuery = {
       text: "UPDATE emails SET is_verified = TRUE, verified_at = $1 WHERE user_uuid = $2 AND email_address = $3",
       values: [verified_at, user_uuid, email_address],
@@ -246,7 +331,7 @@ export async function verifyEmailByToken(context, token_value) {
     }
   } finally {
     if (client && client._connected) {
-      await client.end()
+        await client.end()
     }
   }
 }
@@ -262,45 +347,37 @@ export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
-    await client.connect()
-    await client.query("BEGIN")
+    const emailReadResult = await readEmail(context, new_primary_email)
 
-    const targetEmailQuery = {
-      text: "SELECT is_verified, is_primary FROM emails WHERE user_uuid = $1 AND email_address = $2 FOR UPDATE",
-      values: [user_uuid, new_primary_email],
-    }
-    const targetEmailResult = await client.query(targetEmailQuery)
-    const targetEmailRecord = targetEmailResult.rows[0]
-
-    if (!targetEmailRecord) {
-      await client.query("ROLLBACK")
+    if (emailReadResult.error || !emailReadResult.success || !emailReadResult.email) {
       return {
         error: true,
-        message: "Email address not found for this account.",
-        status: 404,
+        message: emailReadResult.message || "Email address not found.",
+        status: emailReadResult.status || 404,
+      }
+    }
+
+    const targetEmailRecord = emailReadResult.email
+
+    if (targetEmailRecord.user_uuid !== user_uuid) {
+      return {
+        error: true,
+        message: "This email address does not belong to your account.",
+        status: 403, // Forbidden
       }
     }
 
     if (!targetEmailRecord.is_verified) {
-      await client.query("ROLLBACK")
       return {
         error: true,
-        message:
-          "This email address must be verified before it can be made primary.",
+        message: "This email address must be verified before it can be made primary.",
         status: 400,
       }
     }
 
-    if (targetEmailRecord.is_primary) {
-      await client.query("ROLLBACK")
-      return {
-        success: true,
-        message: "This email address is already your primary email.",
-        status: 200,
-      } // Not an error
-    }
+    await client.connect()
 
-    // Demote current primary
+    // Demote all current primary emails for this user
     await client.query(
       "UPDATE emails SET is_primary = FALSE WHERE user_uuid = $1 AND is_primary = TRUE",
       [user_uuid]
@@ -313,14 +390,12 @@ export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
     )
 
     if (promoteResult.rowCount > 0) {
-      await client.query("COMMIT")
       return {
         success: true,
         message: "Primary email changed successfully.",
         status: 200,
       }
     } else {
-      await client.query("ROLLBACK")
       // This case should ideally not be reached if FOR UPDATE lock worked and checks passed
       return {
         error: true,
@@ -329,13 +404,6 @@ export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
       }
     }
   } catch (error) {
-    if (client && client._connected) {
-      try {
-        await client.query("ROLLBACK")
-      } catch (rbError) {
-        console.error("Error rolling back transaction:", rbError)
-      }
-    }
     console.error("Error in setPrimaryEmail:", error)
     throw error
   } finally {
@@ -351,26 +419,28 @@ export async function setPrimaryEmail(context, user_uuid, new_primary_email) {
  * @returns {Promise<object>} - An object indicating success or failure.
  */
 export async function deleteEmail(context, user_uuid, email_to_remove) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
-
   try {
-    await client.connect()
+    const emailReadResult = await readEmail(context, email_to_remove)
 
-    const emailCheckQuery = {
-      text: "SELECT is_primary FROM emails WHERE user_uuid = $1 AND email_address = $2",
-      values: [user_uuid, email_to_remove],
-    }
-    const emailCheckResult = await client.query(emailCheckQuery)
-
-    if (emailCheckResult.rows.length === 0) {
+    if (emailReadResult.error || !emailReadResult.success || !emailReadResult.email) {
       return {
         error: true,
-        message: "Email address not found for this user.",
-        status: 404,
+        message: emailReadResult.message || "Email address not found.",
+        status: emailReadResult.status || 404,
       }
     }
 
-    if (emailCheckResult.rows[0].is_primary) {
+    const emailRecord = emailReadResult.email
+
+    if (emailRecord.user_uuid !== user_uuid) {
+      return {
+        error: true,
+        message: "This email address does not belong to your account.",
+        status: 403,
+      }
+    }
+
+    if (emailRecord.is_primary) {
       return {
         error: true,
         message:
@@ -379,18 +449,27 @@ export async function deleteEmail(context, user_uuid, email_to_remove) {
       }
     }
 
-    const deleteResult = await client.query(
-      "DELETE FROM emails WHERE user_uuid = $1 AND email_address = $2 AND is_primary = FALSE",
-      [user_uuid, email_to_remove]
-    )
+    // Perform the delete operation with a new client instance for this specific task
+    const deleteClient = new Client(context.env.HYPERDRIVE.connectionString)
+    try {
+      await deleteClient.connect()
+      const deleteResult = await deleteClient.query(
+        "DELETE FROM emails WHERE user_uuid = $1 AND email_address = $2 AND is_primary = FALSE",
+        [user_uuid, email_to_remove]
+      )
 
-    if (deleteResult.rowCount === 0) {
-      // Should not happen if previous checks passed, unless race condition or already deleted
-      return {
-        error: true,
-        message:
-          "Failed to remove email. It might have been already removed or was primary.",
-        status: 404,
+      if (deleteResult.rowCount === 0) {
+        // Should not happen if previous checks passed, unless race condition or already deleted
+        return {
+          error: true,
+          message:
+            "Failed to remove email. It might have been already removed or was primary.",
+          status: 404, // Or 500 if unexpected
+        }
+      }
+    } finally {
+      if (deleteClient && deleteClient._connected) {
+        await deleteClient.end()
       }
     }
 
@@ -402,92 +481,5 @@ export async function deleteEmail(context, user_uuid, email_to_remove) {
   } catch (error) {
     console.error("Error in deleteEmail:", error)
     throw error
-  } finally {
-    await client.end()
-  }
-}
-
-/**
- * Checks if an email address exists in the database.
- * @param {object} context - The Cloudflare Pages context object.
- * @param {string} email_address - The email address to check.
- * @returns {Promise<object>} - An object with { success: true, exists: boolean } or { error: true, message: string }.
- */
-export async function existsEmail(context, email_address) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
-  try {
-    await client.connect()
-    const query = {
-      text: "SELECT 1 FROM emails WHERE email_address = $1 LIMIT 1",
-      values: [email_address],
-    }
-    const result = await client.query(query)
-    return { success: true, exists: result.rowCount > 0 }
-  } catch (error) {
-    console.error("Error in existsEmail:", error)
-    return {
-      error: true,
-      message: "Server error while checking email existence.",
-      details: error.message,
-    }
-  } finally {
-    await client.end()
-  }
-}
-
-/**
- * Reads a single email record from the database by email address.
- * @param {object} context - The Cloudflare Pages context object.
- * @param {string} email_address - The email address to look up.
- * @returns {Promise<object>} - An object with { success: true, email: record } or { success: false/error: true, message: string }.
- */
-export async function readEmail(context, email_address) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
-  try {
-    await client.connect()
-    const query = {
-      text: "SELECT user_uuid, email_address, is_primary, is_verified, verified_at FROM emails WHERE email_address = $1 LIMIT 1",
-      values: [email_address],
-    }
-    const result = await client.query(query)
-    if (result.rows.length > 0) {
-      return { success: true, email: result.rows[0] }
-    } else {
-      return { success: false, message: "Email not found." }
-    }
-  } catch (error) {
-    console.error("Error in readEmail:", error)
-    return {
-      error: true,
-      message: "Server error while reading email.",
-      details: error.message,
-    }
-  } finally {
-    await client.end()
-  }
-}
-
-/**
- * Reads all email records for a given user from the database.
- * @param {object} context - The Cloudflare Pages context object.
- * @param {string} user_uuid - The UUID of the user.
- * @returns {Promise<Array<object>>} - An array of email objects or an empty array if none found.
- * @throws Will throw an error if the database query fails.
- */
-export async function readEmails(context, user_uuid) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
-  try {
-    await client.connect()
-    const query = {
-      text: "SELECT email_address, is_primary, is_verified, verified_at FROM emails WHERE user_uuid = $1 ORDER BY is_primary DESC, verified_at ASC",
-      values: [user_uuid],
-    }
-    const result = await client.query(query)
-    return result.rows
-  } catch (error) {
-    console.error("Error in readEmails:", error)
-    throw error // Re-throw the error to be handled by the caller
-  } finally {
-    await client.end()
   }
 }
