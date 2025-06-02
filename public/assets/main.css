@@ -27,7 +27,6 @@ input[type="email"],
 input[type="password"] {
   width: 100%;
   padding: 10px;
-  margin-bottom: 10px;
   border: 1px solid #ccc;
   border-radius: 4px;
   box-sizing: border-box;
@@ -49,7 +48,6 @@ input[type="submit"] {
   cursor: pointer;
   font-size: 16px;
   width: 100%;
-  margin-top: 10px;
 }
 .float-right {
   float: right;
@@ -196,12 +194,10 @@ th {
  * This floats all elements to the right,
  * except the first element which is left aligned and takes all remaining space.
 */
-.grid-header {
-  display: grid;
+.grid-container.grid-header {
   grid-template-columns: 1fr auto auto; /* First column takes remaining space */
   align-items: center;
-  margin-bottom: 2rem;
-  margin-top: 5rem;
+  margin: 2rem 0 5rem;
 }
 .grid-header > * {
   margin: 0; /* Reset margin for grid items */
