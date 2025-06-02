@@ -113,13 +113,12 @@
         </div>
 
         <h2>Change Password</h2>
+        <!-- Server messages regarding password change will appear here -->
         <div
           id="password-message-area"
           class="result-area"
           style="margin-bottom: 1em"
-        >
-          <!-- Server messages regarding password change will appear here -->
-        </div>
+        ></div>
         <form
           id="change-password-form"
           hx-post="/api/password/change"
@@ -159,13 +158,12 @@
             />
           </div>
           <div style="margin-bottom: 1em">
+            <!-- Password requirements will be loaded here by HTMX -->
             <div
               id="password-requirements-output"
               class="result-area"
               style="margin-top: 0.5em"
-            >
-              <!-- Password requirements will be loaded here by HTMX -->
-            </div>
+            ></div>
           </div>
           <button type="submit" class="btn-save">
             Change Password
