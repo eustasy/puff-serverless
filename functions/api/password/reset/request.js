@@ -2,40 +2,32 @@ import { readEmail } from "../../../../src/emails.js"
 import { createToken } from "../../../../src/tokens.js" // Import createToken
 
 export async function onRequestPost(context) {
-  // Step 1: Parse JSON body for email
-  let requestBody
+  // Step 1: Parse form data for email
+  let formData
+  let email
   try {
-    requestBody = await context.request.json()
+    formData = await context.request.formData()
+    email = formData.get("email")
   } catch (e) {
     return new Response(
-      JSON.stringify({
-        message: "Invalid request body. Please provide an email.", // Slightly more specific for bad requests
-      }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
+      '<p class="result-negative">Invalid request. Please provide an email.</p>',
+      { status: 400, headers: { "Content-Type": "text/html" } }
     )
   }
-
-  const email = requestBody.email
 
   // Step 2: Input Validation
   if (!email || typeof email !== "string" || !email.includes("@")) {
     // Still return a generic message, but log the specific error
     console.warn("Password reset request with invalid email format.")
     return new Response(
-      JSON.stringify({
-        message:
-          "If an account exists for the provided email, a password reset link has been sent.",
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+      '<p class="result-positive">If an account exists for the provided email, a password reset link has been sent.</p>',
+      { status: 200, headers: { "Content-Type": "text/html" } }
     )
   }
 
   const genericSuccessResponse = new Response(
-    JSON.stringify({
-      message:
-        "If an account exists for this email, a password reset link has been sent.",
-    }),
-    { status: 200, headers: { "Content-Type": "application/json" } }
+    '<p class="result-positive">If an account exists for this email, a password reset link has been sent.</p>',
+    { status: 200, headers: { "Content-Type": "text/html" } }
   )
 
   try {
@@ -81,16 +73,17 @@ export async function onRequestPost(context) {
     return genericSuccessResponse
   } catch (error) {
     console.error("Error during password reset request:", error)
-    return genericSuccessResponse
+    // Return HTML error response
+    return new Response(
+      '<p class="result-negative">An unexpected error occurred. Please try again.</p>',
+      { status: 500, headers: { "Content-Type": "text/html" } }
+    )
   }
 }
 
 export async function onRequest(context) {
-  if (context.request.method === "POST") {
-    return await onRequestPost(context) // Ensure onRequestPost is awaited
-  }
-  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+  return new Response('<p class="result-negative">Method Not Allowed</p>', {
     status: 405,
-    headers: { "Allow": "POST", "Content-Type": "application/json" },
+    headers: { "Allow": "POST", "Content-Type": "text/html" },
   })
 }

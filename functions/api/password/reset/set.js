@@ -6,17 +6,19 @@ import {
 import { readToken, usedToken } from "../../../../src/tokens.js"
 
 export async function onRequestPost(context) {
-  let requestBody
+  let formData
+  let token
+  let new_password
   try {
-    requestBody = await context.request.json()
+    formData = await context.request.formData()
+    token = formData.get("token")
+    new_password = formData.get("pw")
   } catch (e) {
-    return new Response('<p class="result-negative">Invalid JSON body.</p>', {
+    return new Response('<p class="result-negative">Invalid request data.</p>', {
       status: 400,
       headers: { "Content-Type": "text/html" },
     })
   }
-
-  const { token, new_password } = requestBody
 
   if (!token || typeof token !== "string") {
     return new Response(
@@ -126,9 +128,6 @@ export async function onRequestPost(context) {
 }
 
 export async function onRequest(context) {
-  if (context.request.method === "POST") {
-    return await onRequestPost(context)
-  }
   return new Response('<p class="result-negative">Method Not Allowed</p>', {
     status: 405,
     headers: { "Allow": "POST", "Content-Type": "text/html" },
