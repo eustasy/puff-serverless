@@ -62,7 +62,7 @@ export async function onRequestGet(context) {
             isCurrentSession
               ? "<strong>Current Session</strong>"
               : `<button
-                  class="btn-danger float-right"
+                  class="btn-danger"
                   hx-post="/api/session/terminate/one?id=${session.session_id}"
                   hx-target="#session-message-area" 
                   hx-swap="innerHTML"

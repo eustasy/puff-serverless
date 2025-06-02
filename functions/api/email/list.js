@@ -36,7 +36,7 @@ export async function onRequestGet(context) {
       // Only allow making an email primary if it is not already primary and is verified
       if (!email.is_primary && email.is_verified) {
         html += `<button
-                    class="btn-save float-right"
+                    class="btn-save"
                     hx-post="/api/email/primary"
                     hx-vals='{"email_address": "${email.email_address}"}'
                     hx-target="#email-list-container"
@@ -48,7 +48,7 @@ export async function onRequestGet(context) {
       // Only allow removing non-primary emails
       if (!email.is_primary) {
         html += `<button
-                    class="btn-danger float-right"
+                    class="btn-danger"
                     hx-post="/api/email/remove"
                     hx-vals='{"email_address": "${email.email_address}"}'
                     hx-target="#email-message-area"
@@ -61,7 +61,7 @@ export async function onRequestGet(context) {
       // Always allow resending verification for unverified emails
       if (!email.is_verified) {
         html += `<button
-                    class="btn-save float-right"
+                    class="btn-save"
                     hx-post="/api/email/resend"
                     hx-vals='{"email_address": "${email.email_address}"}'
                     hx-target="#email-message-area"
