@@ -33,9 +33,14 @@ export async function onRequestPost(context) {
   try {
     // Step 3: User Lookup
     const user = await readEmail(context, email)
+    if (!user || !user.email || !user.email.user_uuid) {
+      // If no user found, return generic success to avoid leaking info
+      console.log(`Password reset requested for non-existent email: ${email}`)
+      return genericSuccessResponse
+    }
 
-    if (user && user.user_uuid) {
-      // Step 4: Store Token using createToken
+    if (user && user.email.user_uuid) {
+      // Step 4: Store Token using createPasswordToken
       const tokenResult = await createPasswordToken(
         context,
         user.email.user_uuid
