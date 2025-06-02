@@ -180,7 +180,7 @@ th {
 
 .grid-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
 }
 /* $ Grid layout for header
@@ -191,7 +191,8 @@ th {
   display: grid;
   grid-template-columns: 1fr auto auto; /* First column takes remaining space */
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 2rem;
+  margin-top: 5rem;
 }
 .grid-header > * {
   margin: 0; /* Reset margin for grid items */
