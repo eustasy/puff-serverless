@@ -73,7 +73,7 @@ export async function readPassword(context, user_uuid) {
       WHERE user_uuid = $1 AND secret_type = $2 AND is_enabled = TRUE;
     `
     // Fire and forget is acceptable here as it's not critical for the read operation's success
-    client.query(updateQuery, [user_uuid, secret_type]).catch(console.error);
+    client.query(updateQuery, [user_uuid, secret_type]).catch(console.error)
 
     return { secret_value: secret_value, algo: algo }
   } catch (error) {
@@ -81,7 +81,7 @@ export async function readPassword(context, user_uuid) {
     throw error // Rethrow to allow higher-level error handling
   } finally {
     if (client) {
-      await client.end().catch(console.error);
+      await client.end().catch(console.error)
     }
   }
 }
