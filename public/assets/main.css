@@ -197,7 +197,7 @@ th {
 .grid-container.grid-header {
   grid-template-columns: 1fr auto auto; /* First column takes remaining space */
   align-items: center;
-  margin: 2rem 0 5rem;
+  margin: 5rem 0 2rem;
 }
 .grid-header > * {
   margin: 0; /* Reset margin for grid items */
