@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="htmx-config"
+      content='{"responseHandling": [
+      {"code":"200", "swap": true},
+      {"code":"400", "swap": true},
+      {"code":"401", "swap": true},
+      {"code":"403", "swap": true},
+      {"code":"404", "swap": true},
+      {"code":"405", "swap": true},
+      {"code":"500", "swap": true}
+    ]
+    }'
+    />
+    <title>Login</title>
+    <script src="/assets/htmx_2.0.4.min.js"></script>
+    <link rel="stylesheet" href="/assets/main.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Reset Password</h1>
+      <form
+        hx-validate="true"
+        hx-post="/api/password/reset/request"
+        hx-target="#reset-result"
+        hx-include="[name='email']"
+        hx-disabled-elt=".btn-safe"
+      >
+        <div class="form-group">
+          <label for="email">Email:</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="you@email.com"
+            required
+          />
+        </div>
+        <button type="submit" class="btn-safe">
+          Reset Password
+          <img class="htmx-indicator" src="/assets/bars.svg" />
+        </button>
+      </form>
+      <div id="reset-result" class="result-area"></div>
+      <p class="centered-link">
+        Don't have an account? <a href="/register">Register</a>
+      </p>
+      <p class="centered-link">
+        Remembered your password? <a href="/login">Log in</a>
+      </p>
+      <p class="centered-link-secondary">
+        Go to <a href="/logout">Logout</a> Page
+      </p>
+    </div>
+  </body>
+</html>

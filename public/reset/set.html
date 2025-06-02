@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="htmx-config"
+      content='{"responseHandling": [
+      {"code":"200", "swap": true},
+      {"code":"400", "swap": true},
+      {"code":"401", "swap": true},
+      {"code":"403", "swap": true},
+      {"code":"404", "swap": true},
+      {"code":"405", "swap": true},
+      {"code":"500", "swap": true}
+    ]
+    }'
+    />
+    <title>Reset Password</title>
+    <script src="assets/htmx_2.0.4.min.js"></script>
+    <link rel="stylesheet" href="assets/main.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Reset Password</h1>
+      <form
+        hx-validate="true"
+        hx-post="/api/password/reset/set"
+        hx-target="#reset-result"
+        hx-include="[name='email'], [name='pw']"
+        hx-disabled-elt=".btn-safe"
+      >
+        <div class="form-group">
+          <label for="token">Token:</label>
+          <input
+            type="text"
+            id="token"
+            name="token"
+            placeholder="Reset Token"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="pw">Password:</label>
+          <input
+            type="password"
+            id="pw"
+            name="pw"
+            placeholder="Password"
+            hx-post="/api/password/requirements"
+            hx-sync="closest form:abort"
+            hx-trigger="keyup changed delay:500ms"
+            hx-target="#pw-checklist"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            maxlength="512"
+            minlength="12"
+            required
+          />
+          <div id="pw-checklist" class="result-area">
+            <!-- Initial content can be pre-filled or loaded by hx-post -->
+            <h3>Password Requirements</h3>
+            <ul>
+              <li><strong>Must</strong> be at least 12 characters long</li>
+              <li>Should contain a number</li>
+              <li>Should contain a special character</li>
+              <li>Should not be compromised</li>
+            </ul>
+          </div>
+        </div>
+        <button type="submit" class="btn-safe">
+          Reset Password
+          <img class="htmx-indicator" src="/assets/bars.svg" />
+        </button>
+      </form>
+      <div id="reset-result" class="result-area"></div>
+    </div>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get("token");
+        if (token) {
+          const tokenInput = document.getElementById("token");
+          if (tokenInput) {
+            tokenInput.value = token;
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
