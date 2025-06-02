@@ -2,7 +2,7 @@
 
 <ul>
   <li><a href="/register">Register</a></li>
-  <li>verify_email - /api/email/verify?token=${token_value}</li>
+  <li><a href="/api/email/verify?token=${token_value}">Verify Email</a></li>
   <li><a href="/login">Log In</a></li>
   <li><a href="/account">Account</a></li>
   <ul>
@@ -15,12 +15,12 @@
     <li>Change Password</li>
   </ul>
   <li><a href="/logout">Log Out</a></li>
+  <li><a href="/reset/request">Request Password Reset</a></li>
+  <li><a href="/reset/set?token=${token_value}">Set New Password</a></li>
   <li>setup_2fa_start</li>
   <li>setup_2fa_verify</li>
   <li>verify_2fa_login</li>
   <li>remove_2fa</li>
-  <li>request_password_reset</li>
-  <li>reset_password</li>
 </ul>
 
 <h3>Tests</h3>
