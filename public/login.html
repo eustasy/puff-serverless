@@ -6,9 +6,12 @@
     <meta
       name="htmx-config"
       content='{"responseHandling": [
+      {"code":"200", "swap": true},
       {"code":"400", "swap": true},
       {"code":"401", "swap": true},
       {"code":"403", "swap": true},
+      {"code":"404", "swap": true},
+      {"code":"405", "swap": true},
       {"code":"500", "swap": true}
     ]
     }'
@@ -55,10 +58,13 @@
       </form>
       <div id="login-result" class="result-area"></div>
       <p class="centered-link">
-        <a href="/register.html">Don't have an account? Register</a>
+        Don't have an account? <a href="/register">Register</a>
+      </p>
+      <p class="centered-link">
+        Forgot your password? <a href="/reset">Reset it</a>
       </p>
       <p class="centered-link-secondary">
-        <a href="/logout.html">Go to Logout Page</a>
+        Go to <a href="/logout">Logout</a> Page
       </p>
     </div>
     <script>
