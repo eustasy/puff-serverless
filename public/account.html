@@ -27,10 +27,10 @@
       </header>
       <main>
         <div id="email-controls" class="grid-container grid-header">
-          <div class="grid-header-item">
+          <div class="grid-item">
             <h2>Email Addresses</h2>
           </div>
-          <div class="grid-header-item">
+          <div class="grid-item">
             <button
               class="btn-save"
               hx-post="/api/email/add"
@@ -45,7 +45,7 @@
               <img class="htmx-indicator" src="/assets/bars.svg" />
             </button>
           </div>
-          <div class="grid-header-item">
+          <div class="grid-item">
             <button
               class="btn-safe"
               hx-get="/api/email/list"
@@ -75,10 +75,10 @@
         </div>
 
         <div class="grid-container grid-header" id="session-controls">
-          <div class="grid-header-item">
+          <div class="grid-item">
             <h2>Current Sessions</h2>
           </div>
-          <div class="grid-header-item">
+          <div class="grid-item">
             <button
               class="btn-danger"
               hx-post="/api/session/terminate/all"
@@ -91,7 +91,7 @@
               <img class="htmx-indicator" src="/assets/bars.svg" />
             </button>
           </div>
-          <div class="grid-header-item">
+          <div class="grid-item">
             <button
               class="btn-safe"
               hx-get="/api/session/list"
@@ -121,7 +121,7 @@
         </div>
 
         <div id="password-controls" class="grid-container grid-header">
-          <div class="grid-header-item">
+          <div class="grid-item">
             <h2>Change Password</h2>
           </div>
         </div>

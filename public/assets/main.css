@@ -197,7 +197,7 @@ th {
 .grid-container.grid-header {
   grid-template-columns: 1fr auto auto; /* First column takes remaining space */
   align-items: center;
-  margin: 5rem 0 2rem;
+  margin: 5rem 0 1rem;
 }
 .grid-header > * {
   margin: 0; /* Reset margin for grid items */
@@ -210,4 +210,7 @@ th {
 }
 .grid-header > button {
   margin-left: 1rem; /* Add space between buttons */
+}
+.grid-header h2 {
+  margin: 0; /* Reset margin for h2 in header */
 }
