@@ -120,7 +120,11 @@
           <p>Loading sessions...</p>
         </div>
 
-        <h2>Change Password</h2>
+        <div id="password-controls" class="grid-header">
+          <div class="grid-header-item">
+            <h2>Change Password</h2>
+          </div>
+        </div>
         <!-- Server messages regarding password change will appear here -->
         <div
           id="password-message-area"
@@ -136,7 +140,7 @@
           class="grid-container"
         >
           <div class="grid-item">
-            <label for="current_password">Current Password:</label><br />
+            <label for="current_password">Current Password:</label>
             <input
               type="password"
               id="current_password"
@@ -146,7 +150,7 @@
             />
           </div>
           <div class="grid-item">
-            <label for="pw">New Password:</label><br />
+            <label for="pw">New Password:</label>
             <input
               type="password"
               id="pw"
@@ -173,7 +177,7 @@
             ></div>
           </div>
           <div class="grid-item">
-            <button type="submit" class="btn-save">
+            <button type="submit" class="btn-save" name="change_password">
               Change Password
               <img class="htmx-indicator" src="/assets/bars.svg" />
             </button>

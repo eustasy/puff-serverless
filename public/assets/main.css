@@ -181,7 +181,16 @@ th {
 .grid-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.grid-item {
+  display: flex;
+  flex-direction: column;
+}
+/* Pushes a button to the bottom if it's the last child of a grid-item */
+.grid-item > button:last-child {
+  margin-top: auto;
 }
 /* $ Grid layout for header
  * This floats all elements to the right,
@@ -204,5 +213,5 @@ th {
   text-align: right; /* Right align all other items */
 }
 .grid-header > button {
-  margin-left: 10px; /* Add space between buttons */
+  margin-left: 1rem; /* Add space between buttons */
 }
