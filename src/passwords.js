@@ -61,18 +61,28 @@ export async function readPassword(context, user_uuid) {
     `
     const result = await client.query(query, [user_uuid])
     if (result.rows.length === 0) {
-      return null
+      return null // No active password found
     }
-    const full_secret_type = result.rows[0].secret_type
-    const algo = full_secret_type.substring(
-      full_secret_type.lastIndexOf("_") + 1
-    )
-    return { secret_value: result.rows[0].secret_value, algo: algo }
+    const { secret_value, secret_type } = result.rows[0]
+    const algo = secret_type.replace("puff_password_", "")
+
+    // Update secret_last_used
+    const updateQuery = `
+      UPDATE secrets
+      SET secret_last_used = current_timestamp()
+      WHERE user_uuid = $1 AND secret_type = $2 AND is_enabled = TRUE;
+    `
+    // Fire and forget is acceptable here as it's not critical for the read operation's success
+    client.query(updateQuery, [user_uuid, secret_type]).catch(console.error);
+
+    return { secret_value: secret_value, algo: algo }
   } catch (error) {
     console.error("Error reading password:", error)
-    throw error
+    throw error // Rethrow to allow higher-level error handling
   } finally {
-    await client.end()
+    if (client) {
+      await client.end().catch(console.error);
+    }
   }
 }
 
@@ -134,55 +144,28 @@ export async function updatePassword(context, user_uuid, newPassword) {
  * @returns {boolean} True if the password is verified, false otherwise.
  */
 export async function password_verify(context, pw, user_uuid) {
-  const { Client } = require("pg")
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
-
   try {
-    await client.connect()
-    // Get the user's password hash and salt from the database
-    const query = `
-      SELECT secret_value, secret_type
-      FROM secrets
-      WHERE user_uuid = $1 AND secret_type LIKE 'puff_password_%' AND is_enabled = TRUE
-      LIMIT 1
-    `
-    const result = await client.query(query, [user_uuid])
+    const passwordDetails = await readPassword(context, user_uuid)
 
-    if (result.rows.length === 0) {
-      // It's generally better not to reveal if the user exists or not for password verification.
-      // However, the original code threw "User password record not found".
-      // For security, returning false (as if password didn't match) is often preferred.
-      // Let's stick to a generic false for failed verification if no record.
-      return false
-    }
-    const { secret_value, secret_type } = result.rows[0]
-    // Extract the algorithm from the secret_type
-    if (!secret_type.startsWith("puff_password_")) {
-      // Invalid secret_type format
-      console.error(`Invalid secret_type format for user_uuid: ${user_uuid}`)
-      return false
-    }
-    const algo = secret_type.split("_").pop()
-
-    // Split the secret_value into the actual hash and salt
-    if (!actual_hash || !salt || !algo) {
-      // Invalid format in DB
-      console.error(
-        `Invalid secret_value or secret_type format for user_uuid: ${user_uuid}`
+    if (!passwordDetails) {
+      // No active password found for the user, or an error occurred in readPassword
+      console.warn(
+        `Password verification failed: No active password found for user_uuid ${user_uuid}`
       )
       return false
     }
+
+    const { secret_value, algo } = passwordDetails
     const [actual_hash, salt] = secret_value.split(":")
 
     const { hash: attempted_hash } = await puff_hashing_password(pw, salt, algo)
+
     return attempted_hash === actual_hash
   } catch (error) {
     console.error("Error during password verification:", error)
     // In case of a system error, rethrow or return false depending on policy
     // Rethrowing might be better for higher-level error handling to log and respond appropriately
     throw error
-  } finally {
-    await client.end()
   }
 }
 
