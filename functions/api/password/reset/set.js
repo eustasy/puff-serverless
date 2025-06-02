@@ -1,6 +1,5 @@
 import {
   password_requirements,
-  password_requirements_html,
   updatePassword,
 } from "../../../../src/passwords.js"
 import { readToken, usedToken } from "../../../../src/tokens.js"
@@ -43,17 +42,18 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const passwordCheckResult = await password_requirements(new_password) // Await the promise
+    const passwordCheckResult = await password_requirements(new_password)
     if (!passwordCheckResult) {
-      // password_requirements returns boolean
-      const requirementsHTML = await password_requirements_html(new_password) // Await the promise
-      return new Response(requirementsHTML, {
-        status: 400,
-        headers: { "Content-Type": "text/html" },
-      })
+      return new Response(
+        '<p class="result-negative">New password does not meet requirements.</p>',
+        {
+          status: 400,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
     }
 
-    const tokenReadResult = await readToken(context, token, ["password_reset"])
+    const tokenReadResult = await readToken(context, token)
 
     if (!tokenReadResult.success || !tokenReadResult.token) {
       return new Response(
@@ -108,7 +108,7 @@ export async function onRequestPost(context) {
       )
     }
 
-    await updateToken(context, token, "password_reset", { is_used: true })
+    await usedToken(context, token)
 
     // Redirect to login page on successful password reset
     return new Response(null, {
