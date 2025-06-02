@@ -16,6 +16,12 @@ export async function createPassword(context, user_uuid, password) {
 
   try {
     await client.connect()
+    // Validate password requirements
+    const isValid = await password_requirements(password)
+    if (!isValid) {
+      throw new Error("Password does not meet the required criteria.")
+    }
+    // Hash the password
     const { hash, salt, algo } = await puff_hashing_password(password)
     const secret_value = `${hash}:${salt}`
     const current_secret_type = `puff_password_${algo}`
@@ -179,14 +185,14 @@ export async function password_requirements(pw) {
   if (pw.length < 12) {
     result = false
   }
-  var hasNumber = /\d/
-  if (!hasNumber.test(pw)) {
-    result = false
-  }
-  var hasSpecial = /[!-\/:-@[-`{-~]/
-  if (!hasSpecial.test(pw)) {
-    result = false
-  }
+  //var hasNumber = /\d/
+  //if (!hasNumber.test(pw)) {
+  //  result = false
+  //}
+  //var hasSpecial = /[!-\/:-@[-`{-~]/
+  //if (!hasSpecial.test(pw)) {
+  //  result = false
+  //}
   return result
 }
 

@@ -28,18 +28,18 @@ export async function onRequestPost(context) {
   if (!context.data) context.data = {}
   context.data.user_uuid = user_uuid
 
-  // Step 2: Parse JSON body
-  let requestBody
+  // Step 2: Parse Form Data
+  let current_password, new_password
   try {
-    requestBody = await context.request.json()
+    const formData = await context.request.formData()
+    current_password = formData.get("current_password")
+    new_password = formData.get("pw")
   } catch (e) {
-    return new Response("<p>Error: Invalid JSON body.</p>", {
+    return new Response("<p>Error: Invalid form data.</p>", {
       status: 400,
       headers: { "Content-Type": "text/html" },
     })
   }
-
-  const { current_password, new_password } = requestBody
 
   // Step 3: Input Validation
   if (!current_password || typeof current_password !== "string") {
@@ -103,7 +103,7 @@ export async function onRequestPost(context) {
     }
 
     // Step 7: Response
-    // For HTMX, a redirect to a profile page or a success message might be appropriate.
+    // For HTMX, a redirect to a profile page or a success message query parameter might be appropriate.
     // Example: Redirect to /profile with a success message query parameter
     // Or, return a partial HTML to update a section of the page.
     // For now, a simple success message.

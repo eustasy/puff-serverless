@@ -117,13 +117,14 @@
           id="password-message-area"
           class="result-area"
           style="margin-bottom: 1em"
-        ></div>
+        >
+          <!-- Server messages regarding password change will appear here -->
+        </div>
         <form
           id="change-password-form"
           hx-post="/api/password/change"
           hx-target="#password-message-area"
           hx-swap="innerHTML"
-          hx-ext="json-enc"
           style="margin-bottom: 2em"
         >
           <div style="margin-bottom: 0.5em">
@@ -133,10 +134,11 @@
               id="current_password"
               name="current_password"
               required
-              style="width: 100%; box-sizing: border-box"
+              class="form-input"
             />
           </div>
           <div style="margin-bottom: 0.5em">
+            <label for="pw">New Password:</label><br />
             <input
               type="password"
               id="pw"
@@ -145,36 +147,27 @@
               hx-post="/api/password/requirements"
               hx-sync="closest form:abort"
               hx-trigger="keyup changed delay:500ms"
-              hx-target="#pw-checklist"
+              hx-target="#password-requirements-output"
               autocapitalize="off"
               autocorrect="off"
               spellcheck="false"
               maxlength="512"
               minlength="12"
               required
+              class="form-input"
+              aria-describedby="password-requirements-output"
             />
-            <div id="pw-checklist" class="result-area">
-              <!-- Initial content can be pre-filled or loaded by hx-post -->
-              <h3>Password Requirements</h3>
-              <ul>
-                <li><strong>Must</strong> be at least 12 characters long</li>
-                <li>Should contain a number</li>
-                <li>Should contain a special character</li>
-                <li>Should not be compromised</li>
-              </ul>
+          </div>
+          <div style="margin-bottom: 1em">
+            <div
+              id="password-requirements-output"
+              class="result-area"
+              style="margin-top: 0.5em"
+            >
+              <!-- Password requirements will be loaded here by HTMX -->
             </div>
           </div>
-          <div
-            id="new_password_requirements_container"
-            class="result-area"
-            style="margin-bottom: 1em"
-            hx-post="/api/password/requirements"
-            hx-trigger="keyup changed delay:500ms from:#new_password"
-            hx-target="this"
-            hx-swap="innerHTML"
-            hx-include="#new_password"
-          ></div>
-          <button type="submit" class="btn-save" hx-disabled-elt="this">
+          <button type="submit" class="btn-save">
             Change Password
             <img class="htmx-indicator" src="/assets/bars.svg" />
           </button>
