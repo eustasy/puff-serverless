@@ -43,7 +43,8 @@ export async function onRequestPost(context) {
       // Step 4: Store Token using createPasswordToken
       const tokenResult = await createPasswordToken(
         context,
-        user.email.user_uuid
+        user.email.user_uuid,
+        email
       )
 
       if (tokenResult.error || !tokenResult.token_value) {

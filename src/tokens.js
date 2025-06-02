@@ -187,15 +187,22 @@ export async function createEmailToken(context, user_uuid, email_address) {
  * Creates a new password reset token in the database.
  * @param {object} context - The Cloudflare Pages context object.
  * @param {string} user_uuid - The UUID of the user.
+ * @param {string} email_address - The email address associated with this token.
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
-export async function createPasswordToken(context, user_uuid) {
+export async function createPasswordToken(context, user_uuid, email_address) {
   try {
     const token_type = "password_reset"
     const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
     // Call createToken to insert the email token
-    return await createToken(context, user_uuid, token_type, expires_at)
+    return await createToken(
+      context,
+      user_uuid,
+      token_type,
+      expires_at,
+      email_address
+    )
   } catch (error) {
     console.error("Error in createPasswordToken:", error)
     return {
