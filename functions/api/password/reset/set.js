@@ -14,10 +14,13 @@ export async function onRequestPost(context) {
     token = formData.get("token")
     new_password = formData.get("pw")
   } catch (e) {
-    return new Response('<p class="result-negative">Invalid request data.</p>', {
-      status: 400,
-      headers: { "Content-Type": "text/html" },
-    })
+    return new Response(
+      '<p class="result-negative">Invalid request data.</p>',
+      {
+        status: 400,
+        headers: { "Content-Type": "text/html" },
+      }
+    )
   }
 
   if (!token || typeof token !== "string") {

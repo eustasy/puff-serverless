@@ -78,15 +78,15 @@
     </div>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
-        const params = new URLSearchParams(window.location.search);
-        const token = params.get("token");
+        const params = new URLSearchParams(window.location.search)
+        const token = params.get("token")
         if (token) {
-          const tokenInput = document.getElementById("token");
+          const tokenInput = document.getElementById("token")
           if (tokenInput) {
-            tokenInput.value = token;
+            tokenInput.value = token
           }
         }
-      });
+      })
     </script>
   </body>
 </html>
