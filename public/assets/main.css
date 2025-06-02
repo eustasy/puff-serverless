@@ -177,3 +177,31 @@ td {
 th {
   background-color: #f2f2f2;
 }
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+/* $ Grid layout for header
+ * This floats all elements to the right,
+ * except the first element which is left aligned and takes all remaining space.
+*/
+.grid-header {
+  display: grid;
+  grid-template-columns: 1fr auto auto; /* First column takes remaining space */
+  align-items: center;
+  margin-bottom: 20px;
+}
+.grid-header > * {
+  margin: 0; /* Reset margin for grid items */
+}
+.grid-header > :first-child {
+  text-align: left; /* Left align the first item */
+}
+.grid-header > :not(:first-child) {
+  text-align: right; /* Right align all other items */
+}
+.grid-header > button {
+  margin-left: 10px; /* Add space between buttons */
+}

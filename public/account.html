@@ -26,32 +26,38 @@
         <h1>Account Management</h1>
       </header>
       <main>
-        <div id="email-controls" class="float-right" style="margin-bottom: 1em">
-          <button
-            class="btn-safe float-right"
-            hx-get="/api/email/list"
-            hx-target="#email-list-container"
-            hx-swap="innerHTML"
-            hx-disabled-elt="this"
-          >
-            Refresh Emails
-            <img class="htmx-indicator" src="/assets/bars.svg" />
-          </button>
-          <button
-            class="btn-save float-right"
-            hx-post="/api/email/add"
-            hx-target="#email-message-area"
-            hx-swap="innerHTML"
-            hx-disabled-elt="this"
-            name="email_address"
-            hx-prompt="Enter an email address to add:"
-            hx-confirm="Are you sure you want to add this email address? It can be used for login and account recovery."
-          >
-            Add Email
-            <img class="htmx-indicator" src="/assets/bars.svg" />
-          </button>
+        <div id="email-controls" class="grid-header">
+          <div class="grid-header-item">
+            <h2>Email Addresses</h2>
+          </div>
+          <div class="grid-header-item">
+            <button
+              class="btn-save float-right"
+              hx-post="/api/email/add"
+              hx-target="#email-message-area"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this"
+              name="email_address"
+              hx-prompt="Enter an email address to add:"
+              hx-confirm="Are you sure you want to add this email address? It can be used for login and account recovery."
+            >
+              Add Email
+              <img class="htmx-indicator" src="/assets/bars.svg" />
+            </button>
+          </div>
+          <div class="grid-header-item">
+            <button
+              class="btn-safe float-right"
+              hx-get="/api/email/list"
+              hx-target="#email-list-container"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this"
+            >
+              Refresh Emails
+              <img class="htmx-indicator" src="/assets/bars.svg" />
+            </button>
+          </div>
         </div>
-        <h2>Email Addresses</h2>
 
         <div
           id="email-message-area"
@@ -68,34 +74,36 @@
           <p>Loading email addresses...</p>
         </div>
 
-        <div
-          id="session-controls"
-          class="float-right"
-          style="margin-bottom: 1em"
-        >
-          <button
-            class="btn-safe float-right"
-            hx-get="/api/session/list"
-            hx-target="#session-list-container"
-            hx-swap="innerHTML"
-            hx-disabled-elt="this"
-          >
-            Refresh Sessions
-            <img class="htmx-indicator" src="/assets/bars.svg" />
-          </button>
-          <button
-            class="btn-danger float-right"
-            hx-post="/api/session/terminate/all"
-            hx-target="#session-list-container"
-            hx-swap="innerHTML"
-            hx-disabled-elt="this"
-            hx-confirm="Are you sure you want to terminate all other sessions? This will not affect your current session."
-          >
-            Terminate All Other Sessions
-            <img class="htmx-indicator" src="/assets/bars.svg" />
-          </button>
+        <div class="grid-header" id="session-controls">
+          <div class="grid-header-item">
+            <h2>Current Sessions</h2>
+          </div>
+          <div class="grid-header-item">
+            <button
+              class="btn-danger float-right"
+              hx-post="/api/session/terminate/all"
+              hx-target="#session-list-container"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this"
+              hx-confirm="Are you sure you want to terminate all other sessions? This will not affect your current session."
+            >
+              Terminate All Other Sessions
+              <img class="htmx-indicator" src="/assets/bars.svg" />
+            </button>
+          </div>
+          <div class="grid-header-item">
+            <button
+              class="btn-safe float-right"
+              hx-get="/api/session/list"
+              hx-target="#session-list-container"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this"
+            >
+              Refresh Sessions
+              <img class="htmx-indicator" src="/assets/bars.svg" />
+            </button>
+          </div>
         </div>
-        <h2>Current Sessions</h2>
 
         <div
           id="session-message-area"
@@ -119,14 +127,15 @@
           class="result-area"
           style="margin-bottom: 1em"
         ></div>
+
         <form
           id="change-password-form"
           hx-post="/api/password/change"
           hx-target="#password-message-area"
           hx-swap="innerHTML"
-          style="margin-bottom: 2em"
+          class="grid-container"
         >
-          <div class="float-right" style="margin-bottom: 0.5em">
+          <div class="grid-item">
             <label for="current_password">Current Password:</label><br />
             <input
               type="password"
@@ -136,7 +145,7 @@
               class="form-input"
             />
           </div>
-          <div class="float-right" style="margin-bottom: 0.5em">
+          <div class="grid-item">
             <label for="pw">New Password:</label><br />
             <input
               type="password"
@@ -156,8 +165,6 @@
               class="form-input"
               aria-describedby="password-requirements-output"
             />
-          </div>
-          <div class="float-right" style="margin-bottom: 1em">
             <!-- Password requirements will be loaded here by HTMX -->
             <div
               id="password-requirements-output"
@@ -165,10 +172,12 @@
               style="margin-top: 0.5em"
             ></div>
           </div>
-          <button type="submit" class="btn-save">
-            Change Password
-            <img class="htmx-indicator" src="/assets/bars.svg" />
-          </button>
+          <div class="grid-item">
+            <button type="submit" class="btn-save">
+              Change Password
+              <img class="htmx-indicator" src="/assets/bars.svg" />
+            </button>
+          </div>
         </form>
       </main>
       <footer>
