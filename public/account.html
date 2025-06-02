@@ -111,6 +111,74 @@
         >
           <p>Loading sessions...</p>
         </div>
+
+        <h2>Change Password</h2>
+        <div
+          id="password-message-area"
+          class="result-area"
+          style="margin-bottom: 1em"
+        ></div>
+        <form
+          id="change-password-form"
+          hx-post="/api/password/change"
+          hx-target="#password-message-area"
+          hx-swap="innerHTML"
+          hx-ext="json-enc"
+          style="margin-bottom: 2em"
+        >
+          <div style="margin-bottom: 0.5em">
+            <label for="current_password">Current Password:</label><br />
+            <input
+              type="password"
+              id="current_password"
+              name="current_password"
+              required
+              style="width: 100%; box-sizing: border-box"
+            />
+          </div>
+          <div style="margin-bottom: 0.5em">
+            <input
+              type="password"
+              id="pw"
+              name="pw"
+              placeholder="Password"
+              hx-post="/api/password/requirements"
+              hx-sync="closest form:abort"
+              hx-trigger="keyup changed delay:500ms"
+              hx-target="#pw-checklist"
+              autocapitalize="off"
+              autocorrect="off"
+              spellcheck="false"
+              maxlength="512"
+              minlength="12"
+              required
+            />
+            <div id="pw-checklist" class="result-area">
+              <!-- Initial content can be pre-filled or loaded by hx-post -->
+              <h3>Password Requirements</h3>
+              <ul>
+                <li><strong>Must</strong> be at least 12 characters long</li>
+                <li>Should contain a number</li>
+                <li>Should contain a special character</li>
+                <li>Should not be compromised</li>
+              </ul>
+            </div>
+          </div>
+          <div
+            id="new_password_requirements_container"
+            class="result-area"
+            style="margin-bottom: 1em"
+            hx-post="/api/password/requirements"
+            hx-trigger="keyup changed delay:500ms from:#new_password"
+            hx-target="this"
+            hx-swap="innerHTML"
+            hx-include="#new_password"
+          ></div>
+          <button type="submit" class="btn-save" hx-disabled-elt="this">
+            Change Password
+            <img class="htmx-indicator" src="/assets/bars.svg" />
+          </button>
+        </form>
       </main>
       <footer>
         <p><a href="/logout">Log Out</a></p>

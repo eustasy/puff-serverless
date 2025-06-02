@@ -38,6 +38,7 @@ export async function puff_hashing_password(pw, salt = "", algo = "SHA-384") {
   const hashes = {
     hash: hash,
     salt: salt,
+    algo: algo,
   }
   return hashes
 }

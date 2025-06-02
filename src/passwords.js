@@ -16,33 +16,42 @@ export async function password_verify(context, pw, user_uuid) {
 
   try {
     await client.connect()
-    // Get the user\'s password hash and salt from the database
+    // Get the user's password hash and salt from the database
     const query = `
-      SELECT secret_value
+      SELECT secret_value, secret_type
       FROM secrets
-      WHERE user_uuid = $1 AND secret_type = \'puff_password_sha-384\'
+      WHERE user_uuid = $1 AND secret_type LIKE 'puff_password_%' AND is_enabled = TRUE
       LIMIT 1
     `
     const result = await client.query(query, [user_uuid])
 
     if (result.rows.length === 0) {
-      // It\'s generally better not to reveal if the user exists or not for password verification.
+      // It's generally better not to reveal if the user exists or not for password verification.
       // However, the original code threw "User password record not found".
-      // For security, returning false (as if password didn\'t match) is often preferred.
-      // Let\'s stick to a generic false for failed verification if no record.
+      // For security, returning false (as if password didn't match) is often preferred.
+      // Let's stick to a generic false for failed verification if no record.
       return false
     }
-    const { secret_value } = result.rows[0]
+    const { secret_value, secret_type } = result.rows[0]
+    // Extract the algorithm from the secret_type
+    if (!secret_type.startsWith("puff_password_")) {
+      // Invalid secret_type format
+      console.error(`Invalid secret_type format for user_uuid: ${user_uuid}`)
+      return false
+    }
+    const algo = secret_type.split("_").pop()
+
     // Split the secret_value into the actual hash and salt
+    if (!actual_hash || !salt || !algo) {
+      // Invalid format in DB
+      console.error(
+        `Invalid secret_value or secret_type format for user_uuid: ${user_uuid}`
+      )
+      return false
+    }
     const [actual_hash, salt] = secret_value.split(":")
 
-    if (!actual_hash || !salt) {
-      // Invalid format in DB
-      console.error(`Invalid secret_value format for user_uuid: ${user_uuid}`)
-      return false
-    }
-
-    const { hash: attempted_hash } = await puff_hashing_password(pw, salt)
+    const { hash: attempted_hash } = await puff_hashing_password(pw, salt, algo)
     return attempted_hash === actual_hash
   } catch (error) {
     console.error("Error during password verification:", error)
@@ -160,37 +169,36 @@ export async function createPassword(context, user_uuid, password) {
 
   try {
     await client.connect()
-    const { hash, salt } = await puff_hashing_password(password)
+    const { hash, salt, algo } = await puff_hashing_password(password)
     const secret_value = `${hash}:${salt}`
-    const secret_type = "puff_password_sha-384"
+    const current_secret_type = `puff_password_${algo}`
 
     const query = `
-      INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_created_at)
-      VALUES ($1, $2, $3, NOW())
-      ON CONFLICT (user_uuid, secret_type) DO UPDATE SET secret_value = EXCLUDED.secret_value
+      INSERT INTO secrets (user_uuid, secret_type, secret_value, is_enabled)
+      VALUES ($1, $2, $3, TRUE)
       RETURNING user_uuid;
     `
-    // Using ON CONFLICT to handle cases where a password might already exist (e.g. during initial setup or a reset flow that calls create)
-    // This effectively makes createPassword also an "upsert" operation for the password.
     const result = await client.query(query, [
       user_uuid,
-      secret_type,
+      current_secret_type,
       secret_value,
     ])
     return result.rows.length > 0
   } catch (error) {
-    console.error("Error creating password:", error)
-    throw error // Rethrow to allow higher-level error handling
+    console.error("Error in createPassword:", error)
+    throw error
   } finally {
-    await client.end()
+    if (client) {
+      await client.end()
+    }
   }
 }
 
 /**
- * Reads a user's password hash and salt from the database.
+ * Reads a user's active password hash, salt, and algorithm from the database.
  * @param {*} context - The context object.
  * @param {string} user_uuid - The UUID of the user.
- * @returns {Promise<string|null>} The secret_value (hash:salt) or null if not found.
+ * @returns {Promise<{secret_value: string, algo: string}|null>} Object with secret_value (hash:salt) and algo, or null if not found.
  */
 export async function readPassword(context, user_uuid) {
   const { Client } = require("pg")
@@ -199,16 +207,20 @@ export async function readPassword(context, user_uuid) {
   try {
     await client.connect()
     const query = `
-      SELECT secret_value
+      SELECT secret_value, secret_type
       FROM secrets
-      WHERE user_uuid = $1 AND secret_type = 'puff_password_sha-384'
+      WHERE user_uuid = $1 AND secret_type LIKE 'puff_password_%' AND is_enabled = TRUE
       LIMIT 1;
     `
     const result = await client.query(query, [user_uuid])
     if (result.rows.length === 0) {
       return null
     }
-    return result.rows[0].secret_value
+    const full_secret_type = result.rows[0].secret_type
+    const algo = full_secret_type.substring(
+      full_secret_type.lastIndexOf("_") + 1
+    )
+    return { secret_value: result.rows[0].secret_value, algo: algo }
   } catch (error) {
     console.error("Error reading password:", error)
     throw error
@@ -218,66 +230,51 @@ export async function readPassword(context, user_uuid) {
 }
 
 /**
- * Updates a user's password in the database.
+ * Disables all active 'puff_password_%' type secrets for a user.
+ * Sets is_enabled to FALSE and updates secret_last_used.
  * @param {*} context - The context object.
  * @param {string} user_uuid - The UUID of the user.
- * @param {string} newPassword - The new plain text password.
- * @returns {Promise<boolean>} True if the password was updated successfully, false otherwise.
+ * @returns {Promise<boolean>} True if any active password was found and disabled, false otherwise.
  */
-export async function updatePassword(context, user_uuid, newPassword) {
+export async function disablePassword(context, user_uuid) {
   const { Client } = require("pg")
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 
   try {
     await client.connect()
-    const { hash, salt } = await puff_hashing_password(newPassword)
-    const secret_value = `${hash}:${salt}`
-    const secret_type = "puff_password_sha-384"
-
     const query = `
       UPDATE secrets
-      SET secret_value = $1, updated_at = NOW()
-      WHERE user_uuid = $2 AND secret_type = $3
-      RETURNING secret_uuid;
+      SET is_enabled = FALSE
+      WHERE user_uuid = $1 AND secret_type LIKE 'puff_password_%' AND is_enabled = TRUE
+      RETURNING user_uuid;
     `
-    const result = await client.query(query, [
-      secret_value,
-      user_uuid,
-      secret_type,
-    ])
-    return result.rows.length > 0
+    const result = await client.query(query, [user_uuid])
+    return result.rows.length > 0 // True if any row was updated
   } catch (error) {
-    console.error("Error updating password:", error)
+    console.error("Error in disablePassword:", error)
     throw error
   } finally {
-    await client.end()
+    if (client) {
+      await client.end()
+    }
   }
 }
 
 /**
- * Deletes a user's password from the database.
+ * Updates a user's password by disabling all old 'puff_password_%' type secrets and creating a new one.
+ * This preserves the old password records with is_enabled = FALSE.
  * @param {*} context - The context object.
  * @param {string} user_uuid - The UUID of the user.
- * @returns {Promise<boolean>} True if the password was deleted successfully, false otherwise.
+ * @param {string} newPassword - The new plain text password.
+ * @returns {Promise<boolean>} True if the new password was created successfully.
  */
-export async function deletePassword(context, user_uuid) {
-  const { Client } = require("pg")
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
-
+export async function updatePassword(context, user_uuid, newPassword) {
   try {
-    await client.connect()
-    const secret_type = "puff_password_sha-384"
-    const query = `
-      DELETE FROM secrets
-      WHERE user_uuid = $1 AND secret_type = $2
-      RETURNING secret_uuid;
-    `
-    const result = await client.query(query, [user_uuid, secret_type])
-    return result.rows.length > 0
+    await disablePassword(context, user_uuid)
+    const createdNew = await createPassword(context, user_uuid, newPassword)
+    return createdNew
   } catch (error) {
-    console.error("Error deleting password:", error)
+    console.error("Error in updatePassword:", error)
     throw error
-  } finally {
-    await client.end()
   }
 }
