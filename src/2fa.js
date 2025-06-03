@@ -9,13 +9,8 @@ export async function create2fa(
 ) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
-    INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_name, secret_created_at, is_enabled)
-    VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, FALSE) // Set is_enabled to FALSE by default
-    ON CONFLICT (user_uuid, secret_type) DO UPDATE
-    SET secret_value = EXCLUDED.secret_value, 
-        secret_name = EXCLUDED.secret_name, 
-        secret_created_at = CURRENT_TIMESTAMP, -- Reset created_at on update for clarity
-        is_enabled = FALSE -- Ensure it's marked as not enabled until verified
+    INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_name, is_enabled)
+    VALUES ($1, $2, $3, $4, FALSE)
     RETURNING *;
   `
   const values = [user_uuid, SECRET_TYPE, secret_value, secret_name]
