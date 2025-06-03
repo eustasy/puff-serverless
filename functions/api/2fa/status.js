@@ -75,16 +75,16 @@ export async function onRequestGet(context) {
   } else {
     htmlResponse = `
       <p>Two-Factor Authentication is currently <strong class="result-negative">disabled</strong>.</p>
-      <button
-        class="btn-save"
-        hx-post="/api/2fa/setup/start"
-        hx-target="#2fa-status-container"
-        hx-swap="innerHTML"
-        hx-disabled-elt="this"
-      >
-        Setup 2FA
-        <img class="htmx-indicator" src="/assets/bars.svg" alt="Loading..."/>
-      </button>
+      <form hx-post="/api/2fa/setup/start" hx-target="#2fa-status-container" hx-swap="innerHTML">
+        <button
+          type="submit"
+          class="btn-save"
+          hx-disabled-elt="this"
+        >
+          Setup 2FA
+          <img class="htmx-indicator" src="/assets/bars.svg" alt="Loading..."/>
+        </button>
+      </form>
     `
     // The /api/2fa/setup/start endpoint would typically replace the content of
     // #2fa-status-container with the 2FA setup UI (e.g., QR code, code input).
