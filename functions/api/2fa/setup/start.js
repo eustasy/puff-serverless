@@ -1,6 +1,6 @@
 import { sessionAuthWithCookie } from "../../../../src/sessions.js"
 import { authenticator } from "otplib"
-import { has2fa, create2fa } from "../../../../src/2fa.js"
+import { read2fa, create2fa } from "../../../../src/2fa.js"
 import { readUser } from "../../../../src/users.js"
 
 const APP_NAME = "PuffAuth" // Using a more specific app name
@@ -24,7 +24,7 @@ export async function onRequestPost(context) {
 
   try {
     // Step 2: Check Existing 2FA
-    const twoFactorStatus = await has2fa(context, user_uuid)
+    const twoFactorStatus = await read2fa(context, user_uuid)
 
     if (typeof twoFactorStatus === "object" && twoFactorStatus.error) {
       console.error("Error checking 2FA status:", twoFactorStatus.error)
@@ -40,7 +40,7 @@ export async function onRequestPost(context) {
       )
     }
 
-    if (twoFactorStatus === true) {
+    if (twoFactorStatus.is_enabled == true) {
       return new Response(
         '<p class="result-negative">Error: Two-Factor Authentication is already enabled. Please remove the existing setup first if you wish to re-configure it.</p>',
         {
@@ -53,56 +53,64 @@ export async function onRequestPost(context) {
       )
     }
 
-    // Step 3: Fetch user's username for the label
-    const userResult = await readUser(context, user_uuid)
-    if (userResult.error || !userResult.user.user_name) {
-      console.error("Error fetching user username:", userResult.error)
-      return new Response(
-        '<p class="result-negative">Error: Could not retrieve user name to setup 2FA.</p>',
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#tfa-message-area",
-          },
-        }
+    // Step 3: Create 2FA Setup if not already present
+    if (!twoFactorStatus.secret_value) {
+      // Step 3a: Fetch user's username for the label
+      const userResult = await readUser(context, user_uuid)
+      if (userResult.error || !userResult.user.user_name) {
+        console.error("Error fetching user username:", userResult.error)
+        return new Response(
+          '<p class="result-negative">Error: Could not retrieve user name to setup 2FA.</p>',
+          {
+            status: 500,
+            headers: {
+              "Content-Type": "text/html",
+              "HX-Retarget": "#tfa-message-area",
+            },
+          }
+        )
+      }
+      const userName = userResult.user.user_name
+      const label = `${APP_NAME}: ${userName}`
+
+      // Step 3b: Generate TOTP Secret
+      const new_secret = authenticator.generateSecret() // Generates a base32 secret
+
+      // Step 3c: "Simulated" Encryption (as per original logic, consider actual encryption for production)
+      const encrypted_secret = `sim_encrypted::${new_secret}`
+
+      // Step 3d: Store Secret (Unverified) using create2fa
+      // create2fa will set is_enabled to FALSE by default
+      const createResult = await create2fa(
+        context,
+        user_uuid,
+        encrypted_secret,
+        label
       )
-    }
-    const userName = userResult.user.user_name
-    const label = `${APP_NAME}: ${userName}`
-
-    // Step 4: Generate TOTP Secret
-    const secret = authenticator.generateSecret() // Generates a base32 secret
-
-    // Step 5: "Simulated" Encryption (as per original logic, consider actual encryption for production)
-    const encrypted_secret = `sim_encrypted::${secret}`
-
-    // Step 6: Store Secret (Unverified) using create2fa
-    // create2fa will set is_enabled to FALSE by default
-    const createResult = await create2fa(
-      context,
-      user_uuid,
-      encrypted_secret,
-      label
-    )
-    if (createResult.error) {
-      console.error("Error storing 2FA secret:", createResult.error)
-      return new Response(
-        '<p class="result-negative">Error: Failed to save 2FA setup information. Please try again.</p>',
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#tfa-message-area",
-          },
-        }
-      )
+      if (createResult.error) {
+        console.error("Error storing 2FA secret:", createResult.error)
+        return new Response(
+          '<p class="result-negative">Error: Failed to save 2FA setup information. Please try again.</p>',
+          {
+            status: 500,
+            headers: {
+              "Content-Type": "text/html",
+              "HX-Retarget": "#tfa-message-area",
+            },
+          }
+        )
+      }
     }
 
-    // Step 7: Generate QR Code Data (TOTP Auth URI)
+    // Step 4: The secret is one of the following:
+    // twoFactorStatus.secret_value (if not null)
+    // or the newly generated secret (new_secret)
+    const secret = twoFactorStatus.secret_value || new_secret
+
+    // Step 5: Generate QR Code Data (TOTP Auth URI)
     const otpauthUri = authenticator.keyuri(userName, APP_NAME, secret)
 
-    // Step 8: Response - HTML for HTMX
+    // Step 6: Response - HTML for HTMX
     // TODO: [Security] Consider using a more secure method for generating QR codes
     const htmlResponse = `
       <div>
@@ -123,7 +131,7 @@ export async function onRequestPost(context) {
           <p>After adding to your authenticator app, enter the 6-digit code it provides to verify and enable 2FA.</p>
           <div class="form-group">
             <label for="totp_code_setup">Verification Code:</label>
-            <input type="text" id="totp_code_setup" name="totp_code" title="Enter a 6-digit code" required maxlength="6" autocomplete="one-time-code" />
+            <input type="text" id="totp_code_setup" name="totp_code" title="Enter a 6-digit code" required maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" />
           </div>
           <button type="submit" class="btn-save">
             Verify and Enable 2FA

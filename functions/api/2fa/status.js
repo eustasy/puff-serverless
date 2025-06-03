@@ -26,7 +26,6 @@ export async function onRequestGet(context) {
   if (typeof twoFactorStatus === "object" && twoFactorStatus.error) {
     // Handle error from has2fa (e.g., database issue)
     console.error("Error checking 2FA status:", twoFactorStatus.error)
-    // Return an HTML error message to the client
     return new Response(
       "<p>Error: Could not retrieve 2FA status. Please try again later.</p>",
       {
@@ -55,6 +54,7 @@ export async function onRequestGet(context) {
             name="totp_code" 
             placeholder="123456" 
             pattern="[0-9]{6}" 
+            autocomplete="one-time-code"
             maxlength="6" 
             required
           />
