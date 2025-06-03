@@ -84,9 +84,6 @@ export async function onRequestPost(context) {
 }
 
 export async function onRequest(context) {
-  if (context.request.method === "POST") {
-    return await onRequestPost(context)
-  }
   return new Response(
     '<p class="result-negative">Error: Method Not Allowed. Only POST requests are accepted.</p>',
     {

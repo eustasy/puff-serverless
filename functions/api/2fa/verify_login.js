@@ -128,9 +128,6 @@ export async function onRequestPost(context) {
 }
 
 export async function onRequest(context) {
-  if (context.request.method === "POST") {
-    return await onRequestPost(context)
-  }
   return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
     status: 405,
     headers: { "Allow": "POST", "Content-Type": "application/json" },
