@@ -52,9 +52,9 @@ export async function onRequestPost(context) {
 
   try {
     // Step 3: Retrieve Stored Secret from 'secrets' table
-    const read2faResult = await read2fa(context, user_uuid)
-    if (read2faResult.error) {
-      console.error("Error reading 2FA secret:", read2faResult.error)
+    const secretRecord = await read2fa(context, user_uuid)
+    if (secretRecord.error) {
+      console.error("Error reading 2FA secret:", secretRecord.error)
       return new Response(
         '<p class="result-negative">Error: Could not retrieve 2FA secret. Please try again later.</p>',
         {
@@ -67,7 +67,7 @@ export async function onRequestPost(context) {
       )
     }
 
-    if (read2faResult.is_enabled === true) {
+    if (secretRecord.is_enabled === true) {
       return new Response(
         '<p class="result-positive">2FA is already verified and enabled.</p>',
         {
@@ -158,17 +158,10 @@ export async function onRequestPost(context) {
         },
       }
     )
-  } finally {
-    if (client) {
-      await client.end()
-    }
   }
 }
 
 export async function onRequest(context) {
-  if (context.request.method === "POST") {
-    return await onRequestPost(context)
-  }
   return new Response(
     '<p class="result-negative">Error: Method Not Allowed. Only POST requests are accepted for this action.</p>',
     {
