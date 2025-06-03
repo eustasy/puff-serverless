@@ -53,33 +53,34 @@ export async function onRequestPost(context) {
       )
     }
 
-    // Step 3: Create 2FA Setup if not already present
+    // Step 3: Fetch user's username for the label
+    const userResult = await readUser(context, user_uuid)
+    if (userResult.error || !userResult.user.user_name) {
+      console.error("Error fetching user username:", userResult.error)
+      return new Response(
+        '<p class="result-negative">Error: Could not retrieve user name to setup 2FA.</p>',
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#tfa-message-area",
+          },
+        }
+      )
+    }
+    const userName = userResult.user.user_name
+
+    // Step 4: Create 2FA Setup if not already present
     if (!twoFactorStatus.secret_value) {
-      // Step 3a: Fetch user's username for the label
-      const userResult = await readUser(context, user_uuid)
-      if (userResult.error || !userResult.user.user_name) {
-        console.error("Error fetching user username:", userResult.error)
-        return new Response(
-          '<p class="result-negative">Error: Could not retrieve user name to setup 2FA.</p>',
-          {
-            status: 500,
-            headers: {
-              "Content-Type": "text/html",
-              "HX-Retarget": "#tfa-message-area",
-            },
-          }
-        )
-      }
-      const userName = userResult.user.user_name
       const label = `${APP_NAME}: ${userName}`
 
-      // Step 3b: Generate TOTP Secret
+      // Step 4a: Generate TOTP Secret
       const new_secret = authenticator.generateSecret() // Generates a base32 secret
 
-      // Step 3c: "Simulated" Encryption (as per original logic, consider actual encryption for production)
+      // Step 4b: "Simulated" Encryption (as per original logic, consider actual encryption for production)
       const encrypted_secret = `sim_encrypted::${new_secret}`
 
-      // Step 3d: Store Secret (Unverified) using create2fa
+      // Step 4c: Store Secret (Unverified) using create2fa
       // create2fa will set is_enabled to FALSE by default
       const createResult = await create2fa(
         context,
@@ -102,15 +103,15 @@ export async function onRequestPost(context) {
       }
     }
 
-    // Step 4: The secret is one of the following:
+    // Step 5: The secret is one of the following:
     // twoFactorStatus.secret_value (if not null)
     // or the newly generated secret (new_secret)
     const secret = twoFactorStatus.secret_value || new_secret
 
-    // Step 5: Generate QR Code Data (TOTP Auth URI)
+    // Step 6: Generate QR Code Data (TOTP Auth URI)
     const otpauthUri = authenticator.keyuri(userName, APP_NAME, secret)
 
-    // Step 6: Response - HTML for HTMX
+    // Step 7: Response - HTML for HTMX
     // TODO: [Security] Consider using a more secure method for generating QR codes
     const htmlResponse = `
       <div>
