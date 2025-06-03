@@ -100,7 +100,7 @@ export async function onRequestPost(context) {
     }
 
     // Step 7: Generate QR Code Data (TOTP Auth URI)
-    const otpauthUri = authenticator.keyuri(userEmail, APP_NAME, secret)
+    const otpauthUri = authenticator.keyuri(userName, APP_NAME, secret)
 
     // Step 8: Response - HTML for HTMX
     // TODO: [Security] Consider using a more secure method for generating QR codes
