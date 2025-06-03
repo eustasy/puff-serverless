@@ -58,7 +58,7 @@ export async function verifyTokenAndGetUser(client, token) {
 }
 
 /**
- * Middleware to handle session authentication and Hyperdrive checks.
+ * Function to handle session authentication and Hyperdrive checks.
  * It can optionally require authentication and will manage its own database client.
  *
  * @param {object} context - The Cloudflare Pages context object, containing request, env, and data.

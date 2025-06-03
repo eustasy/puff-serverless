@@ -1,129 +1,171 @@
 import { sessionAuthWithCookie } from "../../../../src/sessions.js"
-import { authenticator } from "otplib" // Using otplib
-const { Client } = require("pg")
+import { authenticator } from "otplib"
+import { has2fa, create2fa } from "../../../../src/2fa.js"
+import { readUser } from "../../../../src/users.js"
 
-const APP_NAME = "YourApp" // Could be a configurable value
+const APP_NAME = "PuffAuth" // Using a more specific app name
 
 export async function onRequestPost(context) {
   // Step 1: Verify the session
-  const sessionVerificationResult = await sessionAuthWithCookie(context)
-  if (sessionVerificationResult instanceof Response) {
-    return sessionVerificationResult // Auth failed or error occurred
+  const sessionResult = await sessionAuthWithCookie(context)
+  if (sessionResult.error) {
+    return new Response(
+      `<p class="result-negative">Error: ${sessionResult.error} Please log in.</p>`,
+      {
+        status: sessionResult.status || 401,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#2fa-message-area",
+        },
+      }
+    )
   }
-  const user_uuid = context.data.user_uuid
-
-  const client = new Client({
-    connectionString: context.env.HYPERDRIVE.connectionString,
-  })
+  const user_uuid = sessionResult
 
   try {
-    await client.connect()
-
     // Step 2: Check Existing 2FA
-    const existing2FAQuery = {
-      text: "SELECT secret_enabled FROM secrets WHERE user_uuid = $1 AND secret_type = \'totp_secret\' AND secret_enabled = TRUE",
-      values: [user_uuid],
-    }
-    const existing2FAResult = await client.query(existing2FAQuery)
+    const twoFactorStatus = await has2fa(context, user_uuid)
 
-    if (existing2FAResult.rowCount > 0) {
+    if (typeof twoFactorStatus === "object" && twoFactorStatus.error) {
+      console.error("Error checking 2FA status:", twoFactorStatus.error)
       return new Response(
-        JSON.stringify({
-          error:
-            "2FA is already enabled. Please remove the existing setup first.",
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        '<p class="result-negative">Error: Could not check 2FA status. Please try again later.</p>',
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#2fa-message-area",
+          },
+        }
       )
     }
 
-    // Fetch user\'s email for the label
-    const emailQuery = {
-      text: "SELECT email_address FROM emails WHERE user_uuid = $1 AND is_primary = TRUE LIMIT 1", // Assuming primary email is marked
-      values: [user_uuid],
+    if (twoFactorStatus === true) {
+      return new Response(
+        '<p class="result-negative">Error: Two-Factor Authentication is already enabled. Please remove the existing setup first if you wish to re-configure it.</p>',
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#2fa-message-area",
+          },
+        }
+      )
     }
-    const emailResult = await client.query(emailQuery)
 
-    let emailRecord
-    if (emailResult.rowCount === 0) {
-      console.error(`No primary email found for user_uuid: ${user_uuid}`)
-      // Attempt to get any email if primary is not found, as a fallback for the label
-      const anyEmailQuery = {
-        text: "SELECT email_address FROM emails WHERE user_uuid = $1 ORDER BY created_at ASC LIMIT 1", // Or some other ordering
-        values: [user_uuid],
-      }
-      const anyEmailResult = await client.query(anyEmailQuery)
-      if (anyEmailResult.rowCount === 0) {
-        return new Response(
-          JSON.stringify({ error: "User email not found, cannot setup 2FA." }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        )
-      }
-      emailRecord = anyEmailResult.rows[0]
-    } else {
-      emailRecord = emailResult.rows[0]
+    // Step 3: Fetch user's username for the label
+    const userResult = await readUser(context, user_uuid)
+    if (userResult.error || !userResult.username) {
+      console.error("Error fetching user username:", userResult.error)
+      return new Response(
+        '<p class="result-negative">Error: Could not retrieve user username to setup 2FA. Please ensure you have a primary email address.</p>',
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#2fa-message-area",
+          },
+        }
+      )
     }
-    const userEmail = emailRecord.email_address
-    const label = `${APP_NAME}:${userEmail}`
+    const userName = userResult.user_name
+    const label = `${APP_NAME}: ${userName}`
 
-    // Step 3: Generate TOTP Secret
+    // Step 4: Generate TOTP Secret
     const secret = authenticator.generateSecret() // Generates a base32 secret
 
-    // Step 4: "Simulated" Encryption
+    // Step 5: "Simulated" Encryption (as per original logic, consider actual encryption for production)
     const encrypted_secret = `sim_encrypted::${secret}`
 
-    // Step 5: Store Secret (Temporarily/Unverified)
-    // Use INSERT ... ON CONFLICT DO UPDATE to handle existing incomplete setups or create a new one.
-    const now = new Date().toISOString()
-    const upsertSecretQuery = {
-      text: `
-        INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_name, secret_enabled, secret_created_at, secret_last_used)
-        VALUES ($1, \'totp_secret\', $2, $3, FALSE, $4, $4)
-        ON CONFLICT (user_uuid, secret_type) 
-        DO UPDATE SET 
-          secret_value = EXCLUDED.secret_value,
-          secret_name = EXCLUDED.secret_name,
-          secret_enabled = FALSE, -- Reset to unverified if re-starting setup
-          secret_created_at = EXCLUDED.secret_created_at, -- Could also choose to not update created_at
-          secret_last_used = EXCLUDED.secret_last_used
-      `,
-      values: [user_uuid, encrypted_secret, label, now],
+    // Step 6: Store Secret (Unverified) using create2fa
+    // create2fa will set is_enabled to FALSE by default
+    const createResult = await create2fa(
+      context,
+      user_uuid,
+      encrypted_secret,
+      label
+    )
+    if (createResult.error) {
+      console.error("Error storing 2FA secret:", createResult.error)
+      return new Response(
+        '<p class="result-negative">Error: Failed to save 2FA setup information. Please try again.</p>',
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#2fa-message-area",
+          },
+        }
+      )
     }
-    await client.query(upsertSecretQuery)
 
-    // Step 6: Generate QR Code Data (TOTP Auth URI)
+    // Step 7: Generate QR Code Data (TOTP Auth URI)
     const otpauthUri = authenticator.keyuri(userEmail, APP_NAME, secret)
 
-    // Step 7: Response
-    return new Response(
-      JSON.stringify({
-        qr_code_uri: otpauthUri,
-        manual_setup_code: secret,
-        message:
-          "Scan the QR code or enter the manual setup code in your authenticator app, then verify.",
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    )
+    // Step 8: Response - HTML for HTMX
+    // TODO: [Security] Consider using a more secure method for generating QR codes
+    const htmlResponse = `
+      <div>
+        <h3>Setup Two-Factor Authentication</h3>
+        <p>Scan the QR code with your authenticator app or enter the setup code manually.</p>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-bottom: 1em;">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauthUri)}" alt="QR Code" style="max-width: 200px; height: auto;"/>
+          <div>
+            <p><strong>Manual Setup Code:</strong></p>
+            <p style="font-family: monospace; background: #f0f0f0; padding: 5px; word-break: break-all;">${secret}</p>
+          </div>
+        </div>
+        
+        <form id="verify-2fa-form"
+              hx-post="/api/2fa/setup/verify"
+              hx-target="#2fa-message-area" 
+              hx-swap="innerHTML">
+          <p>After adding to your authenticator app, enter the 6-digit code it provides to verify and enable 2FA.</p>
+          <div class="form-group">
+            <label for="totp_code_setup">Verification Code:</label>
+            <input type="text" id="totp_code_setup" name="totp_code" pattern="\\\\d{6}" title="Enter a 6-digit code" required maxlength="6" autocomplete="off" />
+          </div>
+          <button type="submit" class="btn-save">
+            Verify and Enable 2FA
+            <img class="htmx-indicator" src="/assets/bars.svg" alt="Loading..."/>
+          </button>
+        </form>
+        <button 
+          hx-get="/api/2fa/status" 
+          hx-target="#2fa-status-container" 
+          hx-swap="innerHTML"
+          class="btn-danger"
+          style="margin-top: 1em;">
+          Cancel Setup
+        </button>
+      </div>
+    `
+
+    return new Response(htmlResponse, {
+      status: 200,
+      headers: { "Content-Type": "text/html" },
+    })
   } catch (error) {
     console.error("Error during 2FA setup start:", error)
     return new Response(
-      JSON.stringify({
-        error: "Failed to start 2FA setup due to a server error.",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      '<p class="result-negative">Error: Failed to start 2FA setup due to an unexpected server error.</p>',
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#2fa-message-area",
+        },
+      }
     )
-  } finally {
-    if (client) {
-      await client.end()
-    }
   }
 }
 
 export async function onRequest(context) {
-  if (context.request.method === "POST") {
-    return await onRequestPost(context)
-  }
-  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-    status: 405,
-    headers: { "Allow": "POST", "Content-Type": "application/json" },
-  })
+  return new Response(
+    '<p class="result-negative">Error: Method Not Allowed. Only POST requests are accepted for this action.</p>',
+    {
+      status: 405,
+      headers: { "Allow": "POST", "Content-Type": "text/html" },
+    }
+  )
 }

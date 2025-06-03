@@ -1,36 +1,39 @@
 import { sessionAuthWithCookie } from "../../../src/sessions.js"
-import { read2fa, delete2fa } from "../../../src/2fa.js" // Import read2fa and delete2fa
+import { read2fa, delete2fa } from "../../../src/2fa.js"
 import { authenticator } from "otplib"
 
 export async function onRequestPost(context) {
-  // Step 1: Session Verification
-  const user_uuid = await sessionAuthWithCookie(context)
-  if (!user_uuid || typeof user_uuid !== "string") {
-    if (user_uuid instanceof Response) return user_uuid
+  // Step 1: Verify the session
+  const sessionResult = await sessionAuthWithCookie(context)
+  if (sessionResult.error) {
     return new Response(
-      "<p>Session invalid or expired. Please log in again.</p>",
+      `<p class="result-negative">Error: ${sessionResult.error} Please log in.</p>`,
       {
-        status: 401,
-        headers: { "Content-Type": "text/html" },
+        status: sessionResult.status || 401,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#2fa-message-area",
+        },
       }
     )
   }
-  // Ensure context.data.user_uuid is available if other parts rely on it
-  if (!context.data) context.data = {}
-  context.data.user_uuid = user_uuid
+  const user_uuid = sessionResult
 
-  // Step 2: Parse JSON body
-  let requestBody
+  // Step 2: Parse form data
+  let formData
   try {
-    requestBody = await context.request.json()
+    formData = await context.request.formData()
   } catch (e) {
-    return new Response("<p>Error: Invalid JSON body.</p>", {
+    return new Response("<p>Error: Invalid form data.</p>", {
       status: 400,
-      headers: { "Content-Type": "text/html" },
+      headers: {
+        "Content-Type": "text/html",
+        "HX-Retarget": "#2fa-message-area",
+      },
     })
   }
 
-  const { totp_code } = requestBody
+  const totp_code = formData.get("totp_code")
 
   // Step 3: Input Validation
   if (
@@ -40,7 +43,13 @@ export async function onRequestPost(context) {
   ) {
     return new Response(
       "<p>Error: TOTP code is missing or invalid. It must be a 6-digit number.</p>",
-      { status: 400, headers: { "Content-Type": "text/html" } }
+      {
+        status: 400,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#2fa-message-area",
+        },
+      }
     )
   }
 
@@ -53,7 +62,13 @@ export async function onRequestPost(context) {
       console.error("Error reading 2FA secret for removal:", secretRecord.error)
       return new Response(
         "<p>Error: Could not retrieve 2FA status due to a server error.</p>",
-        { status: 500, headers: { "Content-Type": "text/html" } }
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#2fa-message-area",
+          },
+        }
       )
     }
 
@@ -61,7 +76,13 @@ export async function onRequestPost(context) {
       // Check is_enabled flag
       return new Response(
         "<p>Error: 2FA is not currently enabled for this account.</p>",
-        { status: 400, headers: { "Content-Type": "text/html" } }
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#2fa-message-area",
+          },
+        }
       )
     }
 
@@ -80,7 +101,13 @@ export async function onRequestPost(context) {
       )
       return new Response(
         "<p>Error: Internal error with 2FA configuration. Secret not found.</p>",
-        { status: 500, headers: { "Content-Type": "text/html" } }
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#2fa-message-area",
+          },
+        }
       )
     }
 
@@ -89,7 +116,10 @@ export async function onRequestPost(context) {
     if (!isValid) {
       return new Response("<p>Error: Invalid TOTP code.</p>", {
         status: 400, // Or 401/403 depending on exact security stance
-        headers: { "Content-Type": "text/html" },
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#2fa-message-area",
+        },
       })
     }
 
@@ -100,48 +130,45 @@ export async function onRequestPost(context) {
     if (deletionResult.error) {
       console.error("Error during 2FA secret deletion:", deletionResult.error)
       return new Response(
-        "<p>Error: Failed to remove 2FA due to a server error during deletion.</p>",
+        "<p>Error: Could not disable 2FA due to a server error.</p>",
         {
-          status: deletionResult.status || 500,
-          headers: { "Content-Type": "text/html" },
+          status: 500,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#2fa-message-area",
+          },
         }
       )
     }
 
-    if (deletionResult.rowCount === 0) {
-      // This case implies the record was already gone, which is fine for a removal operation.
-      console.warn(
-        `Attempted to delete 2FA record for user ${user_uuid}, but no record was found or deleted (rowCount: 0).`
-      )
-    }
-
-    // Step 7: Response
-    // For HTMX, this might redirect to a settings page or update the UI to show 2FA is disabled.
+    // Success
     return new Response(
-      "<p>Two-factor authentication has been removed successfully.</p>",
+      '<p class="result-positive">2FA has been successfully removed from your account.</p>',
       {
         status: 200,
         headers: {
           "Content-Type": "text/html",
-          // Consider HX-Redirect or HX-Trigger if the UI needs to update significantly
-          // "HX-Redirect": "/account/settings"
+          "HX-Retarget": "#2fa-message-area",
+          "HX-Trigger": "2faStatusChanged",
         },
       }
     )
   } catch (error) {
-    // This catch block is for unexpected errors not handled by the helper functions' error returns.
     console.error("Unexpected error during 2FA removal:", error)
     return new Response(
-      "<p>Error: Failed to remove 2FA due to an unexpected server error.</p>",
-      { status: 500, headers: { "Content-Type": "text/html" } }
+      "<p>Error: An unexpected error occurred while removing 2FA.</p>",
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#2fa-message-area",
+        },
+      }
     )
   }
 }
 
 export async function onRequest(context) {
-  if (context.request.method === "POST") {
-    return await onRequestPost(context)
-  }
   // Return HTML for Method Not Allowed
   return new Response(
     "<p>Error: Method Not Allowed. Only POST requests are accepted for this action.</p>",

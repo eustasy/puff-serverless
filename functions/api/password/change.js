@@ -103,10 +103,6 @@ export async function onRequestPost(context) {
     }
 
     // Step 7: Response
-    // For HTMX, a redirect to a profile page or a success message query parameter might be appropriate.
-    // Example: Redirect to /profile with a success message query parameter
-    // Or, return a partial HTML to update a section of the page.
-    // For now, a simple success message.
     return new Response(
       "<p>Password changed successfully.</p>", // Consider an HX-Redirect if applicable
       { status: 200, headers: { "Content-Type": "text/html" } }

@@ -111,7 +111,7 @@ export async function enable2fa(context, user_uuid) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     UPDATE secrets
-    SET is_enabled = TRUE, secret_last_used = NULL -- Reset last_used upon enabling
+    SET is_enabled = TRUE, secret_last_used = NULL
     WHERE user_uuid = $1 AND secret_type = $2
     RETURNING *; 
   `
@@ -175,7 +175,7 @@ export async function disable2fa(context, user_uuid) {
   }
 }
 
-export async function update2faLastUsed(context, user_uuid) {
+export async function used2fa(context, user_uuid) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `
     UPDATE secrets

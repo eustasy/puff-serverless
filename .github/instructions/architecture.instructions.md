@@ -48,3 +48,5 @@ These instructions are to avoid unwanted ai activity:
 - Check all inputs and session security (when required) on the API endpoint.
 - Check for database connectivity only in middleware.
 - Do not check for database connectivity in the API endpoint or in backend code.
+- Authenticate all requests within the API endpoint.
+- Use `sessionAuthWithCookie` for session authentication.

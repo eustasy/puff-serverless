@@ -4,6 +4,43 @@ import { createEmail, existsEmail, readEmail } from "./emails.js"
 import { createPassword, password_verify } from "./passwords.js"
 import { has2fa } from "./2fa.js"
 
+/**
+ * Reads a user from the database.
+ * @param {object} context - The Cloudflare Pages context object.
+ * @param {string} user_uuid - The UUID of the user to read.
+ * @returns {Promise<object|null>} - The user record if found and valid, null otherwise, or an error object.
+ */
+export async function readUser(context, user_uuid) {
+  const client = new Client(context.env.HYPERDRIVE.connectionString)
+  try {
+    await client.connect()
+
+    let queryString =
+      "SELECT user_uuid, user_name, user_active, user_created_at, user_last_login FROM users WHERE user_uuid = $1"
+    const queryParams = [user_uuid]
+
+    const query = {
+      text: queryString,
+      values: queryParams,
+    }
+
+    const result = await client.query(query)
+
+    if (result.rows.length > 0) {
+      return { success: true, user: result.rows[0] }
+    }
+  } catch (error) {
+    console.error("Error in readUser:", error)
+    return {
+      error: true,
+      message: "Server error while reading user.",
+      details: error.message,
+    }
+  } finally {
+    await client.end()
+  }
+}
+
 export async function user_register(context, name, email, password) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
 

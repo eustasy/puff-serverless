@@ -1,0 +1,98 @@
+import { sessionAuthWithCookie } from "../../../src/sessions.js"
+import { has2fa } from "../../../src/2fa.js"
+
+export async function onRequestGet(context) {
+  // Step 1: Verify the session
+  const sessionResult = await sessionAuthWithCookie(context)
+  if (sessionResult.error) {
+    return new Response(
+      '<p class="result-negative">Error: You are not authorized to view this information. Please log in.</p>',
+      {
+        status: sessionResult.status || 401,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#2fa-message-area",
+        },
+      }
+    )
+  }
+  const user_uuid = sessionResult
+
+  // Step 2: Use has2fa to check the 2FA status.
+  // has2fa returns true if 2FA is enabled, false if not, or an error object.
+  const twoFactorStatus = await has2fa(context, user_uuid)
+
+  let is2FAEnabled
+  if (typeof twoFactorStatus === "object" && twoFactorStatus.error) {
+    // Handle error from has2fa (e.g., database issue)
+    console.error("Error checking 2FA status:", twoFactorStatus.error)
+    // Return an HTML error message to the client
+    return new Response(
+      "<p>Error: Could not retrieve 2FA status. Please try again later.</p>",
+      {
+        status: 500, // Internal Server Error
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#2fa-message-area",
+        },
+      }
+    )
+  } else {
+    is2FAEnabled = twoFactorStatus
+  }
+
+  let htmlResponse
+
+  if (is2FAEnabled) {
+    htmlResponse = `
+      <p>Two-Factor Authentication is currently <strong class="result-positive">enabled</strong>.</p>
+      <form hx-post="/api/2fa/remove" hx-target="#2fa-message-area" hx-swap="innerHTML">
+        <div style="margin-bottom: 1em;">
+          <label for="totp_code">Enter your 6-digit authenticator code to remove 2FA:</label>
+          <input 
+            type="text" 
+            id="totp_code" 
+            name="totp_code" 
+            placeholder="123456" 
+            pattern="[0-9]{6}" 
+            maxlength="6" 
+            required
+          />
+        </div>
+        <button
+          type="submit"
+          class="btn-danger"
+          hx-disabled-elt="this"
+          hx-confirm="Are you sure you want to remove Two-Factor Authentication? This will reduce your account security."
+        >
+          Remove 2FA
+          <img class="htmx-indicator" src="/assets/bars.svg" alt="Loading..."/>
+        </button>
+      </form>
+    `
+    // The /api/2fa/remove endpoint should return HX-Trigger: 2faStatusChanged on success
+    // to refresh this #2fa-status-container.
+  } else {
+    htmlResponse = `
+      <p>Two-Factor Authentication is currently <strong class="result-negative">disabled</strong>.</p>
+      <button
+        class="btn-save"
+        hx-post="/api/2fa/setup/start"
+        hx-target="#2fa-status-container"
+        hx-swap="innerHTML"
+        hx-disabled-elt="this"
+      >
+        Setup 2FA
+        <img class="htmx-indicator" src="/assets/bars.svg" alt="Loading..."/>
+      </button>
+    `
+    // The /api/2fa/setup/start endpoint would typically replace the content of
+    // #2fa-status-container with the 2FA setup UI (e.g., QR code, code input).
+    // Upon successful setup, the final step of enabling 2FA should trigger the
+    // '2faStatusChanged' event (e.g. via HX-Trigger header) to refresh this container.
+  }
+
+  return new Response(htmlResponse, {
+    headers: { "Content-Type": "text/html" },
+  })
+}
