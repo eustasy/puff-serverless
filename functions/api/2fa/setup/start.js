@@ -15,7 +15,7 @@ export async function onRequestPost(context) {
         status: sessionResult.status || 401,
         headers: {
           "Content-Type": "text/html",
-          "HX-Retarget": "#2fa-message-area",
+          "HX-Retarget": "#tfa-message-area",
         },
       }
     )
@@ -34,7 +34,7 @@ export async function onRequestPost(context) {
           status: 500,
           headers: {
             "Content-Type": "text/html",
-            "HX-Retarget": "#2fa-message-area",
+            "HX-Retarget": "#tfa-message-area",
           },
         }
       )
@@ -47,7 +47,7 @@ export async function onRequestPost(context) {
           status: 400,
           headers: {
             "Content-Type": "text/html",
-            "HX-Retarget": "#2fa-message-area",
+            "HX-Retarget": "#tfa-message-area",
           },
         }
       )
@@ -63,7 +63,7 @@ export async function onRequestPost(context) {
           status: 500,
           headers: {
             "Content-Type": "text/html",
-            "HX-Retarget": "#2fa-message-area",
+            "HX-Retarget": "#tfa-message-area",
           },
         }
       )
@@ -93,7 +93,7 @@ export async function onRequestPost(context) {
           status: 500,
           headers: {
             "Content-Type": "text/html",
-            "HX-Retarget": "#2fa-message-area",
+            "HX-Retarget": "#tfa-message-area",
           },
         }
       )
@@ -118,7 +118,7 @@ export async function onRequestPost(context) {
         
         <form id="verify-2fa-form"
               hx-post="/api/2fa/setup/verify"
-              hx-target="#2fa-message-area" 
+              hx-target="#tfa-message-area" 
               hx-swap="innerHTML">
           <p>After adding to your authenticator app, enter the 6-digit code it provides to verify and enable 2FA.</p>
           <div class="form-group">
@@ -132,7 +132,7 @@ export async function onRequestPost(context) {
         </form>
         <button 
           hx-get="/api/2fa/status" 
-          hx-target="#2fa-status-container" 
+          hx-target="#tfa-status-container" 
           hx-swap="innerHTML"
           class="btn-danger"
           style="margin-top: 1em;">
@@ -153,7 +153,7 @@ export async function onRequestPost(context) {
         status: 500,
         headers: {
           "Content-Type": "text/html",
-          "HX-Retarget": "#2fa-message-area",
+          "HX-Retarget": "#tfa-message-area",
         },
       }
     )

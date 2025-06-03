@@ -11,7 +11,7 @@ export async function onRequestGet(context) {
         status: sessionResult.status || 401,
         headers: {
           "Content-Type": "text/html",
-          "HX-Retarget": "#2fa-message-area",
+          "HX-Retarget": "#tfa-message-area",
         },
       }
     )
@@ -33,7 +33,7 @@ export async function onRequestGet(context) {
         status: 500, // Internal Server Error
         headers: {
           "Content-Type": "text/html",
-          "HX-Retarget": "#2fa-message-area",
+          "HX-Retarget": "#tfa-message-area",
         },
       }
     )
@@ -46,7 +46,7 @@ export async function onRequestGet(context) {
   if (is2FAEnabled) {
     htmlResponse = `
       <p>Two-Factor Authentication is currently <strong class="result-positive">enabled</strong>.</p>
-      <form hx-post="/api/2fa/remove" hx-target="#2fa-message-area" hx-swap="innerHTML">
+      <form hx-post="/api/2fa/remove" hx-target="#tfa-message-area" hx-swap="innerHTML">
         <div style="margin-bottom: 1em;">
           <label for="totp_code">Enter your 6-digit authenticator code to remove 2FA:</label>
           <input 
@@ -70,15 +70,15 @@ export async function onRequestGet(context) {
         </button>
       </form>
     `
-    // The /api/2fa/remove endpoint should return HX-Trigger: 2faStatusChanged on success
-    // to refresh this #2fa-status-container.
+    // The /api/2fa/remove endpoint should return HX-Trigger: tfaStatusChanged on success
+    // to refresh this #tfa-status-container.
   } else {
     htmlResponse = `
       <p>Two-Factor Authentication is currently <strong class="result-negative">disabled</strong>.</p>
       <button
         class="btn-save"
         hx-post="/api/2fa/setup/start"
-        hx-target="#2fa-status-container"
+        hx-target="#tfa-status-container"
         hx-swap="innerHTML"
         hx-trigger="click"
         hx-disabled-elt="this"
@@ -88,9 +88,9 @@ export async function onRequestGet(context) {
       </button>
     `
     // The /api/2fa/setup/start endpoint would typically replace the content of
-    // #2fa-status-container with the 2FA setup UI (e.g., QR code, code input).
+    // #tfa-status-container with the 2FA setup UI (e.g., QR code, code input).
     // Upon successful setup, the final step of enabling 2FA should trigger the
-    // '2faStatusChanged' event (e.g. via HX-Trigger header) to refresh this container.
+    // 'tfaStatusChanged' event (e.g. via HX-Trigger header) to refresh this container.
   }
 
   return new Response(htmlResponse, {

@@ -12,7 +12,7 @@ export async function onRequestPost(context) {
         status: sessionResult.status || 401,
         headers: {
           "Content-Type": "text/html",
-          "HX-Retarget": "#2fa-message-area",
+          "HX-Retarget": "#tfa-message-area",
         },
       }
     )
@@ -28,7 +28,7 @@ export async function onRequestPost(context) {
       status: 400,
       headers: {
         "Content-Type": "text/html",
-        "HX-Retarget": "#2fa-message-area",
+        "HX-Retarget": "#tfa-message-area",
       },
     })
   }
@@ -47,7 +47,7 @@ export async function onRequestPost(context) {
         status: 400,
         headers: {
           "Content-Type": "text/html",
-          "HX-Retarget": "#2fa-message-area",
+          "HX-Retarget": "#tfa-message-area",
         },
       }
     )
@@ -66,7 +66,7 @@ export async function onRequestPost(context) {
           status: 500,
           headers: {
             "Content-Type": "text/html",
-            "HX-Retarget": "#2fa-message-area",
+            "HX-Retarget": "#tfa-message-area",
           },
         }
       )
@@ -80,7 +80,7 @@ export async function onRequestPost(context) {
           status: 400,
           headers: {
             "Content-Type": "text/html",
-            "HX-Retarget": "#2fa-message-area",
+            "HX-Retarget": "#tfa-message-area",
           },
         }
       )
@@ -105,7 +105,7 @@ export async function onRequestPost(context) {
           status: 500,
           headers: {
             "Content-Type": "text/html",
-            "HX-Retarget": "#2fa-message-area",
+            "HX-Retarget": "#tfa-message-area",
           },
         }
       )
@@ -118,7 +118,7 @@ export async function onRequestPost(context) {
         status: 400, // Or 401/403 depending on exact security stance
         headers: {
           "Content-Type": "text/html",
-          "HX-Retarget": "#2fa-message-area",
+          "HX-Retarget": "#tfa-message-area",
         },
       })
     }
@@ -135,7 +135,7 @@ export async function onRequestPost(context) {
           status: 500,
           headers: {
             "Content-Type": "text/html",
-            "HX-Retarget": "#2fa-message-area",
+            "HX-Retarget": "#tfa-message-area",
           },
         }
       )
@@ -148,8 +148,8 @@ export async function onRequestPost(context) {
         status: 200,
         headers: {
           "Content-Type": "text/html",
-          "HX-Retarget": "#2fa-message-area",
-          "HX-Trigger": "2faStatusChanged",
+          "HX-Retarget": "#tfa-message-area",
+          "HX-Trigger": "tfaStatusChanged",
         },
       }
     )
@@ -161,7 +161,7 @@ export async function onRequestPost(context) {
         status: 500,
         headers: {
           "Content-Type": "text/html",
-          "HX-Retarget": "#2fa-message-area",
+          "HX-Retarget": "#tfa-message-area",
         },
       }
     )

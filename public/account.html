@@ -184,22 +184,22 @@
           </div>
         </form>
 
-        <div id="2fa-controls" class="grid-container grid-header">
+        <div id="tfa-controls" class="grid-container grid-header">
           <div class="grid-item">
             <h2>Two-Factor Authentication (2FA)</h2>
           </div>
         </div>
         <!-- Server messages regarding 2FA operations will appear here -->
         <div
-          id="2fa-message-area"
+          id="tfa-message-area"
           class="result-area"
           style="margin-bottom: 1em"
         ></div>
 
         <div
-          id="2fa-status-container"
+          id="tfa-status-container"
           hx-get="/api/2fa/status"
-          hx-trigger="load, 2faStatusChanged from:body"
+          hx-trigger="load, tfaStatusChanged from:body"
           hx-swap="innerHTML"
         >
           <p>Loading 2FA status...</p>
