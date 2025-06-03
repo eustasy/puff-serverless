@@ -123,7 +123,7 @@ export async function onRequestPost(context) {
           <p>After adding to your authenticator app, enter the 6-digit code it provides to verify and enable 2FA.</p>
           <div class="form-group">
             <label for="totp_code_setup">Verification Code:</label>
-            <input type="text" id="totp_code_setup" name="totp_code" pattern="\d{6}" title="Enter a 6-digit code" required maxlength="6" autocomplete="off" />
+            <input type="text" id="totp_code_setup" name="totp_code" title="Enter a 6-digit code" required maxlength="6" autocomplete="one-time-code" />
           </div>
           <button type="submit" class="btn-save">
             Verify and Enable 2FA
