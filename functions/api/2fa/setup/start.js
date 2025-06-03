@@ -55,10 +55,10 @@ export async function onRequestPost(context) {
 
     // Step 3: Fetch user's username for the label
     const userResult = await readUser(context, user_uuid)
-    if (userResult.error || !userResult.user_name) {
+    if (userResult.error || !userResult.user.user_name) {
       console.error("Error fetching user username:", userResult.error)
       return new Response(
-        '<p class="result-negative">Error: Could not retrieve user username to setup 2FA. Please ensure you have a primary email address.</p>',
+        '<p class="result-negative">Error: Could not retrieve user name to setup 2FA.</p>',
         {
           status: 500,
           headers: {
@@ -68,7 +68,7 @@ export async function onRequestPost(context) {
         }
       )
     }
-    const userName = userResult.user_name
+    const userName = userResult.user.user_name
     const label = `${APP_NAME}: ${userName}`
 
     // Step 4: Generate TOTP Secret
