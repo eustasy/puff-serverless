@@ -218,7 +218,6 @@ export async function onRequestPost(context) {
         "SameSite=Lax",
       ]
 
-      // Clear the totp_verification_token cookie
       const clearTotpTokenCookieOptions = [
         "totp_verification_token=;",
         "Path=/",
@@ -228,16 +227,19 @@ export async function onRequestPost(context) {
         "SameSite=Lax",
       ]
 
+      // Set cookies and redirect to account page
+      // Note: Multiple Set-Cookie headers can be set in the response only when using the Headers object
+      const headers = new Headers()
+      headers.set("Content-Type", "text/html")
+      headers.append("Set-Cookie", sessionCookieOptions.join("; "))
+      headers.append("Set-Cookie", clearTotpTokenCookieOptions.join("; "))
+      headers.set("HX-Redirect", "/account")
+
       return new Response(
         '<p class="result-positive">Login successful! Redirecting...</p>',
         {
           status: 200, // OK
-          headers: {
-            "Content-Type": "text/html",
-            "Set-Cookie": sessionCookieOptions.join("; "),
-            "Set-Cookie": clearTotpTokenCookieOptions.join("; "),
-            "HX-Redirect": "/account",
-          },
+          headers,
         }
       )
     } else {
