@@ -46,18 +46,18 @@ export async function onRequestPost(context) {
 
       const totpTokenCookieOptions = [
         `totp_verification_token=${tokenResult.token_value};`,
-        "Path=/;",
+        "Path=/",
         "HttpOnly",
         "Secure",
-        `Max-Age=${15 * 60}`,
+        `Expires=${new Date(tokenResult.expires_at).toUTCString()}`,
         "SameSite=Lax",
       ]
       // Redirect to a TOTP verification page
       return new Response(null, {
-        status: 303, // See Other
+        status: 303,
         headers: {
-          "Set-Cookie": totpTokenCookieOptions.join(" "), // Ensure space separation
-          "HX-Redirect": "/2fa", // This page will handle the form submission to verify_login.js
+          "Set-Cookie": totpTokenCookieOptions.join("; "),
+          "HX-Redirect": "/2fa",
         },
       })
     }

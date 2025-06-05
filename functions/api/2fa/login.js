@@ -214,7 +214,7 @@ export async function onRequestPost(context) {
         "Path=/",
         "HttpOnly",
         "Secure",
-        `Expires=${new Date(expires_at).toUTCString()}`, // Use Expires for session cookies
+        `Expires=${new Date(expires_at).toUTCString()}`,
         "SameSite=Lax",
       ]
 
@@ -224,7 +224,7 @@ export async function onRequestPost(context) {
         "Path=/",
         "HttpOnly",
         "Secure",
-        "Max-Age=0", // Expire immediately
+        "Max-Age=0",
         "SameSite=Lax",
       ]
 
@@ -234,8 +234,8 @@ export async function onRequestPost(context) {
           status: 200, // OK
           headers: {
             "Content-Type": "text/html",
-            "Set-Cookie": sessionCookieOptions.join(" "),
-            "Set-Cookie": clearTotpTokenCookieOptions.join(" "),
+            "Set-Cookie": sessionCookieOptions.join("; "),
+            "Set-Cookie": clearTotpTokenCookieOptions.join("; "),
             "HX-Redirect": "/account",
           },
         }
