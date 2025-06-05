@@ -207,12 +207,10 @@ export async function onRequestPost(context) {
 
     if (sessionResult.session_id) {
       const session_id = sessionResult.session_id
-      const expires_at = new Date(
-        Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days from now
-      ).toISOString()
+      const expires_at = sessionResult.expires_at
 
       const sessionCookieOptions = [
-        `session_id=${session_id};`,
+        `session_token=${session_id};`,
         "Path=/",
         "HttpOnly",
         "Secure",
