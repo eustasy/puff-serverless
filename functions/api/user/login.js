@@ -1,4 +1,5 @@
 import { user_login } from "../../../src/users.js"
+import { createLoginToken } from "../../../src/tokens.js" // Add this import
 
 export async function onRequestPost(context) {
   try {
@@ -29,21 +30,34 @@ export async function onRequestPost(context) {
     }
 
     if (loginResult.totp_required) {
-      // Store user_uuid in a short-lived cookie for the TOTP step
-      const totpCookieOptions = [
-        `totp_user_uuid=${loginResult.user_uuid};`,
-        "Path=/",
+      // Create a short-lived token for the TOTP step
+      const tokenResult = await createLoginToken(context, loginResult.user_uuid)
+
+      if (tokenResult.error) {
+        console.error("Error creating TOTP token:", tokenResult.message)
+        return new Response(
+          '<p class="result-negative">Error initiating 2FA. Please try again.</p>',
+          {
+            status: 500,
+            headers: { "Content-Type": "text/html" },
+          }
+        )
+      }
+
+      const totpTokenCookieOptions = [
+        `totp_verification_token=${tokenResult.token_value};`,
+        "Path=/;",
         "HttpOnly",
         "Secure",
-        `Max-Age=${5 * 60}`,
+        `Max-Age=${15 * 60}`,
         "SameSite=Lax",
       ]
-      // Redirect to a TOTP verification page or return HTML to swap in a TOTP form
+      // Redirect to a TOTP verification page
       return new Response(null, {
-        status: 303,
+        status: 303, // See Other
         headers: {
-          "Set-Cookie": totpCookieOptions.join("; "),
-          "HX-Redirect": "/2fa",
+          "Set-Cookie": totpTokenCookieOptions.join(" "), // Ensure space separation
+          "HX-Redirect": "/2fa", // This page will handle the form submission to verify_login.js
         },
       })
     }

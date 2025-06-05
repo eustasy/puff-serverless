@@ -1,8 +1,8 @@
 import {
   sessionAuthWithCookie,
   terminateAllOtherSessions,
-  getCookie,
 } from "../../../../src/sessions.js"
+import { getCookie } from "../../../../src/utilities.js"
 
 export async function onRequestPost(context) {
   // Step 1: Session Verification

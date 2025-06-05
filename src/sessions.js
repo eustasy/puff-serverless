@@ -1,26 +1,7 @@
 import { randomBytes } from "node:crypto"
+import { getCookie } from "./utilities.js"
 
 const { Client } = require("pg")
-
-/**
- * Parses a cookie string and returns the value of a specific cookie.
- * @param {string | null} cookieString - The full cookie string from the request headers.
- * @param {string} cookieName - The name of the cookie to find.
- * @returns {string | null} The value of the cookie, or null if not found.
- */
-export async function getCookie(cookieString, cookieName) {
-  if (!cookieString) {
-    return null
-  }
-  const cookies = cookieString.split(";")
-  for (let cookie of cookies) {
-    const [name, value] = cookie.trim().split("=")
-    if (name === cookieName) {
-      return decodeURIComponent(value)
-    }
-  }
-  return null
-}
 
 /**
  * Verifies a session token against the database.

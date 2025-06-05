@@ -1,4 +1,5 @@
-import { getCookie, deleteSession } from "../../../src/sessions.js"
+import { deleteSession } from "../../../src/sessions.js"
+import { getCookie } from "../../../src/utilities.js"
 
 export async function onRequestPost(context) {
   const cookieHeader = context.request.headers.get("Cookie")

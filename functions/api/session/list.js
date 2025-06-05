@@ -1,9 +1,8 @@
 import {
   sessionAuthWithCookie,
   listActiveSessionsForUser,
-  getCookie,
 } from "../../../src/sessions.js"
-import { parseUserAgent } from "../../../src/utilities.js"
+import { getCookie, parseUserAgent } from "../../../src/utilities.js"
 
 export async function onRequestGet(context) {
   const sessionVerificationResult = await sessionAuthWithCookie(context)

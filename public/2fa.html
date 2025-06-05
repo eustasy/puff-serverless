@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="htmx-config"
+      content='{"responseHandling": [
+      {"code":"200", "swap": true},
+      {"code":"400", "swap": true},
+      {"code":"401", "swap": true},
+      {"code":"403", "swap": true},
+      {"code":"404", "swap": true},
+      {"code":"405", "swap": true},
+      {"code":"500", "swap": true}
+    ]
+    }'
+    />
+    <title>Login - 2 Factor Authentication</title>
+    <script src="/assets/htmx_2.0.4.min.js"></script>
+    <link rel="stylesheet" href="/assets/main.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Login</h1>
+      <div id="message-area" class="result-area"></div>
+      <form
+        hx-validate="true"
+        hx-post="/api/2fa/login"
+        hx-target="#login-result"
+        hx-include="[name='otp']"
+        hx-disabled-elt=".btn-safe"
+      >
+        <div class="form-group">
+          <label for="otp">One-Time Password (OTP):</label>
+          <input
+            type="text"
+            id="otp"
+            name="otp"
+            title="Enter a 6-digit code"
+            required
+            maxlength="6"
+            pattern="[0-9]{6}"
+            autocomplete="one-time-code"
+          />
+        </div>
+        <button type="submit" class="btn-safe">
+          Login
+          <img class="htmx-indicator" src="/assets/bars.svg" />
+        </button>
+      </form>
+      <div id="login-result" class="result-area"></div>
+      <p class="centered-link">
+        Don't have an account? <a href="/register">Register</a>
+      </p>
+      <!-- TODO instead of password reset add a flow to bypass 2FA with email -->
+      <p class="centered-link-secondary">
+        Go to <a href="/logout">Logout</a> Page
+      </p>
+    </div>
+  </body>
+</html>

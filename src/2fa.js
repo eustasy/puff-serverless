@@ -138,7 +138,6 @@ export async function enable2fa(context, user_uuid) {
   }
 }
 
-// disable2fa is not directly used by the remove flow but good to update for consistency
 export async function disable2fa(context, user_uuid) {
   const client = new Client(context.env.HYPERDRIVE.connectionString)
   const query = `

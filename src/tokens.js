@@ -212,3 +212,49 @@ export async function createPasswordToken(context, user_uuid, email_address) {
     }
   }
 }
+
+/**
+ * Creates a new login token in the database.
+ * @param {object} context - The Cloudflare Pages context object.
+ * @param {string} user_uuid - The UUID of the user.
+ * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
+ */
+export async function createLoginToken(context, user_uuid) {
+  try {
+    const token_type = "totp_verification_pending"
+    const expires_at = new Date(Date.now() + 24 * 60 * 15).toISOString()
+
+    // Call createToken to insert the email token
+    return await createToken(context, user_uuid, token_type, expires_at)
+  } catch (error) {
+    console.error("Error in createLoginToken:", error)
+    return {
+      error: true,
+      message: "Server error while creating login token.",
+      details: error.message,
+    }
+  }
+}
+
+/**
+ * Creates a new sudo token in the database.
+ * @param {object} context - The Cloudflare Pages context object.
+ * @param {string} user_uuid - The UUID of the user.
+ * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
+ */
+export async function createSudoToken(context, user_uuid) {
+  try {
+    const token_type = "sudo_elevation"
+    const expires_at = new Date(Date.now() + 24 * 60 * 15).toISOString()
+
+    // Call createToken to insert the email token
+    return await createToken(context, user_uuid, token_type, expires_at)
+  } catch (error) {
+    console.error("Error in createSudoToken:", error)
+    return {
+      error: true,
+      message: "Server error while creating sudo token.",
+      details: error.message,
+    }
+  }
+}
