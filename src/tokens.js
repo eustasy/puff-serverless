@@ -222,7 +222,7 @@ export async function createPasswordToken(context, user_uuid, email_address) {
 export async function createLoginToken(context, user_uuid) {
   try {
     const token_type = "totp_verification_pending"
-    const expires_at = new Date(Date.now() + 24 * 60 * 15).toISOString()
+    const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString()
 
     // Call createToken to insert the email token
     return await createToken(context, user_uuid, token_type, expires_at)
@@ -245,7 +245,7 @@ export async function createLoginToken(context, user_uuid) {
 export async function createSudoToken(context, user_uuid) {
   try {
     const token_type = "sudo_elevation"
-    const expires_at = new Date(Date.now() + 24 * 60 * 15).toISOString()
+    const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString()
 
     // Call createToken to insert the email token
     return await createToken(context, user_uuid, token_type, expires_at)

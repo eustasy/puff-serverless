@@ -116,7 +116,7 @@ export async function createSession(client, user_uuid, user_agent, ip_address) {
   }
   try {
     const session_id = randomBytes(32).toString("hex")
-    const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000) // Session expires in 24 hours
+    const expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
     // Base query and parameters
     let query = "INSERT INTO sessions (user_uuid, session_id, expires_at"
