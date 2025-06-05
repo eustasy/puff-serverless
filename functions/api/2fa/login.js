@@ -234,11 +234,9 @@ export async function onRequestPost(context) {
           status: 200, // OK
           headers: {
             "Content-Type": "text/html",
-            "Set-Cookie": [
-              sessionCookieOptions.join(" "),
-              clearTotpTokenCookieOptions.join(" "),
-            ].join(", "), // Join multiple Set-Cookie headers correctly
-            "HX-Redirect": "/account", // Redirect to account page or dashboard
+            "Set-Cookie": sessionCookieOptions.join(" "),
+            "Set-Cookie": clearTotpTokenCookieOptions.join(" "),
+            "HX-Redirect": "/account",
           },
         }
       )
