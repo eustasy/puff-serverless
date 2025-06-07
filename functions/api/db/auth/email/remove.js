@@ -4,7 +4,6 @@ export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
   const user_uuid = context.data.user_uuid
   try {
-
     const formData = await context.request.formData()
     const email_address_to_remove = formData.get("email_address")
 

@@ -62,12 +62,18 @@ async function sessionAuthWithCookie(context) {
       return next() // Authentication successful, proceed
     } else {
       // Handle specific errors from verifyTokenAndGetUser or a generic invalid token message
-      const errorMessage = authResult && authResult.error ? authResult.error : "Invalid session token."
-      const errorStatus = authResult && authResult.status ? authResult.status : 401
-      
+      const errorMessage =
+        authResult && authResult.error
+          ? authResult.error
+          : "Invalid session token."
+      const errorStatus =
+        authResult && authResult.status ? authResult.status : 401
+
       // Consider logging the actual authResult.error if it's different from the message shown to user
       if (authResult && authResult.error && authResult.error !== errorMessage) {
-        console.warn(`sessionAuthWithCookie: Authentication failed. Internal error: ${authResult.error}, Status: ${authResult.status}`);
+        console.warn(
+          `sessionAuthWithCookie: Authentication failed. Internal error: ${authResult.error}, Status: ${authResult.status}`
+        )
       }
 
       return new Response(
@@ -81,7 +87,10 @@ async function sessionAuthWithCookie(context) {
       )
     }
   } catch (error) {
-    console.error("sessionAuthWithCookie: Error during session authentication:", error)
+    console.error(
+      "sessionAuthWithCookie: Error during session authentication:",
+      error
+    )
     return new Response(
       `<h1 class="result-negative">Server Error</h1>
       <p>An unexpected error occurred during authentication. Please try again later.</p>`,

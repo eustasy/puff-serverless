@@ -1,5 +1,8 @@
 import { listSessionsForUser } from "../../../../../src/sessions.js"
-import { getCookie, parseUserAgent } from "../../../../../src/utilities/headers.js"
+import {
+  getCookie,
+  parseUserAgent,
+} from "../../../../../src/utilities/headers.js"
 
 export async function onRequestGet(context) {
   const dbClient = context.data.dbClient
