@@ -1,23 +1,8 @@
-import { sessionAuthWithCookie } from "../../../src/sessions.js"
-import { has2fa } from "../../../src/2fa.js"
+import { has2fa } from "../../../../../src/2fa.js"
 
 export async function onRequestGet(context) {
   const dbClient = context.data.dbClient
-  // Step 1: Verify the session
-  const sessionResult = await sessionAuthWithCookie(dbClient, context.request)
-  if (sessionResult.error) {
-    return new Response(
-      '<p class="result-negative">Error: You are not authorized to view this information. Please log in.</p>',
-      {
-        status: sessionResult.status || 401,
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Retarget": "#tfa-message-area",
-        },
-      }
-    )
-  }
-  const user_uuid = sessionResult.user_uuid
+  const user_uuid = context.data.user_uuid
 
   // Step 2: Use has2fa to check the 2FA status.
   const twoFactorStatus = await has2fa(dbClient, user_uuid)

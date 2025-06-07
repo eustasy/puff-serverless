@@ -1,27 +1,12 @@
-import { sessionAuthWithCookie } from "../../../../src/sessions.js"
 import { authenticator } from "otplib"
-import { read2fa, create2fa } from "../../../../src/2fa.js"
-import { readUser } from "../../../../src/users.js"
+import { read2fa, create2fa } from "../../../../../../src/2fa.js"
+import { readUser } from "../../../../../../src/users.js"
 
 const APP_NAME = "PuffAuth" // TODO Configure this in a settings file or environment variable
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
-  // Step 1: Verify the session
-  const sessionResult = await sessionAuthWithCookie(dbClient, context.request)
-  if (sessionResult.error) {
-    return new Response(
-      `<p class="result-negative">Error: ${sessionResult.error} Please log in.</p>`,
-      {
-        status: sessionResult.status || 401,
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Retarget": "#tfa-message-area",
-        },
-      }
-    )
-  }
-  const user_uuid = sessionResult.user_uuid
+  const user_uuid = context.data.user_uuid
 
   try {
     // Step 2: Check Existing 2FA

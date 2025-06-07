@@ -1,4 +1,4 @@
-import { user_exists } from "../../../src/users.js"
+import { user_exists } from "../../../../src/users.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient

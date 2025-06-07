@@ -1,22 +1,11 @@
-import { sessionAuthWithCookie } from "../../../src/sessions.js"
-import { createEmailToken, readToken } from "../../../src/tokens.js"
-import { readEmail } from "../../../src/emails.js"
+import { createEmailToken, readToken } from "../../../../src/tokens.js" // TODO use readToken to check if a token already exists
+import { readEmail } from "../../../../src/emails.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
-  try {
-    const sessionResult = await sessionAuthWithCookie(dbClient, context.request)
-    if (sessionResult.error) {
-      return new Response(
-        `<p class="result-negative">${sessionResult.error}</p>`,
-        {
-          status: sessionResult.status || 401,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
-    }
-    const user_uuid = sessionResult.user_uuid
+  const user_uuid = context.data.user_uuid
 
+  try {
     const formData = await context.request.formData()
     const email_address = formData.get("email_address")
 

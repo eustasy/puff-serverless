@@ -1,28 +1,20 @@
-import { sessionAuthWithCookie } from "../../../src/sessions.js"
-import { deleteEmail } from "../../../src/emails.js"
+import { setPrimaryEmail } from "../../../../../src/emails.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
+  const user_uuid = context.data.user_uuid
   try {
-    const sessionResult = await sessionAuthWithCookie(dbClient, context.request)
-    if (sessionResult.error) {
-      return new Response(`<p class=\"error\">${sessionResult.error}</p>`, {
-        status: sessionResult.status || 401,
-        headers: { "Content-Type": "text/html" },
-      })
-    }
-    const user_uuid = sessionResult.user_uuid
 
     const formData = await context.request.formData()
-    const email_address_to_remove = formData.get("email_address")
+    const new_primary_email_address = formData.get("email_address")
 
     if (
-      !email_address_to_remove ||
-      typeof email_address_to_remove !== "string" ||
-      !email_address_to_remove.includes("@")
+      !new_primary_email_address ||
+      typeof new_primary_email_address !== "string" ||
+      !new_primary_email_address.includes("@")
     ) {
       return new Response(
-        `<p class="result-negative">Email address is missing or invalid. You submitted "${email_address_to_remove}".</p>`,
+        `<p class="result-negative">New primary email address is missing or invalid. You submitted "${new_primary_email_address}".</p>`,
         {
           status: 400,
           headers: { "Content-Type": "text/html" },
@@ -30,10 +22,10 @@ export async function onRequestPost(context) {
       )
     }
 
-    const result = await deleteEmail(
+    const result = await setPrimaryEmail(
       dbClient,
       user_uuid,
-      email_address_to_remove
+      new_primary_email_address
     )
 
     if (result.error) {
@@ -43,6 +35,7 @@ export async function onRequestPost(context) {
       })
     }
 
+    // On success, return a success message and trigger an event for HTMX to refresh the list
     return new Response(`<p class=\"success\">${result.message}</p>`, {
       status: result.status || 200,
       headers: {
@@ -51,8 +44,8 @@ export async function onRequestPost(context) {
       },
     })
   } catch (error) {
-    console.error("Error in remove email endpoint:", error)
-    let errorMessage = "Failed to remove email due to a server error."
+    console.error("Error in set primary email endpoint:", error)
+    let errorMessage = "Failed to change primary email due to a server error."
     if (error instanceof TypeError && error.message.includes("formData")) {
       errorMessage = "Invalid request format. Expected form data."
     }

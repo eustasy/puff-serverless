@@ -37,40 +37,6 @@ export async function verifyTokenAndGetUser(dbClient, token) {
 }
 
 /**
- * Authenticates a user based on a session token from cookies.
- *
- * @param {Client} dbClient - An active pg.Client instance (expected to be connected).
- * @param {object} request - The Cloudflare Pages request object to access headers (for cookies).
- * @returns {Promise<{user_uuid?: string, error?: string, status?: number}>}
- *          An object containing user_uuid if authentication is successful,
- *          or an error message and status code if authentication fails or an error occurs.
- */
-export async function sessionAuthWithCookie(dbClient, request) {
-  // 1. Cookie parsing to get the session token
-  const cookieHeader = request.headers.get("Cookie")
-  const sessionToken = await getCookie(cookieHeader, "session_token")
-
-  // 2. Check the session token is valid
-  if (sessionToken) {
-    // dbClient is now passed in and expected to be connected
-    // No try/catch here for dbClient.connect() or dbClient.end() as it's managed by middleware
-    const authResult = await verifyTokenAndGetUser(dbClient, sessionToken)
-
-    if (authResult && authResult.user_uuid) {
-      return { user_uuid: authResult.user_uuid, status: 200 } // Return user_uuid and status
-    } else if (authResult && authResult.error) {
-      return authResult // Propagate error object from verifyTokenAndGetUser
-    } else {
-      // Token was present, but verifyTokenAndGetUser didn't return user_uuid or a recognized error.
-      return { error: "Invalid session token.", status: 401 }
-    }
-  } else {
-    // No session token found in cookies.
-    return { error: "No session token provided.", status: 401 }
-  }
-}
-
-/**
  * Starts a new session by inserting it into the database.
  * The session ID is generated internally and expires in 24 hours.
  *

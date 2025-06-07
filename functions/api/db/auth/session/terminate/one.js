@@ -1,23 +1,8 @@
-import {
-  sessionAuthWithCookie,
-  terminateSpecificSession,
-} from "../../../../src/sessions.js"
+import { terminateSpecificSession } from "../../../../../../src/sessions.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
-
-  // Step 1: Session Verification
-  const user_uuid = await sessionAuthWithCookie(dbClient, context.request)
-  if (!user_uuid || typeof user_uuid !== "string") {
-    if (user_uuid instanceof Response) return user_uuid
-    return new Response(
-      '<p class="result-negative">Session invalid or expired. Please log in again.</p>',
-      {
-        status: 401,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
-  }
+  const user_uuid = context.data.user_uuid
 
   // Step 2: Get session_id_to_terminate from URL query parameter
   const url = new URL(context.request.url)

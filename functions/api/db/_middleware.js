@@ -76,7 +76,5 @@ async function databaseConnectionMiddleware(context) {
   }
 }
 
-// Define the middleware chain.
-// This will apply the databaseConnectionMiddleware to all requests under /api.
-// You can add other middleware functions to this array if needed in the future.
+// This will apply the databaseConnectionMiddleware to all requests under /api/db.
 const onRequest = [databaseConnectionMiddleware]

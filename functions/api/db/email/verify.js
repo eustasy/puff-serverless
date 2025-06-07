@@ -1,4 +1,4 @@
-import { verifyEmailByToken } from "../../../src/emails.js"
+import { verifyEmailByToken } from "../../../../src/emails.js"
 
 export async function onRequestGet(context) {
   const dbClient = context.data.dbClient

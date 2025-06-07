@@ -1,21 +1,10 @@
-import { readEmails } from "../../../src/emails"
-import { sessionAuthWithCookie } from "../../../src/sessions.js"
+import { readEmails } from "../../../../../src/emails.js"
 
 export async function onRequestGet(context) {
   const dbClient = context.data.dbClient
-  try {
-    const sessionResult = await sessionAuthWithCookie(dbClient, context.request)
-    if (sessionResult.error) {
-      return new Response(
-        `<p class="result-negative">${sessionResult.error}</p>`,
-        {
-          status: sessionResult.status || 401,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
-    }
-    const user_uuid = sessionResult.user_uuid
+  const user_uuid = context.data.user_uuid
 
+  try {
     const emails = await readEmails(dbClient, user_uuid)
     if (emails.error) {
       // Check for error from readEmails

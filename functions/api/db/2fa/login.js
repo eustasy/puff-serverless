@@ -1,8 +1,8 @@
 import { authenticator } from "otplib"
-import { readToken, usedToken } from "../../../src/tokens.js"
-import { getCookie } from "../../../src/utilities.js"
-import { read2fa, used2fa } from "../../../src/2fa.js"
-import { createSession } from "../../../src/sessions.js"
+import { readToken, usedToken } from "../../../../src/tokens.js"
+import { getCookie } from "../../../../src/utilities/headers.js"
+import { read2fa, used2fa } from "../../../../src/2fa.js"
+import { createSession } from "../../../../src/sessions.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient

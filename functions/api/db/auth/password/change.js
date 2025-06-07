@@ -1,26 +1,13 @@
-import { sessionAuthWithCookie } from "../../../src/sessions.js"
 import {
   password_requirements,
   password_requirements_html,
   password_verify,
   updatePassword,
-} from "../../../src/passwords.js"
+} from "../../../../../src/passwords.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
-
-  // Step 1: Session Verification
-  const user_uuid = await sessionAuthWithCookie(dbClient, context.request)
-  if (!user_uuid || typeof user_uuid !== "string") {
-    if (user_uuid instanceof Response) return user_uuid
-    return new Response(
-      "<p>Session invalid or expired. Please log in again.</p>",
-      {
-        status: 401,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
-  }
+  const user_uuid = context.data.user_uuid
 
   // Step 2: Parse Form Data
   let current_password, new_password
@@ -102,8 +89,7 @@ export async function onRequestPost(context) {
       { status: 200, headers: { "Content-Type": "text/html" } }
     )
   } catch (error) {
-    // This catch block will now primarily catch errors from password_verify or updatePassword if they throw,
-    // or issues with sessionAuthWithCookie if it throws instead of returning a Response.
+    // This catch block will now primarily catch errors from password_verify or updatePassword if they throw.
     console.error("Error during password change:", error)
     return new Response(
       "<p>Error: Failed to change password due to a server error.</p>",

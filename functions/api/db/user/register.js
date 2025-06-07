@@ -1,4 +1,4 @@
-import { user_register } from "../../../src/users.js"
+import { user_register } from "../../../../src/users.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient

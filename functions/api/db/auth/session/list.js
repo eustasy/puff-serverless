@@ -1,43 +1,15 @@
-import {
-  sessionAuthWithCookie,
-  listActiveSessionsForUser,
-} from "../../../src/sessions.js"
-import { getCookie, parseUserAgent } from "../../../src/utilities.js"
+import { listSessionsForUser } from "../../../../../src/sessions.js"
+import { getCookie, parseUserAgent } from "../../../../../src/utilities/headers.js"
 
 export async function onRequestGet(context) {
   const dbClient = context.data.dbClient
-
-  const sessionVerificationResult = await sessionAuthWithCookie(
-    dbClient,
-    context.request
-  )
-  if (sessionVerificationResult && sessionVerificationResult.error) {
-    if (sessionVerificationResult instanceof Response)
-      return sessionVerificationResult
-    return new Response(
-      `<p class=\"error\">${sessionVerificationResult.message || "Session validation failed."}</p>`,
-      {
-        status: sessionVerificationResult.status || 401,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
-  }
   const user_uuid = context.data.user_uuid
-  if (!user_uuid) {
-    return new Response(
-      '<p class="result-negative">Unauthorized. No user UUID found after session auth.</p>',
-      {
-        status: 401,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
-  }
 
   const cookieHeader = context.request.headers.get("Cookie")
   const currentSessionToken = await getCookie(cookieHeader, "session_token")
 
   try {
-    const result = await listActiveSessionsForUser(dbClient, user_uuid)
+    const result = await listSessionsForUser(dbClient, user_uuid)
 
     if (result.error) {
       return new Response(`<p class=\"error\">${result.error}</p>`, {

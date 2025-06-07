@@ -1,32 +1,11 @@
-import {
-  sessionAuthWithCookie,
-  terminateAllOtherSessions,
-} from "../../../../src/sessions.js"
-import { getCookie } from "../../../../src/utilities.js"
+import { terminateAllOtherSessions } from "../../../../../../src/sessions.js"
+import { getCookie } from "../../../../../../src/utilities/headers.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
-
-  // Step 1: Session Verification
-  const user_uuid = await sessionAuthWithCookie(dbClient, context.request)
-  if (!user_uuid || typeof user_uuid !== "string") {
-    // sessionAuthWithCookie now returns user_uuid directly or null/error object
-    // If sessionAuthWithCookie returned an error object, it might be a Response already
-    if (user_uuid instanceof Response) return user_uuid
-    // Handle cases where user_uuid is not returned or is not a string (e.g. error object from verifyTokenAndGetUser)
-    // For simplicity, returning a generic unauthorized response. Adjust as needed based on sessionAuthWithCookie's error structure.
-    return new Response(
-      "<p>Session invalid or expired. Please log in again.</p>",
-      {
-        status: 401,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
-  }
+  const user_uuid = context.data.user_uuid
 
   // Step 2: Identify Current Session Token from Cookie
-  // It's more robust to get the current session token directly from the cookie
-  // that sessionAuthWithCookie would have used for verification.
   const cookieHeader = context.request.headers.get("Cookie")
   const currentSessionToken = await getCookie(cookieHeader, "session_token")
 
