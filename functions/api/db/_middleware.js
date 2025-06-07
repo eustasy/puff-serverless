@@ -39,6 +39,9 @@ async function databaseConnectionMiddleware(context) {
     await client.connect()
     // 3. Attach the connected client to context.data
     context.data.dbClient = client
+    console.log(
+      `Middleware: Database client connected successfully. Client instance attached to context.data.dbClient: ${context.data.dbClient}`
+    )
 
     // Proceed to the next function in the chain (API route handler)
     const response = await context.next()
