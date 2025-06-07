@@ -1,6 +1,57 @@
 # Architecture
 
+## Table of Contents
+
+
+
 ## Deployment
+
+### First time project setup
+
+#### Node & NPM
+
+Use the latest Node version. We recommend you [Install NVM](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating) if you are not already using Node.
+
+```sh
+nvm install stable
+nvm use stable
+```
+
+#### Postgres or CockroachDB
+
+_Note: SQL Schema can be found in the SQL folder, one file per table. `users.sql` should be imported first as it provides the foreign key for many other tables._
+
+##### for Local Development
+
+You can override the Hyperdrive connection strings by setting the following in `.env`:
+
+```sh
+WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://user:password@localhost:5432/databasename"
+```
+
+##### for Production Deployment
+
+TODO
+
+### Continuous Development
+
+```sh
+npm ci
+npm run dev
+```
+
+Before pushing you may wish to run linting or allow autoformatting to run, or configure your editor to automatically use prettier.
+
+```sh
+npm run lint
+npm run format
+```
+
+You may also need to update types:
+
+```sh
+npx wrangler types
+```
 
 ### Directories
 
@@ -47,3 +98,9 @@ When used for TOTP:
 - `secret_name` stores the authenticator app label (e.g., "YourApp:user@example.com").
 - `secret_enabled` indicates if 2FA is active for the user (1 for true, 0 for false).
 - `secret_created_at` and `secret_last_used` track the creation and usage of the TOTP configuration.
+
+## Project Maintenance
+
+[Dependabot](https://github.com/eustasy/puff-serverless/blob/cf-pages/.github/dependabot.yml) should update NPM and GitHub Actions with automatic pull requests.
+
+The Cloudflare `compatibility_date` may need updating in `wrangler.toml`
