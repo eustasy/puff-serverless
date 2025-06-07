@@ -1,7 +1,7 @@
 import {
   puff_hashing_sha1_hibp,
   puff_hashing_password,
-} from "./utilities_hashing.js"
+} from "./utilities/hashing.js"
 
 /**
  * Creates a new password hash for a user and stores it in the database.

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto"
-import { getCookie } from "./utilities.js"
+import { getCookie } from "./utilities/headers.js"
 
 /**
  * Verifies a session token against the database.
