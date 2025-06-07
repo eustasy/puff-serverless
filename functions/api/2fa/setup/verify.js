@@ -162,15 +162,8 @@ export async function onRequestPost(context) {
 }
 
 export async function onRequest(context) {
-  return new Response(
-    '<p class="result-negative">Error: Method Not Allowed. Only POST requests are accepted for this action.</p>',
-    {
-      status: 405,
-      headers: {
-        "Allow": "POST",
-        "Content-Type": "text/html",
-        "HX-Retarget": "#tfa-message-area", // Retarget even for method not allowed
-      },
-    }
-  )
+  return new Response("Method Not Allowed", {
+    status: 405,
+    headers: { Allow: "POST" },
+  })
 }

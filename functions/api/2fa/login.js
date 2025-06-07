@@ -273,18 +273,8 @@ export async function onRequestPost(context) {
 }
 
 export async function onRequest(context) {
-  if (context.request.method === "POST") {
-    return onRequestPost(context)
-  }
-  return new Response(
-    '<p class="result-negative">Error: Method Not Allowed. Only POST requests are accepted for this action.</p>',
-    {
-      status: 405,
-      headers: {
-        "Allow": "POST",
-        "Content-Type": "text/html",
-        "HX-Retarget": "#message-area", // Ensure this matches the ID on your /2fa page
-      },
-    }
-  )
+  return new Response("Method Not Allowed", {
+    status: 405,
+    headers: { Allow: "POST" },
+  })
 }

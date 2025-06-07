@@ -81,8 +81,8 @@ export async function onRequestPost(context) {
 }
 
 export async function onRequest(context) {
-  return new Response('<p class="result-negative">Method Not Allowed</p>', {
+  return new Response("Method Not Allowed", {
     status: 405,
-    headers: { "Allow": "POST", "Content-Type": "text/html" },
+    headers: { Allow: "POST" },
   })
 }

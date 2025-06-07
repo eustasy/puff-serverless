@@ -16,8 +16,10 @@ export async function onRequestPost(context) {
         }
       )
     }
-
-    const loginResult = await user_login(context, email, pw)
+    
+    const user_agent = context.request.headers.get("User-Agent")
+    const ip_address = context.request.headers.get("CF-Connecting-IP")
+    const loginResult = await user_login(context, email, pw, user_agent, ip_address)
 
     if (loginResult.error) {
       return new Response(
@@ -118,9 +120,6 @@ export async function onRequestPost(context) {
 }
 
 export async function onRequest(context) {
-  if (context.request.method === "POST") {
-    return onRequestPost(context)
-  }
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "POST" },

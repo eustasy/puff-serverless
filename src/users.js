@@ -134,7 +134,7 @@ export async function user_exists(context, email) {
   }
 }
 
-export async function user_login(context, email, password) {
+export async function user_login(context, email, password, user_agent, ip_address) {
   let client
   try {
     client = new Client(context.env.HYPERDRIVE.connectionString)
@@ -196,9 +196,6 @@ export async function user_login(context, email, password) {
         status: 200,
       }
     }
-
-    const user_agent = context.request.headers.get("User-Agent")
-    const ip_address = context.request.headers.get("CF-Connecting-IP")
 
     const sessionDetails = await createSession(
       client,

@@ -1,6 +1,6 @@
-import { user_register } from "../../../src/users.js" // user_register is now pg-ready
+import { user_register } from "../../../src/users.js"
 
-export async function onRequest(context) {
+export async function onRequestPost(context) {
   const formdata = await context.request.formData()
   const email = formdata.get("email")
   const name = formdata.get("name")
@@ -54,4 +54,11 @@ export async function onRequest(context) {
       }
     )
   }
+}
+
+export async function onRequest(context) {
+  return new Response("Method Not Allowed", {
+    status: 405,
+    headers: { Allow: "POST" },
+  })
 }

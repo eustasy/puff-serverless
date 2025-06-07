@@ -84,11 +84,8 @@ export async function onRequestPost(context) {
 }
 
 export async function onRequest(context) {
-  return new Response(
-    '<p class="result-negative">Error: Method Not Allowed. Only POST requests are accepted.</p>',
-    {
-      status: 405,
-      headers: { "Allow": "POST", "Content-Type": "text/html" },
-    }
-  )
+  return new Response("Method Not Allowed", {
+    status: 405,
+    headers: { Allow: "POST" },
+  })
 }

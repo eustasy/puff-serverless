@@ -41,11 +41,8 @@ export async function onRequestGet(context) {
 }
 
 export async function onRequest(context) {
-  if (context.request.method === "GET") {
-    return await onRequestGet(context)
-  }
-  return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+  return new Response("Method Not Allowed", {
     status: 405,
-    headers: { "Allow": "GET", "Content-Type": "application/json" },
+    headers: { Allow: "GET" },
   })
 }

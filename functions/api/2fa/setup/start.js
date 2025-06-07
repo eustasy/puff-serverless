@@ -3,7 +3,7 @@ import { authenticator } from "otplib"
 import { read2fa, create2fa } from "../../../../src/2fa.js"
 import { readUser } from "../../../../src/users.js"
 
-const APP_NAME = "PuffAuth" // Using a more specific app name
+const APP_NAME = "PuffAuth" // TODO Configure this in a settings file or environment variable
 
 export async function onRequestPost(context) {
   // Step 1: Verify the session
@@ -170,11 +170,8 @@ export async function onRequestPost(context) {
 }
 
 export async function onRequest(context) {
-  return new Response(
-    '<p class="result-negative">Error: Method Not Allowed. Only POST requests are accepted for this action.</p>',
-    {
-      status: 405,
-      headers: { "Allow": "POST", "Content-Type": "text/html" },
-    }
-  )
+  return new Response("Method Not Allowed", {
+    status: 405,
+    headers: { Allow: "POST" },
+  })
 }

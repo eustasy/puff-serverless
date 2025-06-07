@@ -1,6 +1,6 @@
 import { user_exists } from "../../../src/users.js"
 
-export async function onRequest(context) {
+export async function onRequestPost(context) {
   const { searchParams } = new URL(context.request.url)
   const email = searchParams.get("email")
 
@@ -20,4 +20,11 @@ export async function onRequest(context) {
     console.error("Error in user_exists endpoint:", error)
     return new Response("Error checking email existence.", { status: 500 })
   }
+}
+
+export async function onRequest(context) {
+  return new Response("Method Not Allowed", {
+    status: 405,
+    headers: { Allow: "POST" },
+  })
 }

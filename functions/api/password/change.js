@@ -3,12 +3,8 @@ import {
   password_requirements,
   password_requirements_html,
   password_verify,
-  updatePassword, // Import updatePassword
+  updatePassword,
 } from "../../../src/passwords.js"
-// puff_hashing_password is used by updatePassword internally, so not directly needed here if updatePassword is used.
-// However, if we want to keep the structure where hash/salt are generated before calling update,
-// then updatePassword might need to be adjusted or we use a different helper.
-// For now, assuming updatePassword takes the new plain password.
 
 export async function onRequestPost(context) {
   // Step 1: Session Verification
@@ -120,14 +116,8 @@ export async function onRequestPost(context) {
 }
 
 export async function onRequest(context) {
-  if (context.request.method === "POST") {
-    return onRequestPost(context)
-  }
-  return new Response(
-    "<p>Error: Method Not Allowed. Only POST requests are accepted.</p>",
-    {
-      status: 405,
-      headers: { "Allow": "POST", "Content-Type": "text/html" },
-    }
-  )
+  return new Response("Method Not Allowed", {
+    status: 405,
+    headers: { Allow: "POST" },
+  })
 }

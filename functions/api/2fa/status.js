@@ -97,3 +97,10 @@ export async function onRequestGet(context) {
     headers: { "Content-Type": "text/html" },
   })
 }
+
+export async function onRequest(context) {
+  return new Response("Method Not Allowed", {
+    status: 405,
+    headers: { Allow: "GET" },
+  })
+}
