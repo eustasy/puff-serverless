@@ -77,4 +77,4 @@ async function databaseConnectionMiddleware(context) {
 }
 
 // This will apply the databaseConnectionMiddleware to all requests under /api/db.
-const onRequest = [databaseConnectionMiddleware]
+export const onRequest = [databaseConnectionMiddleware]
