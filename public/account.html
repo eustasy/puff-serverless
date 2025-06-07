@@ -33,7 +33,7 @@
           <div class="grid-item">
             <button
               class="btn-save"
-              hx-post="/api/email/add"
+              hx-post="/api/db/auth/email/add"
               hx-target="#email-message-area"
               hx-swap="innerHTML"
               hx-disabled-elt="this"
@@ -48,7 +48,7 @@
           <div class="grid-item">
             <button
               class="btn-safe"
-              hx-get="/api/email/list"
+              hx-get="/api/db/auth/email/list"
               hx-target="#email-list-container"
               hx-swap="innerHTML"
               hx-disabled-elt="this"
@@ -67,7 +67,7 @@
 
         <div
           id="email-list-container"
-          hx-get="/api/email/list"
+          hx-get="/api/db/auth/email/list"
           hx-trigger="load, emailListChanged from:body"
           hx-swap="innerHTML"
         >
@@ -81,7 +81,7 @@
           <div class="grid-item">
             <button
               class="btn-danger"
-              hx-post="/api/session/terminate/all"
+              hx-post="/api/db/auth/session/terminate/all"
               hx-target="#session-list-container"
               hx-swap="innerHTML"
               hx-disabled-elt="this"
@@ -94,7 +94,7 @@
           <div class="grid-item">
             <button
               class="btn-safe"
-              hx-get="/api/session/list"
+              hx-get="/api/db/auth/session/list"
               hx-target="#session-list-container"
               hx-swap="innerHTML"
               hx-disabled-elt="this"
@@ -113,7 +113,7 @@
 
         <div
           id="session-list-container"
-          hx-get="/api/session/list"
+          hx-get="/api/db/auth/session/list"
           hx-trigger="load, sessionListChanged from:body"
           hx-swap="innerHTML"
         >
@@ -134,7 +134,7 @@
 
         <form
           id="change-password-form"
-          hx-post="/api/password/change"
+          hx-post="/api/db/auth/password/change"
           hx-target="#password-message-area"
           hx-swap="innerHTML"
           class="grid-container"
@@ -198,7 +198,7 @@
 
         <div
           id="tfa-status-container"
-          hx-get="/api/2fa/status"
+          hx-get="/api/db/auth/2fa/status"
           hx-trigger="load, tfaStatusChanged from:body"
           hx-swap="innerHTML"
         >
