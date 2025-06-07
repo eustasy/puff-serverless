@@ -53,21 +53,24 @@ npx wrangler types
 
 ### Directories
 
-| Folder                                                                              | Contents                                                        | Deployed to        |
-| ----------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------ |
-| [public](https://github.com/eustasy/puff-serverless/tree/main/public)               | All static files: HTML, CSS, Client-Side JS.                    | Cloduflare Pages   |
-| [functions](https://github.com/eustasy/puff-serverless/tree/main/functions)         | Dynamic endpoints: pages that must load with pre-inserted data. | Cloudflare Workers |
-| [functions/api](https://github.com/eustasy/puff-serverless/tree/main/functions/api) | API Endpoints                                                   | Cloudflare Workers |
-| [src](https://github.com/eustasy/puff-serverless/tree/main/src)                     | Backend Code                                                    | Cloudflare Workers |
+| Folder                                                                                      | Contents                                                        | Deployed to        |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------ |
+| [public](https://github.com/eustasy/puff-serverless/tree/main/public)                       | All static files: HTML, CSS, Client-Side JS.                    | Cloduflare Pages   |
+| [functions](https://github.com/eustasy/puff-serverless/tree/main/functions)                 | Dynamic endpoints: pages that must load with pre-inserted data. | Cloudflare Workers |
+| [functions/api](https://github.com/eustasy/puff-serverless/tree/main/functions/api)         | API Endpoints that only require server-side JavaScript.         | Cloudflare Workers |
+| [functions/api/db](https://github.com/eustasy/puff-serverless/tree/main/functions/api)      | API Endpoints that require database access.                     | Cloudflare Workers |
+| [functions/api/db/auth](https://github.com/eustasy/puff-serverless/tree/main/functions/api) | API Endpoints that require authentication.                      | Cloudflare Workers |
+| [src](https://github.com/eustasy/puff-serverless/tree/main/src)                             | Backend Code                                                    | Cloudflare Workers |
 
 ### Special Files
 
-| File                                                                                                                   | Contents                           | Deployed to                                                                                               |
-| ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| [public/\_redirects](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_redirects)                       | Redirect Rules                     | [Cloudflare Pages Redirects](https://developers.cloudflare.com/pages/platform/redirects/)                 |
-| [public/\_headers](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_headers)                           | Headers (Pages Only)               | [Cloudflare Pages Headers](https://developers.cloudflare.com/pages/platform/headers/)                     |
-| _build.sh_                                                                                                             | Build Commands                     | [Cloudflare Pages Build](https://developers.cloudflare.com/pages/how-to/build-commands-branches/)         |
-| [functions/api/\_middleware.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/functions/api/_middleware.js) | Headers and Authentication for API | [Cloudflare Functions Middleware](https://developers.cloudflare.com/pages/platform/functions/middleware/) |
+| File                                                                                                                                   | Contents                        | Deployed to                                                                                               |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [public/\_redirects](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_redirects)                                       | Redirect Rules                  | [Cloudflare Pages Redirects](https://developers.cloudflare.com/pages/platform/redirects/)                 |
+| [public/\_headers](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_headers)                                           | Headers (Pages Only)            | [Cloudflare Pages Headers](https://developers.cloudflare.com/pages/platform/headers/)                     |
+| _build.sh_                                                                                                                             | Build Commands                  | [Cloudflare Pages Build](https://developers.cloudflare.com/pages/how-to/build-commands-branches/)         |
+| [functions/api/db/\_middleware.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/functions/api/db/_middleware.js)           | Database connection middleware. | [Cloudflare Functions Middleware](https://developers.cloudflare.com/pages/platform/functions/middleware/) |
+| [functions/api/db/auth/\_middleware.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/functions/api/db/auth/_middleware.js) | Authentication middleware.      | [Cloudflare Functions Middleware](https://developers.cloudflare.com/pages/platform/functions/middleware/) |
 
 ## Libraries
 
