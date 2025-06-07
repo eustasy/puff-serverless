@@ -198,7 +198,7 @@ export async function user_login(
 
     return {
       success: true,
-      session_token: session.session_id,
+      session_id: session.session_id,
       user_uuid: user_uuid,
       message: "Login successful.",
       status: 200,
