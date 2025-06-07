@@ -2,9 +2,9 @@ import { readEmails } from "../../../src/emails"
 import { sessionAuthWithCookie } from "../../../src/sessions.js"
 
 export async function onRequestGet(context) {
-  // Changed to receive full context object
+  const dbClient = context.data.dbClient
   try {
-    const sessionResult = await sessionAuthWithCookie(context)
+    const sessionResult = await sessionAuthWithCookie(dbClient, context.request)
     if (sessionResult.error) {
       return new Response(
         `<p class="result-negative">${sessionResult.error}</p>`,
@@ -14,9 +14,20 @@ export async function onRequestGet(context) {
         }
       )
     }
-    const user_uuid = sessionResult
+    const user_uuid = sessionResult.user_uuid
 
-    const emails = await readEmails(context, user_uuid)
+    const emails = await readEmails(dbClient, user_uuid)
+    if (emails.error) {
+      // Check for error from readEmails
+      console.error("Error reading emails:", emails.error)
+      return new Response(
+        '<p class="result-negative">Failed to load email addresses.</p>',
+        {
+          status: 500,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
+    }
     if (!emails || emails.length === 0) {
       return new Response("<p>No email addresses found for this account.</p>", {
         headers: { "Content-Type": "text/html" },

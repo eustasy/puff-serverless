@@ -2,8 +2,9 @@ import { sessionAuthWithCookie } from "../../../src/sessions.js"
 import { createEmail } from "../../../src/emails.js"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
   try {
-    const sessionResult = await sessionAuthWithCookie(context)
+    const sessionResult = await sessionAuthWithCookie(dbClient, context.request)
     if (sessionResult.error) {
       return new Response(
         `<p class="result-negative">${sessionResult.error}</p>`,
@@ -13,7 +14,7 @@ export async function onRequestPost(context) {
         }
       )
     }
-    const user_uuid = sessionResult
+    const user_uuid = sessionResult.user_uuid
 
     const formData = await context.request.formData()
     let email_address = formData.get("email_address")
@@ -61,7 +62,7 @@ export async function onRequestPost(context) {
     }
 
     const result = await createEmail(
-      context,
+      dbClient,
       user_uuid,
       trimmed_email_address, // Use the potentially corrected and trimmed email
       false, // is_primary

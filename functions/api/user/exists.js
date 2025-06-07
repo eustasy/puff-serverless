@@ -1,6 +1,8 @@
 import { user_exists } from "../../../src/users.js"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
+
   const { searchParams } = new URL(context.request.url)
   const email = searchParams.get("email")
 
@@ -9,7 +11,7 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const count = await user_exists(context, email)
+    const count = await user_exists(dbClient, email)
     if (count > 0) {
       return new Response(
         '<span class="result-negative">This email is already registered.</span>'

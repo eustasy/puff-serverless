@@ -109,8 +109,8 @@ export async function disablePassword(dbClient, user_uuid) {
  */
 export async function updatePassword(dbClient, user_uuid, newPassword) {
   try {
-    await disablePassword(dbClient, user_uuid) // Pass dbClient
-    const createdNew = await createPassword(dbClient, user_uuid, newPassword) // Pass dbClient
+    await disablePassword(dbClient, user_uuid)
+    const createdNew = await createPassword(dbClient, user_uuid, newPassword)
     return createdNew
   } catch (error) {
     console.error("Error in updatePassword:", error)

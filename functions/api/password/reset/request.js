@@ -2,6 +2,8 @@ import { readEmail } from "../../../../src/emails.js"
 import { createPasswordToken } from "../../../../src/tokens.js"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
+
   // Step 1: Parse form data for email
   let formData
   let email
@@ -32,7 +34,7 @@ export async function onRequestPost(context) {
 
   try {
     // Step 3: User Lookup
-    const user = await readEmail(context, email)
+    const user = await readEmail(dbClient, email)
     if (!user || !user.email || !user.email.user_uuid) {
       // If no user found, return generic success to avoid leaking info
       console.log(`Password reset requested for non-existent email: ${email}`)
@@ -42,7 +44,7 @@ export async function onRequestPost(context) {
     if (user && user.email.user_uuid) {
       // Step 4: Store Token using createPasswordToken
       const tokenResult = await createPasswordToken(
-        context,
+        dbClient,
         user.email.user_uuid,
         email
       )

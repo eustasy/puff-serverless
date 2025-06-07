@@ -2,8 +2,9 @@ import { sessionAuthWithCookie } from "../../../src/sessions.js"
 import { has2fa } from "../../../src/2fa.js"
 
 export async function onRequestGet(context) {
+  const dbClient = context.data.dbClient
   // Step 1: Verify the session
-  const sessionResult = await sessionAuthWithCookie(context)
+  const sessionResult = await sessionAuthWithCookie(dbClient, context.request)
   if (sessionResult.error) {
     return new Response(
       '<p class="result-negative">Error: You are not authorized to view this information. Please log in.</p>',
@@ -16,11 +17,10 @@ export async function onRequestGet(context) {
       }
     )
   }
-  const user_uuid = sessionResult
+  const user_uuid = sessionResult.user_uuid
 
   // Step 2: Use has2fa to check the 2FA status.
-  // has2fa returns true if 2FA is enabled, false if not, or an error object.
-  const twoFactorStatus = await has2fa(context, user_uuid)
+  const twoFactorStatus = await has2fa(dbClient, user_uuid)
 
   let is2FAEnabled
   if (typeof twoFactorStatus === "object" && twoFactorStatus.error) {
@@ -101,6 +101,6 @@ export async function onRequestGet(context) {
 export async function onRequest(context) {
   return new Response("Method Not Allowed", {
     status: 405,
-    headers: { Allow: "GET" },
+    headers: { Allow: "POST" },
   })
 }

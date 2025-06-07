@@ -3,8 +3,9 @@ import { createEmailToken, readToken } from "../../../src/tokens.js"
 import { readEmail } from "../../../src/emails.js"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
   try {
-    const sessionResult = await sessionAuthWithCookie(context)
+    const sessionResult = await sessionAuthWithCookie(dbClient, context.request)
     if (sessionResult.error) {
       return new Response(
         `<p class="result-negative">${sessionResult.error}</p>`,
@@ -14,7 +15,7 @@ export async function onRequestPost(context) {
         }
       )
     }
-    const user_uuid = sessionResult
+    const user_uuid = sessionResult.user_uuid
 
     const formData = await context.request.formData()
     const email_address = formData.get("email_address")
@@ -33,7 +34,7 @@ export async function onRequestPost(context) {
       )
     }
 
-    const emailRecordResult = await readEmail(context, email_address)
+    const emailRecordResult = await readEmail(dbClient, email_address)
 
     if (
       emailRecordResult.error ||
@@ -96,7 +97,7 @@ export async function onRequestPost(context) {
     // as emails table doesn't store token_value directly.
     // A user requesting to resend implies they need a new (or resent) token.
     const tokenResult = await createEmailToken(
-      context,
+      dbClient,
       user_uuid,
       email_address
     )

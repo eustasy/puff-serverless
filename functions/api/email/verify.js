@@ -1,6 +1,7 @@
 import { verifyEmailByToken } from "../../../src/emails.js"
 
 export async function onRequestGet(context) {
+  const dbClient = context.data.dbClient
   const { searchParams } = new URL(context.request.url)
   const token_value = searchParams.get("token")
 
@@ -12,7 +13,7 @@ export async function onRequestGet(context) {
   }
 
   try {
-    const result = await verifyEmailByToken(context, token_value)
+    const result = await verifyEmailByToken(dbClient, token_value)
 
     if (result.error) {
       return new Response(JSON.stringify({ error: result.message }), {

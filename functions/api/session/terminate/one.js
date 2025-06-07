@@ -4,8 +4,10 @@ import {
 } from "../../../../src/sessions.js"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
+
   // Step 1: Session Verification
-  const user_uuid = await sessionAuthWithCookie(context)
+  const user_uuid = await sessionAuthWithCookie(dbClient, context.request)
   if (!user_uuid || typeof user_uuid !== "string") {
     if (user_uuid instanceof Response) return user_uuid
     return new Response(
@@ -31,7 +33,7 @@ export async function onRequestPost(context) {
 
   // Step 4: Terminate Specific Session using the helper function
   const terminationResult = await terminateSpecificSession(
-    context,
+    dbClient,
     user_uuid,
     session_id_to_terminate
   )

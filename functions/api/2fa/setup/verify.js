@@ -3,8 +3,9 @@ import { authenticator } from "otplib"
 import { enable2fa, read2fa } from "../../../../src/2fa.js"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
   // Step 1: Verify the session
-  const sessionResult = await sessionAuthWithCookie(context)
+  const sessionResult = await sessionAuthWithCookie(dbClient, context.request)
   if (sessionResult.error) {
     return new Response(
       `<p class="result-negative">Error: ${sessionResult.error} Please log in.</p>`,
@@ -17,7 +18,7 @@ export async function onRequestPost(context) {
       }
     )
   }
-  const user_uuid = sessionResult
+  const user_uuid = sessionResult.user_uuid
 
   // Step 2: Parse form data for TOTP code
   let formData
@@ -52,7 +53,7 @@ export async function onRequestPost(context) {
 
   try {
     // Step 3: Retrieve Stored Secret from 'secrets' table
-    const secretRecord = await read2fa(context, user_uuid)
+    const secretRecord = await read2fa(dbClient, user_uuid)
     if (secretRecord.error) {
       console.error("Error reading 2FA secret:", secretRecord.error)
       return new Response(
@@ -107,7 +108,7 @@ export async function onRequestPost(context) {
 
     if (isValid) {
       // Step 5: On Successful Verification, enable 2FA in 'secrets' table
-      const enable2faResult = await enable2fa(context, user_uuid)
+      const enable2faResult = await enable2fa(dbClient, user_uuid)
       if (enable2faResult.error) {
         console.error("Error enabling 2FA:", enable2faResult.error)
         return new Response(

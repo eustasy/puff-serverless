@@ -1,6 +1,8 @@
 import { user_register } from "../../../src/users.js"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
+
   const formdata = await context.request.formData()
   const email = formdata.get("email")
   const name = formdata.get("name")
@@ -18,7 +20,7 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const results = await user_register(context, name, email, pw)
+    const results = await user_register(dbClient, name, email, pw)
     if (results && results.success) {
       // Redirect to login page on successful registration
       return new Response(null, {

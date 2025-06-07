@@ -5,6 +5,7 @@ import {
 import { readToken, usedToken } from "../../../../src/tokens.js"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
   let formData
   let token
   let new_password
@@ -53,7 +54,7 @@ export async function onRequestPost(context) {
       )
     }
 
-    const tokenReadResult = await readToken(context, token)
+    const tokenReadResult = await readToken(dbClient, token)
 
     if (!tokenReadResult.success || !tokenReadResult.token) {
       return new Response(
@@ -80,7 +81,7 @@ export async function onRequestPost(context) {
     const now = new Date()
     const tokenExpiresAt = new Date(tokenRecord.expires_at)
     if (now > tokenExpiresAt) {
-      await usedToken(context, token)
+      await usedToken(dbClient, token)
       return new Response(
         '<p class="result-negative">Password reset token has expired.</p>',
         {
@@ -93,7 +94,7 @@ export async function onRequestPost(context) {
     const user_uuid = tokenRecord.user_uuid
 
     const passwordUpdated = await updatePassword(
-      context,
+      dbClient,
       user_uuid,
       new_password
     )
@@ -108,7 +109,7 @@ export async function onRequestPost(context) {
       )
     }
 
-    await usedToken(context, token)
+    await usedToken(dbClient, token)
 
     // Redirect to login page on successful password reset
     return new Response(null, {

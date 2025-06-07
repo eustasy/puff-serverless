@@ -2,15 +2,16 @@ import { sessionAuthWithCookie } from "../../../src/sessions.js"
 import { deleteEmail } from "../../../src/emails.js"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
   try {
-    const sessionResult = await sessionAuthWithCookie(context)
+    const sessionResult = await sessionAuthWithCookie(dbClient, context.request)
     if (sessionResult.error) {
       return new Response(`<p class=\"error\">${sessionResult.error}</p>`, {
         status: sessionResult.status || 401,
         headers: { "Content-Type": "text/html" },
       })
     }
-    const user_uuid = sessionResult
+    const user_uuid = sessionResult.user_uuid
 
     const formData = await context.request.formData()
     const email_address_to_remove = formData.get("email_address")
@@ -30,7 +31,7 @@ export async function onRequestPost(context) {
     }
 
     const result = await deleteEmail(
-      context,
+      dbClient,
       user_uuid,
       email_address_to_remove
     )

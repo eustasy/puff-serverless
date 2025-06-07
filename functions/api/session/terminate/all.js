@@ -5,8 +5,10 @@ import {
 import { getCookie } from "../../../../src/utilities.js"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
+
   // Step 1: Session Verification
-  const user_uuid = await sessionAuthWithCookie(context)
+  const user_uuid = await sessionAuthWithCookie(dbClient, context.request)
   if (!user_uuid || typeof user_uuid !== "string") {
     // sessionAuthWithCookie now returns user_uuid directly or null/error object
     // If sessionAuthWithCookie returned an error object, it might be a Response already
@@ -21,7 +23,6 @@ export async function onRequestPost(context) {
       }
     )
   }
-  context.data.user_uuid = user_uuid // Ensure user_uuid is in context.data if needed by other parts
 
   // Step 2: Identify Current Session Token from Cookie
   // It's more robust to get the current session token directly from the cookie
@@ -41,7 +42,7 @@ export async function onRequestPost(context) {
 
   // Step 3: Terminate Other Sessions using the helper function
   const terminationResult = await terminateAllOtherSessions(
-    context,
+    dbClient,
     user_uuid,
     currentSessionToken
   )

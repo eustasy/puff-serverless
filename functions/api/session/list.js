@@ -5,7 +5,12 @@ import {
 import { getCookie, parseUserAgent } from "../../../src/utilities.js"
 
 export async function onRequestGet(context) {
-  const sessionVerificationResult = await sessionAuthWithCookie(context)
+  const dbClient = context.data.dbClient
+
+  const sessionVerificationResult = await sessionAuthWithCookie(
+    dbClient,
+    context.request
+  )
   if (sessionVerificationResult && sessionVerificationResult.error) {
     if (sessionVerificationResult instanceof Response)
       return sessionVerificationResult
@@ -32,7 +37,7 @@ export async function onRequestGet(context) {
   const currentSessionToken = await getCookie(cookieHeader, "session_token")
 
   try {
-    const result = await listActiveSessionsForUser(context, user_uuid)
+    const result = await listActiveSessionsForUser(dbClient, user_uuid)
 
     if (result.error) {
       return new Response(`<p class=\"error\">${result.error}</p>`, {

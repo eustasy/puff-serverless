@@ -6,8 +6,9 @@ import { readUser } from "../../../../src/users.js"
 const APP_NAME = "PuffAuth" // TODO Configure this in a settings file or environment variable
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
   // Step 1: Verify the session
-  const sessionResult = await sessionAuthWithCookie(context)
+  const sessionResult = await sessionAuthWithCookie(dbClient, context.request)
   if (sessionResult.error) {
     return new Response(
       `<p class="result-negative">Error: ${sessionResult.error} Please log in.</p>`,
@@ -20,11 +21,11 @@ export async function onRequestPost(context) {
       }
     )
   }
-  const user_uuid = sessionResult
+  const user_uuid = sessionResult.user_uuid
 
   try {
     // Step 2: Check Existing 2FA
-    const twoFactorStatus = await read2fa(context, user_uuid)
+    const twoFactorStatus = await read2fa(dbClient, user_uuid)
 
     if (typeof twoFactorStatus === "object" && twoFactorStatus.error) {
       console.error("Error checking 2FA status:", twoFactorStatus.error)
@@ -54,7 +55,7 @@ export async function onRequestPost(context) {
     }
 
     // Step 3: Fetch user's username for the label
-    const userResult = await readUser(context, user_uuid)
+    const userResult = await readUser(dbClient, user_uuid)
     if (userResult.error || !userResult.user.user_name) {
       console.error("Error fetching user username:", userResult.error)
       return new Response(
@@ -71,19 +72,20 @@ export async function onRequestPost(context) {
     const userName = userResult.user.user_name
 
     // Step 4: Create 2FA Setup if not already present
+    let new_secret_for_qr = null // Define here to be accessible for QR code generation
     if (!twoFactorStatus.secret_value) {
       const label = `${APP_NAME}: ${userName}`
 
       // Step 4a: Generate TOTP Secret
-      const new_secret = authenticator.generateSecret() // Generates a base32 secret
+      new_secret_for_qr = authenticator.generateSecret() // Generates a base32 secret
 
       // Step 4b: "Simulated" Encryption (as per original logic, consider actual encryption for production)
-      const encrypted_secret = `sim_encrypted::${new_secret}`
+      const encrypted_secret = `sim_encrypted::${new_secret_for_qr}`
 
       // Step 4c: Store Secret (Unverified) using create2fa
       // create2fa will set is_enabled to FALSE by default
       const createResult = await create2fa(
-        context,
+        dbClient,
         user_uuid,
         encrypted_secret,
         label
@@ -104,12 +106,30 @@ export async function onRequestPost(context) {
     }
 
     // Step 5: The secret is one of the following:
-    // twoFactorStatus.secret_value (if not null)
-    // or the newly generated secret (new_secret)
-    const secret = twoFactorStatus.secret_value || new_secret
+    // twoFactorStatus.secret_value (if not null and not empty)
+    // or the newly generated secret (new_secret_for_qr)
+    // Ensure we strip the prefix for the QR code and manual setup display
+    let display_secret = twoFactorStatus.secret_value
+      ? twoFactorStatus.secret_value.replace("sim_encrypted::", "")
+      : new_secret_for_qr
+    if (!display_secret) {
+      // This case should ideally not be reached if logic is correct
+      // but as a fallback if new_secret_for_qr was somehow not set and twoFactorStatus.secret_value was also null/empty
+      console.error("Critical error: Secret for QR code generation is missing.")
+      return new Response(
+        '<p class="result-negative">Error: Failed to generate 2FA setup information due to a missing secret. Please try again.</p>',
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#tfa-message-area",
+          },
+        }
+      )
+    }
 
     // Step 6: Generate QR Code Data (TOTP Auth URI)
-    const otpauthUri = authenticator.keyuri(userName, APP_NAME, secret)
+    const otpauthUri = authenticator.keyuri(userName, APP_NAME, display_secret)
 
     // Step 7: Response - HTML for HTMX
     // TODO: [Security] Consider using a more secure method for generating QR codes
@@ -121,7 +141,7 @@ export async function onRequestPost(context) {
           <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauthUri)}" alt="QR Code" style="max-width: 200px; height: auto;"/>
           <div>
             <p><strong>Manual Setup Code:</strong></p>
-            <p style="font-family: monospace; background: #f0f0f0; padding: 5px; word-break: break-all;">${secret}</p>
+            <p style="font-family: monospace; background: #f0f0f0; padding: 5px; word-break: break-all;">${display_secret}</p>
           </div>
         </div>
         

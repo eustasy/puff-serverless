@@ -3,8 +3,9 @@ import { read2fa, delete2fa } from "../../../src/2fa.js"
 import { authenticator } from "otplib"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
   // Step 1: Verify the session
-  const sessionResult = await sessionAuthWithCookie(context)
+  const sessionResult = await sessionAuthWithCookie(dbClient, context.request)
   if (sessionResult.error) {
     return new Response(
       `<p class="result-negative">Error: ${sessionResult.error} Please log in.</p>`,
@@ -17,7 +18,7 @@ export async function onRequestPost(context) {
       }
     )
   }
-  const user_uuid = sessionResult
+  const user_uuid = sessionResult.user_uuid
 
   // Step 2: Parse form data
   let formData
@@ -55,8 +56,7 @@ export async function onRequestPost(context) {
 
   try {
     // Step 4: Check if 2FA is Enabled and retrieve secret
-    // read2fa handles its own DB connection via context
-    const secretRecord = await read2fa(context, user_uuid)
+    const secretRecord = await read2fa(dbClient, user_uuid)
 
     if (secretRecord && secretRecord.error) {
       console.error("Error reading 2FA secret for removal:", secretRecord.error)
@@ -124,8 +124,7 @@ export async function onRequestPost(context) {
     }
 
     // Step 6: Remove 2FA Configuration using the helper function
-    // delete2fa handles its own DB connection via context
-    const deletionResult = await delete2fa(context, user_uuid)
+    const deletionResult = await delete2fa(dbClient, user_uuid)
 
     if (deletionResult.error) {
       console.error("Error during 2FA secret deletion:", deletionResult.error)

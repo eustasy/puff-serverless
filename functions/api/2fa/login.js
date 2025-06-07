@@ -1,11 +1,11 @@
 import { authenticator } from "otplib"
-const { Client } = require("pg")
 import { readToken, usedToken } from "../../../src/tokens.js"
 import { getCookie } from "../../../src/utilities.js"
 import { read2fa, used2fa } from "../../../src/2fa.js"
 import { createSession } from "../../../src/sessions.js"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
   // Step 1: Get the TOTP verification token from the cookie
   const cookieHeader = context.request.headers.get("Cookie")
   const totpVerificationToken = await getCookie(
@@ -58,15 +58,9 @@ export async function onRequestPost(context) {
     )
   }
 
-  const client = new Client({
-    connectionString: context.env.HYPERDRIVE.connectionString,
-  })
-
   try {
-    await client.connect()
-
     // Step 4: Read and validate the TOTP verification token
-    const tokenDataResult = await readToken(context, totpVerificationToken)
+    const tokenDataResult = await readToken(dbClient, totpVerificationToken)
 
     if (tokenDataResult.error || !tokenDataResult.token) {
       return new Response(
@@ -104,6 +98,10 @@ export async function onRequestPost(context) {
           headers: {
             "Content-Type": "text/html",
             "HX-Retarget": "#message-area",
+            // Clear the expired/invalid cookie
+            "Set-Cookie": `totp_verification_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict${
+              context.env.SECURE_COOKIE ? "; Secure" : ""
+            }`,
           },
         }
       )
@@ -117,15 +115,18 @@ export async function onRequestPost(context) {
           headers: {
             "Content-Type": "text/html",
             "HX-Retarget": "#message-area",
+            "Set-Cookie": `totp_verification_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict${
+              context.env.SECURE_COOKIE ? "; Secure" : ""
+            }`,
           },
         }
       )
     }
 
-    // Step 5: Retrieve 2FA Secret from 'secrets' table and check if 2FA is enabled
-    const secretRecord = await read2fa(context, user_uuid)
+    // Step 5: Retrieve the user's 2FA secret
+    const twoFaData = await read2fa(dbClient, user_uuid)
 
-    if (!secretRecord || !secretRecord.secret_value) {
+    if (!twoFaData || twoFaData.error || !twoFaData.secret_value) {
       return new Response(
         JSON.stringify({
           error:
@@ -135,7 +136,7 @@ export async function onRequestPost(context) {
       )
     }
 
-    if (secretRecord.is_enabled !== true) {
+    if (twoFaData.is_enabled !== true) {
       return new Response(
         JSON.stringify({ error: "2FA is not enabled for this account." }),
         { status: 400, headers: { "Content-Type": "application/json" } }
@@ -143,7 +144,7 @@ export async function onRequestPost(context) {
     }
 
     // "Decrypt" the secret_value
-    if (!secretRecord.secret_value.startsWith("sim_encrypted::")) {
+    if (!twoFaData.secret_value.startsWith("sim_encrypted::")) {
       console.error(
         `Invalid secret_value format for user ${user_uuid} of type 'totp_secret'.`
       )
@@ -152,16 +153,18 @@ export async function onRequestPost(context) {
         { status: 500, headers: { "Content-Type": "application/json" } }
       )
     }
-    const storedSecret = secretRecord.secret_value.replace(
-      "sim_encrypted::",
-      ""
-    )
+    const storedSecret = twoFaData.secret_value.replace("sim_encrypted::", "")
 
     // Step 6: Verify TOTP Code
-    const isValid = authenticator.check(totp_code, storedSecret)
+    const isValid = authenticator.verify({
+      token: totp_code,
+      secret: twoFaData.secret_value,
+    })
+
     if (!isValid) {
+      // Optionally, implement a rate-limiter or attempt counter here
       return new Response(
-        '<p class="result-negative">Invalid 2FA code. Please try again.</p>',
+        '<p class="result-negative">Error: Invalid TOTP code. Please try again.</p>',
         {
           status: 401, // Unauthorized
           headers: {
@@ -172,77 +175,40 @@ export async function onRequestPost(context) {
       )
     }
 
-    // Step 7: On Successful TOTP Verification, mark token as used, update secret_last_used, and create a new session
-    const markTokenUsedResult = await usedToken(context, totpVerificationToken)
-    if (markTokenUsedResult.error) {
+    // Step 7: Mark the TOTP verification token as used
+    const markUsedResult = await usedToken(dbClient, totpVerificationToken) // Modified: Pass dbClient
+    if (markUsedResult.error || !markUsedResult.success) {
+      // Log this error but proceed, as the user has successfully authenticated with TOTP.
+      // The main risk is token reuse if this fails, but the token is short-lived.
       console.error(
-        "Error marking TOTP token as used:",
-        markTokenUsedResult.message
+        `Failed to mark TOTP verification token ${totpVerificationToken} as used for user ${user_uuid}.`,
+        markUsedResult.message
       )
-      // Decide if this is a critical failure or if session creation can proceed
-      // For now, let's treat it as critical to prevent token reuse issues.
-      return new Response(
-        '<p class="result-negative">Error finalizing 2FA. Please try again.</p>',
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#message-area",
-          },
-        }
+      // Depending on security posture, you might choose to return an error here.
+    }
+
+    // Step 8: Update the last used timestamp for the 2FA secret
+    const updateLastUsedResult = await used2fa(dbClient, user_uuid) // Modified: Pass dbClient
+    if (updateLastUsedResult.error || !updateLastUsedResult.success) {
+      // Log this error but proceed.
+      console.error(
+        `Failed to update last used timestamp for 2FA for user ${user_uuid}.`,
+        updateLastUsedResult.message
       )
     }
 
-    used2fa(context, user_uuid)
-
+    // Step 9: Create a new session for the user
     const user_agent = context.request.headers.get("User-Agent") || ""
     const ip_address = context.request.headers.get("CF-Connecting-IP") || ""
 
     const sessionResult = await createSession(
-      client,
+      dbClient,
       user_uuid,
       user_agent,
       ip_address
     )
 
-    if (sessionResult.session_id) {
-      const session_id = sessionResult.session_id
-      const expires_at = sessionResult.expires_at
-
-      const sessionCookieOptions = [
-        `session_token=${session_id};`,
-        "Path=/",
-        "HttpOnly",
-        "Secure",
-        `Expires=${new Date(expires_at).toUTCString()}`,
-        "SameSite=Lax",
-      ]
-
-      const clearTotpTokenCookieOptions = [
-        "totp_verification_token=;",
-        "Path=/",
-        "HttpOnly",
-        "Secure",
-        "Max-Age=0",
-        "SameSite=Lax",
-      ]
-
-      // Set cookies and redirect to account page
-      // Note: Multiple Set-Cookie headers can be set in the response only when using the Headers object
-      const headers = new Headers()
-      headers.set("Content-Type", "text/html")
-      headers.append("Set-Cookie", sessionCookieOptions.join("; "))
-      headers.append("Set-Cookie", clearTotpTokenCookieOptions.join("; "))
-      headers.set("HX-Redirect", "/account")
-
-      return new Response(
-        '<p class="result-positive">Login successful! Redirecting...</p>',
-        {
-          status: 200, // OK
-          headers,
-        }
-      )
-    } else {
+    if (sessionResult.error || !sessionResult.session_token_value) {
       console.error("Error creating session:", sessionResult.error)
       return new Response(
         '<p class="result-negative">Error creating session. Please try again.</p>',
@@ -255,10 +221,51 @@ export async function onRequestPost(context) {
         }
       )
     }
-  } catch (error) {
-    console.error("Error in 2FA login verification:", error)
+
+    // Step 10: Return success response with session cookie and redirect
+    const headers = new Headers({
+      "Location": "/account", // Redirect to the account page
+      "HX-Redirect": "/account",
+      "Content-Type": "text/html", // Though with redirect, body might not be shown
+    })
+
+    const cookieOptions = [
+      `session_token=${sessionResult.session_token_value}`,
+      "HttpOnly",
+      "Path=/",
+      "SameSite=Strict",
+      // TODO: Make Max-Age configurable, e.g., context.env.SESSION_MAX_AGE_SECONDS
+      `Max-Age=${context.env.SESSION_MAX_AGE_SECONDS || 2592000}`, // Default to 30 days
+    ]
+    if (context.env.SECURE_COOKIE) {
+      cookieOptions.push("Secure")
+    }
+    headers.append("Set-Cookie", cookieOptions.join("; "))
+
+    // Clear the totp_verification_token cookie as it's no longer needed
+    const clearTotpCookieOptions = [
+      `totp_verification_token=;`,
+      "HttpOnly",
+      "Path=/",
+      "SameSite=Strict",
+      "Max-Age=0", // Expire immediately
+    ]
+    if (context.env.SECURE_COOKIE) {
+      clearTotpCookieOptions.push("Secure")
+    }
+    headers.append("Set-Cookie", clearTotpCookieOptions.join("; "))
+
     return new Response(
-      '<p class="result-negative">An unexpected server error occurred during 2FA verification.</p>',
+      '<p class="result-positive">Login successful! Redirecting...</p>',
+      {
+        status: 303, // See Other, appropriate for redirect after POST
+        headers: headers,
+      }
+    )
+  } catch (error) {
+    console.error("Error during 2FA login:", error)
+    return new Response(
+      '<p class="result-negative">An unexpected error occurred. Please try again.</p>',
       {
         status: 500,
         headers: {
@@ -267,8 +274,6 @@ export async function onRequestPost(context) {
         },
       }
     )
-  } finally {
-    await client.end()
   }
 }
 

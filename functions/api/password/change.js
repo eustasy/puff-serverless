@@ -7,8 +7,10 @@ import {
 } from "../../../src/passwords.js"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
+
   // Step 1: Session Verification
-  const user_uuid = await sessionAuthWithCookie(context)
+  const user_uuid = await sessionAuthWithCookie(dbClient, context.request)
   if (!user_uuid || typeof user_uuid !== "string") {
     if (user_uuid instanceof Response) return user_uuid
     return new Response(
@@ -19,10 +21,6 @@ export async function onRequestPost(context) {
       }
     )
   }
-  // context.data.user_uuid is populated by sessionAuthWithCookie if successful and it modifies context.data
-  // If sessionAuthWithCookie only returns user_uuid, we might need to set it:
-  if (!context.data) context.data = {}
-  context.data.user_uuid = user_uuid
 
   // Step 2: Parse Form Data
   let current_password, new_password
@@ -68,7 +66,7 @@ export async function onRequestPost(context) {
     // Step 5: Verify Current Password
     // password_verify handles its own DB connection via context
     const currentPasswordMatches = await password_verify(
-      context,
+      dbClient,
       current_password,
       user_uuid
     )
@@ -82,7 +80,7 @@ export async function onRequestPost(context) {
 
     // Step 6: Update Password using the helper function
     const passwordUpdated = await updatePassword(
-      context,
+      dbClient,
       user_uuid,
       new_password
     )

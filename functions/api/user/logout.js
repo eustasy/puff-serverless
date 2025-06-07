@@ -2,6 +2,8 @@ import { deleteSession } from "../../../src/sessions.js"
 import { getCookie } from "../../../src/utilities.js"
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
+
   const cookieHeader = context.request.headers.get("Cookie")
   const token = await getCookie(cookieHeader, "session_token")
 
@@ -16,7 +18,7 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const result = await deleteSession(context, token)
+    const result = await deleteSession(dbClient, token)
 
     if (result.error) {
       console.error("Error ending session:", result.error)
