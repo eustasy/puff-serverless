@@ -51,11 +51,10 @@ export async function onRequestPost(context) {
     }
 
     // Step 5: Verify Current Password
-    // password_verify handles its own DB connection via context
     const currentPasswordMatches = await password_verify(
       dbClient,
-      current_password,
-      user_uuid
+      user_uuid,
+      current_password
     )
 
     if (!currentPasswordMatches) {

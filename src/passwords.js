@@ -121,11 +121,11 @@ export async function updatePassword(dbClient, user_uuid, newPassword) {
 /**
  * Verifies a user's password against the stored hash in the database.
  * @param {Client} dbClient - An active pg.Client instance.
- * @param {string} pw - The plain text password to verify.
  * @param {string} user_uuid - The UUID of the user to verify the password for.
+ * @param {string} pw - The plain text password to verify.
  * @returns {boolean} True if the password is verified, false otherwise.
  */
-export async function password_verify(dbClient, pw, user_uuid) {
+export async function password_verify(dbClient, user_uuid, pw) {
   try {
     const passwordDetails = await readPassword(dbClient, user_uuid)
 
