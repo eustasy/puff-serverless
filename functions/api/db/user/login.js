@@ -2,6 +2,8 @@ import { user_login } from "../../../../src/users.js"
 import { createLoginToken } from "../../../../src/tokens.js" // Add this import
 
 export async function onRequestPost(context) {
+  const dbClient = context.data.dbClient
+
   try {
     const formdata = await context.request.formData()
     const email = formdata.get("email")
@@ -20,7 +22,7 @@ export async function onRequestPost(context) {
     const user_agent = context.request.headers.get("User-Agent")
     const ip_address = context.request.headers.get("CF-Connecting-IP")
     const loginResult = await user_login(
-      context,
+      dbClient,
       email,
       pw,
       user_agent,
@@ -39,7 +41,7 @@ export async function onRequestPost(context) {
 
     if (loginResult.totp_required) {
       // Create a short-lived token for the TOTP step
-      const tokenResult = await createLoginToken(context, loginResult.user_uuid)
+      const tokenResult = await createLoginToken(dbClient, loginResult.user_uuid)
 
       if (tokenResult.error) {
         console.error("Error creating TOTP token:", tokenResult.message)
