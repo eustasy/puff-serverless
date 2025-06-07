@@ -41,7 +41,10 @@ export async function onRequestPost(context) {
 
     if (loginResult.totp_required) {
       // Create a short-lived token for the TOTP step
-      const tokenResult = await createLoginToken(dbClient, loginResult.user_uuid)
+      const tokenResult = await createLoginToken(
+        dbClient,
+        loginResult.user_uuid
+      )
 
       if (tokenResult.error) {
         console.error("Error creating TOTP token:", tokenResult.message)
