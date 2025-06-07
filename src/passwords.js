@@ -5,17 +5,13 @@ import {
 
 /**
  * Creates a new password hash for a user and stores it in the database.
- * @param {*} context - The context object containing environment variables and other configurations.
+ * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
  * @param {string} password - The plain text password.
  * @returns {Promise<boolean>} True if the password was created successfully, false otherwise.
  */
-export async function createPassword(context, user_uuid, password) {
-  const { Client } = require("pg")
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
-
+export async function createPassword(dbClient, user_uuid, password) {
   try {
-    await client.connect()
     // Validate password requirements
     const isValid = await password_requirements(password)
     if (!isValid) {
@@ -31,7 +27,7 @@ export async function createPassword(context, user_uuid, password) {
       VALUES ($1, $2, $3, TRUE)
       RETURNING user_uuid;
     `
-    const result = await client.query(query, [
+    const result = await dbClient.query(query, [
       user_uuid,
       current_secret_type,
       secret_value,
@@ -40,32 +36,24 @@ export async function createPassword(context, user_uuid, password) {
   } catch (error) {
     console.error("Error in createPassword:", error)
     throw error
-  } finally {
-    if (client) {
-      await client.end()
-    }
   }
 }
 
 /**
  * Reads a user's active password hash, salt, and algorithm from the database.
- * @param {*} context - The context object.
+ * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<{secret_value: string, algo: string}|null>} Object with secret_value (hash:salt) and algo, or null if not found.
  */
-export async function readPassword(context, user_uuid) {
-  const { Client } = require("pg")
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
-
+export async function readPassword(dbClient, user_uuid) {
   try {
-    await client.connect()
     const query = `
       SELECT secret_value, secret_type
       FROM secrets
       WHERE user_uuid = $1 AND secret_type LIKE 'puff_password_%' AND is_enabled = TRUE
       LIMIT 1;
     `
-    const result = await client.query(query, [user_uuid])
+    const result = await dbClient.query(query, [user_uuid]) // Use dbClient
     if (result.rows.length === 0) {
       return null // No active password found
     }
@@ -79,62 +67,50 @@ export async function readPassword(context, user_uuid) {
       WHERE user_uuid = $1 AND secret_type = $2 AND is_enabled = TRUE;
     `
     // Fire and forget is acceptable here as it's not critical for the read operation's success
-    client.query(updateQuery, [user_uuid, secret_type]).catch(console.error)
+    dbClient.query(updateQuery, [user_uuid, secret_type]).catch(console.error) // Use dbClient
 
     return { secret_value: secret_value, algo: algo }
   } catch (error) {
     console.error("Error reading password:", error)
     throw error // Rethrow to allow higher-level error handling
-  } finally {
-    if (client) {
-      await client.end().catch(console.error)
-    }
   }
 }
 
 /**
  * Disables all active 'puff_password_%' type secrets for a user.
  * Sets is_enabled to FALSE and updates secret_last_used.
- * @param {*} context - The context object.
+ * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<boolean>} True if any active password was found and disabled, false otherwise.
  */
-export async function disablePassword(context, user_uuid) {
-  const { Client } = require("pg")
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
-
+export async function disablePassword(dbClient, user_uuid) {
   try {
-    await client.connect()
     const query = `
       UPDATE secrets
       SET is_enabled = FALSE
       WHERE user_uuid = $1 AND secret_type LIKE 'puff_password_%' AND is_enabled = TRUE
       RETURNING user_uuid;
     `
-    const result = await client.query(query, [user_uuid])
+    const result = await dbClient.query(query, [user_uuid]) // Use dbClient
     return result.rows.length > 0 // True if any row was updated
   } catch (error) {
     console.error("Error in disablePassword:", error)
     throw error
-  } finally {
-    if (client) {
-      await client.end()
-    }
   }
 }
 
 /**
  * Updates a user's password by disabling all old 'puff_password_%' type secrets and creating a new one.
  * This preserves the old password records with is_enabled = FALSE.
- * @param {*} context - The context object.
+ * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
  * @param {string} newPassword - The new plain text password.
  * @returns {Promise<boolean>} True if the new password was created successfully.
  */
-export async function updatePassword(context, user_uuid, newPassword) {
+export async function updatePassword(dbClient, user_uuid, newPassword) {
   try {
-    await disablePassword(context, user_uuid)
-    const createdNew = await createPassword(context, user_uuid, newPassword)
+    await disablePassword(dbClient, user_uuid) // Pass dbClient
+    const createdNew = await createPassword(dbClient, user_uuid, newPassword) // Pass dbClient
     return createdNew
   } catch (error) {
     console.error("Error in updatePassword:", error)
@@ -144,14 +120,14 @@ export async function updatePassword(context, user_uuid, newPassword) {
 
 /**
  * Verifies a user's password against the stored hash in the database.
- * @param {*} context - The context object containing environment variables and other configurations.
- * @param {*} pw - The plain text password to verify.
- * @param {*} user_uuid - The UUID of the user to verify the password for.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} pw - The plain text password to verify.
+ * @param {string} user_uuid - The UUID of the user to verify the password for.
  * @returns {boolean} True if the password is verified, false otherwise.
  */
-export async function password_verify(context, pw, user_uuid) {
+export async function password_verify(dbClient, pw, user_uuid) {
   try {
-    const passwordDetails = await readPassword(context, user_uuid)
+    const passwordDetails = await readPassword(dbClient, user_uuid)
 
     if (!passwordDetails) {
       // No active password found for the user, or an error occurred in readPassword

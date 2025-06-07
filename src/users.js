@@ -1,52 +1,33 @@
 import { createSession } from "./sessions.js"
-const { Client } = require("pg")
 import { createEmail, existsEmail, readEmail } from "./emails.js"
 import { createPassword, password_verify } from "./passwords.js"
 import { has2fa } from "./2fa.js"
 
 /**
- * Reads a user from the database.
- * @param {object} context - The Cloudflare Pages context object.
- * @param {string} user_uuid - The UUID of the user to read.
- * @returns {Promise<object|null>} - The user record if found and valid, null otherwise, or an error object.
+ * Retrieves a user's details by their UUID.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user.
+ * @returns {Promise<object|null>} - The user object if found and active, null otherwise.
  */
-export async function readUser(context, user_uuid) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
+export async function readUser(dbClient, user_uuid) {
   try {
-    await client.connect()
-
-    let queryString =
-      "SELECT user_uuid, user_name, user_active, user_created_at, user_last_login FROM users WHERE user_uuid = $1"
-    const queryParams = [user_uuid]
-
-    const query = {
-      text: queryString,
-      values: queryParams,
-    }
-
-    const result = await client.query(query)
-
+    const query = "SELECT user_uuid, email, created_at, updated_at, is_active FROM users WHERE user_uuid = $1 AND is_active = TRUE LIMIT 1"
+    const result = await dbClient.query(query, [user_uuid])
     if (result.rows.length > 0) {
-      return { success: true, user: result.rows[0] }
+      return result.rows[0]
     }
+    return null
   } catch (error) {
     console.error("Error in readUser:", error)
-    return {
-      error: true,
-      message: "Server error while reading user.",
-      details: error.message,
-    }
-  } finally {
-    await client.end()
+    throw error // Rethrow to be handled by caller
   }
 }
 
-export async function user_register(context, name, email, password) {
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
 
+export async function user_register(dbClient, name, email, password) {
   try {
     // Step 0. Check if the email already exists using existsEmail
-    const emailCheck = await existsEmail(context, email)
+    const emailCheck = await existsEmail(dbClient, email)
     if (emailCheck.error) {
       console.error("Error checking email existence:", emailCheck.message)
       throw new Error("Failed to verify email existence during registration.")
@@ -55,11 +36,9 @@ export async function user_register(context, name, email, password) {
       throw new Error("Email is already registered.")
     }
 
-    await client.connect()
-
     // Step 1. Register the user
     const uuid = crypto.randomUUID()
-    await client.query(
+    await dbClient.query(
       "INSERT INTO users (user_uuid, user_name) VALUES ($1, $2)",
       [uuid, name]
     )
@@ -67,7 +46,7 @@ export async function user_register(context, name, email, password) {
     // Step 2. Register the email using createEmail function
     // createEmail will handle token generation internally
     const createEmailResult = await createEmail(
-      context,
+      dbClient,
       uuid,
       email,
       true,
@@ -91,7 +70,7 @@ export async function user_register(context, name, email, password) {
     }
 
     // Step 3. Register the password using createPassword
-    const passwordCreated = await createPassword(context, uuid, password)
+    const passwordCreated = await createPassword(dbClient, uuid, password)
     if (!passwordCreated) {
       // This case implies an issue within createPassword, like a DB error it couldn't handle.
       // createPassword itself throws an error on failure, so this might be redundant if not caught and returned as false.
@@ -104,43 +83,32 @@ export async function user_register(context, name, email, password) {
     console.error("Error during user registration:", error)
     // Propagate the error or return a structured error response
     throw error // Or return { error: true, message: error.message }
-  } finally {
-    // Ensure client is ended only if it was connected by this function
-    if (client && client._connected) {
-      // Check if client was connected
-      await client.end()
-    }
   }
 }
 
-export async function user_exists(context, email) {
-  // const client = new Client(context.env.HYPERDRIVE.connectionString) // Handled by existsEmail
-
+/**
+ * Checks if a user exists by email.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} email - The email address to check.
+ * @returns {Promise<boolean>} - True if the user exists and is active, false otherwise.
+ */
+export async function user_exists(dbClient, email) {
   try {
-    // await client.connect() // Handled by existsEmail
-    const emailCheck = await existsEmail(context, email)
-    if (emailCheck.error) {
-      console.error(
-        "Error in user_exists calling existsEmail:",
-        emailCheck.message
-      )
-      // Decide on how to propagate this error. Throwing it might be consistent.
-      throw new Error(emailCheck.message || "Failed to check if user exists.")
-    }
-    return emailCheck.exists ? 1 : 0 // Return 1 if exists, 0 if not, to match previous logic (parseInt on COUNT)
+    const query = "SELECT 1 FROM users WHERE email = $1 AND is_active = TRUE LIMIT 1"
+    const result = await dbClient.query(query, [email]) // Use dbClient
+    return result.rows.length > 0
   } catch (error) {
-    console.error("Error in user_exists:", error) // This will catch errors from existsEmail or here
-    throw error
+    console.error("Error in user_exists:", error)
+    // In case of an error, it's safer to assume the user might exist or handle error upstream
+    // For now, returning false, but this might need adjustment based on desired behavior on error
+    return false
   }
 }
 
-export async function user_login(context, email, password, user_agent, ip_address) {
-  let client
-  try {
-    client = new Client(context.env.HYPERDRIVE.connectionString)
-    await client.connect()
 
-    const emailReadResult = await readEmail(context, email)
+export async function user_login(dbClient, email, password, user_agent, ip_address) {
+  try {
+    const emailReadResult = await readEmail(dbClient, email)
 
     // Handle cases where readEmail indicates an error, email not found, or unexpected structure
     if (
@@ -165,69 +133,132 @@ export async function user_login(context, email, password, user_agent, ip_addres
     }
 
     const user = emailReadResult.email
+    const user_uuid = user.user_uuid
 
-    if (!user.is_verified) {
+    const passwordVerified = await password_verify(dbClient, user_uuid, password)
+    if (!passwordVerified || passwordVerified.error) {
+      const message =
+        passwordVerified && passwordVerified.message
+          ? passwordVerified.message
+          : "Invalid email or password."
+      const status =
+        passwordVerified && passwordVerified.status
+          ? passwordVerified.status
+          : 401
+      return { error: true, message: message, status: status }
+    }
+
+    // Check for 2FA
+    const twoFactorEnabled = await has2fa(dbClient, user_uuid)
+    if (twoFactorEnabled && twoFactorEnabled.error) {
+      // Handle error from has2fa check
       return {
         error: true,
-        message: "Please verify your email before logging in.",
-        status: 403,
+        message: twoFactorEnabled.message || "Error checking 2FA status.",
+        status: twoFactorEnabled.status || 500,
       }
     }
 
-    // Use password_verify from the imported passwords.js module
-    const passwordMatches = await password_verify(
-      context,
-      password,
-      user.user_uuid
-    )
-
-    if (!passwordMatches) {
-      return { error: true, message: "Invalid email or password.", status: 401 }
-    }
-
-    const twoFactorEnabled = await has2fa(context, user.user_uuid)
-
-    if (twoFactorEnabled) {
+    if (twoFactorEnabled && twoFactorEnabled.enabled) {
+      // If 2FA is enabled, return a response indicating that 2FA is required
+      // The application should then prompt the user for their TOTP code
       return {
-        next_step: "totp",
-        user_uuid: user.user_uuid,
-        totp_required: true,
-        message: `Please provide your TOTP code for user \"${user.user_uuid}\".`,
-        status: 200,
+        success: true,
+        two_factor_required: true,
+        user_uuid: user_uuid, // Include user_uuid for the next step (verifying TOTP)
+        message: "2FA required.",
+        status: 202, // Accepted, but further action needed
       }
     }
 
-    const sessionDetails = await createSession(
-      client,
-      user.user_uuid,
+    // If 2FA is not enabled, proceed to create a session
+    const session = await createSession(
+      dbClient,
+      user_uuid,
       user_agent,
       ip_address
     )
-
-    if (sessionDetails.error) {
+    if (!session || session.error) {
       return {
         error: true,
-        message: sessionDetails.message || "Session creation failed.",
-        status: sessionDetails.status || 500,
+        message: session ? session.message : "Session creation failed.",
+        status: session ? session.status : 500,
       }
     }
 
     return {
-      user_uuid: user.user_uuid,
-      session_id: sessionDetails.session_id,
-      expires_at: sessionDetails.expires_at,
+      success: true,
+      session_token: session.session_token_value,
+      user_uuid: user_uuid,
+      message: "Login successful.",
       status: 200,
     }
-  } catch (dbError) {
-    console.error("Error during user login:", dbError)
+  } catch (error) {
+    console.error("Error during user login:", error)
     return {
       error: true,
-      message: "Login failed due to a server error.",
+      message: "An unexpected error occurred during login.",
       status: 500,
-    }
-  } finally {
-    if (client) {
-      await client.end()
     }
   }
 }
+
+/**
+ * Retrieves a user by their email address.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} email - The email address of the user.
+ * @returns {Promise<object|null>} - The user object if found, otherwise null.
+ */
+export async function getUserByEmail(dbClient, email) {
+  try {
+    const query = "SELECT * FROM users WHERE email = $1 AND is_active = TRUE LIMIT 1"
+    const result = await dbClient.query(query, [email])
+    if (result.rows.length > 0) {
+      return result.rows[0]
+    }
+    return null
+  } catch (error) {
+    console.error("Error in getUserByEmail:", error)
+    throw error // Rethrow to be handled by caller
+  }
+}
+
+/**
+ * Retrieves a user by their UUID.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user.
+ * @returns {Promise<object|null>} - The user object if found, otherwise null.
+ */
+export async function getUserByUuid(dbClient, user_uuid) {
+  try {
+    const query = "SELECT * FROM users WHERE user_uuid = $1 AND is_active = TRUE LIMIT 1"
+    const result = await dbClient.query(query, [user_uuid])
+    if (result.rows.length > 0) {
+      return result.rows[0]
+    }
+    return null
+  } catch (error) {
+    console.error("Error in getUserByUuid:", error)
+    throw error // Rethrow to be handled by caller
+  }
+}
+
+/**
+ * Deletes a user by their UUID.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user to delete.
+ * @returns {Promise<boolean>} True if the user was deleted, false otherwise.
+ */
+export async function deleteUser(dbClient, user_uuid) {
+  try {
+    const result = await dbClient.query(
+      "UPDATE users SET is_active = FALSE WHERE user_uuid = $1",
+      [user_uuid]
+    )
+    return result.rowCount > 0
+  } catch (error) {
+    console.error("Error in deleteUser:", error)
+    throw error
+  }
+}
+

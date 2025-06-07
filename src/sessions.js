@@ -1,18 +1,16 @@
 import { randomBytes } from "node:crypto"
 import { getCookie } from "./utilities.js"
 
-const { Client } = require("pg")
-
 /**
  * Verifies a session token against the database.
  *
- * @param {Client} client - An active pg Client instance.
+ * @param {Client} dbClient - An active pg.Client instance (expected to be connected).
  * @param {string} token - The session token to verify.
  * @returns {Promise<object>} An object with `user_uuid` if valid, or an `error` message and `status` if invalid/error.
  */
-export async function verifyTokenAndGetUser(client, token) {
+export async function verifyTokenAndGetUser(dbClient, token) {
   try {
-    const sessionRecordResult = await client.query(
+    const sessionRecordResult = await dbClient.query(
       "SELECT user_uuid, expires_at FROM sessions WHERE session_id = $1",
       [token]
     )
@@ -27,7 +25,7 @@ export async function verifyTokenAndGetUser(client, token) {
 
     if (now > expiresAt) {
       // Optionally, delete the expired session token from the database
-      //await client.query("DELETE FROM sessions WHERE session_id = $1", [token])
+      //await dbClient.query("DELETE FROM sessions WHERE session_id = $1", [token])
       return { error: "Session token expired.", status: 401 }
     }
 
@@ -39,64 +37,36 @@ export async function verifyTokenAndGetUser(client, token) {
 }
 
 /**
- * Function to handle session authentication and Hyperdrive checks.
- * It can optionally require authentication and will manage its own database client.
+ * Authenticates a user based on a session token from cookies.
  *
- * @param {object} context - The Cloudflare Pages context object, containing request, env, and data.
- * @returns {Promise<Response|null>} A Response object if the request should be terminated early (e.g., due to
- *                                   missing Hyperdrive binding or failed required authentication),
- *                                   or null if the request should continue to the main handler.
- *                                   If authentication is successful, context.data.user_uuid will be set.
+ * @param {Client} dbClient - An active pg.Client instance (expected to be connected).
+ * @param {object} request - The Cloudflare Pages request object to access headers (for cookies).
+ * @returns {Promise<{user_uuid?: string, error?: string, status?: number}>}
+ *          An object containing user_uuid if authentication is successful,
+ *          or an error message and status code if authentication fails or an error occurs.
  */
-export async function sessionAuthWithCookie(context) {
-  // 1. Initialize context.data if it doesn't exist
-  if (!context.data) {
-    context.data = {}
-  }
+export async function sessionAuthWithCookie(dbClient, request) {
+  // 1. Cookie parsing to get the session token
+  const cookieHeader = request.headers.get("Cookie");
+  const sessionToken = await getCookie(cookieHeader, "session_token");
 
-  // 2. Cookie parsing to get the session token
-  const cookieHeader = context.request.headers.get("Cookie")
-  const sessionToken = await getCookie(cookieHeader, "session_token")
-
-  // 3. Check the session token is valid
+  // 2. Check the session token is valid
   if (sessionToken) {
-    const client = new Client(context.env.HYPERDRIVE.connectionString)
-    try {
-      await client.connect()
-      const authResult = await verifyTokenAndGetUser(client, sessionToken)
+    // dbClient is now passed in and expected to be connected
+    // No try/catch here for dbClient.connect() or dbClient.end() as it's managed by middleware
+    const authResult = await verifyTokenAndGetUser(dbClient, sessionToken);
 
-      if (authResult && authResult.user_uuid) {
-        // Set context.data.user_uuid as per documentation and for reliable access by callers
-        context.data.user_uuid = authResult.user_uuid
-        return authResult.user_uuid // Return user_uuid string as many callers expect
-      } else if (authResult && authResult.error) {
-        // Propagate error object from verifyTokenAndGetUser
-        return authResult
-      } else {
-        // Token was present, but verifyTokenAndGetUser didn't return user_uuid or a recognized error.
-        return {
-          error: "Session token validation failed unexpectedly.",
-          status: 401,
-        }
-      }
-    } catch (dbError) {
-      console.error(
-        "Database connection or query error in sessionAuthWithCookie:",
-        dbError
-      )
-      return {
-        error: "An internal server error occurred during authentication.",
-        status: 500,
-      }
-    } finally {
-      if (client) {
-        await client.end()
-      }
+    if (authResult && authResult.user_uuid) {
+      return { user_uuid: authResult.user_uuid, status: 200 }; // Return user_uuid and status
+    } else if (authResult && authResult.error) {
+      return authResult; // Propagate error object from verifyTokenAndGetUser
+    } else {
+      // Token was present, but verifyTokenAndGetUser didn't return user_uuid or a recognized error.
+      return { error: "Invalid session token.", status: 401 };
     }
   } else {
     // No session token found in cookies.
-    // Return an error object for clarity and consistency.
-    return { error: "No session token provided.", status: 401 }
+    return { error: "No session token provided.", status: 401 };
   }
 }
 
@@ -104,13 +74,13 @@ export async function sessionAuthWithCookie(context) {
  * Starts a new session by inserting it into the database.
  * The session ID is generated internally and expires in 24 hours.
  *
- * @param {Client} client - An active pg Client instance.
+ * @param {Client} dbClient - An active pg.Client instance (expected to be connected).
  * @param {string} user_uuid - The UUID of the user starting the session.
  * @param {string} [user_agent] - (Optional) The user agent string from the request.
  * @param {string} [ip_address] - (Optional) The IP address from the request.
  * @returns {Promise<object>} An object with the session_id if successful, or an `error` message and `status` if failed.
  */
-export async function createSession(client, user_uuid, user_agent, ip_address) {
+export async function createSession(dbClient, user_uuid, user_agent, ip_address) {
   if (!user_uuid) {
     return { error: "User UUID is required.", status: 400 }
   }
@@ -139,7 +109,7 @@ export async function createSession(client, user_uuid, user_agent, ip_address) {
 
     query += `) VALUES (${valuePlaceholders})`
 
-    await client.query(query, params)
+    await dbClient.query(query, params)
     return {
       session_id: session_id,
       status: 200,
@@ -155,173 +125,67 @@ export async function createSession(client, user_uuid, user_agent, ip_address) {
 }
 
 /**
- * Ends a session by deleting it from the database.
+ * Terminates a specific session from the database by marking it as not active.
  *
- * @param {object} context - The Cloudflare Pages context object, containing request, env, and data.
- * @param {string} token - The session token to delete.
- * @returns {Promise<object>} An object with `rowCount` if successful, or an `error` message and `status` if failed.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} session_id - The ID of the session to terminate.
+ * @returns {Promise<{success?: boolean, error?: string, status?: number}>} Result of the operation.
  */
-export async function deleteSession(context, token) {
-  if (!token) {
-    return { error: "Session token is required.", status: 400 }
-  }
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
+export async function terminateSpecificSession(dbClient, session_id) {
   try {
-    await client.connect()
-    const deleteResult = await client.query(
-      "DELETE FROM sessions WHERE session_id = $1",
-      [token]
-    )
-    return { rowCount: deleteResult.rowCount, status: 200 }
+    const result = await dbClient.query(
+      "UPDATE sessions SET is_active = FALSE WHERE session_id = $1 AND is_active = TRUE RETURNING session_id",
+      [session_id]
+    );
+    if (result.rowCount > 0) {
+      return { success: true, status: 200 };
+    } else {
+      return { error: "Session not found or already terminated.", status: 404 };
+    }
   } catch (error) {
-    console.error("Error during session deletion:", error)
-    return {
-      error: "Failed to end session due to a server error.",
-      status: 500,
-    }
-  } finally {
-    if (client) {
-      await client.end()
-    }
+    console.error("Error in terminateSpecificSession:", error);
+    return { error: "Failed to terminate session due to a server error.", status: 500 };
   }
 }
 
 /**
- * Retrieves all active sessions for a given user.
+ * Terminates all sessions for a given user from the database by marking them as not active,
+ * except for the specified session ID.
  *
- * @param {object} context - The Cloudflare Pages context object.
- * @param {string} user_uuid - The UUID of the user whose sessions are to be retrieved.
- * @returns {Promise<object>} An object with an array of `sessions` if successful, or an `error` message and `status` if failed.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user whose sessions are to be deleted.
+ * @param {string} session_id - The ID of the session to exclude from deletion (optional).
+ * @returns {Promise<{deletedCount?: number, error?: string, status?: number}>} Result of the operation.
  */
-export async function listActiveSessionsForUser(context, user_uuid) {
-  if (!user_uuid) {
-    return { error: "User UUID is required.", status: 400 }
-  }
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
+export async function terminateAllOtherSessions(dbClient, user_uuid, session_id) {
   try {
-    await client.connect()
-    const nowISO = new Date().toISOString()
-    const sessionsQuery = {
-      text: "SELECT session_id, created_at, expires_at, user_agent, ip_address FROM sessions WHERE user_uuid = $1 AND expires_at > $2 ORDER BY created_at DESC",
-      values: [user_uuid, nowISO],
-    }
-    const sessionsResult = await client.query(sessionsQuery)
-    return { sessions: sessionsResult.rows, status: 200 }
+    const result = await dbClient.query(
+      "UPDATE sessions SET is_active = FALSE WHERE user_uuid = $1 AND session_id != $2 AND is_active = TRUE RETURNING session_id",
+      [user_uuid, session_id]
+    );
+    return { deletedCount: result.rowCount, status: 200 };
   } catch (error) {
-    console.error("Error listing active sessions:", error)
-    return {
-      error: "Failed to list sessions due to a server error.",
-      status: 500,
-    }
-  } finally {
-    if (client) {
-      await client.end()
-    }
+    console.error("Error in terminateAllOtherSessions:", error);
+    return { error: "Failed to terminate sessions due to a server error.", status: 500 };
   }
 }
 
 /**
- * Terminates all active sessions for a given user, except for the specified current session.
+ * Lists all active sessions for a given user.
  *
- * @param {object} context - The Cloudflare Pages context object.
- * @param {string} user_uuid - The UUID of the user whose other sessions are to be terminated.
- * @param {string} currentSessionTokenToPreserve - The session ID of the current session, which should not be terminated.
- * @returns {Promise<object>} An object with `terminated_count` if successful, or an `error` message and `status` if failed.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user.
+ * @returns {Promise<{sessions?: Array<object>, error?: string, status?: number}>} List of sessions or error.
  */
-export async function terminateAllOtherSessions(
-  context,
-  user_uuid,
-  currentSessionTokenToPreserve
-) {
-  if (!user_uuid) {
-    return { error: "User UUID is required.", status: 400 }
-  }
-  if (!currentSessionTokenToPreserve) {
-    return {
-      error: "Current session token to preserve is required.",
-      status: 400,
-    }
-  }
-
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
+export async function listSessionsForUser(dbClient, user_uuid) {
   try {
-    await client.connect()
-    const deleteQuery = {
-      text: "DELETE FROM sessions WHERE user_uuid = $1 AND session_id != $2",
-      values: [user_uuid, currentSessionTokenToPreserve],
-    }
-    const deleteResult = await client.query(deleteQuery)
-    return { terminated_count: deleteResult.rowCount || 0, status: 200 }
+    const result = await dbClient.query(
+      "SELECT session_id, user_agent, ip_address, created_at, expires_at, last_used_at FROM sessions WHERE user_uuid = $1 ORDER BY last_used_at DESC",
+      [user_uuid]
+    );
+    return { sessions: result.rows, status: 200 };
   } catch (error) {
-    console.error("Error terminating all other sessions:", error)
-    return {
-      error: "Failed to terminate other sessions due to a server error.",
-      status: 500,
-    }
-  } finally {
-    if (client) {
-      await client.end()
-    }
-  }
-}
-
-/**
- * Terminates a specific session for a given user, ensuring the session belongs to that user.
- *
- * @param {object} context - The Cloudflare Pages context object.
- * @param {string} user_uuid - The UUID of the user who owns the session.
- * @param {string} session_id_to_terminate - The ID of the session to terminate.
- * @returns {Promise<object>} An object with `rowCount` (should be 1 if successful, 0 if not found/not owned)
- *                            or an `error` message and `status` if failed.
- */
-export async function terminateSpecificSession(
-  context,
-  user_uuid,
-  session_id_to_terminate
-) {
-  if (!user_uuid) {
-    return { error: "User UUID is required.", status: 400 }
-  }
-  if (!session_id_to_terminate) {
-    return { error: "Session ID to terminate is required.", status: 400 }
-  }
-
-  const client = new Client(context.env.HYPERDRIVE.connectionString)
-  try {
-    await client.connect()
-
-    // First, verify the session belongs to the user to prevent unauthorized deletions
-    // Although the DELETE query also has this check, this provides a clearer error if it doesn't exist or belong.
-    const verifyQuery = {
-      text: "SELECT session_id FROM sessions WHERE session_id = $1 AND user_uuid = $2",
-      values: [session_id_to_terminate, user_uuid],
-    }
-    const verifyResult = await client.query(verifyQuery)
-
-    if (verifyResult.rowCount === 0) {
-      return {
-        error:
-          "Session not found or you do not have permission to terminate it.",
-        status: 404,
-      }
-    }
-
-    // If verification passes, proceed to delete
-    const deleteQuery = {
-      text: "DELETE FROM sessions WHERE session_id = $1 AND user_uuid = $2",
-      values: [session_id_to_terminate, user_uuid],
-    }
-    const deleteResult = await client.query(deleteQuery)
-    return { rowCount: deleteResult.rowCount, status: 200 } // rowCount will be 1 if deleted, 0 if already gone
-  } catch (error) {
-    console.error("Error terminating specific session:", error)
-    return {
-      error: "Failed to terminate session due to a server error.",
-      status: 500,
-    }
-  } finally {
-    if (client) {
-      await client.end()
-    }
+    console.error("Error in listSessionsForUser:", error);
+    return { error: "Failed to list sessions due to a server error.", status: 500 };
   }
 }
