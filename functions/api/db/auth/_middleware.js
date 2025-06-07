@@ -24,7 +24,6 @@ import { verifyTokenAndGetUser } from "../../../../src/sessions.js"
  */
 async function sessionAuthWithCookie(context) {
   const { request, data, next } = context
-  console.log(`sessionAuthWithCookie: dbClient:`, context.data.dbClient)
 
   if (!data || !data.dbClient) {
     console.error(
