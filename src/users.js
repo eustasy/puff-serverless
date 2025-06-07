@@ -11,7 +11,8 @@ import { has2fa } from "./2fa.js"
  */
 export async function readUser(dbClient, user_uuid) {
   try {
-    const query = "SELECT user_uuid, email, created_at, updated_at, is_active FROM users WHERE user_uuid = $1 AND is_active = TRUE LIMIT 1"
+    const query =
+      "SELECT user_uuid, email, created_at, updated_at, is_active FROM users WHERE user_uuid = $1 AND is_active = TRUE LIMIT 1"
     const result = await dbClient.query(query, [user_uuid])
     if (result.rows.length > 0) {
       return result.rows[0]
@@ -22,7 +23,6 @@ export async function readUser(dbClient, user_uuid) {
     throw error // Rethrow to be handled by caller
   }
 }
-
 
 export async function user_register(dbClient, name, email, password) {
   try {
@@ -94,7 +94,8 @@ export async function user_register(dbClient, name, email, password) {
  */
 export async function user_exists(dbClient, email) {
   try {
-    const query = "SELECT 1 FROM users WHERE email = $1 AND is_active = TRUE LIMIT 1"
+    const query =
+      "SELECT 1 FROM users WHERE email = $1 AND is_active = TRUE LIMIT 1"
     const result = await dbClient.query(query, [email]) // Use dbClient
     return result.rows.length > 0
   } catch (error) {
@@ -105,8 +106,13 @@ export async function user_exists(dbClient, email) {
   }
 }
 
-
-export async function user_login(dbClient, email, password, user_agent, ip_address) {
+export async function user_login(
+  dbClient,
+  email,
+  password,
+  user_agent,
+  ip_address
+) {
   try {
     const emailReadResult = await readEmail(dbClient, email)
 
@@ -135,7 +141,11 @@ export async function user_login(dbClient, email, password, user_agent, ip_addre
     const user = emailReadResult.email
     const user_uuid = user.user_uuid
 
-    const passwordVerified = await password_verify(dbClient, user_uuid, password)
+    const passwordVerified = await password_verify(
+      dbClient,
+      user_uuid,
+      password
+    )
     if (!passwordVerified || passwordVerified.error) {
       const message =
         passwordVerified && passwordVerified.message
@@ -211,7 +221,8 @@ export async function user_login(dbClient, email, password, user_agent, ip_addre
  */
 export async function getUserByEmail(dbClient, email) {
   try {
-    const query = "SELECT * FROM users WHERE email = $1 AND is_active = TRUE LIMIT 1"
+    const query =
+      "SELECT * FROM users WHERE email = $1 AND is_active = TRUE LIMIT 1"
     const result = await dbClient.query(query, [email])
     if (result.rows.length > 0) {
       return result.rows[0]
@@ -231,7 +242,8 @@ export async function getUserByEmail(dbClient, email) {
  */
 export async function getUserByUuid(dbClient, user_uuid) {
   try {
-    const query = "SELECT * FROM users WHERE user_uuid = $1 AND is_active = TRUE LIMIT 1"
+    const query =
+      "SELECT * FROM users WHERE user_uuid = $1 AND is_active = TRUE LIMIT 1"
     const result = await dbClient.query(query, [user_uuid])
     if (result.rows.length > 0) {
       return result.rows[0]
@@ -261,4 +273,3 @@ export async function deleteUser(dbClient, user_uuid) {
     throw error
   }
 }
-

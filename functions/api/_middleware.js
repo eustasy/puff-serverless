@@ -1,4 +1,4 @@
-import { Client } from "pg";
+import { Client } from "pg"
 
 /**
  * Middleware to:
@@ -67,7 +67,10 @@ async function databaseConnectionMiddleware(context) {
         await context.data.dbClient.end()
         // console.log("Middleware: Database client closed successfully.");
       } catch (endError) {
-        console.error("Middleware: Error while closing database client:", endError)
+        console.error(
+          "Middleware: Error while closing database client:",
+          endError
+        )
       }
     }
   }
@@ -76,4 +79,4 @@ async function databaseConnectionMiddleware(context) {
 // Define the middleware chain.
 // This will apply the databaseConnectionMiddleware to all requests under /api.
 // You can add other middleware functions to this array if needed in the future.
- const onRequest = [databaseConnectionMiddleware]
+const onRequest = [databaseConnectionMiddleware]

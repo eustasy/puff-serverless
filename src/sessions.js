@@ -47,26 +47,26 @@ export async function verifyTokenAndGetUser(dbClient, token) {
  */
 export async function sessionAuthWithCookie(dbClient, request) {
   // 1. Cookie parsing to get the session token
-  const cookieHeader = request.headers.get("Cookie");
-  const sessionToken = await getCookie(cookieHeader, "session_token");
+  const cookieHeader = request.headers.get("Cookie")
+  const sessionToken = await getCookie(cookieHeader, "session_token")
 
   // 2. Check the session token is valid
   if (sessionToken) {
     // dbClient is now passed in and expected to be connected
     // No try/catch here for dbClient.connect() or dbClient.end() as it's managed by middleware
-    const authResult = await verifyTokenAndGetUser(dbClient, sessionToken);
+    const authResult = await verifyTokenAndGetUser(dbClient, sessionToken)
 
     if (authResult && authResult.user_uuid) {
-      return { user_uuid: authResult.user_uuid, status: 200 }; // Return user_uuid and status
+      return { user_uuid: authResult.user_uuid, status: 200 } // Return user_uuid and status
     } else if (authResult && authResult.error) {
-      return authResult; // Propagate error object from verifyTokenAndGetUser
+      return authResult // Propagate error object from verifyTokenAndGetUser
     } else {
       // Token was present, but verifyTokenAndGetUser didn't return user_uuid or a recognized error.
-      return { error: "Invalid session token.", status: 401 };
+      return { error: "Invalid session token.", status: 401 }
     }
   } else {
     // No session token found in cookies.
-    return { error: "No session token provided.", status: 401 };
+    return { error: "No session token provided.", status: 401 }
   }
 }
 
@@ -80,7 +80,12 @@ export async function sessionAuthWithCookie(dbClient, request) {
  * @param {string} [ip_address] - (Optional) The IP address from the request.
  * @returns {Promise<object>} An object with the session_id if successful, or an `error` message and `status` if failed.
  */
-export async function createSession(dbClient, user_uuid, user_agent, ip_address) {
+export async function createSession(
+  dbClient,
+  user_uuid,
+  user_agent,
+  ip_address
+) {
   if (!user_uuid) {
     return { error: "User UUID is required.", status: 400 }
   }
@@ -136,15 +141,18 @@ export async function terminateSpecificSession(dbClient, session_id) {
     const result = await dbClient.query(
       "UPDATE sessions SET is_active = FALSE WHERE session_id = $1 AND is_active = TRUE RETURNING session_id",
       [session_id]
-    );
+    )
     if (result.rowCount > 0) {
-      return { success: true, status: 200 };
+      return { success: true, status: 200 }
     } else {
-      return { error: "Session not found or already terminated.", status: 404 };
+      return { error: "Session not found or already terminated.", status: 404 }
     }
   } catch (error) {
-    console.error("Error in terminateSpecificSession:", error);
-    return { error: "Failed to terminate session due to a server error.", status: 500 };
+    console.error("Error in terminateSpecificSession:", error)
+    return {
+      error: "Failed to terminate session due to a server error.",
+      status: 500,
+    }
   }
 }
 
@@ -157,16 +165,23 @@ export async function terminateSpecificSession(dbClient, session_id) {
  * @param {string} session_id - The ID of the session to exclude from deletion (optional).
  * @returns {Promise<{deletedCount?: number, error?: string, status?: number}>} Result of the operation.
  */
-export async function terminateAllOtherSessions(dbClient, user_uuid, session_id) {
+export async function terminateAllOtherSessions(
+  dbClient,
+  user_uuid,
+  session_id
+) {
   try {
     const result = await dbClient.query(
       "UPDATE sessions SET is_active = FALSE WHERE user_uuid = $1 AND session_id != $2 AND is_active = TRUE RETURNING session_id",
       [user_uuid, session_id]
-    );
-    return { deletedCount: result.rowCount, status: 200 };
+    )
+    return { deletedCount: result.rowCount, status: 200 }
   } catch (error) {
-    console.error("Error in terminateAllOtherSessions:", error);
-    return { error: "Failed to terminate sessions due to a server error.", status: 500 };
+    console.error("Error in terminateAllOtherSessions:", error)
+    return {
+      error: "Failed to terminate sessions due to a server error.",
+      status: 500,
+    }
   }
 }
 
@@ -182,10 +197,13 @@ export async function listSessionsForUser(dbClient, user_uuid) {
     const result = await dbClient.query(
       "SELECT session_id, user_agent, ip_address, created_at, expires_at, last_used_at FROM sessions WHERE user_uuid = $1 ORDER BY last_used_at DESC",
       [user_uuid]
-    );
-    return { sessions: result.rows, status: 200 };
+    )
+    return { sessions: result.rows, status: 200 }
   } catch (error) {
-    console.error("Error in listSessionsForUser:", error);
-    return { error: "Failed to list sessions due to a server error.", status: 500 };
+    console.error("Error in listSessionsForUser:", error)
+    return {
+      error: "Failed to list sessions due to a server error.",
+      status: 500,
+    }
   }
 }

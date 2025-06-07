@@ -2,8 +2,6 @@
 
 ## Table of Contents
 
-
-
 ## Deployment
 
 ### First time project setup
