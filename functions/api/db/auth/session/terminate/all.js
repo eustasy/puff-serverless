@@ -38,7 +38,7 @@ export async function onRequestPost(context) {
   // For HTMX, you might want to return a partial that updates the UI, or a redirect.
   // For now, a simple success message.
   return new Response(
-    `<p>All other active sessions (count: ${terminationResult.terminated_count}) terminated successfully. This session remains active.</p>`,
+    `<p>All other active sessions (count: ${terminationResult.deletedCount}) terminated successfully. This session remains active.</p>`,
     { status: 200, headers: { "Content-Type": "text/html" } }
   )
 }

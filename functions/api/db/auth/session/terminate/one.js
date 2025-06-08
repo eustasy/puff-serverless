@@ -45,7 +45,7 @@ export async function onRequestPost(context) {
   }
 
   // Step 5: Response
-  if (terminationResult.rowCount > 0) {
+  if (terminationResult.success) {
     return new Response(
       '<p class="result-positive">Session terminated successfully.</p>',
       {
