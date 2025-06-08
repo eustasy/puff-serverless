@@ -42,7 +42,7 @@ export async function onRequestGet(context) {
               ? "<strong>Current Session</strong>"
               : `<button
                   class="btn-danger"
-                  hx-post="/api/session/terminate/one?id=${session.session_id}"
+                  hx-post="/api/db/auth/session/terminate/one?id=${session.session_id}"
                   hx-target="#session-message-area" 
                   hx-swap="innerHTML"
                   hx-confirm="Are you sure you want to terminate this session?"

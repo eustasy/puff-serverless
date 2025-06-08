@@ -131,7 +131,7 @@ export async function onRequestPost(context) {
         </div>
         
         <form id="verify-2fa-form"
-              hx-post="/api/2fa/setup/verify"
+              hx-post="/api/db/auth/2fa/setup/verify"
               hx-target="#tfa-message-area" 
               hx-swap="innerHTML">
           <p>After adding to your authenticator app, enter the 6-digit code it provides to verify and enable 2FA.</p>
@@ -145,7 +145,7 @@ export async function onRequestPost(context) {
           </button>
         </form>
         <button 
-          hx-get="/api/2fa/status" 
+          hx-get="/api/db/auth/2fa/status" 
           hx-target="#tfa-status-container" 
           hx-swap="innerHTML"
           class="btn-danger"

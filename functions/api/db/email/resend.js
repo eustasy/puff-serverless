@@ -113,7 +113,7 @@ export async function onRequestPost(context) {
       }
     )
   } catch (error) {
-    console.error("Error in /api/email/resend endpoint:", error)
+    console.error("Error in /api/db/auth/email/resend endpoint:", error)
     let errorMessage = "Failed to resend verification due to a server error."
     if (error instanceof TypeError && error.message.includes("formData")) {
       errorMessage = "Invalid request format. Expected form data."

@@ -37,7 +37,7 @@ export async function onRequestGet(context) {
       if (!email.is_primary && email.is_verified) {
         html += `<button
                     class="btn-save"
-                    hx-post="/api/email/primary"
+                    hx-post="/api/db/auth/email/primary"
                     hx-vals='{"email_address": "${email.email_address}"}'
                     hx-target="#email-list-container"
                     hx-swap="innerHTML"
@@ -49,7 +49,7 @@ export async function onRequestGet(context) {
       if (!email.is_primary) {
         html += `<button
                     class="btn-danger"
-                    hx-post="/api/email/remove"
+                    hx-post="/api/db/auth/email/remove"
                     hx-vals='{"email_address": "${email.email_address}"}'
                     hx-target="#email-message-area"
                     hx-swap="innerHTML"
@@ -62,7 +62,7 @@ export async function onRequestGet(context) {
       if (!email.is_verified) {
         html += `<button
                     class="btn-save"
-                    hx-post="/api/email/resend"
+                    hx-post="/api/db/auth/email/resend"
                     hx-vals='{"email_address": "${email.email_address}"}'
                     hx-target="#email-message-area"
                     hx-swap="innerHTML"
@@ -79,7 +79,7 @@ export async function onRequestGet(context) {
       headers: { "Content-Type": "text/html" },
     })
   } catch (error) {
-    console.error("Error in onRequestGet for /api/email/list:", error)
+    console.error("Error in onRequestGet for /api/db/auth/email/list:", error)
     return new Response(
       '<p class="result-negative">Failed to load email addresses due to a server error.</p>',
       {

@@ -30,7 +30,7 @@ export async function onRequestGet(context) {
   if (is2FAEnabled) {
     htmlResponse = `
       <p>Two-Factor Authentication is currently <strong class="result-positive">enabled</strong>.</p>
-      <form hx-post="/api/2fa/remove" hx-target="#tfa-message-area" hx-swap="innerHTML">
+      <form hx-post="/api/db/auth/2fa/remove" hx-target="#tfa-message-area" hx-swap="innerHTML">
         <div style="margin-bottom: 1em;">
           <label for="totp_code">Enter your 6-digit authenticator code to remove 2FA:</label>
           <input 
@@ -55,14 +55,14 @@ export async function onRequestGet(context) {
         </button>
       </form>
     `
-    // The /api/2fa/remove endpoint should return HX-Trigger: tfaStatusChanged on success
+    // The /api/db/auth/2fa/remove endpoint should return HX-Trigger: tfaStatusChanged on success
     // to refresh this #tfa-status-container.
   } else {
     htmlResponse = `
       <p>Two-Factor Authentication is currently <strong class="result-negative">disabled</strong>.</p>
       <button
         class="btn-save"
-        hx-post="/api/2fa/setup/start"
+        hx-post="/api/db/auth/2fa/setup/start"
         hx-target="#tfa-status-container"
         hx-swap="innerHTML"
         hx-trigger="click"
@@ -72,7 +72,7 @@ export async function onRequestGet(context) {
         <img class="htmx-indicator" src="/assets/bars.svg" alt="Loading..."/>
       </button>
     `
-    // The /api/2fa/setup/start endpoint would typically replace the content of
+    // The /api/db/auth/2fa/setup/start endpoint would typically replace the content of
     // #tfa-status-container with the 2FA setup UI (e.g., QR code, code input).
     // Upon successful setup, the final step of enabling 2FA should trigger the
     // 'tfaStatusChanged' event (e.g. via HX-Trigger header) to refresh this container.
