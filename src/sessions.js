@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto"
-import { getCookie } from "./utilities/headers.js"
+import { loginUser } from "./users"
 
 /**
  * Verifies a session token against the database.
@@ -81,6 +81,7 @@ export async function createSession(
     query += `) VALUES (${valuePlaceholders})`
 
     await dbClient.query(query, params)
+    await loginUser(dbClient, user_uuid)
     return {
       session_id: session_id,
       status: 200,

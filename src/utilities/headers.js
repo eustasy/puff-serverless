@@ -19,6 +19,12 @@ export async function getCookie(cookieString, cookieName) {
   return null
 }
 
+/**
+ * Parses the User-Agent string from the request headers and returns a human-readable format.
+ * Example: parseUserAgent(context.request.headers.get("User-Agent"))
+ * @param {string | null} userAgentString - The User-Agent string from the request headers.
+ * @returns {string} A human-readable string describing the browser and OS, or "N/A" if not available.
+ */
 export function parseUserAgent(userAgentString) {
   if (!userAgentString) return "N/A"
 

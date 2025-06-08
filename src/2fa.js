@@ -107,31 +107,6 @@ export async function enable2fa(dbClient, user_uuid) {
   }
 }
 
-export async function disable2fa(dbClient, user_uuid) {
-  const query = `
-    UPDATE secrets
-    SET is_enabled = FALSE
-    WHERE user_uuid = $1 AND secret_type = $2
-    RETURNING *;
-  `
-  const values = [user_uuid, SECRET_TYPE]
-  try {
-    const { rows } = await dbClient.query(query, values)
-    if (rows && rows.length > 0) {
-      return { success: true, record: rows[0], status: 200 }
-    } else {
-      return {
-        success: false,
-        error: "2FA secret not found or could not be disabled.",
-        status: 404,
-      }
-    }
-  } catch (error) {
-    console.error("Error disabling 2FA secret:", error)
-    return { error: "Could not disable 2FA secret.", status: 500 }
-  }
-}
-
 export async function used2fa(dbClient, user_uuid) {
   const query = `
     UPDATE secrets

@@ -12,7 +12,7 @@ import { has2fa } from "./2fa.js"
 export async function readUser(dbClient, user_uuid) {
   try {
     const query =
-      "SELECT user_uuid, email, created_at, updated_at, is_active FROM users WHERE user_uuid = $1 AND is_active = TRUE LIMIT 1"
+      "SELECT user_uuid, user_name, user_created_at, user_last_login FROM users WHERE user_uuid = $1 AND user_active = TRUE LIMIT 1"
     const result = await dbClient.query(query, [user_uuid])
     if (result.rows.length > 0) {
       return result.rows[0]
@@ -83,26 +83,6 @@ export async function user_register(dbClient, name, email, password) {
     console.error("Error during user registration:", error)
     // Propagate the error or return a structured error response
     throw error // Or return { error: true, message: error.message }
-  }
-}
-
-/**
- * Checks if a user exists by email.
- * @param {Client} dbClient - An active pg.Client instance.
- * @param {string} email - The email address to check.
- * @returns {Promise<boolean>} - True if the user exists and is active, false otherwise.
- */
-export async function user_exists(dbClient, email) {
-  try {
-    const query =
-      "SELECT 1 FROM users WHERE email = $1 AND is_active = TRUE LIMIT 1"
-    const result = await dbClient.query(query, [email]) // Use dbClient
-    return result.rows.length > 0
-  } catch (error) {
-    console.error("Error in user_exists:", error)
-    // In case of an error, it's safer to assume the user might exist or handle error upstream
-    // For now, returning false, but this might need adjustment based on desired behavior on error
-    return false
   }
 }
 
@@ -214,48 +194,6 @@ export async function user_login(
 }
 
 /**
- * Retrieves a user by their email address.
- * @param {Client} dbClient - An active pg.Client instance.
- * @param {string} email - The email address of the user.
- * @returns {Promise<object|null>} - The user object if found, otherwise null.
- */
-export async function getUserByEmail(dbClient, email) {
-  try {
-    const query =
-      "SELECT * FROM users WHERE email = $1 AND is_active = TRUE LIMIT 1"
-    const result = await dbClient.query(query, [email])
-    if (result.rows.length > 0) {
-      return result.rows[0]
-    }
-    return null
-  } catch (error) {
-    console.error("Error in getUserByEmail:", error)
-    throw error // Rethrow to be handled by caller
-  }
-}
-
-/**
- * Retrieves a user by their UUID.
- * @param {Client} dbClient - An active pg.Client instance.
- * @param {string} user_uuid - The UUID of the user.
- * @returns {Promise<object|null>} - The user object if found, otherwise null.
- */
-export async function getUserByUuid(dbClient, user_uuid) {
-  try {
-    const query =
-      "SELECT * FROM users WHERE user_uuid = $1 AND is_active = TRUE LIMIT 1"
-    const result = await dbClient.query(query, [user_uuid])
-    if (result.rows.length > 0) {
-      return result.rows[0]
-    }
-    return null
-  } catch (error) {
-    console.error("Error in getUserByUuid:", error)
-    throw error // Rethrow to be handled by caller
-  }
-}
-
-/**
  * Deletes a user by their UUID.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user to delete.
@@ -264,12 +202,31 @@ export async function getUserByUuid(dbClient, user_uuid) {
 export async function deleteUser(dbClient, user_uuid) {
   try {
     const result = await dbClient.query(
-      "UPDATE users SET is_active = FALSE WHERE user_uuid = $1",
+      "UPDATE users SET user_active = FALSE WHERE user_uuid = $1",
       [user_uuid]
     )
     return result.rowCount > 0
   } catch (error) {
     console.error("Error in deleteUser:", error)
+    throw error
+  }
+}
+
+/**
+ * Updates the last login time for a user by their UUID.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user to update.
+ * @returns {Promise<boolean>} True if the user was updated, false otherwise.
+ */
+export async function loginUser(dbClient, user_uuid) {
+  try {
+    const result = await dbClient.query(
+      "UPDATE users SET user_last_login = NOW() WHERE user_uuid = $1",
+      [user_uuid]
+    )
+    return result.rowCount > 0
+  } catch (error) {
+    console.error("Error in loginUser:", error)
     throw error
   }
 }
