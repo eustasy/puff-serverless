@@ -100,14 +100,15 @@ export async function createSession(
  * Terminates a specific session from the database by marking it as not active.
  *
  * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user who owns the session.
  * @param {string} session_id - The ID of the session to terminate.
  * @returns {Promise<{success?: boolean, error?: string, status?: number}>} Result of the operation.
  */
-export async function terminateSpecificSession(dbClient, session_id) {
+export async function terminateSpecificSession(dbClient, user_uuid, session_id) {
   try {
     const result = await dbClient.query(
-      "UPDATE sessions SET is_active = FALSE WHERE session_id = $1 AND is_active = TRUE RETURNING session_id",
-      [session_id]
+      "UPDATE sessions SET is_active = FALSE WHERE session_id = $1 AND user_uuid = $2 AND is_active = TRUE RETURNING session_id",
+      [session_id, user_uuid]
     )
     if (result.rowCount > 0) {
       return { success: true, status: 200 }

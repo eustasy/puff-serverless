@@ -18,7 +18,7 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const result = await terminateSpecificSession(dbClient, token)
+    const result = await terminateSpecificSession(dbClient, user_uuid, token)
 
     if (result.error) {
       console.error("Error ending session:", result.error)
