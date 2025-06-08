@@ -39,8 +39,9 @@ export async function onRequestGet(context) {
           <td>${new Date(session.expires_at).toLocaleString()}</td>
           <td>${
             isCurrentSession
-              ? "<strong>Current Session</strong>"
-              : `<button
+              ? `<strong>Current Session</strong>`
+              : session.is_active
+                ? `<button
                   class="btn-danger"
                   hx-post="/api/db/auth/session/terminate/one?id=${session.session_id}"
                   hx-target="#session-message-area" 
@@ -49,6 +50,7 @@ export async function onRequestGet(context) {
                 >
                   Terminate
                 </button>`
+                : `<span class="text-muted">Inactive</span>`
           }</td>
         </tr>`
       })

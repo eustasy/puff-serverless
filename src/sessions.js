@@ -117,6 +117,9 @@ export async function terminateSpecificSession(
     if (result.rowCount > 0) {
       return { success: true, status: 200 }
     } else {
+      console.error(
+        `Session termination failed: Session ${session_id} not found or not owned by user ${user_uuid}.`
+      )
       return { error: "Session not found or already terminated.", status: 404 }
     }
   } catch (error) {
@@ -167,7 +170,7 @@ export async function terminateAllOtherSessions(
 export async function listSessionsForUser(dbClient, user_uuid) {
   try {
     const result = await dbClient.query(
-      "SELECT session_id, created_at, expires_at, user_agent, ip_address FROM sessions WHERE user_uuid = $1 ORDER BY created_at DESC",
+      "SELECT session_id, created_at, expires_at, is_active, user_agent, ip_address FROM sessions WHERE user_uuid = $1 ORDER BY created_at DESC",
       [user_uuid]
     )
     return { sessions: result.rows, status: 200 }
