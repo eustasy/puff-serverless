@@ -104,7 +104,11 @@ export async function createSession(
  * @param {string} session_id - The ID of the session to terminate.
  * @returns {Promise<{success?: boolean, error?: string, status?: number}>} Result of the operation.
  */
-export async function terminateSpecificSession(dbClient, user_uuid, session_id) {
+export async function terminateSpecificSession(
+  dbClient,
+  user_uuid,
+  session_id
+) {
   try {
     const result = await dbClient.query(
       "UPDATE sessions SET is_active = FALSE WHERE session_id = $1 AND user_uuid = $2 AND is_active = TRUE RETURNING session_id",
