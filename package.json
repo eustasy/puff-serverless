@@ -11,6 +11,6 @@
   "devDependencies": {
     "@types/node": "^22.15.30",
     "prettier": "3.5.3",
-    "wrangler": "^4.19.1"
+    "wrangler": "^4.20.0"
   }
 }
