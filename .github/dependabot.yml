@@ -12,8 +12,8 @@ updates:
     groups:
       gha-patching:
         update-types:
-        - "minor"
-        - "patch"
+          - "minor"
+          - "patch"
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -21,5 +21,5 @@ updates:
     groups:
       npm-patching:
         update-types:
-        - "minor"
-        - "patch"
+          - "minor"
+          - "patch"
