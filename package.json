@@ -9,8 +9,8 @@
     "pg": "^8.16.3"
   },
   "devDependencies": {
-    "@types/node": "^24.1.0",
+    "@types/node": "^24.2.1",
     "prettier": "3.6.2",
-    "wrangler": "^4.27.0"
+    "wrangler": "^4.28.1"
   }
 }
