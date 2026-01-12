@@ -10,4 +10,4 @@ applyTo: "**"
 - [CoackroachDB Documentation](https://www.cockroachlabs.com/docs/stable/)
 - [Wrangler CLI Documentation](https://developers.cloudflare.com/workers/wrangler/commands/)
 - [node-postgres Documentation](https://node-postgres.com/)
-- [OTPLib Documentation](https://otplib.vercel.app/)
+- [OTPLib Documentation](https://otplib.yeojz.dev/)
