@@ -21,6 +21,6 @@ jobs:
           # Make sure the actual branch is checked out when running on pull requests
           ref: ${{ github.head_ref }}
       - name: Prettier Action
-        uses: creyD/prettier_action@v4.6
+        uses: creyD/prettier_action@8c18391fdc98ed0d884c6345f03975edac71b8f0 # v4.6
         with:
           prettier_options: "'**/*.{js,ts,mjs,md,cjs,json,yml,html,css,less,sass}' --write"
