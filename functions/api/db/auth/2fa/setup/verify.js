@@ -1,4 +1,4 @@
-import { authenticator } from "otplib"
+import { verify } from "otplib"
 import { enable2fa, read2fa } from "../../../../../../src/2fa.js"
 
 export async function onRequestPost(context) {
@@ -89,9 +89,12 @@ export async function onRequestPost(context) {
     )
 
     // Step 4: Verify TOTP Code
-    const isValid = authenticator.check(totp_code, storedSecret)
+    const verifyResult = await verify({
+      token: totp_code,
+      secret: storedSecret,
+    })
 
-    if (isValid) {
+    if (verifyResult.valid) {
       // Step 5: On Successful Verification, enable 2FA in 'secrets' table
       const enable2faResult = await enable2fa(dbClient, user_uuid)
       if (enable2faResult.error) {

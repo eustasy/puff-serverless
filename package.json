@@ -5,7 +5,7 @@
     "format": "npx prettier --write **/*.{js,ts,mjs,md,cjs,json,yml,html,css,less,sass}"
   },
   "dependencies": {
-    "otplib": "^12.0.1",
+    "otplib": "^13.0.2",
     "pg": "^8.16.3"
   },
   "devDependencies": {
