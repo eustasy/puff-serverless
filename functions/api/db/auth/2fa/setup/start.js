@@ -1,4 +1,4 @@
-import { authenticator } from "otplib"
+import { generateSecret, generateURI } from "otplib"
 import { read2fa, create2fa } from "../../../../../../src/2fa.js"
 import { readUser } from "../../../../../../src/users.js"
 
@@ -62,7 +62,7 @@ export async function onRequestPost(context) {
       const label = `${APP_NAME}: ${userName}`
 
       // Step 4a: Generate TOTP Secret
-      new_secret_for_qr = authenticator.generateSecret() // Generates a base32 secret
+      new_secret_for_qr = generateSecret() // Generates a base32 secret
 
       // Step 4b: "Simulated" Encryption (as per original logic, consider actual encryption for production)
       const encrypted_secret = `sim_encrypted::${new_secret_for_qr}`
@@ -114,7 +114,11 @@ export async function onRequestPost(context) {
     }
 
     // Step 6: Generate QR Code Data (TOTP Auth URI)
-    const otpauthUri = authenticator.keyuri(userName, APP_NAME, display_secret)
+    const otpauthUri = generateURI({
+      issuer: APP_NAME,
+      accountName: userName,
+      secret: display_secret,
+    })
 
     // Step 7: Response - HTML for HTMX
     // TODO: [Security] Consider using a more secure method for generating QR codes

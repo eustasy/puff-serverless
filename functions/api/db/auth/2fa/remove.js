@@ -1,4 +1,4 @@
-import { authenticator } from "otplib"
+import { verify } from "otplib"
 import { read2fa, delete2fa } from "../../../../../src/2fa.js"
 
 export async function onRequestPost(context) {
@@ -96,9 +96,12 @@ export async function onRequestPost(context) {
       )
     }
 
-    const isValid = authenticator.check(totp_code, storedSecret)
+    const verifyResult = await verify({
+      token: totp_code,
+      secret: storedSecret,
+    })
 
-    if (!isValid) {
+    if (!verifyResult.valid) {
       return new Response("<p>Error: Invalid TOTP code.</p>", {
         status: 400, // Or 401/403 depending on exact security stance
         headers: {
