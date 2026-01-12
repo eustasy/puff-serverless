@@ -94,7 +94,7 @@ export async function onRequestPost(context) {
       })
     } else {
       console.error(
-        "Unexpected login result structure after handling known cases:"//,
+        "Unexpected login result structure after handling known cases:" //,
         //loginResult
       )
       return new Response(
