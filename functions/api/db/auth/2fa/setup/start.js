@@ -116,7 +116,7 @@ export async function onRequestPost(context) {
     // Step 6: Generate QR Code Data (TOTP Auth URI)
     const otpauthUri = generateURI({
       issuer: APP_NAME,
-      accountName: userName,
+      label: userName,
       secret: display_secret,
     })
 
