@@ -5,12 +5,12 @@
     "format": "npx prettier --write **/*.{js,ts,mjs,md,cjs,json,yml,html,css,less,sass}"
   },
   "dependencies": {
-    "otplib": "^13.1.1",
-    "pg": "^8.17.1"
+    "otplib": "^13.2.0",
+    "pg": "^8.17.2"
   },
   "devDependencies": {
-    "@types/node": "^25.0.9",
-    "prettier": "3.8.0",
-    "wrangler": "^4.59.2"
+    "@types/node": "^25.0.10",
+    "prettier": "3.8.1",
+    "wrangler": "^4.60.0"
   }
 }
