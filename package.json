@@ -6,11 +6,11 @@
   },
   "dependencies": {
     "otplib": "^13.3.0",
-    "pg": "^8.19.0"
+    "pg": "^8.20.0"
   },
   "devDependencies": {
-    "@types/node": "^25.3.3",
+    "@types/node": "^25.3.5",
     "prettier": "3.8.1",
-    "wrangler": "^4.69.0"
+    "wrangler": "^4.71.0"
   }
 }
