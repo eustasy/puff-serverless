@@ -1,6 +1,6 @@
 import { existsEmail } from "../../../../src/emails.js"
 
-export async function onRequestPost(context) {
+export async function onRequestGet(context) {
   const dbClient = context.data.dbClient
 
   const { searchParams } = new URL(context.request.url)
@@ -11,8 +11,11 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const count = await existsEmail(dbClient, email)
-    if (count > 0) {
+    const result = await existsEmail(dbClient, email)
+    if (result.error) {
+      return new Response("Error checking email existence.", { status: 500 })
+    }
+    if (result.exists) {
       return new Response(
         '<span class="result-negative">This email is already registered.</span>'
       )
@@ -27,6 +30,6 @@ export async function onRequestPost(context) {
 export async function onRequest(context) {
   return new Response("Method Not Allowed", {
     status: 405,
-    headers: { Allow: "POST" },
+    headers: { Allow: "GET" },
   })
 }

@@ -54,6 +54,7 @@
             name="email"
             placeholder="you@email.com"
             hx-get="/api/db/user/exists"
+            hx-include="this"
             hx-sync="closest form:abort"
             hx-trigger="keyup changed delay:500ms"
             hx-target="#email-exists"
