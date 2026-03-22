@@ -23,7 +23,7 @@
   <body>
     <div class="container">
       <h1>Login</h1>
-      <div id="message-area" class="result-area"></div>
+      <div id="message-area" class="result-area" hx-get="/api/messages" hx-vals="js:{code: (new URLSearchParams(window.location.search)).get('code')}" hx-trigger="load" hx-swap="innerHTML"></div>
       <form
         hx-validate="true"
         hx-post="/api/db/user/login"
@@ -67,19 +67,5 @@
         Go to <a href="/logout">Logout</a> Page
       </p>
     </div>
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        const params = new URLSearchParams(window.location.search)
-        const message = params.get("message")
-        if (message) {
-          const messageArea = document.getElementById("message-area")
-          // Sanitize the message before displaying it to prevent XSS
-          const sanitizedMessage = decodeURIComponent(message)
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-          messageArea.innerHTML = `<p class=\\"success\\">${sanitizedMessage}</p>`
-        }
-      })
-    </script>
   </body>
 </html>
