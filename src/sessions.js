@@ -6,12 +6,13 @@ import { loginUser } from "./users"
  *
  * @param {Client} dbClient - An active pg.Client instance (expected to be connected).
  * @param {string} token - The session token to verify.
+ * @param {string} [ip_country] - (Optional) The country code from the current request's CF-IPCountry header.
  * @returns {Promise<object>} An object with `user_uuid` if valid, or an `error` message and `status` if invalid/error.
  */
-export async function verifyTokenAndGetUser(dbClient, token) {
+export async function verifyTokenAndGetUser(dbClient, token, ip_country) {
   try {
     const sessionRecordResult = await dbClient.query(
-      "SELECT user_uuid, expires_at FROM sessions WHERE session_id = $1",
+      "SELECT user_uuid, expires_at, ip_country FROM sessions WHERE session_id = $1",
       [token]
     )
     const sessionRecord = sessionRecordResult.rows[0]
@@ -24,12 +25,21 @@ export async function verifyTokenAndGetUser(dbClient, token) {
     const expiresAt = new Date(sessionRecord.expires_at)
 
     if (now > expiresAt) {
-      // Optionally, delete the expired session token from the database
-      //await dbClient.query("DELETE FROM sessions WHERE session_id = $1", [token])
       return { error: "Session token expired.", status: 401 }
     }
 
-    return { user_uuid: sessionRecord.user_uuid, status: 200 } // Valid session
+    if (
+      ip_country &&
+      sessionRecord.ip_country &&
+      ip_country !== sessionRecord.ip_country
+    ) {
+      return {
+        error: "Session invalidated due to location change. Please log in again.",
+        status: 401,
+      }
+    }
+
+    return { user_uuid: sessionRecord.user_uuid, status: 200 }
   } catch (error) {
     console.error("Error during token verification:", error)
     return { error: "Error during token verification.", status: 500 }
@@ -44,13 +54,15 @@ export async function verifyTokenAndGetUser(dbClient, token) {
  * @param {string} user_uuid - The UUID of the user starting the session.
  * @param {string} [user_agent] - (Optional) The user agent string from the request.
  * @param {string} [ip_address] - (Optional) The IP address from the request.
+ * @param {string} [ip_country] - (Optional) The country code from CF-IPCountry header.
  * @returns {Promise<object>} An object with the session_id if successful, or an `error` message and `status` if failed.
  */
 export async function createSession(
   dbClient,
   user_uuid,
   user_agent,
-  ip_address
+  ip_address,
+  ip_country
 ) {
   if (!user_uuid) {
     return { error: "User UUID is required.", status: 400 }
@@ -75,6 +87,13 @@ export async function createSession(
     if (ip_address) {
       query += ", ip_address"
       params.push(ip_address)
+      valuePlaceholders += `, $${params.length}`
+    }
+
+    // Add ip_country if provided
+    if (ip_country) {
+      query += ", ip_country"
+      params.push(ip_country)
       valuePlaceholders += `, $${params.length}`
     }
 
@@ -170,7 +189,7 @@ export async function terminateAllOtherSessions(
 export async function listSessionsForUser(dbClient, user_uuid) {
   try {
     const result = await dbClient.query(
-      "SELECT session_id, created_at, expires_at, is_active, user_agent, ip_address FROM sessions WHERE user_uuid = $1 ORDER BY created_at DESC",
+      "SELECT session_id, created_at, expires_at, is_active, user_agent, ip_address, ip_country FROM sessions WHERE user_uuid = $1 ORDER BY created_at DESC",
       [user_uuid]
     )
     return { sessions: result.rows, status: 200 }

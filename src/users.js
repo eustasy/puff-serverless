@@ -91,7 +91,8 @@ export async function user_login(
   email,
   password,
   user_agent,
-  ip_address
+  ip_address,
+  ip_country
 ) {
   try {
     const emailReadResult = await readEmail(dbClient, email)
@@ -166,7 +167,8 @@ export async function user_login(
       dbClient,
       user_uuid,
       user_agent,
-      ip_address
+      ip_address,
+      ip_country
     )
     if (!session || session.error) {
       return {

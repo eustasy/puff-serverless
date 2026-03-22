@@ -55,7 +55,8 @@ async function sessionAuthWithCookie(context) {
       )
     }
 
-    const authResult = await verifyTokenAndGetUser(dbClient, sessionToken)
+    const ip_country = request.headers.get("CF-IPCountry")
+    const authResult = await verifyTokenAndGetUser(dbClient, sessionToken, ip_country)
 
     if (authResult && authResult.user_uuid) {
       data.user_uuid = authResult.user_uuid // Set user_uuid in context.data for downstream handlers

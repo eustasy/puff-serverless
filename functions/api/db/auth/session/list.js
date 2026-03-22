@@ -1,5 +1,8 @@
 import { listSessionsForUser } from "../../../../../src/sessions.js"
-import { getCookie } from "../../../../../src/utilities/headers.js"
+import {
+  getCookie,
+  parseUserAgent,
+} from "../../../../../src/utilities/headers.js"
 
 export async function onRequestGet(context) {
   const dbClient = context.data.dbClient
@@ -20,7 +23,7 @@ export async function onRequestGet(context) {
 
     let html = `<table><thead><tr>
         <th>Client</th>
-        <th>IP Address</th>
+        <th>Location</th>
         <th>Created</th>
         <th>Expires</th>
         <th>Action</th>
@@ -28,9 +31,13 @@ export async function onRequestGet(context) {
     if (result.sessions && result.sessions.length > 0) {
       result.sessions.forEach((session) => {
         const isCurrentSession = session.session_id === currentSessionToken
+        const clientInfo = parseUserAgent(session.user_agent)
+        const location = session.ip_country
+          ? `${session.ip_address || "N/A"} (${session.ip_country})`
+          : session.ip_address || "N/A"
         html += `<tr id="session-${session.session_id}">
-          <td>${session.user_agent || "N/A"}</td>
-          <td>${session.ip_address || "N/A"}</td>
+          <td>${clientInfo}</td>
+          <td>${location}</td>
           <td>${new Date(session.created_at).toLocaleString()}</td>
           <td>${new Date(session.expires_at).toLocaleString()}</td>
           <td>${

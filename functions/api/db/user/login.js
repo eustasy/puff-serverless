@@ -1,6 +1,5 @@
 import { user_login } from "../../../../src/users.js"
 import { createLoginToken } from "../../../../src/tokens.js"
-import { parseUserAgent } from "../../../../src/utilities/headers.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
@@ -20,14 +19,16 @@ export async function onRequestPost(context) {
       )
     }
 
-    const user_agent = parseUserAgent(context.request.headers.get("User-Agent"))
+    const user_agent = context.request.headers.get("User-Agent")
     const ip_address = context.request.headers.get("CF-Connecting-IP")
+    const ip_country = context.request.headers.get("CF-IPCountry")
     const loginResult = await user_login(
       dbClient,
       email,
       pw,
       user_agent,
-      ip_address
+      ip_address,
+      ip_country
     )
 
     if (loginResult.error) {
