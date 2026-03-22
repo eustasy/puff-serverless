@@ -22,12 +22,15 @@ export async function createPassword(dbClient, user_uuid, password) {
     const secret_value = `${hash}:${salt}`
     const current_secret_type = `puff_password_${algo}`
 
+    const secret_uuid = crypto.randomUUID()
+
     const query = `
-      INSERT INTO secrets (user_uuid, secret_type, secret_value, is_enabled)
-      VALUES ($1, $2, $3, TRUE)
+      INSERT INTO secrets (secret_uuid, user_uuid, secret_type, secret_value, is_enabled)
+      VALUES ($1, $2, $3, $4, TRUE)
       RETURNING user_uuid;
     `
     const result = await dbClient.query(query, [
+      secret_uuid,
       user_uuid,
       current_secret_type,
       secret_value,

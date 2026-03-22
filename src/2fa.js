@@ -6,12 +6,13 @@ export async function create2fa(
   secret_value,
   secret_name = null
 ) {
+  const secret_uuid = crypto.randomUUID()
   const query = `
-    INSERT INTO secrets (user_uuid, secret_type, secret_value, secret_name, is_enabled)
-    VALUES ($1, $2, $3, $4, FALSE)
+    INSERT INTO secrets (secret_uuid, user_uuid, secret_type, secret_value, secret_name, is_enabled)
+    VALUES ($1, $2, $3, $4, $5, FALSE)
     RETURNING *;
   `
-  const values = [user_uuid, SECRET_TYPE, secret_value, secret_name]
+  const values = [secret_uuid, user_uuid, SECRET_TYPE, secret_value, secret_name]
   try {
     const { rows } = await dbClient.query(query, values)
     return rows && rows.length > 0 ? rows[0] : null
