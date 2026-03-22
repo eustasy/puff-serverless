@@ -34,7 +34,8 @@ export async function verifyTokenAndGetUser(dbClient, token, ip_country) {
       ip_country !== sessionRecord.ip_country
     ) {
       return {
-        error: "Session invalidated due to location change. Please log in again.",
+        error:
+          "Session invalidated due to location change. Please log in again.",
         status: 401,
       }
     }
