@@ -74,52 +74,6 @@
           <p>Loading email addresses...</p>
         </div>
 
-        <div class="grid-container grid-header" id="session-controls">
-          <div class="grid-item">
-            <h2>Current Sessions</h2>
-          </div>
-          <div class="grid-item">
-            <button
-              class="btn-danger"
-              hx-post="/api/db/auth/session/terminate/all"
-              hx-target="#session-list-container"
-              hx-swap="innerHTML"
-              hx-disabled-elt="this"
-              hx-confirm="Are you sure you want to terminate all other sessions? This will not affect your current session."
-            >
-              Terminate All Other Sessions
-              <img class="htmx-indicator" src="/assets/bars.svg" />
-            </button>
-          </div>
-          <div class="grid-item">
-            <button
-              class="btn-safe"
-              hx-get="/api/db/auth/session/list"
-              hx-target="#session-list-container"
-              hx-swap="innerHTML"
-              hx-disabled-elt="this"
-            >
-              Refresh Sessions
-              <img class="htmx-indicator" src="/assets/bars.svg" />
-            </button>
-          </div>
-        </div>
-
-        <div
-          id="session-message-area"
-          class="result-area"
-          style="margin-bottom: 1em"
-        ></div>
-
-        <div
-          id="session-list-container"
-          hx-get="/api/db/auth/session/list"
-          hx-trigger="load, sessionListChanged from:body"
-          hx-swap="innerHTML"
-        >
-          <p>Loading sessions...</p>
-        </div>
-
         <div id="password-controls" class="grid-container grid-header">
           <div class="grid-item">
             <h2>Change Password</h2>
@@ -204,10 +158,55 @@
         >
           <p>Loading 2FA status...</p>
         </div>
-      </main>
-      <footer>
+        
         <p><a href="/logout">Log Out</a></p>
-      </footer>
+
+        <div class="grid-container grid-header" id="session-controls">
+          <div class="grid-item">
+            <h2>Current Sessions</h2>
+          </div>
+          <div class="grid-item">
+            <button
+              class="btn-danger"
+              hx-post="/api/db/auth/session/terminate/all"
+              hx-target="#session-list-container"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this"
+              hx-confirm="Are you sure you want to terminate all other sessions? This will not affect your current session."
+            >
+              Terminate All Other Sessions
+              <img class="htmx-indicator" src="/assets/bars.svg" />
+            </button>
+          </div>
+          <div class="grid-item">
+            <button
+              class="btn-safe"
+              hx-get="/api/db/auth/session/list"
+              hx-target="#session-list-container"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this"
+            >
+              Refresh Sessions
+              <img class="htmx-indicator" src="/assets/bars.svg" />
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="session-message-area"
+          class="result-area"
+          style="margin-bottom: 1em"
+        ></div>
+
+        <div
+          id="session-list-container"
+          hx-get="/api/db/auth/session/list"
+          hx-trigger="load, sessionListChanged from:body"
+          hx-swap="innerHTML"
+        >
+          <p>Loading sessions...</p>
+        </div>
+      </main>
     </div>
   </body>
 </html>
