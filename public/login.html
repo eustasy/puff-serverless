@@ -31,9 +31,12 @@
       ></div>
       <script>
         // Set hx-get to /api/messages plus the current query string (CSP-safe, no eval)
-        const msgArea = document.getElementById('message-area');
+        const msgArea = document.getElementById("message-area")
         if (msgArea) {
-          msgArea.setAttribute('hx-get', '/api/messages' + window.location.search);
+          msgArea.setAttribute(
+            "hx-get",
+            "/api/messages" + window.location.search
+          )
         }
       </script>
       <form
