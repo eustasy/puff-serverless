@@ -13,7 +13,9 @@ The frontend is static HTML served by Cloudflare Pages. All interactivity is dri
 Every page that makes HTMX requests configures response handling in a meta tag to swap HTML for all expected status codes:
 
 ```html
-<meta name="htmx-config" content='{"responseHandling": [
+<meta
+  name="htmx-config"
+  content='{"responseHandling": [
   {"code":"200", "swap": true},
   {"code":"400", "swap": true},
   {"code":"401", "swap": true},
@@ -21,7 +23,8 @@ Every page that makes HTMX requests configures response handling in a meta tag t
   {"code":"404", "swap": true},
   {"code":"405", "swap": true},
   {"code":"500", "swap": true}
-]}' />
+]}'
+/>
 ```
 
 ### Form Patterns
@@ -35,7 +38,12 @@ Forms use these HTMX attributes:
 - `hx-include="[name='field1'], [name='field2']"` — explicitly include fields.
 
 ```html
-<form hx-validate="true" hx-post="/api/db/user/login" hx-target="#login-result" hx-disabled-elt=".btn-safe">
+<form
+  hx-validate="true"
+  hx-post="/api/db/user/login"
+  hx-target="#login-result"
+  hx-disabled-elt=".btn-safe"
+>
   <div class="form-group">
     <label for="email">Email:</label>
     <input type="email" id="email" name="email" required />
@@ -52,10 +60,12 @@ Forms use these HTMX attributes:
 Sections that load content on page load and refresh on server-triggered events:
 
 ```html
-<div id="email-list-container"
+<div
+  id="email-list-container"
   hx-get="/api/db/auth/email/list"
   hx-trigger="load, emailListChanged from:body"
-  hx-swap="innerHTML">
+  hx-swap="innerHTML"
+>
   <p>Loading email addresses...</p>
 </div>
 ```
@@ -67,12 +77,16 @@ Key event names used with `HX-Trigger`: `emailListChanged`, `sessionListChanged`
 Password and email fields use delayed keyup triggers for live feedback:
 
 ```html
-<input type="password" name="pw"
+<input
+  type="password"
+  name="pw"
   hx-post="/api/password/requirements"
   hx-sync="closest form:abort"
   hx-trigger="keyup changed delay:500ms"
   hx-target="#password-requirements-output"
-  minlength="12" maxlength="512" />
+  minlength="12"
+  maxlength="512"
+/>
 <div id="password-requirements-output" class="result-area"></div>
 ```
 
@@ -117,32 +131,32 @@ Every HTML page follows this structure:
 ```html
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="htmx-config" content='{"responseHandling": [...]}' />
-  <title>Page Title - Puff</title>
-  <link rel="stylesheet" href="/assets/main.css" />
-  <script src="/assets/htmx_2.0.4.min.js"></script>
-</head>
-<body>
-  <div class="container">
-    <h1>Page Title</h1>
-    <!-- Content -->
-  </div>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="htmx-config" content='{"responseHandling": [...]}' />
+    <title>Page Title - Puff</title>
+    <link rel="stylesheet" href="/assets/main.css" />
+    <script src="/assets/htmx_2.0.4.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Page Title</h1>
+      <!-- Content -->
+    </div>
+  </body>
 </html>
 ```
 
 ## Pages
 
-| Page | Purpose |
-|---|---|
-| `index.html` | Navigation index of all workflows |
-| `login.html` | Email/password login form |
-| `register.html` | Registration with live email-exists and password-requirements checks |
-| `account.html` | Dashboard: email management, sessions, password change, 2FA status |
-| `2fa.html` | TOTP code entry during 2FA-gated login |
-| `logout.html` | Logout confirmation |
-| `reset/request.html` | Password reset request (email input) |
-| `reset/set.html` | Password reset completion (token + new password) |
+| Page                 | Purpose                                                              |
+| -------------------- | -------------------------------------------------------------------- |
+| `index.html`         | Navigation index of all workflows                                    |
+| `login.html`         | Email/password login form                                            |
+| `register.html`      | Registration with live email-exists and password-requirements checks |
+| `account.html`       | Dashboard: email management, sessions, password change, 2FA status   |
+| `2fa.html`           | TOTP code entry during 2FA-gated login                               |
+| `logout.html`        | Logout confirmation                                                  |
+| `reset/request.html` | Password reset request (email input)                                 |
+| `reset/set.html`     | Password reset completion (token + new password)                     |
