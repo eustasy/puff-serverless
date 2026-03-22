@@ -23,6 +23,7 @@ export async function createToken(dbClient, user_uuid, token_type, expires_at, e
 Functions return structured objects — not raw query results. Two patterns are used:
 
 **Success with data:**
+
 ```javascript
 return { success: true, token_value: "..." }
 return { success: true, email: result.rows[0] }
@@ -31,6 +32,7 @@ return { session_id: "...", status: 200, expires_at: date }
 ```
 
 **Error objects:**
+
 ```javascript
 return { error: true, message: "Descriptive message.", status: 400 }
 return { error: true, message: "Server error.", details: error.message }
@@ -68,31 +70,34 @@ Common method exports: `onRequestGet`, `onRequestPost`. The `Allow` header must 
 ### Accessing Context
 
 ```javascript
-const dbClient = context.data.dbClient       // From db middleware
-const user_uuid = context.data.user_uuid     // From auth middleware
+const dbClient = context.data.dbClient // From db middleware
+const user_uuid = context.data.user_uuid // From auth middleware
 ```
 
 ### Extracting Input
 
 **Form data (POST):**
+
 ```javascript
 const formdata = await context.request.formData()
 const email = formdata.get("email")
 ```
 
 **Query parameters (GET):**
+
 ```javascript
 const { searchParams } = new URL(context.request.url)
 const token = searchParams.get("token")
 ```
 
 **Request headers:**
+
 ```javascript
 const userAgent = context.request.headers.get("User-Agent")
 const ipAddress = context.request.headers.get("CF-Connecting-IP")
 const ipCountry = context.request.headers.get("CF-IPCountry")
 const cookieHeader = context.request.headers.get("Cookie")
-const promptValue = context.request.headers.get("HX-Prompt")  // From hx-prompt
+const promptValue = context.request.headers.get("HX-Prompt") // From hx-prompt
 ```
 
 ### Validation Pattern
@@ -105,10 +110,10 @@ export async function onRequestPost(context) {
   const email = formdata.get("email")
 
   if (!email) {
-    return new Response(
-      '<p class="result-negative">Email is required.</p>',
-      { status: 400, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response('<p class="result-negative">Email is required.</p>', {
+      status: 400,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 
   // Proceed with business logic...
@@ -118,6 +123,7 @@ export async function onRequestPost(context) {
 ### Response Patterns
 
 **Success (HTML fragment):**
+
 ```javascript
 return new Response('<p class="result-positive">Operation succeeded.</p>', {
   headers: { "Content-Type": "text/html" },
@@ -125,6 +131,7 @@ return new Response('<p class="result-positive">Operation succeeded.</p>', {
 ```
 
 **Success with event trigger:**
+
 ```javascript
 return new Response('<p class="result-positive">Email added.</p>', {
   headers: {
@@ -135,6 +142,7 @@ return new Response('<p class="result-positive">Email added.</p>', {
 ```
 
 **Redirect:**
+
 ```javascript
 return new Response(null, {
   status: 303,
@@ -143,6 +151,7 @@ return new Response(null, {
 ```
 
 **Error:**
+
 ```javascript
 return new Response('<p class="result-negative">Invalid email address.</p>', {
   status: 400,
@@ -151,6 +160,7 @@ return new Response('<p class="result-negative">Invalid email address.</p>', {
 ```
 
 **Error with retarget:**
+
 ```javascript
 return new Response('<p class="result-negative">Server error.</p>', {
   status: 500,
@@ -164,6 +174,7 @@ return new Response('<p class="result-negative">Server error.</p>', {
 ### Session Cookie
 
 Login endpoints set the session cookie:
+
 ```javascript
 headers: {
   "Set-Cookie": `session_token=${session_id}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=604800`,
@@ -171,6 +182,7 @@ headers: {
 ```
 
 Logout endpoints clear it:
+
 ```javascript
 headers: {
   "Set-Cookie": "session_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0",
