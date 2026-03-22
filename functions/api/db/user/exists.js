@@ -1,6 +1,15 @@
 import { existsEmail } from "../../../../src/emails.js"
 
 export async function onRequestGet(context) {
+  const clientIP = context.request.headers.get("CF-Connecting-IP") || "unknown"
+  const { success } = await context.env.EMAIL_CHECK_RL.limit({ key: clientIP })
+  if (!success) {
+    return new Response(
+      '<span class="result-negative">Too many requests. Please slow down.</span>',
+      { status: 429, headers: { "Content-Type": "text/html" } }
+    )
+  }
+
   const dbClient = context.data.dbClient
 
   const { searchParams } = new URL(context.request.url)
