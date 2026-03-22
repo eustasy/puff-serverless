@@ -115,8 +115,7 @@ export async function onRequestPost(context) {
     return new Response(null, {
       status: 303,
       headers: {
-        "HX-Redirect":
-          "/login?code=password_reset_success",
+        "HX-Redirect": "/login?code=password_reset_success",
       },
     })
   } catch (error) {

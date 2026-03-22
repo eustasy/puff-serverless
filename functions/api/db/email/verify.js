@@ -26,8 +26,7 @@ export async function onRequestGet(context) {
     return new Response(null, {
       status: 303,
       headers: {
-        "HX-Redirect":
-          "/login?code=email_verification_success",
+        "HX-Redirect": "/login?code=email_verification_success",
       },
     })
   } catch (error) {

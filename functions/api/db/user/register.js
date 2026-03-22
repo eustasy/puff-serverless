@@ -26,8 +26,7 @@ export async function onRequestPost(context) {
       return new Response(null, {
         status: 303, // See Other, to redirect after POST
         headers: {
-          "HX-Redirect":
-            "/login?code=registration_success",
+          "HX-Redirect": "/login?code=registration_success",
         },
       })
     } else {
