@@ -1,6 +1,6 @@
 import { verify } from "otplib"
 import { readToken, usedToken } from "../../../../src/tokens.js"
-import { getCookie } from "../../../../src/utilities/headers.js"
+import { getCookie, parseUserAgent } from "../../../../src/utilities/headers.js"
 import { read2fa, used2fa } from "../../../../src/2fa.js"
 import { createSession } from "../../../../src/sessions.js"
 
@@ -198,7 +198,7 @@ export async function onRequestPost(context) {
     }
 
     // Step 9: Create a new session for the user
-    const user_agent = context.request.headers.get("User-Agent") || ""
+    const user_agent = parseUserAgent(context.request.headers.get("User-Agent"))
     const ip_address = context.request.headers.get("CF-Connecting-IP") || ""
 
     const sessionResult = await createSession(

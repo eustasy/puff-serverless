@@ -1,8 +1,5 @@
 import { listSessionsForUser } from "../../../../../src/sessions.js"
-import {
-  getCookie,
-  parseUserAgent,
-} from "../../../../../src/utilities/headers.js"
+import { getCookie } from "../../../../../src/utilities/headers.js"
 
 export async function onRequestGet(context) {
   const dbClient = context.data.dbClient
@@ -31,9 +28,8 @@ export async function onRequestGet(context) {
     if (result.sessions && result.sessions.length > 0) {
       result.sessions.forEach((session) => {
         const isCurrentSession = session.session_id === currentSessionToken
-        const clientInfo = parseUserAgent(session.user_agent)
         html += `<tr id="session-${session.session_id}">
-          <td>${clientInfo}</td>
+          <td>${session.user_agent || "N/A"}</td>
           <td>${session.ip_address || "N/A"}</td>
           <td>${new Date(session.created_at).toLocaleString()}</td>
           <td>${new Date(session.expires_at).toLocaleString()}</td>
