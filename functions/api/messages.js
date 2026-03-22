@@ -1,9 +1,12 @@
 // /api/messages.js — Returns a trusted HTML fragment for a given code
 
 const MESSAGE_MAP = {
-  registration_success: '<p class="success">Registration successful. Please check your email to verify.</p>',
-  password_reset_success: '<p class="success">Password reset successful. Please log in with your new password.</p>',
-  email_verification_success: '<p class="success">Email verification successful. Please log in.</p>',
+  registration_success:
+    '<p class="success">Registration successful. Please check your email to verify.</p>',
+  password_reset_success:
+    '<p class="success">Password reset successful. Please log in with your new password.</p>',
+  email_verification_success:
+    '<p class="success">Email verification successful. Please log in.</p>',
   logout_success: '<p class="success">Logout successful.</p>',
 }
 
