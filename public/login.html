@@ -26,11 +26,16 @@
       <div
         id="message-area"
         class="result-area"
-        hx-get="/api/messages"
-        hx-vals="js:{code: (new URLSearchParams(window.location.search)).get('code')}"
         hx-trigger="load"
         hx-swap="innerHTML"
       ></div>
+      <script>
+        // Set hx-get to /api/messages plus the current query string (CSP-safe, no eval)
+        const msgArea = document.getElementById('message-area');
+        if (msgArea) {
+          msgArea.setAttribute('hx-get', '/api/messages' + window.location.search);
+        }
+      </script>
       <form
         hx-validate="true"
         hx-post="/api/db/user/login"
