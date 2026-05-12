@@ -7,8 +7,8 @@ export async function onRequestGet(context) {
 
   if (!token_value) {
     return new Response(
-      JSON.stringify({ error: "Verification token is missing." }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
+      '<p class="result-negative">Verification token is missing.</p>',
+      { status: 400, headers: { "Content-Type": "text/html" } }
     )
   }
 
@@ -16,10 +16,13 @@ export async function onRequestGet(context) {
     const result = await verifyEmailByToken(dbClient, token_value)
 
     if (result.error) {
-      return new Response(JSON.stringify({ error: result.message }), {
-        status: result.status || 500,
-        headers: { "Content-Type": "application/json" },
-      })
+      return new Response(
+        `<p class="result-negative">${result.message}</p>`,
+        {
+          status: result.status || 500,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
     }
 
     // Redirect to login page on successful email verification
@@ -32,10 +35,8 @@ export async function onRequestGet(context) {
   } catch (error) {
     console.error("Error in verify email endpoint:", error)
     return new Response(
-      JSON.stringify({
-        error: "An internal server error occurred during email verification.",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      '<p class="result-negative">An internal server error occurred during email verification.</p>',
+      { status: 500, headers: { "Content-Type": "text/html" } }
     )
   }
 }
