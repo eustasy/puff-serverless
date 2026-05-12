@@ -2,11 +2,10 @@ import { generateSecret, generateURI } from "otplib"
 import { read2fa, create2fa } from "../../../../../../src/2fa.js"
 import { readUser } from "../../../../../../src/users.js"
 
-const APP_NAME = "PuffAuth" // TODO Configure this in a settings file or environment variable
-
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
   const user_uuid = context.data.user_uuid
+  const APP_NAME = context.env.APP_NAME || "PuffAuth"
 
   try {
     // Step 2: Check Existing 2FA
@@ -129,11 +128,11 @@ export async function onRequestPost(context) {
       <div>
         <h3>Setup Two-Factor Authentication</h3>
         <p>Scan the QR code with your authenticator app or enter the setup code manually.</p>
-        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-bottom: 1em;">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauthUri)}" alt="QR Code" style="max-width: 200px; height: auto;"/>
+        <div class="tfa-qr-layout">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauthUri)}" alt="QR Code" class="tfa-qr-code"/>
           <div>
             <p><strong>Manual Setup Code:</strong></p>
-            <p style="font-family: monospace; background: #f0f0f0; padding: 5px; word-break: break-all;">${display_secret}</p>
+            <p class="tfa-secret-display">${display_secret}</p>
           </div>
         </div>
         
@@ -151,12 +150,11 @@ export async function onRequestPost(context) {
             <img class="htmx-indicator" src="/assets/bars.svg" alt="Loading..."/>
           </button>
         </form>
-        <button 
-          hx-get="/api/db/auth/2fa/status" 
-          hx-target="#tfa-status-container" 
+        <button
+          hx-get="/api/db/auth/2fa/status"
+          hx-target="#tfa-status-container"
           hx-swap="innerHTML"
-          class="btn-danger"
-          style="margin-top: 1em;">
+          class="btn-danger spacer-top">
           Cancel Setup
         </button>
       </div>

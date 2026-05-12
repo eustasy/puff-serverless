@@ -31,7 +31,7 @@ export async function onRequestGet(context) {
     htmlResponse = `
       <p>Two-Factor Authentication is currently <strong class="result-positive">enabled</strong>.</p>
       <form hx-post="/api/db/auth/2fa/remove" hx-target="#tfa-message-area" hx-swap="innerHTML">
-        <div style="margin-bottom: 1em;">
+        <div class="spacer-bottom">
           <label for="totp_code">Enter your 6-digit authenticator code to remove 2FA:</label>
           <input 
             type="text" 

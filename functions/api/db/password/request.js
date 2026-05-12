@@ -60,6 +60,7 @@ export async function onRequestPost(context) {
       const token_value = tokenResult.token_value
 
       // Step 5: Email Sending (Simulated)
+      // SECURITY: remove before production — leaks password-reset token into Cloudflare logs
       console.log(
         `Password reset link for ${email}: /reset/set?token=${token_value}`
       )

@@ -2,6 +2,16 @@
 
 ## Table of Contents
 
+- [Deployment](#deployment)
+  - [First time project setup](#first-time-project-setup)
+  - [Continuous Development](#continuous-development)
+  - [Directories](#directories)
+  - [Special Files](#special-files)
+- [Libraries](#libraries)
+- [APIs](#apis)
+- [Database Schema Changes](#database-schema-changes)
+- [Project Maintenance](#project-maintenance)
+
 ## Deployment
 
 ### First time project setup
@@ -142,4 +152,4 @@ It's crucial that `token_type` and `secret_type` are used consistently throughou
 
 [Dependabot](https://github.com/eustasy/puff-serverless/blob/cf-pages/.github/dependabot.yml) should update NPM and GitHub Actions with automatic pull requests.
 
-The Cloudflare `compatibility_date` may need updating in `wrangler.toml`
+The Cloudflare `compatibility_date` may need updating in `wrangler.jsonc`

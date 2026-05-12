@@ -1,29 +1,46 @@
-<h3>Main Functions</h3>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Puff Serverless</title>
+    <link rel="stylesheet" href="/assets/main.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h3>Main Functions</h3>
 
-<ul>
-  <li><a href="/register">Register</a></li>
-  <li><a href="/api/db/email/verify?token=${token_value}">Verify Email</a></li>
-  <li><a href="/login">Log In</a></li>
-  <ul>
-    <li><a href="/2fa">Verify 2FA</a></li>
-  </ul>
-  <li><a href="/account">Account</a></li>
-  <ul>
-    <li>Add an Email Address</li>
-    <li>Verify an Email Address</li>
-    <li>Change Primary Email Address</li>
-    <li>Remove an Email Address</li>
-    <li>Terminate a Session</li>
-    <li>Terminate all other Sessions</li>
-    <li>Change Password</li>
-    <li>2FA</li>
-    <ul>
-      <li>Set Up 2FA</li>
-      <li>Verify 2FA</li>
-      <li>Remove 2FA</li>
-    </ul>
-  </ul>
-  <li><a href="/logout">Log Out</a></li>
-  <li><a href="/reset/request">Request Password Reset</a></li>
-  <li><a href="/reset/set?token=${token_value}">Set New Password</a></li>
-</ul>
+      <ul>
+        <li><a href="/register">Register</a></li>
+        <li>
+          <a href="/login">Log In</a>
+          <ul>
+            <li><a href="/2fa">Verify 2FA</a></li>
+          </ul>
+        </li>
+        <li>
+          <a href="/account">Account</a>
+          <ul>
+            <li>Add an Email Address</li>
+            <li>Verify an Email Address</li>
+            <li>Change Primary Email Address</li>
+            <li>Remove an Email Address</li>
+            <li>Terminate a Session</li>
+            <li>Terminate all other Sessions</li>
+            <li>Change Password</li>
+            <li>
+              2FA
+              <ul>
+                <li>Set Up 2FA</li>
+                <li>Verify 2FA</li>
+                <li>Remove 2FA</li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+        <li><a href="/logout">Log Out</a></li>
+        <li><a href="/reset/request">Request Password Reset</a></li>
+      </ul>
+    </div>
+  </body>
+</html>

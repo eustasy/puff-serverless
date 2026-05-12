@@ -64,6 +64,7 @@ export async function user_register(dbClient, name, email, password) {
     // Log the verification link using the token from createEmailResult
     if (createEmailResult.token_value) {
       // TODO Wait for email messaging to be implemented
+      // SECURITY: remove before production — leaks verification token into Cloudflare logs
       console.log(
         `Verification link: /api/email/verify?token=${createEmailResult.token_value}`
       )

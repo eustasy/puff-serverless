@@ -236,7 +236,6 @@ export async function onRequestPost(context) {
       "HttpOnly",
       "Path=/",
       "SameSite=Strict",
-      // TODO: Make Max-Age configurable, e.g., context.env.SESSION_MAX_AGE_SECONDS
       `Max-Age=${context.env.SESSION_MAX_AGE_SECONDS || 2592000}`, // Default to 30 days
     ]
     if (context.env.SECURE_COOKIE) {
