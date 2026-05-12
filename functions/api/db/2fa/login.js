@@ -99,9 +99,9 @@ export async function onRequestPost(context) {
             "Content-Type": "text/html",
             "HX-Retarget": "#message-area",
             // Clear the expired/invalid cookie
-            "Set-Cookie": `totp_verification_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict${
-              context.env.SECURE_COOKIE ? "; Secure" : ""
-            }`,
+            "Set-Cookie": `totp_verification_token=; HttpOnly; Path=/; Max-Age=0; SameSite=${
+              context.env.COOKIE_SAMESITE || "Lax"
+            }${context.env.SECURE_COOKIE ? "; Secure" : ""}`,
           },
         }
       )
@@ -115,9 +115,9 @@ export async function onRequestPost(context) {
           headers: {
             "Content-Type": "text/html",
             "HX-Retarget": "#message-area",
-            "Set-Cookie": `totp_verification_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict${
-              context.env.SECURE_COOKIE ? "; Secure" : ""
-            }`,
+            "Set-Cookie": `totp_verification_token=; HttpOnly; Path=/; Max-Age=0; SameSite=${
+              context.env.COOKIE_SAMESITE || "Lax"
+            }${context.env.SECURE_COOKIE ? "; Secure" : ""}`,
           },
         }
       )
@@ -235,7 +235,7 @@ export async function onRequestPost(context) {
       `session_token=${sessionResult.session_id}`,
       "HttpOnly",
       "Path=/",
-      "SameSite=Strict",
+      `SameSite=${context.env.COOKIE_SAMESITE || "Lax"}`,
       `Max-Age=${context.env.SESSION_MAX_AGE_SECONDS || 2592000}`, // Default to 30 days
     ]
     if (context.env.SECURE_COOKIE) {
@@ -248,7 +248,7 @@ export async function onRequestPost(context) {
       `totp_verification_token=;`,
       "HttpOnly",
       "Path=/",
-      "SameSite=Strict",
+      `SameSite=${context.env.COOKIE_SAMESITE || "Lax"}`,
       "Max-Age=0", // Expire immediately
     ]
     if (context.env.SECURE_COOKIE) {

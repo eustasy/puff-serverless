@@ -33,10 +33,12 @@ export async function onRequestPost(context) {
       "session_token=;",
       "Path=/",
       "HttpOnly",
-      "Secure",
       "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
-      "SameSite=Lax", // Added SameSite for consistency
+      `SameSite=${context.env.COOKIE_SAMESITE || "Lax"}`,
     ]
+    if (context.env.SECURE_COOKIE) {
+      cookieOptions.push("Secure")
+    }
 
     // Redirect to home page on successful logout
     return new Response(null, {

@@ -63,10 +63,12 @@ export async function onRequestPost(context) {
         `totp_verification_token=${tokenResult.token_value};`,
         "Path=/",
         "HttpOnly",
-        "Secure",
         `Expires=${new Date(tokenResult.expires_at).toUTCString()}`,
-        "SameSite=Lax",
+        `SameSite=${context.env.COOKIE_SAMESITE || "Lax"}`,
       ]
+      if (context.env.SECURE_COOKIE) {
+        totpTokenCookieOptions.push("Secure")
+      }
       // Redirect to a TOTP verification page
       return new Response(null, {
         status: 303,
@@ -82,10 +84,12 @@ export async function onRequestPost(context) {
         `session_token=${loginResult.session_id};`,
         "Path=/",
         "HttpOnly",
-        "Secure",
         `Expires=${new Date(loginResult.expires_at).toUTCString()}`,
-        "SameSite=Lax",
+        `SameSite=${context.env.COOKIE_SAMESITE || "Lax"}`,
       ]
+      if (context.env.SECURE_COOKIE) {
+        cookieOptions.push("Secure")
+      }
 
       return new Response(null, {
         status: 303,
