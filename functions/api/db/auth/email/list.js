@@ -1,4 +1,5 @@
 import { readEmails } from "../../../../../src/emails.js"
+import { escapeHtml } from "../../../../../src/utilities/escape.js"
 
 export async function onRequestGet(context) {
   const dbClient = context.data.dbClient
@@ -27,7 +28,7 @@ export async function onRequestGet(context) {
       "<table><thead><tr><th>Email Address</th><th>Status</th><th>Actions</th></tr></thead><tbody>"
     for (const email of emails) {
       html += `<tr>
-        <td>${email.email_address}</td>
+        <td>${escapeHtml(email.email_address)}</td>
         <td>
             ${email.is_primary ? '<span class="badge bg-primary">Primary</span>' : ""}
             ${email.is_verified ? '<span class="badge bg-success">Verified</span>' : '<span class="badge bg-warning">Unverified</span>'}
@@ -38,7 +39,7 @@ export async function onRequestGet(context) {
         html += `<button
                     class="btn-save"
                     hx-post="/api/db/auth/email/primary"
-                    hx-vals='{"email_address": "${email.email_address}"}'
+                    hx-vals='${escapeHtml(JSON.stringify({ email_address: email.email_address }))}'
                     hx-target="#email-list-container"
                     hx-swap="innerHTML"
                     hx-trigger="click"
@@ -50,7 +51,7 @@ export async function onRequestGet(context) {
         html += `<button
                     class="btn-danger"
                     hx-post="/api/db/auth/email/remove"
-                    hx-vals='{"email_address": "${email.email_address}"}'
+                    hx-vals='${escapeHtml(JSON.stringify({ email_address: email.email_address }))}'
                     hx-target="#email-message-area"
                     hx-swap="innerHTML"
                     hx-trigger="click"
@@ -63,7 +64,7 @@ export async function onRequestGet(context) {
         html += `<button
                     class="btn-save"
                     hx-post="/api/db/auth/email/resend"
-                    hx-vals='{"email_address": "${email.email_address}"}'
+                    hx-vals='${escapeHtml(JSON.stringify({ email_address: email.email_address }))}'
                     hx-target="#email-message-area"
                     hx-swap="innerHTML"
                     hx-trigger="click"
