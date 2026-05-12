@@ -1,5 +1,3 @@
-const crypto = require("crypto")
-
 // This module provides functions to manage tokens in a PostgreSQL database.
 // Tokens can be used for various purposes such as email verification, password resets, etc.
 // token_type can be 'email_verification' or 'password_reset' by default, but can be extended for other uses.
