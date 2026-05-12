@@ -92,22 +92,32 @@ export async function createEmail(
   try {
     // Check if the email already exists for this user
     const existingEmailResult = await readEmail(dbClient, email_address)
-    if (
-      existingEmailResult.success &&
-      existingEmailResult.email &&
-      existingEmailResult.email.user_uuid === user_uuid
-    ) {
+    if (existingEmailResult.success && existingEmailResult.email) {
+      if (existingEmailResult.email.user_uuid === user_uuid) {
+        return {
+          error: true,
+          message:
+            "This email address is already associated with your account.",
+          status: 409,
+        }
+      }
+      // Email belongs to another user. Return a success-shaped response so
+      // the caller's response is indistinguishable from a real add
+      // (prevents email enumeration). No INSERT, no token, no log entry.
       return {
-        error: true,
-        message: "This email address is already associated with your account.",
-        status: 409,
+        success: true,
+        email_address,
+        is_primary,
+        is_verified,
+        token_value: null,
       }
     }
-    // If readEmail returned an error or the email belongs to another user,
-    // we might still have a global collision, which the INSERT will catch.
 
+    // ON CONFLICT DO NOTHING handles the race where another user inserts the
+    // same email between the readEmail check and our INSERT. rowCount === 0
+    // means a conflict happened; treat it the same as the upfront branch.
     const insertEmailQuery = {
-      text: "INSERT INTO emails (user_uuid, email_address, is_primary, is_verified, verified_at) VALUES ($1, $2, $3, $4, $5)",
+      text: "INSERT INTO emails (user_uuid, email_address, is_primary, is_verified, verified_at) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (email_address) DO NOTHING RETURNING email_address",
       values: [
         user_uuid,
         email_address,
@@ -116,7 +126,17 @@ export async function createEmail(
         is_verified ? new Date().toISOString() : null,
       ],
     }
-    await dbClient.query(insertEmailQuery)
+    const insertResult = await dbClient.query(insertEmailQuery)
+
+    if (insertResult.rowCount === 0) {
+      return {
+        success: true,
+        email_address,
+        is_primary,
+        is_verified,
+        token_value: null,
+      }
+    }
 
     let token_value = null
     if (!is_verified) {
@@ -152,29 +172,7 @@ export async function createEmail(
     }
   } catch (error) {
     console.error("Error in createEmail:", error)
-    // PostgreSQL error code for unique_violation is '23505'
-    if (
-      error.code === "23505" &&
-      error.constraint === "emails_user_uuid_email_address_key"
-    ) {
-      return {
-        error: true,
-        message: "This email address is already associated with your account.",
-        status: 409,
-      }
-    }
-    if (
-      error.code === "23505" &&
-      error.constraint === "emails_email_address_key"
-    ) {
-      // Assuming a global unique constraint on email_address
-      return {
-        error: true,
-        message: "This email address is already in use by another account.",
-        status: 409,
-      }
-    }
-    throw error // Re-throw other errors to be handled by the caller
+    throw error
   }
 }
 
