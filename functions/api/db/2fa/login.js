@@ -210,7 +210,7 @@ export async function onRequestPost(context) {
       ip_country
     )
 
-    if (sessionResult.error || !sessionResult.session_token_value) {
+    if (sessionResult.error || !sessionResult.session_id) {
       console.error("Error creating session:", sessionResult.error)
       return new Response(
         '<p class="result-negative">Error creating session. Please try again.</p>',
@@ -232,7 +232,7 @@ export async function onRequestPost(context) {
     })
 
     const cookieOptions = [
-      `session_token=${sessionResult.session_token_value}`,
+      `session_token=${sessionResult.session_id}`,
       "HttpOnly",
       "Path=/",
       "SameSite=Strict",
