@@ -16,13 +16,10 @@ export async function onRequestGet(context) {
     const result = await verifyEmailByToken(dbClient, token_value)
 
     if (result.error) {
-      return new Response(
-        `<p class="result-negative">${result.message}</p>`,
-        {
-          status: result.status || 500,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      return new Response(`<p class="result-negative">${result.message}</p>`, {
+        status: result.status || 500,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
     // Redirect to login page on successful email verification
