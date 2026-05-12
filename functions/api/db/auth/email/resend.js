@@ -1,5 +1,5 @@
-import { createEmailToken, readToken } from "../../../../src/tokens.js" // TODO use readToken to check if a token already exists
-import { readEmail } from "../../../../src/emails.js"
+import { createEmailToken, readToken } from "../../../../../src/tokens.js" // TODO use readToken to check if a token already exists
+import { readEmail } from "../../../../../src/emails.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
@@ -102,8 +102,15 @@ export async function onRequestPost(context) {
       )
     }
 
+    // SECURITY: the token must be delivered out-of-band (email).
+    // Never include tokenResult.token_value in the response body.
+    // TODO Wait for email messaging to be implemented; log link until then.
+    console.log(
+      `Verification link: /api/db/email/verify?token=${tokenResult.token_value}`
+    )
+
     return new Response(
-      `<p class="result-positive">New verification token generated: ${tokenResult.token_value}.</p>`,
+      `<p class="result-positive">A new verification link has been sent to ${email_address}.</p>`,
       {
         status: 200,
         headers: {
