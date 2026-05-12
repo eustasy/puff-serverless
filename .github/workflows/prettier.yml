@@ -8,8 +8,6 @@ on:
   push:
     branches:
       - cf-pages
-  schedule:
-    - cron: "30 09 * * *"
 
 jobs:
   prettier:
