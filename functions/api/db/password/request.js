@@ -61,7 +61,7 @@ export async function onRequestPost(context) {
 
       // Step 5: Email Sending (Simulated)
       console.log(
-        `Password reset link for ${email}: /api/db/password/reset/set?token=${token_value} (Note: This is an API endpoint, a real link would go to a UI page).`
+        `Password reset link for ${email}: /reset/set?token=${token_value}`
       )
     } else {
       // Email not found or user_uuid missing, log this internally
