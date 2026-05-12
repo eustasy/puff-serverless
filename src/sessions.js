@@ -7,9 +7,15 @@ import { loginUser } from "./users"
  * @param {Client} dbClient - An active pg.Client instance (expected to be connected).
  * @param {string} token - The session token to verify.
  * @param {string} [ip_country] - (Optional) The country code from the current request's CF-IPCountry header.
+ * @param {string} [ip_address] - (Optional) The IP address from CF-Connecting-IP, written to last_accessed_ip on successful auth.
  * @returns {Promise<object>} An object with `user_uuid` if valid, or an `error` message and `status` if invalid/error.
  */
-export async function verifyTokenAndGetUser(dbClient, token, ip_country) {
+export async function verifyTokenAndGetUser(
+  dbClient,
+  token,
+  ip_country,
+  ip_address
+) {
   try {
     const sessionRecordResult = await dbClient.query(
       "SELECT user_uuid, expires_at, ip_country FROM sessions WHERE session_id = $1 AND is_active = TRUE",
@@ -39,6 +45,17 @@ export async function verifyTokenAndGetUser(dbClient, token, ip_country) {
         status: 401,
       }
     }
+
+    // Fire-and-forget last-access bookkeeping. Auth has already succeeded;
+    // a failure to record the access shouldn't fail the request.
+    dbClient
+      .query(
+        "UPDATE sessions SET last_accessed_at = CURRENT_TIMESTAMP, last_accessed_ip = $1 WHERE session_id = $2",
+        [ip_address || null, token]
+      )
+      .catch((err) =>
+        console.error("Error updating session last-accessed fields:", err)
+      )
 
     return { user_uuid: sessionRecord.user_uuid, status: 200 }
   } catch (error) {

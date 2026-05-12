@@ -56,10 +56,12 @@ async function sessionAuthWithCookie(context) {
     }
 
     const ip_country = request.headers.get("CF-IPCountry")
+    const ip_address = request.headers.get("CF-Connecting-IP")
     const authResult = await verifyTokenAndGetUser(
       dbClient,
       sessionToken,
-      ip_country
+      ip_country,
+      ip_address
     )
 
     if (authResult && authResult.user_uuid) {
