@@ -1,4 +1,6 @@
 .wrangler
+*.local.*
+*.local
 
 # Logs
 logs
