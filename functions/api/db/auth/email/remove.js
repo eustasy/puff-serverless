@@ -29,10 +29,13 @@ export async function onRequestPost(context) {
     )
 
     if (result.error) {
-      return new Response(`<p class=\"result-negative\">${result.message}</p>`, {
-        status: result.status || 500,
-        headers: { "Content-Type": "text/html" },
-      })
+      return new Response(
+        `<p class=\"result-negative\">${result.message}</p>`,
+        {
+          status: result.status || 500,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
     }
 
     return new Response(`<p class=\"result-positive\">${result.message}</p>`, {
