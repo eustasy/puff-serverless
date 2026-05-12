@@ -173,18 +173,22 @@ return new Response('<p class="result-negative">Server error.</p>', {
 
 ### Session Cookie
 
+Auth cookies are assembled from an options array, with `Secure` and `SameSite` driven by `context.env`. See `ARCHITECTURE.md` for the env var defaults (`SECURE_COOKIE`, `COOKIE_SAMESITE`, `SESSION_MAX_AGE_SECONDS`).
+
 Login endpoints set the session cookie:
 
 ```javascript
-headers: {
-  "Set-Cookie": `session_token=${session_id}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=604800`,
+const cookieOptions = [
+  `session_token=${session_id};`,
+  "Path=/",
+  "HttpOnly",
+  `Expires=${new Date(expires_at).toUTCString()}`,
+  `SameSite=${context.env.COOKIE_SAMESITE || "Lax"}`,
+]
+if (context.env.SECURE_COOKIE) {
+  cookieOptions.push("Secure")
 }
+headers["Set-Cookie"] = cookieOptions.join("; ")
 ```
 
-Logout endpoints clear it:
-
-```javascript
-headers: {
-  "Set-Cookie": "session_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0",
-}
-```
+Logout endpoints clear it with the same pattern, substituting an expired `Expires` or `Max-Age=0`. Never hardcode `Secure` or `SameSite=Strict` — that bypasses the env-var configuration.

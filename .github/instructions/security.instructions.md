@@ -6,9 +6,10 @@ applyTo: "**"
 
 ## Authentication & Sessions
 
-- Sessions are cookie-based: `session_token` cookie, `HttpOnly; Secure; SameSite=Strict`.
+- Sessions are cookie-based: `session_token` cookie, always `HttpOnly`, with `SameSite` and `Secure` set from `COOKIE_SAMESITE` and `SECURE_COOKIE` env vars (defaults: `Lax` and unset — see `ARCHITECTURE.md`).
 - Session tokens are 32-byte random hex strings (`randomBytes(32).toString("hex")`).
-- Sessions expire after 7 days and are invalidated if the user's IP country changes.
+- The server-side session row expires after 7 days (hardcoded in `src/sessions.js#createSession`); the cookie expiry is independently configured via `SESSION_MAX_AGE_SECONDS` (default 30 days). The effective session lifetime is whichever fires first — usually the DB row.
+- Sessions are also invalidated if the user's IP country changes.
 - Session verification happens in `functions/api/db/auth/_middleware.js` — endpoints under `functions/api/db/auth/` are protected automatically.
 - Login failures return generic "Invalid email or password" messages — never reveal whether the email exists during login.
 
