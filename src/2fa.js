@@ -87,9 +87,9 @@ export async function has2fa(dbClient, user_uuid) {
 export async function enable2fa(dbClient, user_uuid) {
   const query = `
     UPDATE secrets
-    SET is_enabled = TRUE, secret_last_used = NULL
+    SET is_enabled = TRUE
     WHERE user_uuid = $1 AND secret_type = $2
-    RETURNING *; 
+    RETURNING *;
   `
   // RETURNING * to get the updated record.
   const values = [user_uuid, SECRET_TYPE]
