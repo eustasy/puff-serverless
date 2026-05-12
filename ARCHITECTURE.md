@@ -64,23 +64,25 @@ npx wrangler types
 
 ### Directories
 
-| Folder                                                                                      | Contents                                                                                              | Deployed to        |
-| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------ |
-| [public](https://github.com/eustasy/puff-serverless/tree/main/public)                       | All static files: HTML (e.g., `index.html`, `login.html`), CSS, Client-Side JS (e.g., `htmx.min.js`). | Cloudflare Pages   |
-| [functions](https://github.com/eustasy/puff-serverless/tree/main/functions)                 | Dynamic endpoints: pages that must load with pre-inserted data.                                       | Cloudflare Workers |
-| [functions/api](https://github.com/eustasy/puff-serverless/tree/main/functions/api)         | API Endpoints that only require server-side JavaScript.                                               | Cloudflare Workers |
-| [functions/api/db](https://github.com/eustasy/puff-serverless/tree/main/functions/api)      | API Endpoints that require database access.                                                           | Cloudflare Workers |
-| [functions/api/db/auth](https://github.com/eustasy/puff-serverless/tree/main/functions/api) | API Endpoints that require authentication.                                                            | Cloudflare Workers |
-| [src](https://github.com/eustasy/puff-serverless/tree/main/src)                             | Backend logic, organized by domain (e.g., `users.js`, `sessions.js`, `2fa.js`).                       | Cloudflare Workers |
-| [src/utilities](https://github.com/eustasy/puff-serverless/tree/main/src/utilities)         | Utility functions (e.g., `hashing.js`, `headers.js`).                                                 | Cloudflare Workers |
-| [sql](https://github.com/eustasy/puff-serverless/tree/main/sql)                             | Database schema definitions (e.g., `users.sql`, `sessions.sql`).                                      | N/A (Reference)    |
+The project deploys as a single Cloudflare Worker bundle. The Worker serves static files from `public/` via [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/), and the dynamic endpoints under `functions/` are compiled into the same bundle using Pages Functions directory-routing conventions. The build step is `wrangler pages functions build` (the Pages Functions compiler) but the deploy command is `wrangler deploy` — the Workers path.
+
+| Folder                                                                                      | Contents                                                                                              | Role                  |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------- |
+| [public](https://github.com/eustasy/puff-serverless/tree/main/public)                       | All static files: HTML (e.g., `index.html`, `login.html`), CSS, Client-Side JS (e.g., `htmx.min.js`). | Workers Static Assets |
+| [functions](https://github.com/eustasy/puff-serverless/tree/main/functions)                 | Dynamic endpoints: pages that must load with pre-inserted data.                                       | Bundled into Worker   |
+| [functions/api](https://github.com/eustasy/puff-serverless/tree/main/functions/api)         | API Endpoints that only require server-side JavaScript.                                               | Bundled into Worker   |
+| [functions/api/db](https://github.com/eustasy/puff-serverless/tree/main/functions/api)      | API Endpoints that require database access.                                                           | Bundled into Worker   |
+| [functions/api/db/auth](https://github.com/eustasy/puff-serverless/tree/main/functions/api) | API Endpoints that require authentication.                                                            | Bundled into Worker   |
+| [src](https://github.com/eustasy/puff-serverless/tree/main/src)                             | Backend logic, organized by domain (e.g., `users.js`, `sessions.js`, `2fa.js`).                       | Bundled into Worker   |
+| [src/utilities](https://github.com/eustasy/puff-serverless/tree/main/src/utilities)         | Utility functions (e.g., `hashing.js`, `headers.js`).                                                 | Bundled into Worker   |
+| [sql](https://github.com/eustasy/puff-serverless/tree/main/sql)                             | Database schema definitions (e.g., `users.sql`, `sessions.sql`).                                      | N/A (reference only)  |
 
 ### Special Files
 
 | File                                                                                                                                   | Contents                        | Deployed to                                                                                               |
 | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | [public/\_redirects](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_redirects)                                       | Redirect Rules                  | [Cloudflare Pages Redirects](https://developers.cloudflare.com/pages/platform/redirects/)                 |
-| [public/\_headers](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_headers)                                           | Headers (Pages Only)            | [Cloudflare Pages Headers](https://developers.cloudflare.com/pages/platform/headers/)                     |
+| [public/\_headers](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_headers)                                           | HTTP response headers           | [Cloudflare Pages Headers](https://developers.cloudflare.com/pages/platform/headers/)                     |
 | _build.sh_                                                                                                                             | Build Commands                  | [Cloudflare Pages Build](https://developers.cloudflare.com/pages/how-to/build-commands-branches/)         |
 | [functions/api/db/\_middleware.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/functions/api/db/_middleware.js)           | Database connection middleware. | [Cloudflare Functions Middleware](https://developers.cloudflare.com/pages/platform/functions/middleware/) |
 | [functions/api/db/auth/\_middleware.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/functions/api/db/auth/_middleware.js) | Authentication middleware.      | [Cloudflare Functions Middleware](https://developers.cloudflare.com/pages/platform/functions/middleware/) |

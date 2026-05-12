@@ -6,6 +6,6 @@ The intent of Puff Serverless is to allow the deployment of hyper-scalable solut
 
 ## Technologies
 
-We run JavaScript on [Node-compatible](https://developers.cloudflare.com/workers/runtime-apis/nodejs/) [Cloudflare Functions](https://developers.cloudflare.com/pages/functions/). APIs return full HTML via [HTMX](https://htmx.org/) to update in-page. Data is stored within Postgres-like [CockroachDB](https://www.cockroachlabs.com/) accessed via [Cloudflare Hyperdrive](https://developers.cloudflare.com/hyperdrive/).
+We run JavaScript on [Cloudflare Workers](https://developers.cloudflare.com/workers/) with [Node compatibility](https://developers.cloudflare.com/workers/runtime-apis/nodejs/), using [Pages Functions](https://developers.cloudflare.com/pages/functions/) directory routing for endpoints and [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) for HTML/CSS/client-side JS. APIs return full HTML via [HTMX](https://htmx.org/) to update in-page. Data is stored within Postgres-like [CockroachDB](https://www.cockroachlabs.com/) accessed via [Cloudflare Hyperdrive](https://developers.cloudflare.com/hyperdrive/).
 
 More can be read in [Architecture.md](ARCHITECTURE.md)
