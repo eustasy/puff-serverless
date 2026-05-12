@@ -4,7 +4,7 @@ applyTo: "public/**"
 
 # Frontend Instructions
 
-The frontend is static HTML served by Cloudflare Pages. All interactivity is driven by HTMX — there is no custom client-side JavaScript.
+The frontend is static HTML served by the Cloudflare Worker via [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) — the `public/` directory is the assets root. All interactivity is driven by HTMX; there is no custom client-side JavaScript.
 
 ## HTMX Conventions
 
@@ -124,6 +124,22 @@ Password and email fields use delayed keyup triggers for live feedback:
 - `.htmx-indicator` — Hidden by default; shown as inline-block during `htmx-request`.
 - Used with the `bars.svg` loading animation inside submit buttons.
 
+### Utility Spacers
+
+Single-property helpers used on `.result-area` containers and standalone controls. Prefer these over inline `style=""` attributes.
+
+- `.spacer-bottom` — `margin-bottom: 1em`.
+- `.spacer-top` — `margin-top: 1em`.
+- `.spacer-top-small` — `margin-top: 0.5em`.
+
+### 2FA Setup
+
+Used by server-rendered HTML for the TOTP setup flow (`functions/api/db/auth/2fa/setup/start.js`):
+
+- `.tfa-qr-layout` — Flex container holding the QR image + manual-entry secret side-by-side; wraps on narrow screens.
+- `.tfa-qr-code` — Sizing constraint for the embedded QR image (`max-width: 200px; height: auto`).
+- `.tfa-secret-display` — Monospace font with `word-break: break-all` for the displayed base32 secret.
+
 ## Page Structure
 
 Every HTML page follows this structure:
@@ -135,7 +151,7 @@ Every HTML page follows this structure:
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="htmx-config" content='{"responseHandling": [...]}' />
-    <title>Page Title - Puff</title>
+    <title>Page Title</title>
     <link rel="stylesheet" href="/assets/main.css" />
     <script src="/assets/htmx_2.0.4.min.js"></script>
   </head>
