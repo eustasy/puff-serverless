@@ -355,31 +355,41 @@ export async function setPrimaryEmail(dbClient, user_uuid, new_primary_email) {
       }
     }
 
-    // Demote all current primary emails for this user
-    await dbClient.query(
-      "UPDATE emails SET is_primary = FALSE WHERE user_uuid = $1 AND is_primary = TRUE",
-      [user_uuid]
-    )
+    // Atomic demote + promote so concurrent calls can't leave two primaries.
+    // Row locks taken by the UPDATE statements serialize concurrent writers.
+    await dbClient.query("BEGIN")
+    try {
+      // Demote all current primary emails for this user
+      await dbClient.query(
+        "UPDATE emails SET is_primary = FALSE WHERE user_uuid = $1 AND is_primary = TRUE",
+        [user_uuid]
+      )
 
-    // Promote new primary
-    const promoteResult = await dbClient.query(
-      "UPDATE emails SET is_primary = TRUE WHERE user_uuid = $1 AND email_address = $2",
-      [user_uuid, new_primary_email]
-    )
+      // Promote new primary
+      const promoteResult = await dbClient.query(
+        "UPDATE emails SET is_primary = TRUE WHERE user_uuid = $1 AND email_address = $2",
+        [user_uuid, new_primary_email]
+      )
 
-    if (promoteResult.rowCount > 0) {
-      return {
-        success: true,
-        message: "Primary email changed successfully.",
-        status: 200,
+      if (promoteResult.rowCount > 0) {
+        await dbClient.query("COMMIT")
+        return {
+          success: true,
+          message: "Primary email changed successfully.",
+          status: 200,
+        }
+      } else {
+        // This case should ideally not be reached if FOR UPDATE lock worked and checks passed
+        await dbClient.query("ROLLBACK")
+        return {
+          error: true,
+          message: "Failed to change primary email due to an unexpected issue.",
+          status: 500,
+        }
       }
-    } else {
-      // This case should ideally not be reached if FOR UPDATE lock worked and checks passed
-      return {
-        error: true,
-        message: "Failed to change primary email due to an unexpected issue.",
-        status: 500,
-      }
+    } catch (txError) {
+      await dbClient.query("ROLLBACK").catch(() => {})
+      throw txError
     }
   } catch (error) {
     console.error("Error in setPrimaryEmail:", error)
