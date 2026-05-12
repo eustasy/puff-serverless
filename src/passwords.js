@@ -13,7 +13,7 @@ import {
 export async function createPassword(dbClient, user_uuid, password) {
   try {
     // Validate password requirements
-    const isValid = await password_requirements(password)
+    const isValid = password_requirements(password)
     if (!isValid) {
       throw new Error("Password does not meet the required criteria.")
     }
@@ -159,7 +159,7 @@ export async function password_verify(dbClient, user_uuid, pw) {
  * @param {string} pw - The password to check.
  * @returns {boolean} True if the password meets all requirements, false otherwise.
  */
-export async function password_requirements(pw) {
+export function password_requirements(pw) {
   var result = true
   if (pw.length < 12) {
     result = false

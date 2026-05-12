@@ -38,7 +38,7 @@ export async function onRequestPost(context) {
 
   try {
     // Step 4: Password Strength Check (New Password)
-    const isPasswordStrong = await password_requirements(new_password)
+    const isPasswordStrong = password_requirements(new_password)
     if (!isPasswordStrong) {
       const requirementsHtml = await password_requirements_html(new_password)
       return new Response(

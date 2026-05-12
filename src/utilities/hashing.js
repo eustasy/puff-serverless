@@ -1,10 +1,10 @@
-async function HextoUint8(hexString) {
+function HextoUint8(hexString) {
   return Uint8Array.from(
     hexString.match(/.{1,2}/g).map((byte) => parseInt(byte, 16))
   )
 }
 
-async function Uint8toHex(bytes) {
+function Uint8toHex(bytes) {
   return bytes.reduce(
     (str, byte) => str + byte.toString(16).padStart(2, "0"),
     ""
@@ -15,7 +15,7 @@ export async function hashing_wrapper(pw, algo) {
   const myText = new TextEncoder().encode(pw)
   const myDigest = await crypto.subtle.digest({ name: algo }, myText)
   const bitsBack = new Uint8Array(myDigest)
-  const hash = await Uint8toHex(bitsBack)
+  const hash = Uint8toHex(bitsBack)
   return hash
 }
 
@@ -29,7 +29,7 @@ export async function hashing_wrapper(pw, algo) {
 // returns { hash: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z", salt: "random-uuid" }
 export async function puff_hashing_password(pw, salt = "", algo = "SHA-384") {
   if (salt.length === 0) {
-    salt = await crypto.randomUUID()
+    salt = crypto.randomUUID()
   }
 
   const toHash = pw + salt

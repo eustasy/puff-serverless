@@ -45,29 +45,16 @@ export async function onRequestPost(context) {
   }
 
   // Step 5: Response
-  if (terminationResult.success) {
-    return new Response(
-      '<p class="result-positive">Session terminated successfully.</p>',
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Trigger": "sessionListChanged",
-        },
-      }
-    )
-  } else {
-    return new Response(
-      '<p class="result-negative">Session was already terminated or not found.</p>',
-      {
-        status: 200, // Or consider 404 if appropriate for your frontend logic
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Trigger": "sessionListChanged", // Also trigger refresh here to ensure UI consistency
-        },
-      }
-    )
-  }
+  return new Response(
+    '<p class="result-positive">Session terminated successfully.</p>',
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "text/html",
+        "HX-Trigger": "sessionListChanged",
+      },
+    }
+  )
 }
 
 export async function onRequest(context) {

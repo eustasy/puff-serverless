@@ -43,7 +43,7 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const passwordCheckResult = await password_requirements(new_password)
+    const passwordCheckResult = password_requirements(new_password)
     if (!passwordCheckResult) {
       return new Response(
         '<p class="result-negative">New password does not meet requirements.</p>',
