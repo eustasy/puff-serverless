@@ -149,7 +149,6 @@ export async function user_login(
       }
     }
 
-    if (twoFactorEnabled && twoFactorEnabled.enabled) {
     if (twoFactorEnabled === true) {
       // If 2FA is enabled, return a response indicating that 2FA is required
       // The application should then prompt the user for their TOTP code
