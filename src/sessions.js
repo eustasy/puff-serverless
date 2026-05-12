@@ -12,7 +12,7 @@ import { loginUser } from "./users"
 export async function verifyTokenAndGetUser(dbClient, token, ip_country) {
   try {
     const sessionRecordResult = await dbClient.query(
-      "SELECT user_uuid, expires_at, ip_country FROM sessions WHERE session_id = $1",
+      "SELECT user_uuid, expires_at, ip_country FROM sessions WHERE session_id = $1 AND is_active = TRUE",
       [token]
     )
     const sessionRecord = sessionRecordResult.rows[0]
