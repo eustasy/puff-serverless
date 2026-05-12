@@ -9,6 +9,7 @@
   - [Special Files](#special-files)
 - [Libraries](#libraries)
 - [APIs](#apis)
+- [Environment Variables](#environment-variables)
 - [Database Schema Changes](#database-schema-changes)
 - [Project Maintenance](#project-maintenance)
 
@@ -98,6 +99,16 @@ External APIs used:
 
 - https://haveibeenpwned.com/API/v2#SearchingPwnedPasswordsByRange
 - Cloudflare Turnstile (implicitly via Pages dashboard configuration)
+
+## Environment Variables
+
+Operator-configurable runtime values, read from `context.env` (Cloudflare Pages Functions binding). Set these as plain `vars` in `wrangler.jsonc` for production, or in `.dev.vars` (or `.env`) for local development.
+
+| Variable                   | Default     | Read at                                        | Purpose                                                                                                                                                                                                                                                                                                       |
+| -------------------------- | ----------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SESSION_MAX_AGE_SECONDS`  | `2592000`   | `functions/api/db/2fa/login.js`                | Lifetime of the `session_token` cookie issued after a successful 2FA login, in seconds. Default is 30 days. Note: distinct from the server-side session row expiry in `src/sessions.js` (currently hardcoded to 7 days), so a cookie can outlive the DB row and the server will reject it on the next request. |
+| `SECURE_COOKIE`            | _unset_     | `functions/api/db/2fa/login.js`                | When truthy, appends `Secure` to `Set-Cookie` headers issued by the 2FA login flow, so cookies are only sent over HTTPS. Should be set in production. Note: `functions/api/db/user/login.js` adds `Secure` unconditionally and does not consult this var — see audit item B10 (cookie-policy consistency).      |
+| `APP_NAME`                 | `PuffAuth`  | `functions/api/db/auth/2fa/setup/start.js`     | TOTP issuer name shown by authenticator apps (e.g. Google Authenticator, 1Password) next to each account entry, and embedded in the `otpauth://` URI written to the setup QR code.                                                                                                                          |
 
 ## Database Schema Changes
 
