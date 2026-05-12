@@ -112,9 +112,18 @@ export async function disablePassword(dbClient, user_uuid) {
  */
 export async function updatePassword(dbClient, user_uuid, newPassword) {
   try {
-    await disablePassword(dbClient, user_uuid)
-    const createdNew = await createPassword(dbClient, user_uuid, newPassword)
-    return createdNew
+    // Atomic disable-then-create so a failure between the two doesn't leave
+    // the user with no enabled password.
+    await dbClient.query("BEGIN")
+    try {
+      await disablePassword(dbClient, user_uuid)
+      const createdNew = await createPassword(dbClient, user_uuid, newPassword)
+      await dbClient.query("COMMIT")
+      return createdNew
+    } catch (txError) {
+      await dbClient.query("ROLLBACK").catch(() => {})
+      throw txError
+    }
   } catch (error) {
     console.error("Error in updatePassword:", error)
     throw error
