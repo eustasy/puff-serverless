@@ -49,7 +49,7 @@ export async function verifyTokenAndGetUser(dbClient, token, ip_country) {
 
 /**
  * Starts a new session by inserting it into the database.
- * The session ID is generated internally and expires in 24 hours.
+ * The session ID is generated internally and expires in 7 days.
  *
  * @param {Client} dbClient - An active pg.Client instance (expected to be connected).
  * @param {string} user_uuid - The UUID of the user starting the session.
