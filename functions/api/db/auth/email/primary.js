@@ -1,4 +1,5 @@
 import { setPrimaryEmail } from "../../../../../src/emails.js"
+import { escapeHtml } from "../../../../../src/utilities/escape.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
@@ -13,7 +14,7 @@ export async function onRequestPost(context) {
       !new_primary_email_address.includes("@")
     ) {
       return new Response(
-        `<p class="result-negative">New primary email address is missing or invalid. You submitted "${new_primary_email_address}".</p>`,
+        `<p class="result-negative">New primary email address is missing or invalid. You submitted "${escapeHtml(new_primary_email_address)}".</p>`,
         {
           status: 400,
           headers: { "Content-Type": "text/html" },

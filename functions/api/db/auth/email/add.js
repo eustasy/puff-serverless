@@ -1,4 +1,5 @@
 import { createEmail } from "../../../../../src/emails.js"
+import { escapeHtml } from "../../../../../src/utilities/escape.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
@@ -42,7 +43,7 @@ export async function onRequestPost(context) {
 
     if (trimmed_email_address === "" || !trimmed_email_address.includes("@")) {
       return new Response(
-        `<p class="result-negative">Email address is invalid. It must contain an "@" symbol. You submitted "${trimmed_email_address}".</p>`,
+        `<p class="result-negative">Email address is invalid. It must contain an "@" symbol. You submitted "${escapeHtml(trimmed_email_address)}".</p>`,
         {
           status: 400,
           headers: { "Content-Type": "text/html" },

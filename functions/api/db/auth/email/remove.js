@@ -1,4 +1,5 @@
 import { deleteEmail } from "../../../../../src/emails.js"
+import { escapeHtml } from "../../../../../src/utilities/escape.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
@@ -13,7 +14,7 @@ export async function onRequestPost(context) {
       !email_address_to_remove.includes("@")
     ) {
       return new Response(
-        `<p class="result-negative">Email address is missing or invalid. You submitted "${email_address_to_remove}".</p>`,
+        `<p class="result-negative">Email address is missing or invalid. You submitted "${escapeHtml(email_address_to_remove)}".</p>`,
         {
           status: 400,
           headers: { "Content-Type": "text/html" },

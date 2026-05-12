@@ -1,5 +1,6 @@
 import { createEmailToken, readToken } from "../../../../../src/tokens.js" // TODO use readToken to check if a token already exists
 import { readEmail } from "../../../../../src/emails.js"
+import { escapeHtml } from "../../../../../src/utilities/escape.js"
 
 export async function onRequestPost(context) {
   const dbClient = context.data.dbClient
@@ -15,7 +16,7 @@ export async function onRequestPost(context) {
       !email_address.includes("@")
     ) {
       return new Response(
-        `<p class="result-negative">Email address is missing or invalid. You submitted "${email_address}".</p>`,
+        `<p class="result-negative">Email address is missing or invalid. You submitted "${escapeHtml(email_address)}".</p>`,
         {
           status: 400,
           headers: { "Content-Type": "text/html" },
@@ -42,7 +43,7 @@ export async function onRequestPost(context) {
         emailRecordResult &&
         emailRecordResult.message === "Email not found."
       ) {
-        userMessage = `Email address "${email_address}" not found for your account.`
+        userMessage = `Email address "${escapeHtml(email_address)}" not found for your account.`
       }
       return new Response(`<p class="result-negative">${userMessage}</p>`, {
         // Use 404 if email not found, otherwise 500
@@ -62,7 +63,7 @@ export async function onRequestPost(context) {
         `User ${user_uuid} attempted to resend verification for email ${email_address} belonging to ${emailToVerify.user_uuid}`
       )
       return new Response(
-        `<p class="result-negative">Email address "${email_address}" not found for your account.</p>`,
+        `<p class="result-negative">Email address "${escapeHtml(email_address)}" not found for your account.</p>`,
         {
           status: 404,
           headers: { "Content-Type": "text/html" },
@@ -110,7 +111,7 @@ export async function onRequestPost(context) {
     )
 
     return new Response(
-      `<p class="result-positive">A new verification link has been sent to ${email_address}.</p>`,
+      `<p class="result-positive">A new verification link has been sent to ${escapeHtml(email_address)}.</p>`,
       {
         status: 200,
         headers: {
