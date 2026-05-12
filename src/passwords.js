@@ -66,7 +66,7 @@ export async function readPassword(dbClient, user_uuid) {
     // Update secret_last_used
     const updateQuery = `
       UPDATE secrets
-      SET secret_last_used = current_timestamp()
+      SET secret_last_used = CURRENT_TIMESTAMP
       WHERE user_uuid = $1 AND secret_type = $2 AND is_enabled = TRUE;
     `
     // Fire and forget is acceptable here as it's not critical for the read operation's success
