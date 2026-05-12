@@ -22,12 +22,20 @@ export async function onRequestGet(context) {
       })
     }
 
-    // Redirect to login page on successful email verification
+    // Redirect to login page on successful email verification.
+    // HTMX swaps and direct browser navigation need different headers: HTMX
+    // honors HX-Redirect for a JS-driven nav; the browser honors a standard
+    // Location: header on a 303. Sending both would make browser XHR auto-follow
+    // the redirect before HTMX sees HX-Redirect, jamming the /login HTML page
+    // into the target element. So branch on the HX-Request header HTMX sets on
+    // every request it makes.
+    const redirectTarget = "/login?code=email_verification_success"
+    const isHtmxRequest = context.request.headers.get("HX-Request") === "true"
     return new Response(null, {
       status: 303,
-      headers: {
-        "HX-Redirect": "/login?code=email_verification_success",
-      },
+      headers: isHtmxRequest
+        ? { "HX-Redirect": redirectTarget }
+        : { Location: redirectTarget },
     })
   } catch (error) {
     console.error("Error in verify email endpoint:", error)
