@@ -15,7 +15,7 @@ This document provides instructions for the architecture of the project. It is i
 ## Structure
 
 - The `functions/api` directory contains all code for dynamic content and API endpoints.
-  - Endpoints are organized by functionality (e.g., `functions/api/db/auth`, `functions/api/user`).
+  - Endpoints are organized by functionality (e.g., `functions/api/db/auth/email/`, `functions/api/db/2fa/`, `functions/api/db/user/`).
   - Middleware files (e.g., `_middleware.js`) are used for request processing steps like database connection and authentication.
     - The `functions/api/db/_middleware.js` handles database client initialization via Cloudflare Hyperdrive and attaches it to `context.data.dbClient`. It also ensures the client is closed in a `finally` block after the request completes.
     - The `functions/api/db/auth/_middleware.js` handles session authentication by reading a `session_token` cookie and calling `verifyTokenAndGetUser`. On success it populates `context.data.user_uuid`.
@@ -39,6 +39,7 @@ This document provides instructions for the architecture of the project. It is i
   - The `src/utilities` directory contains helper functions:
     - `src/utilities/hashing.js` — SHA-384 password hashing with salt, SHA-1 for HaveIBeenPwned k-anonymity.
     - `src/utilities/headers.js` — cookie parsing (`getCookie`) and user-agent parsing (`parseUserAgent`).
+    - `src/utilities/escape.js` — `escapeHtml` for safely interpolating user-controlled values into HTML response bodies and attributes.
 - The `sql` directory contains CockroachDB schema definitions (one file per table).
   - `users.sql` must be imported first as it provides the foreign key for other tables.
   - Tables: `users`, `sessions`, `emails`, `secrets` (passwords + TOTP), `tokens` (verification, reset, 2FA step-up).
@@ -49,7 +50,7 @@ This document provides instructions for the architecture of the project. It is i
 - API endpoints should return HTML fragments designed for HTMX swapping — not JSON.
 - Avoid returning JSON unless explicitly requested or for error responses that cannot be handled with HTML.
 - Utilize HTMX response headers:
-  - `HX-Redirect` for client-side navigation: `return new Response(null, { status: 303, headers: { "HX-Redirect": "/login?message=Success." } });`
+  - `HX-Redirect` for HTMX-driven client-side navigation: `return new Response(null, { status: 303, headers: { "HX-Redirect": "/login?message=Success." } });`. Endpoints reached via direct browser navigation (e.g., a link clicked from an email) need a standard `Location` header instead — `HX-Redirect` is ignored outside HTMX. Branch on `context.request.headers.get("HX-Request") === "true"` to pick the right one; see `functions/api/db/email/verify.js`.
   - `HX-Trigger` to fire client-side events that refresh other page sections (e.g., `"emailListChanged"`, `"sessionListChanged"`, `"tfaStatusChanged"`).
   - `HX-Retarget` to redirect an error response to a different DOM target than the form's default.
 - The API should be stateless; each request must contain all necessary information.
