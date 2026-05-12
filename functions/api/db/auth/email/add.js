@@ -60,14 +60,14 @@ export async function onRequestPost(context) {
     )
 
     if (result.error) {
-      return new Response(`<p class=\"error\">${result.message}</p>`, {
+      return new Response(`<p class=\"result-negative\">${result.message}</p>`, {
         status: result.status || 500,
         headers: { "Content-Type": "text/html" },
       })
     }
 
     return new Response(
-      `<p class=\"success\">Email added. A verification link has been sent (if configured).</p>`,
+      `<p class=\"result-positive\">Email added. A verification link has been sent (if configured).</p>`,
       {
         status: 200,
         headers: {
@@ -82,7 +82,7 @@ export async function onRequestPost(context) {
     if (error instanceof TypeError && error.message.includes("formData")) {
       errorMessage = "Invalid request format. Expected form data."
     }
-    return new Response(`<p class=\"error\">${errorMessage}</p>`, {
+    return new Response(`<p class=\"result-negative\">${errorMessage}</p>`, {
       status: 500,
       headers: { "Content-Type": "text/html" },
     })

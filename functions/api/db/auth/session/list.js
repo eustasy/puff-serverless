@@ -15,7 +15,7 @@ export async function onRequestGet(context) {
     const result = await listSessionsForUser(dbClient, user_uuid)
 
     if (result.error) {
-      return new Response(`<p class=\"error\">${result.error}</p>`, {
+      return new Response(`<p class=\"result-negative\">${result.error}</p>`, {
         status: result.status,
         headers: { "Content-Type": "text/html" },
       })

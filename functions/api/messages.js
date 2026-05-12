@@ -2,12 +2,12 @@
 
 const MESSAGE_MAP = {
   registration_success:
-    '<p class="success">Registration successful. Please check your email to verify.</p>',
+    '<p class="result-positive">Registration successful. Please check your email to verify.</p>',
   password_reset_success:
-    '<p class="success">Password reset successful. Please log in with your new password.</p>',
+    '<p class="result-positive">Password reset successful. Please log in with your new password.</p>',
   email_verification_success:
-    '<p class="success">Email verification successful. Please log in.</p>',
-  logout_success: '<p class="success">Logout successful.</p>',
+    '<p class="result-positive">Email verification successful. Please log in.</p>',
+  logout_success: '<p class="result-positive">Logout successful.</p>',
 }
 
 export async function onRequestGet(context) {
