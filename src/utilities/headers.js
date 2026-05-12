@@ -31,7 +31,11 @@ export function parseUserAgent(userAgentString) {
   let browser = "Unknown Browser"
   let os = "Unknown OS"
 
-  // Browser detection
+  // Browser detection — order matters: many UAs contain multiple of these tokens.
+  // Chrome UAs include "Safari/" (and Chromium-derived browsers include "Chrome/"),
+  // so the more-specific brand must be checked before the more-generic one. Current
+  // order narrows from most-specific to most-generic: dedicated builds (Firefox,
+  // Samsung, Opera) → Chromium derivatives (Edge) → Chrome → bare Safari.
   if (userAgentString.includes("Firefox/")) browser = "Firefox"
   else if (userAgentString.includes("SamsungBrowser/"))
     browser = "Samsung Browser"
