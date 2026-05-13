@@ -13,7 +13,9 @@ export const onRequestPost: Handler = async (context) => {
     typeof email !== "string" ||
     typeof name !== "string" ||
     typeof pw !== "string" ||
-    !email || !name || !pw
+    !email ||
+    !name ||
+    !pw
   ) {
     return new Response(
       '<p class="result-negative">Name, email, and password are required.</p>',

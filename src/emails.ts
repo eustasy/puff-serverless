@@ -74,7 +74,10 @@ export async function readEmail(
  * @returns {Promise<Array<object>>} - An array of email objects or an empty array if none found.
  * @throws Will throw an error if the database query fails.
  */
-export async function readEmails(dbClient: DbClient, user_uuid: string): Promise<EmailRow[]> {
+export async function readEmails(
+  dbClient: DbClient,
+  user_uuid: string
+): Promise<EmailRow[]> {
   try {
     const query = {
       text: "SELECT user_uuid, email_address, is_primary, is_verified, verified_at FROM emails WHERE user_uuid = $1 ORDER BY is_primary DESC, verified_at ASC NULLS LAST, email_address ASC",
@@ -247,7 +250,11 @@ export async function verifyEmailByToken(
     const { user_uuid, email_address, expires_at, is_used } =
       tokenRecordFromRead
     if (!email_address) {
-      return { error: true, message: "Token has no associated email address.", status: 500 }
+      return {
+        error: true,
+        message: "Token has no associated email address.",
+        status: 500,
+      }
     }
 
     if (is_used) {

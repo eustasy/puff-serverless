@@ -236,7 +236,10 @@ export async function user_login(
  * @param {string} user_uuid - The UUID of the user to delete.
  * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` on hit, `{ success: false, message, status: 404 }` if no row matched, `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function deleteUser(dbClient: DbClient, user_uuid: string): Promise<Envelope> {
+export async function deleteUser(
+  dbClient: DbClient,
+  user_uuid: string
+): Promise<Envelope> {
   try {
     const result = await dbClient.query(
       "UPDATE users SET user_active = FALSE WHERE user_uuid = $1",
@@ -263,7 +266,10 @@ export async function deleteUser(dbClient: DbClient, user_uuid: string): Promise
  * @param {string} user_uuid - The UUID of the user to update.
  * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` if a row was updated, `{ success: false, message, status: 404 }` if not, `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function loginUser(dbClient: DbClient, user_uuid: string): Promise<Envelope> {
+export async function loginUser(
+  dbClient: DbClient,
+  user_uuid: string
+): Promise<Envelope> {
   try {
     const result = await dbClient.query(
       "UPDATE users SET user_last_login = NOW() WHERE user_uuid = $1",

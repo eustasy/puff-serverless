@@ -27,7 +27,11 @@ export async function hashing_wrapper(pw: string, algo: string) {
 // example:
 // const { hash, salt } = await puff_hashing_password("myPassword123", "", "SHA-384")
 // returns { hash: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z", salt: "random-uuid" }
-export async function puff_hashing_password(pw: string, salt = "", algo = "SHA-384") {
+export async function puff_hashing_password(
+  pw: string,
+  salt = "",
+  algo = "SHA-384"
+) {
   if (salt.length === 0) {
     salt = crypto.randomUUID()
   }

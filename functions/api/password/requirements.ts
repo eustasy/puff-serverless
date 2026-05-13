@@ -3,10 +3,13 @@ import { password_requirements_html } from "../../../src/passwords.js"
 export const onRequestPost: Handler = async (context) => {
   const pw = (await context.request.formData()).get("pw")
   if (typeof pw !== "string") {
-    return new Response('<p class="result-negative">Password is required.</p>', {
-      status: 400,
-      headers: { "Content-Type": "text/html" },
-    })
+    return new Response(
+      '<p class="result-negative">Password is required.</p>',
+      {
+        status: 400,
+        headers: { "Content-Type": "text/html" },
+      }
+    )
   }
   const response_html = await password_requirements_html(pw)
   return new Response(response_html)

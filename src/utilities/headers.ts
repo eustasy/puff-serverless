@@ -5,7 +5,10 @@
  * @param {string} cookieName - The name of the cookie to find.
  * @returns {string | null} The value of the cookie, or null if not found.
  */
-export async function getCookie(cookieString: string | null, cookieName: string) {
+export async function getCookie(
+  cookieString: string | null,
+  cookieName: string
+) {
   if (!cookieString) {
     return null
   }

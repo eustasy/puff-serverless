@@ -100,7 +100,10 @@ export async function usedToken(
       values: [true, token_value],
     }
     const result = await dbClient.query(query)
-    return { success: (result.rowCount ?? 0) > 0, rowCount: result.rowCount ?? 0 }
+    return {
+      success: (result.rowCount ?? 0) > 0,
+      rowCount: result.rowCount ?? 0,
+    }
   } catch (error) {
     console.error("Error in usedToken:", error)
     return {
