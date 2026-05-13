@@ -18,7 +18,7 @@ export async function createToken(
   token_type,
   expires_at,
   email_address = null
-) {
+): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_value = crypto.randomUUID()
 
@@ -50,7 +50,10 @@ export async function createToken(
  * @param {string} token_value - The value of the token to read.
  * @returns {Promise<object|null>} - The token record if found and valid, null otherwise, or an error object.
  */
-export async function readToken(dbClient, token_value) {
+export async function readToken(
+  dbClient,
+  token_value
+): Promise<TokenEnvelope<{ token: any }>> {
   try {
     let queryString =
       "SELECT user_uuid, email_address, token_type, expires_at, is_used FROM tokens WHERE token_value = $1"
@@ -83,7 +86,13 @@ export async function readToken(dbClient, token_value) {
  * @param {string} token_value - The value of the token to update.
  * @returns {Promise<object>} - An object indicating success or failure.
  */
-export async function usedToken(dbClient, token_value) {
+export async function usedToken(
+  dbClient,
+  token_value
+): Promise<
+  | { success: boolean; rowCount: number }
+  | { error: true; message: string; details?: unknown }
+> {
   try {
     // For now, we only support updating is_used. This can be expanded later.
     const query = {
@@ -110,7 +119,14 @@ export async function usedToken(dbClient, token_value) {
  * @param {string} token_value - The token value for which to delete tokens.
  * @returns {Promise<object>} - An object indicating success (rowCount) or failure.
  */
-export async function deleteToken(dbClient, user_uuid, token_value) {
+export async function deleteToken(
+  dbClient,
+  user_uuid,
+  token_value
+): Promise<
+  | { success: true; rowCount: number }
+  | { error: true; message: string; details?: unknown }
+> {
   try {
     let queryString =
       "DELETE FROM tokens WHERE user_uuid = $1 AND token_value = $2"
@@ -139,7 +155,11 @@ export async function deleteToken(dbClient, user_uuid, token_value) {
  * @param {string} email_address - The email address associated with this token.
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
-export async function createEmailToken(dbClient, user_uuid, email_address) {
+export async function createEmailToken(
+  dbClient,
+  user_uuid,
+  email_address
+): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_type = "email_verification"
     const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
@@ -169,7 +189,11 @@ export async function createEmailToken(dbClient, user_uuid, email_address) {
  * @param {string} email_address - The email address associated with this token.
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
-export async function createPasswordToken(dbClient, user_uuid, email_address) {
+export async function createPasswordToken(
+  dbClient,
+  user_uuid,
+  email_address
+): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_type = "password_reset"
     const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
@@ -198,7 +222,10 @@ export async function createPasswordToken(dbClient, user_uuid, email_address) {
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
-export async function createLoginToken(dbClient, user_uuid) {
+export async function createLoginToken(
+  dbClient,
+  user_uuid
+): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_type = "totp_verification_pending"
     const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString()
@@ -221,7 +248,10 @@ export async function createLoginToken(dbClient, user_uuid) {
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
-export async function createSudoToken(dbClient, user_uuid) {
+export async function createSudoToken(
+  dbClient,
+  user_uuid
+): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_type = "sudo_elevation"
     const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString()

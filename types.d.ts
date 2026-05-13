@@ -16,6 +16,12 @@ declare global {
     | ({ success: true; status: number } & T)
     | { success: false; message: string; status: number }
     | { error: true; message: string; details?: unknown; status: number }
+
+  // Pre-status legacy variant used by src/tokens.ts helpers. No `status` field.
+  // Phase 2 annotates the existing shape; aligning these with Envelope is its own follow-up.
+  type TokenEnvelope<T = {}> =
+    | ({ success: true } & T)
+    | { error: true; message: string; details?: unknown }
 }
 
 export {}

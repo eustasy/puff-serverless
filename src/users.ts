@@ -9,7 +9,10 @@ import { has2fa } from "./2fa.js"
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<object>} - Envelope: `{ success: true, user, status: 200 }` on hit, `{ success: false, message, status: 404 }` on miss, `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function readUser(dbClient, user_uuid) {
+export async function readUser(
+  dbClient,
+  user_uuid
+): Promise<Envelope<{ user: any }>> {
   try {
     const query =
       "SELECT user_uuid, user_name, user_created_at, user_last_login FROM users WHERE user_uuid = $1 AND user_active = TRUE LIMIT 1"
@@ -29,7 +32,12 @@ export async function readUser(dbClient, user_uuid) {
   }
 }
 
-export async function user_register(dbClient, name, email, password) {
+export async function user_register(
+  dbClient,
+  name,
+  email,
+  password
+): Promise<{ success: true; user_uuid: string; email: string }> {
   try {
     // Step 0. Check if the email already exists using existsEmail
     const emailCheck = await existsEmail(dbClient, email)
@@ -98,7 +106,23 @@ export async function user_login(
   user_agent,
   ip_address,
   ip_country
-) {
+): Promise<
+  | { error: true; message: string; status: number }
+  | {
+      success: true
+      totp_required: true
+      user_uuid: string
+      message: string
+      status: number
+    }
+  | {
+      success: true
+      session_id: string
+      user_uuid: string
+      message: string
+      status: number
+    }
+> {
   try {
     const emailReadResult = await readEmail(dbClient, email)
 
@@ -204,7 +228,7 @@ export async function user_login(
  * @param {string} user_uuid - The UUID of the user to delete.
  * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` on hit, `{ success: false, message, status: 404 }` if no row matched, `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function deleteUser(dbClient, user_uuid) {
+export async function deleteUser(dbClient, user_uuid): Promise<Envelope> {
   try {
     const result = await dbClient.query(
       "UPDATE users SET user_active = FALSE WHERE user_uuid = $1",
@@ -231,7 +255,7 @@ export async function deleteUser(dbClient, user_uuid) {
  * @param {string} user_uuid - The UUID of the user to update.
  * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` if a row was updated, `{ success: false, message, status: 404 }` if not, `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function loginUser(dbClient, user_uuid) {
+export async function loginUser(dbClient, user_uuid): Promise<Envelope> {
   try {
     const result = await dbClient.query(
       "UPDATE users SET user_last_login = NOW() WHERE user_uuid = $1",

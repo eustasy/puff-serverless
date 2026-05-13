@@ -15,7 +15,9 @@ export async function verifyTokenAndGetUser(
   token,
   ip_country,
   ip_address
-) {
+): Promise<
+  { user_uuid: string; status: 200 } | { error: string; status: number }
+> {
   try {
     const sessionRecordResult = await dbClient.query(
       "SELECT user_uuid, expires_at, ip_country FROM sessions WHERE session_id = $1 AND is_active = TRUE",
@@ -81,7 +83,10 @@ export async function createSession(
   user_agent,
   ip_address,
   ip_country
-) {
+): Promise<
+  | { session_id: string; status: 200; expires_at: Date }
+  | { error: string; status: number }
+> {
   if (!user_uuid) {
     return { error: "User UUID is required.", status: 400 }
   }
@@ -149,7 +154,7 @@ export async function terminateSpecificSession(
   dbClient,
   user_uuid,
   session_id
-) {
+): Promise<{ success: true; status: 200 } | { error: string; status: number }> {
   try {
     const result = await dbClient.query(
       "UPDATE sessions SET is_active = FALSE WHERE session_id = $1 AND user_uuid = $2 AND is_active = TRUE RETURNING session_id",
@@ -185,7 +190,9 @@ export async function terminateAllOtherSessions(
   dbClient,
   user_uuid,
   session_id
-) {
+): Promise<
+  { deletedCount: number; status: 200 } | { error: string; status: number }
+> {
   try {
     const result = await dbClient.query(
       "UPDATE sessions SET is_active = FALSE WHERE user_uuid = $1 AND session_id != $2 AND is_active = TRUE RETURNING session_id",
@@ -208,7 +215,12 @@ export async function terminateAllOtherSessions(
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<{sessions?: Array<object>, error?: string, status?: number}>} List of sessions or error.
  */
-export async function listSessionsForUser(dbClient, user_uuid) {
+export async function listSessionsForUser(
+  dbClient,
+  user_uuid
+): Promise<
+  { sessions: any[]; status: 200 } | { error: string; status: number }
+> {
   try {
     const result = await dbClient.query(
       "SELECT session_id, created_at, expires_at, is_active, user_agent, ip_address, ip_country FROM sessions WHERE user_uuid = $1 ORDER BY created_at DESC",

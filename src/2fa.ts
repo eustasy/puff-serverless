@@ -5,7 +5,7 @@ export async function create2fa(
   user_uuid,
   secret_value,
   secret_name = null
-) {
+): Promise<Envelope<{ twoFactor: any }>> {
   const secret_uuid = crypto.randomUUID()
   const query = `
     INSERT INTO secrets (secret_uuid, user_uuid, secret_type, secret_value, secret_name, is_enabled)
@@ -40,7 +40,10 @@ export async function create2fa(
   }
 }
 
-export async function read2fa(dbClient, user_uuid) {
+export async function read2fa(
+  dbClient,
+  user_uuid
+): Promise<Envelope<{ twoFactor: any }>> {
   const query = `
     SELECT user_uuid, secret_type, secret_value, secret_name, is_enabled, secret_created_at, secret_last_used
     FROM secrets
@@ -64,7 +67,12 @@ export async function read2fa(dbClient, user_uuid) {
   }
 }
 
-export async function delete2fa(dbClient, user_uuid) {
+export async function delete2fa(
+  dbClient,
+  user_uuid
+): Promise<
+  { rowCount: number; status: 200 } | { error: string; status: number }
+> {
   const query = `
     DELETE FROM secrets
     WHERE user_uuid = $1 AND secret_type = $2
@@ -83,7 +91,10 @@ export async function delete2fa(dbClient, user_uuid) {
   }
 }
 
-export async function has2fa(dbClient, user_uuid) {
+export async function has2fa(
+  dbClient,
+  user_uuid
+): Promise<Envelope<{ enabled: boolean }>> {
   const query = `
     SELECT 1
     FROM secrets
@@ -108,7 +119,14 @@ export async function has2fa(dbClient, user_uuid) {
   }
 }
 
-export async function enable2fa(dbClient, user_uuid) {
+export async function enable2fa(
+  dbClient,
+  user_uuid
+): Promise<
+  | { success: true; record: any; status: 200 }
+  | { success: false; error: string; status: number }
+  | { error: string; status: number }
+> {
   const query = `
     UPDATE secrets
     SET is_enabled = TRUE
@@ -138,7 +156,14 @@ export async function enable2fa(dbClient, user_uuid) {
   }
 }
 
-export async function used2fa(dbClient, user_uuid) {
+export async function used2fa(
+  dbClient,
+  user_uuid
+): Promise<
+  | { success: true; record: any; status: 200 }
+  | { success: false; error: string; status: number }
+  | { error: string; status: number }
+> {
   const query = `
     UPDATE secrets
     SET secret_last_used = CURRENT_TIMESTAMP

@@ -6,7 +6,13 @@ import { createEmailToken, readToken, usedToken } from "./tokens.js"
  * @param {string} email_address - The email address to check.
  * @returns {Promise<object>} - An object with { success: true, exists: boolean } or { error: true, message: string }.
  */
-export async function existsEmail(dbClient, email_address) {
+export async function existsEmail(
+  dbClient,
+  email_address
+): Promise<
+  | { success: true; exists: boolean }
+  | { error: true; message: string; details?: unknown }
+> {
   try {
     const query = {
       text: "SELECT 1 FROM emails WHERE email_address = $1 LIMIT 1",
@@ -30,7 +36,14 @@ export async function existsEmail(dbClient, email_address) {
  * @param {string} email_address - The email address to look up.
  * @returns {Promise<object>} - An object with { success: true, email: record } or { success: false/error: true, message: string }.
  */
-export async function readEmail(dbClient, email_address) {
+export async function readEmail(
+  dbClient,
+  email_address
+): Promise<
+  | { success: true; email: any }
+  | { success: false; message: string }
+  | { error: true; message: string; details?: unknown }
+> {
   try {
     const query = {
       text: "SELECT user_uuid, email_address, is_primary, is_verified, verified_at FROM emails WHERE email_address = $1 LIMIT 1",
@@ -59,7 +72,7 @@ export async function readEmail(dbClient, email_address) {
  * @returns {Promise<Array<object>>} - An array of email objects or an empty array if none found.
  * @throws Will throw an error if the database query fails.
  */
-export async function readEmails(dbClient, user_uuid) {
+export async function readEmails(dbClient, user_uuid): Promise<any[]> {
   try {
     const query = {
       text: "SELECT email_address, is_primary, is_verified, verified_at FROM emails WHERE user_uuid = $1 ORDER BY is_primary DESC, verified_at ASC NULLS LAST, email_address ASC",
@@ -88,7 +101,16 @@ export async function createEmail(
   email_address,
   is_primary = false,
   is_verified = false
-) {
+): Promise<
+  | {
+      success: true
+      email_address: string
+      is_primary: boolean
+      is_verified: boolean
+      token_value: string | null
+    }
+  | { error: true; message: string; status: number }
+> {
   try {
     // Check if the email already exists for this user
     const existingEmailResult = await readEmail(dbClient, email_address)
@@ -182,7 +204,19 @@ export async function createEmail(
  * @param {string} token_value - The verification token.
  * @returns {Promise<object>} - An object indicating success or failure.
  */
-export async function verifyEmailByToken(dbClient, token_value) {
+export async function verifyEmailByToken(
+  dbClient,
+  token_value
+): Promise<
+  | {
+      success: true
+      message?: string
+      status?: number
+      user_uuid?: string
+      email_address?: string
+    }
+  | { error: true; message: string; status: number }
+> {
   let tokenRecordFromRead
 
   try {
@@ -318,7 +352,14 @@ export async function verifyEmailByToken(dbClient, token_value) {
  * @param {string} new_primary_email - The email address to set as primary.
  * @returns {Promise<object>} - An object indicating success or failure.
  */
-export async function setPrimaryEmail(dbClient, user_uuid, new_primary_email) {
+export async function setPrimaryEmail(
+  dbClient,
+  user_uuid,
+  new_primary_email
+): Promise<
+  | { success: true; message: string; status: 200 }
+  | { error: true; message: string; status: number }
+> {
   try {
     const emailReadResult = await readEmail(dbClient, new_primary_email)
 
@@ -402,7 +443,14 @@ export async function setPrimaryEmail(dbClient, user_uuid, new_primary_email) {
  * @param {string} email_to_remove - The email address to remove.
  * @returns {Promise<object>} - An object indicating success or failure.
  */
-export async function deleteEmail(dbClient, user_uuid, email_to_remove) {
+export async function deleteEmail(
+  dbClient,
+  user_uuid,
+  email_to_remove
+): Promise<
+  | { success: true; message: string; status: 200 }
+  | { error: true; message: string; status: number }
+> {
   try {
     const emailReadResult = await readEmail(dbClient, email_to_remove)
 

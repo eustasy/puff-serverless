@@ -10,7 +10,11 @@ import {
  * @param {string} password - The plain text password.
  * @returns {Promise<boolean>} True if the password was created successfully, false otherwise.
  */
-export async function createPassword(dbClient, user_uuid, password) {
+export async function createPassword(
+  dbClient,
+  user_uuid,
+  password
+): Promise<Envelope> {
   try {
     // Validate password requirements
     const isValid = password_requirements(password)
@@ -64,7 +68,10 @@ export async function createPassword(dbClient, user_uuid, password) {
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<object>} Envelope: `{ success: true, secret_value, algo, status: 200 }` on hit, `{ success: false, message, status: 404 }` on miss, `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function readPassword(dbClient, user_uuid) {
+export async function readPassword(
+  dbClient,
+  user_uuid
+): Promise<Envelope<{ secret_value: string; algo: string }>> {
   try {
     const query = `
       SELECT secret_value, secret_type
@@ -111,7 +118,10 @@ export async function readPassword(dbClient, user_uuid) {
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<boolean>} True if any active password was found and disabled, false otherwise.
  */
-export async function disablePassword(dbClient, user_uuid) {
+export async function disablePassword(
+  dbClient,
+  user_uuid
+): Promise<Envelope<{ disabled: boolean }>> {
   try {
     const query = `
       UPDATE secrets
@@ -144,7 +154,11 @@ export async function disablePassword(dbClient, user_uuid) {
  * @param {string} newPassword - The new plain text password.
  * @returns {Promise<boolean>} True if the new password was created successfully.
  */
-export async function updatePassword(dbClient, user_uuid, newPassword) {
+export async function updatePassword(
+  dbClient,
+  user_uuid,
+  newPassword
+): Promise<Envelope> {
   try {
     // Atomic disable-then-create so a failure between the two doesn't leave
     // the user with no enabled password.
@@ -195,7 +209,11 @@ export async function updatePassword(dbClient, user_uuid, newPassword) {
  * @param {string} pw - The plain text password to verify.
  * @returns {boolean} True if the password is verified, false otherwise.
  */
-export async function password_verify(dbClient, user_uuid, pw) {
+export async function password_verify(
+  dbClient,
+  user_uuid,
+  pw
+): Promise<Envelope<{ verified: boolean }>> {
   try {
     const passwordResult = await readPassword(dbClient, user_uuid)
 
