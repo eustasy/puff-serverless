@@ -75,11 +75,7 @@ export async function onRequestPost(context) {
     }
 
     // Step 6: Update Password using the helper function
-    const updateResult = await updatePassword(
-      dbClient,
-      user_uuid,
-      new_password
-    )
+    const updateResult = await updatePassword(dbClient, user_uuid, new_password)
 
     if (updateResult.error || !updateResult.success) {
       console.error(

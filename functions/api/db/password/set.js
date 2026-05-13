@@ -93,11 +93,7 @@ export async function onRequestPost(context) {
 
     const user_uuid = tokenRecord.user_uuid
 
-    const updateResult = await updatePassword(
-      dbClient,
-      user_uuid,
-      new_password
-    )
+    const updateResult = await updatePassword(dbClient, user_uuid, new_password)
 
     if (updateResult.error || !updateResult.success) {
       return new Response(
