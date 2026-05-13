@@ -127,21 +127,20 @@ export async function user_login(
     const user = emailReadResult.email
     const user_uuid = user.user_uuid
 
-    const passwordVerified = await password_verify(
-      dbClient,
-      user_uuid,
-      password
-    )
-    if (!passwordVerified || passwordVerified.error) {
-      const message =
-        passwordVerified && passwordVerified.message
-          ? passwordVerified.message
-          : "Invalid email or password."
-      const status =
-        passwordVerified && passwordVerified.status
-          ? passwordVerified.status
-          : 401
-      return { error: true, message: message, status: status }
+    const verifyResult = await password_verify(dbClient, user_uuid, password)
+    if (verifyResult.error) {
+      return {
+        error: true,
+        message: verifyResult.message || "Error during password verification.",
+        status: verifyResult.status || 500,
+      }
+    }
+    if (!verifyResult.verified) {
+      return {
+        error: true,
+        message: "Invalid email or password.",
+        status: 401,
+      }
     }
 
     // Check for 2FA

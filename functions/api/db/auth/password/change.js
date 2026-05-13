@@ -51,13 +51,23 @@ export async function onRequestPost(context) {
     }
 
     // Step 5: Verify Current Password
-    const currentPasswordMatches = await password_verify(
+    const verifyResult = await password_verify(
       dbClient,
       user_uuid,
       current_password
     )
 
-    if (!currentPasswordMatches) {
+    if (verifyResult.error) {
+      console.error("Error verifying current password:", verifyResult.message)
+      return new Response(
+        `<p>Error: ${verifyResult.message || "Could not verify current password."}</p>`,
+        {
+          status: verifyResult.status || 500,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
+    }
+    if (!verifyResult.verified) {
       return new Response("<p>Error: Incorrect current password.</p>", {
         status: 403,
         headers: { "Content-Type": "text/html" },
@@ -90,7 +100,8 @@ export async function onRequestPost(context) {
       { status: 200, headers: { "Content-Type": "text/html" } }
     )
   } catch (error) {
-    // password_verify is the only thing in this handler that still throws.
+    // None of the src/ helpers used here throw — this catches only
+    // unexpected runtime errors (e.g., formData parsing).
     console.error("Error during password change:", error)
     return new Response(
       "<p>Error: Failed to change password due to a server error.</p>",

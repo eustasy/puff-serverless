@@ -200,16 +200,23 @@ export async function password_verify(dbClient, user_uuid, pw) {
     const passwordResult = await readPassword(dbClient, user_uuid)
 
     if (passwordResult.error) {
-      // DB error reading password — propagate to outer catch.
-      throw new Error(passwordResult.message)
+      return {
+        error: true,
+        message:
+          passwordResult.message || "Error during password verification.",
+        details: passwordResult.details,
+        status: 500,
+      }
     }
 
     if (!passwordResult.success) {
-      // No active password found for the user.
+      // No active password found for the user — treat as a "verification ran,
+      // answer is no" rather than an error, so the caller can decide whether
+      // to expose this or fold it into a generic 401.
       console.warn(
         `Password verification failed: No active password found for user_uuid ${user_uuid}`
       )
-      return false
+      return { success: true, verified: false, status: 200 }
     }
 
     const { secret_value, algo } = passwordResult
@@ -217,12 +224,19 @@ export async function password_verify(dbClient, user_uuid, pw) {
 
     const { hash: attempted_hash } = await puff_hashing_password(pw, salt, algo)
 
-    return attempted_hash === actual_hash
+    return {
+      success: true,
+      verified: attempted_hash === actual_hash,
+      status: 200,
+    }
   } catch (error) {
     console.error("Error during password verification:", error)
-    // In case of a system error, rethrow or return false depending on policy
-    // Rethrowing might be better for higher-level error handling to log and respond appropriately
-    throw error
+    return {
+      error: true,
+      message: "Error during password verification.",
+      details: error.message,
+      status: 500,
+    }
   }
 }
 
