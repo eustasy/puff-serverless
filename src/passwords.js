@@ -103,11 +103,20 @@ export async function disablePassword(dbClient, user_uuid) {
       WHERE user_uuid = $1 AND secret_type LIKE 'puff_password_%' AND is_enabled = TRUE
       RETURNING user_uuid;
     `
-    const result = await dbClient.query(query, [user_uuid]) // Use dbClient
-    return result.rows.length > 0 // True if any row was updated
+    const result = await dbClient.query(query, [user_uuid])
+    return {
+      success: true,
+      disabled: result.rows.length > 0,
+      status: 200,
+    }
   } catch (error) {
     console.error("Error in disablePassword:", error)
-    throw error
+    return {
+      error: true,
+      message: "Could not disable password.",
+      details: error.message,
+      status: 500,
+    }
   }
 }
 
@@ -125,7 +134,10 @@ export async function updatePassword(dbClient, user_uuid, newPassword) {
     // the user with no enabled password.
     await dbClient.query("BEGIN")
     try {
-      await disablePassword(dbClient, user_uuid)
+      const disableResult = await disablePassword(dbClient, user_uuid)
+      if (disableResult.error) {
+        throw new Error(disableResult.message)
+      }
       const createdNew = await createPassword(dbClient, user_uuid, newPassword)
       await dbClient.query("COMMIT")
       return createdNew
