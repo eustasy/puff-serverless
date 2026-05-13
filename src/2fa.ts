@@ -71,7 +71,8 @@ export async function delete2fa(
   dbClient,
   user_uuid
 ): Promise<
-  { rowCount: number; status: 200 } | { error: string; status: number }
+  | { error?: never; rowCount: number; status: 200 }
+  | { rowCount?: never; error: string; status: number }
 > {
   const query = `
     DELETE FROM secrets
@@ -123,9 +124,9 @@ export async function enable2fa(
   dbClient,
   user_uuid
 ): Promise<
-  | { success: true; record: any; status: 200 }
+  | { success: true; error?: never; record: any; status: 200 }
   | { success: false; error: string; status: number }
-  | { error: string; status: number }
+  | { success?: never; error: string; status: number }
 > {
   const query = `
     UPDATE secrets
@@ -160,9 +161,9 @@ export async function used2fa(
   dbClient,
   user_uuid
 ): Promise<
-  | { success: true; record: any; status: 200 }
+  | { success: true; error?: never; record: any; status: 200 }
   | { success: false; error: string; status: number }
-  | { error: string; status: number }
+  | { success?: never; error: string; status: number }
 > {
   const query = `
     UPDATE secrets

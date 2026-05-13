@@ -62,7 +62,7 @@ export const onRequestPost: Handler = async (context) => {
     // Step 4: Read and validate the TOTP verification token
     const tokenDataResult = await readToken(dbClient, totpVerificationToken)
 
-    if (tokenDataResult.error || !tokenDataResult.token) {
+    if (!tokenDataResult.success) {
       return new Response(
         '<p class="result-negative">Error: Invalid or expired 2FA verification token. Please try logging in again.</p>',
         {
@@ -126,11 +126,7 @@ export const onRequestPost: Handler = async (context) => {
     // Step 5: Retrieve the user's 2FA secret
     const twoFaResult = await read2fa(dbClient, user_uuid)
 
-    if (
-      twoFaResult.error ||
-      !twoFaResult.success ||
-      !twoFaResult.twoFactor.secret_value
-    ) {
+    if (!twoFaResult.success || !twoFaResult.twoFactor.secret_value) {
       return new Response(
         JSON.stringify({
           error:
@@ -182,8 +178,8 @@ export const onRequestPost: Handler = async (context) => {
     }
 
     // Step 7: Mark the TOTP verification token as used
-    const markUsedResult = await usedToken(dbClient, totpVerificationToken) // Modified: Pass dbClient
-    if (markUsedResult.error || !markUsedResult.success) {
+    const markUsedResult = await usedToken(dbClient, totpVerificationToken)
+    if (markUsedResult.error) {
       // Log this error but proceed, as the user has successfully authenticated with TOTP.
       // The main risk is token reuse if this fails, but the token is short-lived.
       console.error(
@@ -194,8 +190,8 @@ export const onRequestPost: Handler = async (context) => {
     }
 
     // Step 8: Update the last used timestamp for the 2FA secret
-    const updateLastUsedResult = await used2fa(dbClient, user_uuid) // Modified: Pass dbClient
-    if (updateLastUsedResult.error || !updateLastUsedResult.success) {
+    const updateLastUsedResult = await used2fa(dbClient, user_uuid)
+    if (updateLastUsedResult.error) {
       // Log this error but proceed.
       console.error(
         `Failed to update last used timestamp for 2FA for user ${user_uuid}.`,
@@ -216,7 +212,7 @@ export const onRequestPost: Handler = async (context) => {
       ip_country
     )
 
-    if (sessionResult.error || !sessionResult.session_id) {
+    if (sessionResult.error) {
       console.error("Error creating session:", sessionResult.error)
       return new Response(
         '<p class="result-negative">Error creating session. Please try again.</p>',

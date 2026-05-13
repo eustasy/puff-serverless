@@ -16,7 +16,8 @@ export async function verifyTokenAndGetUser(
   ip_country,
   ip_address
 ): Promise<
-  { user_uuid: string; status: 200 } | { error: string; status: number }
+  | { error?: never; user_uuid: string; status: 200 }
+  | { user_uuid?: never; error: string; status: number }
 > {
   try {
     const sessionRecordResult = await dbClient.query(
@@ -84,8 +85,13 @@ export async function createSession(
   ip_address,
   ip_country
 ): Promise<
-  | { session_id: string; status: 200; expires_at: Date }
-  | { error: string; status: number }
+  | { error?: never; session_id: string; status: 200; expires_at: Date }
+  | {
+      session_id?: never
+      expires_at?: never
+      error: string
+      status: number
+    }
 > {
   if (!user_uuid) {
     return { error: "User UUID is required.", status: 400 }
@@ -154,7 +160,10 @@ export async function terminateSpecificSession(
   dbClient,
   user_uuid,
   session_id
-): Promise<{ success: true; status: 200 } | { error: string; status: number }> {
+): Promise<
+  | { error?: never; success: true; status: 200 }
+  | { success?: never; error: string; status: number }
+> {
   try {
     const result = await dbClient.query(
       "UPDATE sessions SET is_active = FALSE WHERE session_id = $1 AND user_uuid = $2 AND is_active = TRUE RETURNING session_id",
@@ -191,7 +200,8 @@ export async function terminateAllOtherSessions(
   user_uuid,
   session_id
 ): Promise<
-  { deletedCount: number; status: 200 } | { error: string; status: number }
+  | { error?: never; deletedCount: number; status: 200 }
+  | { deletedCount?: never; error: string; status: number }
 > {
   try {
     const result = await dbClient.query(
@@ -219,7 +229,8 @@ export async function listSessionsForUser(
   dbClient,
   user_uuid
 ): Promise<
-  { sessions: any[]; status: 200 } | { error: string; status: number }
+  | { error?: never; sessions: any[]; status: 200 }
+  | { sessions?: never; error: string; status: number }
 > {
   try {
     const result = await dbClient.query(

@@ -107,17 +107,29 @@ export async function user_login(
   ip_address,
   ip_country
 ): Promise<
-  | { error: true; message: string; status: number }
+  | {
+      success?: never
+      error: true
+      message: string
+      status: number
+      totp_required?: never
+      session_id?: never
+      user_uuid?: never
+    }
   | {
       success: true
+      error?: never
       totp_required: true
+      session_id?: never
       user_uuid: string
       message: string
       status: number
     }
   | {
       success: true
+      error?: never
       session_id: string
+      totp_required?: never
       user_uuid: string
       message: string
       status: number

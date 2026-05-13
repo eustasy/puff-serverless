@@ -90,8 +90,8 @@ export async function usedToken(
   dbClient,
   token_value
 ): Promise<
-  | { success: boolean; rowCount: number }
-  | { error: true; message: string; details?: unknown }
+  | { success: boolean; error?: never; rowCount: number }
+  | { success?: never; error: true; message: string; details?: unknown }
 > {
   try {
     // For now, we only support updating is_used. This can be expanded later.
@@ -124,8 +124,8 @@ export async function deleteToken(
   user_uuid,
   token_value
 ): Promise<
-  | { success: true; rowCount: number }
-  | { error: true; message: string; details?: unknown }
+  | { success: true; error?: never; rowCount: number }
+  | { success?: never; error: true; message: string; details?: unknown }
 > {
   try {
     let queryString =

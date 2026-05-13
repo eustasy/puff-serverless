@@ -64,35 +64,23 @@ const sessionAuthWithCookie: Handler = async (context) => {
       ip_address
     )
 
-    if (authResult && authResult.user_uuid) {
-      data.user_uuid = authResult.user_uuid // Set user_uuid in context.data for downstream handlers
-      return next() // Authentication successful, proceed
-    } else {
-      // Handle specific errors from verifyTokenAndGetUser or a generic invalid token message
-      const errorMessage =
-        authResult && authResult.error
-          ? authResult.error
-          : "Invalid session token."
-      const errorStatus =
-        authResult && authResult.status ? authResult.status : 401
-
-      // Consider logging the actual authResult.error if it's different from the message shown to user
-      if (authResult && authResult.error && authResult.error !== errorMessage) {
-        console.warn(
-          `sessionAuthWithCookie: Authentication failed. Internal error: ${authResult.error}, Status: ${authResult.status}`
-        )
-      }
-
+    if (authResult.error) {
+      console.warn(
+        `sessionAuthWithCookie: Authentication failed. Internal error: ${authResult.error}, Status: ${authResult.status}`
+      )
       return new Response(
         `<h1 class="result-negative">Authentication Failed</h1>
-        <p>${errorMessage}.</p>
+        <p>${authResult.error}.</p>
         <p>Please log in again.</p>`,
         {
-          status: errorStatus,
+          status: authResult.status,
           headers: { "Content-Type": "text/html" },
         }
       )
     }
+
+    data.user_uuid = authResult.user_uuid // Set user_uuid in context.data for downstream handlers
+    return next() // Authentication successful, proceed
   } catch (error) {
     console.error(
       "sessionAuthWithCookie: Error during session authentication:",
