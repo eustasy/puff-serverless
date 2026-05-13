@@ -29,9 +29,7 @@ Schema files live in `sql/`, one file per table. `users.sql` must be imported fi
 - Use `RETURNING` clause when insert/update results need confirmation.
 - Use `LIMIT 1` for single-record lookups.
 - Functions that check existence return `{ success: true, exists: boolean }`.
-- Functions that read records use one of two return patterns — both are present in the codebase, follow whichever the surrounding module uses:
-  - **Envelope**: `{ success: true, <key>: record }` on hit, `{ success: false, message: "..." }` on miss, `{ error: true, message: "...", details }` on DB error (e.g., `readEmail`, `readToken`).
-  - **Direct**: the row object on hit, `null` on miss, `{ error: "...", status: 500 }` on DB error (e.g., `readUser`, `read2fa`, `readPassword`).
+- Functions that read records return the envelope: `{ success: true, <key>: record, status: 200 }` on hit, `{ success: false, message: "...", status: 4xx }` on miss, `{ error: true, message: "...", details, status: 500 }` on DB error.
 
 ## Transactions
 

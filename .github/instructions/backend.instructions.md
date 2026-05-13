@@ -38,17 +38,9 @@ return { error: true, message: "Descriptive message.", status: 400 }
 return { error: true, message: "Server error.", details: error.message }
 ```
 
-**Direct returns (some read functions):**
+All `src/` functions return the envelope shape — none throw, none return raw rows or bare booleans. Predicates (`has2fa`, `password_verify`) expose their answer as a data field (`enabled`, `verified`) inside the success envelope.
 
-`readUser`, `read2fa`, and `readPassword` return the row directly with no envelope:
-
-```javascript
-return result.rows[0] // hit
-return null // not found
-return { error: "...", status: 500 } // DB error
-```
-
-Some functions also throw errors for callers to catch (e.g., `user_register`, `createPassword`). All three patterns exist; follow whichever the surrounding code in that module uses.
+`user_register` is the one exception that still throws (registration is a multi-step compound operation; throwing aborts the whole flow cleanly). Wrap calls to it in `try/catch`.
 
 ### Error Handling
 
