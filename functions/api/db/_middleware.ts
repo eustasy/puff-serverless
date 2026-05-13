@@ -7,7 +7,7 @@ import { Client } from "pg"
  * 3. Attach the client to context.data.dbClient.
  * 4. Ensure the client is closed after the request is handled.
  */
-async function databaseConnectionMiddleware(context) {
+const databaseConnectionMiddleware: Handler = async (context) => {
   // 1. Configuration Check
   if (
     !context ||

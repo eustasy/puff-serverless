@@ -1,6 +1,6 @@
 import { has2fa } from "../../../../../src/2fa.js"
 
-export async function onRequestGet(context) {
+export const onRequestGet: Handler = async (context) => {
   const dbClient = context.data.dbClient
   const user_uuid = context.data.user_uuid
 
@@ -79,7 +79,7 @@ export async function onRequestGet(context) {
   })
 }
 
-export async function onRequest(context) {
+export const onRequest: Handler = async (context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "GET" },

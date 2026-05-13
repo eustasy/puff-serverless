@@ -22,7 +22,7 @@ import { verifyTokenAndGetUser } from "../../../../src/sessions.js"
  * @param {Function} context.next A function to invoke the next middleware or the request handler.
  * @returns {Promise<Response>} A `Response` object or the result of `await context.next()`.
  */
-async function sessionAuthWithCookie(context) {
+const sessionAuthWithCookie: Handler = async (context) => {
   const { request, data, next } = context
 
   if (!data || !data.dbClient) {

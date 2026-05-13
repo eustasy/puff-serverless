@@ -1,6 +1,6 @@
 import { verifyEmailByToken } from "../../../../src/emails.js"
 
-export async function onRequestGet(context) {
+export const onRequestGet: Handler = async (context) => {
   const dbClient = context.data.dbClient
   const { searchParams } = new URL(context.request.url)
   const token_value = searchParams.get("token")
@@ -46,7 +46,7 @@ export async function onRequestGet(context) {
   }
 }
 
-export async function onRequest(context) {
+export const onRequest: Handler = async (context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "GET" },

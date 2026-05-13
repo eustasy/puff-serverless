@@ -1,6 +1,6 @@
 import { existsEmail } from "../../../../src/emails.js"
 
-export async function onRequestGet(context) {
+export const onRequestGet: Handler = async (context) => {
   const clientIP = context.request.headers.get("CF-Connecting-IP") || "unknown"
   const { success } = await context.env.EMAIL_CHECK_RL.limit({ key: clientIP })
   if (!success) {
@@ -36,7 +36,7 @@ export async function onRequestGet(context) {
   }
 }
 
-export async function onRequest(context) {
+export const onRequest: Handler = async (context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "GET" },

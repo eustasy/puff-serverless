@@ -10,7 +10,7 @@ const MESSAGE_MAP = {
   logout_success: '<p class="result-positive">Logout successful.</p>',
 }
 
-export async function onRequestGet(context) {
+export const onRequestGet: Handler = async (context) => {
   const url = new URL(context.request.url)
   const code = url.searchParams.get("code")
   const html = MESSAGE_MAP[code] || ""
@@ -19,7 +19,7 @@ export async function onRequestGet(context) {
   })
 }
 
-export async function onRequest(context) {
+export const onRequest: Handler = async (context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "GET" },

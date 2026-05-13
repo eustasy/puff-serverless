@@ -1,6 +1,6 @@
 import { terminateSpecificSession } from "../../../../../../src/sessions.js"
 
-export async function onRequestPost(context) {
+export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient
   const user_uuid = context.data.user_uuid
 
@@ -57,7 +57,7 @@ export async function onRequestPost(context) {
   )
 }
 
-export async function onRequest(context) {
+export const onRequest: Handler = async (context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "POST" },

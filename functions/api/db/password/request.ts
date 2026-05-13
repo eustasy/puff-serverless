@@ -1,7 +1,7 @@
 import { readEmail } from "../../../../src/emails.js"
 import { createPasswordToken } from "../../../../src/tokens.js"
 
-export async function onRequestPost(context) {
+export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient
 
   // Step 1: Parse form data for email
@@ -83,7 +83,7 @@ export async function onRequestPost(context) {
   }
 }
 
-export async function onRequest(context) {
+export const onRequest: Handler = async (context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "POST" },
