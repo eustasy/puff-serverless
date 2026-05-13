@@ -12,6 +12,7 @@ applyTo: "**"
 ## Cloudflare Platform
 
 - [Cloudflare Workers](https://developers.cloudflare.com/workers/)
+- [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/)
 - [Cloudflare Pages Functions](https://developers.cloudflare.com/pages/functions/)
 - [Cloudflare Middleware](https://developers.cloudflare.com/pages/functions/middleware/)
 - [Cloudflare Hyperdrive](https://developers.cloudflare.com/hyperdrive/)
