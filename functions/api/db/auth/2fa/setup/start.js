@@ -42,8 +42,12 @@ export async function onRequestPost(context) {
 
     // Step 3: Fetch user's username for the label
     const userResult = await readUser(dbClient, user_uuid)
-    if (!userResult || !userResult.user_name) {
-      console.error("Error fetching user username for user_uuid:", user_uuid)
+    if (userResult.error || !userResult.success) {
+      console.error(
+        "Error fetching user for user_uuid:",
+        user_uuid,
+        userResult.message
+      )
       return new Response(
         '<p class="result-negative">Error: Could not retrieve user name to setup 2FA.</p>',
         {
@@ -55,7 +59,7 @@ export async function onRequestPost(context) {
         }
       )
     }
-    const userName = userResult.user_name
+    const userName = userResult.user.user_name
 
     // Step 4: Create 2FA Setup if not already present
     let new_secret_for_qr = null // Define here to be accessible for QR code generation

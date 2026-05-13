@@ -7,7 +7,7 @@ import { has2fa } from "./2fa.js"
  * Retrieves a user's details by their UUID.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
- * @returns {Promise<object|null>} - The user object if found and active, null otherwise.
+ * @returns {Promise<object>} - Envelope: `{ success: true, user, status: 200 }` on hit, `{ success: false, message, status: 404 }` on miss, `{ error: true, message, details, status: 500 }` on DB error.
  */
 export async function readUser(dbClient, user_uuid) {
   try {
@@ -15,12 +15,17 @@ export async function readUser(dbClient, user_uuid) {
       "SELECT user_uuid, user_name, user_created_at, user_last_login FROM users WHERE user_uuid = $1 AND user_active = TRUE LIMIT 1"
     const result = await dbClient.query(query, [user_uuid])
     if (result.rows.length > 0) {
-      return result.rows[0]
+      return { success: true, user: result.rows[0], status: 200 }
     }
-    return null
+    return { success: false, message: "User not found.", status: 404 }
   } catch (error) {
     console.error("Error in readUser:", error)
-    throw error // Rethrow to be handled by caller
+    return {
+      error: true,
+      message: "Could not read user.",
+      details: error.message,
+      status: 500,
+    }
   }
 }
 
