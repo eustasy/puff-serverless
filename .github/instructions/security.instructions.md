@@ -19,6 +19,7 @@ applyTo: "**"
 - Stored as `hash:salt` in the `secrets` table with `secret_type = 'puff_password_SHA-384'`.
 - Minimum length: 12 characters (enforced server-side in `src/passwords.js`).
 - Passwords are checked against the HaveIBeenPwned API using k-anonymity (only the first 5 chars of the SHA-1 hash are sent).
+- Password updates (`updatePassword` in `src/passwords.js`) wrap disable-old + create-new in a `BEGIN/COMMIT` transaction so a partial failure cannot leave the user with no enabled password.
 
 ## Two-Factor Authentication
 
@@ -37,17 +38,20 @@ applyTo: "**"
   - `sudo_elevation`: 15 minutes.
 - Tokens are single-use: marked `is_used = TRUE` after consumption.
 - Token expiration is checked server-side before use.
+- **Development-only**: verification and reset links are currently `console.log`'d server-side (placeholder until email delivery is wired up). The two log sites are marked with `// SECURITY: remove before production` comments — see `src/users.js` (registration verification link) and `functions/api/db/password/request.js` (password-reset link). Removing them is required before any production deployment, since Cloudflare logs are not a safe delivery channel for verification tokens.
 
 ## Input Handling
 
 - All SQL queries use parameterized `$1, $2, ...` placeholders — never string concatenation.
 - Form inputs are validated at the beginning of each API handler before any business logic.
 - Email format is validated using regex or HTML5 `type="email"` on the client.
+- When reflecting user-controlled values into HTML response bodies or attributes, run them through `escapeHtml` from `src/utilities/escape.js`. For JSON embedded inside HTML attributes (e.g. `hx-vals='...'`), use `escapeHtml(JSON.stringify(obj))`. The email endpoints under `functions/api/db/auth/email/` are the canonical examples.
 - The password reset flow does not reveal whether an email exists (returns generic success either way).
+- Adding an email that already belongs to a different user is treated identically to a real successful add in the response shape (no error, no diagnostic message). This prevents email-enumeration. See `src/emails.js#createEmail` — both the upfront `readEmail` check and the `ON CONFLICT DO NOTHING` race path return the same success-shaped response.
 
 ## HTTP Security Headers
 
-Configured in `public/_headers` for all Cloudflare Pages routes:
+Configured in `public/_headers` (honored by Workers Static Assets):
 
 - `Content-Security-Policy` — restricts script/style sources.
 - `Strict-Transport-Security` — HSTS with `max-age=31536000; includeSubDomains`.
