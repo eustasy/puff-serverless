@@ -22,7 +22,7 @@ export async function existsEmail(
     return {
       error: true,
       message: "Server error while checking email existence.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
     }
   }
 }
@@ -62,7 +62,7 @@ export async function readEmail(
     return {
       error: true,
       message: "Server error while reading email.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
     }
   }
 }

@@ -26,7 +26,7 @@ export async function readUser(
     return {
       error: true,
       message: "Could not read user.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
   }
@@ -251,7 +251,7 @@ export async function deleteUser(dbClient, user_uuid): Promise<Envelope> {
     return {
       error: true,
       message: "Could not delete user.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
   }
@@ -278,7 +278,7 @@ export async function loginUser(dbClient, user_uuid): Promise<Envelope> {
     return {
       error: true,
       message: "Could not update last login timestamp.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
   }

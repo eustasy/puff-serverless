@@ -115,7 +115,7 @@ export async function onRequestPost(context) {
   } catch (error) {
     console.error("Error in user_login endpoint:", error)
     if (
-      error.message &&
+      error instanceof Error &&
       (error.message.toLowerCase().includes("formdata") ||
         error.message.toLowerCase().includes("request body"))
     ) {

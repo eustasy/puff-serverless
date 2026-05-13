@@ -7,7 +7,6 @@
     "types": ["./worker-configuration.d.ts", "./env.d.ts", "node"],
     "strict": true,
     "noImplicitAny": false,
-    "useUnknownInCatchVariables": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,

@@ -41,7 +41,10 @@ export const onRequestPost: Handler = async (context) => {
     }
   } catch (error) {
     console.error("Error in user_register endpoint:", error)
-    if (error.message === "Email is already registered.") {
+    if (
+      error instanceof Error &&
+      error.message === "Email is already registered."
+    ) {
       return new Response(`<p class="result-negative">${error.message}</p>`, {
         status: 409, // 409 Conflict is appropriate for existing email
         headers: { "Content-Type": "text/html" },

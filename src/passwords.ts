@@ -56,7 +56,7 @@ export async function createPassword(
     return {
       error: true,
       message: "Could not create password.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
   }
@@ -105,7 +105,7 @@ export async function readPassword(
     return {
       error: true,
       message: "Could not read password.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
   }
@@ -140,7 +140,7 @@ export async function disablePassword(
     return {
       error: true,
       message: "Could not disable password.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
   }
@@ -187,7 +187,7 @@ export async function updatePassword(
       return {
         error: true,
         message: "Could not update password.",
-        details: txError.message,
+        details: txError instanceof Error ? txError.message : String(txError),
         status: 500,
       }
     }
@@ -196,7 +196,7 @@ export async function updatePassword(
     return {
       error: true,
       message: "Could not update password.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
   }
@@ -261,7 +261,7 @@ export async function password_verify(
     return {
       error: true,
       message: "Error during password verification.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
   }

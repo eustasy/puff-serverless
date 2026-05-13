@@ -34,7 +34,7 @@ export async function create2fa(
     return {
       error: true,
       message: "Could not create 2FA secret.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
   }
@@ -61,7 +61,7 @@ export async function read2fa(
     return {
       error: true,
       message: "Could not read 2FA secret.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
   }
@@ -123,7 +123,7 @@ export async function has2fa(
     return {
       error: true,
       message: "Could not check 2FA status.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
   }

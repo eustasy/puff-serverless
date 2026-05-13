@@ -39,7 +39,7 @@ export async function createToken(
     return {
       error: true,
       message: "Server error while creating token.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
     }
   }
 }
@@ -75,7 +75,7 @@ export async function readToken(
     return {
       error: true,
       message: "Server error while reading token.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
     }
   }
 }
@@ -106,7 +106,7 @@ export async function usedToken(
     return {
       error: true,
       message: "Server error while updating token.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
     }
   }
 }
@@ -143,7 +143,7 @@ export async function deleteToken(
     return {
       error: true,
       message: "Server error while deleting tokens.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
     }
   }
 }
@@ -177,7 +177,7 @@ export async function createEmailToken(
     return {
       error: true,
       message: "Server error while creating email token.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
     }
   }
 }
@@ -211,7 +211,7 @@ export async function createPasswordToken(
     return {
       error: true,
       message: "Server error while creating password token.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
     }
   }
 }
@@ -237,7 +237,7 @@ export async function createLoginToken(
     return {
       error: true,
       message: "Server error while creating login token.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
     }
   }
 }
@@ -263,7 +263,7 @@ export async function createSudoToken(
     return {
       error: true,
       message: "Server error while creating sudo token.",
-      details: error.message,
+      details: error instanceof Error ? error.message : String(error),
     }
   }
 }
