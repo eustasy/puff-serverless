@@ -38,7 +38,17 @@ return { error: true, message: "Descriptive message.", status: 400 }
 return { error: true, message: "Server error.", details: error.message }
 ```
 
-Some functions also throw errors for callers to catch (e.g., `user_register`, `createPassword`). Both patterns exist; follow whichever the surrounding code in that module uses.
+**Direct returns (some read functions):**
+
+`readUser`, `read2fa`, and `readPassword` return the row directly with no envelope:
+
+```javascript
+return result.rows[0] // hit
+return null // not found
+return { error: "...", status: 500 } // DB error
+```
+
+Some functions also throw errors for callers to catch (e.g., `user_register`, `createPassword`). All three patterns exist; follow whichever the surrounding code in that module uses.
 
 ### Error Handling
 
@@ -141,7 +151,7 @@ return new Response('<p class="result-positive">Email added.</p>', {
 })
 ```
 
-**Redirect:**
+**Redirect (HTMX-driven):**
 
 ```javascript
 return new Response(null, {
@@ -149,6 +159,19 @@ return new Response(null, {
   headers: { "HX-Redirect": "/login?message=Registration successful." },
 })
 ```
+
+**Redirect (direct browser navigation):** Use a standard `Location` header — `HX-Redirect` is ignored outside HTMX. For endpoints that might receive either kind of caller (e.g., an email-link verification endpoint that could also be invoked via HTMX), branch on `HX-Request`:
+
+```javascript
+const target = "/login?code=email_verification_success"
+const isHtmx = context.request.headers.get("HX-Request") === "true"
+return new Response(null, {
+  status: 303,
+  headers: isHtmx ? { "HX-Redirect": target } : { Location: target },
+})
+```
+
+See `functions/api/db/email/verify.js` for the canonical example.
 
 **Error:**
 
