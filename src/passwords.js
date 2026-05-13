@@ -46,7 +46,7 @@ export async function createPassword(dbClient, user_uuid, password) {
  * Reads a user's active password hash, salt, and algorithm from the database.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
- * @returns {Promise<{secret_value: string, algo: string}|null>} Object with secret_value (hash:salt) and algo, or null if not found.
+ * @returns {Promise<object>} Envelope: `{ success: true, secret_value, algo, status: 200 }` on hit, `{ success: false, message, status: 404 }` on miss, `{ error: true, message, details, status: 500 }` on DB error.
  */
 export async function readPassword(dbClient, user_uuid) {
   try {
@@ -56,9 +56,13 @@ export async function readPassword(dbClient, user_uuid) {
       WHERE user_uuid = $1 AND secret_type LIKE 'puff_password_%' AND is_enabled = TRUE
       LIMIT 1;
     `
-    const result = await dbClient.query(query, [user_uuid]) // Use dbClient
+    const result = await dbClient.query(query, [user_uuid])
     if (result.rows.length === 0) {
-      return null // No active password found
+      return {
+        success: false,
+        message: "No active password found.",
+        status: 404,
+      }
     }
     const { secret_value, secret_type } = result.rows[0]
     const algo = secret_type.replace("puff_password_", "")
@@ -70,12 +74,17 @@ export async function readPassword(dbClient, user_uuid) {
       WHERE user_uuid = $1 AND secret_type = $2 AND is_enabled = TRUE;
     `
     // Fire and forget is acceptable here as it's not critical for the read operation's success
-    dbClient.query(updateQuery, [user_uuid, secret_type]).catch(console.error) // Use dbClient
+    dbClient.query(updateQuery, [user_uuid, secret_type]).catch(console.error)
 
-    return { secret_value: secret_value, algo: algo }
+    return { success: true, secret_value, algo, status: 200 }
   } catch (error) {
     console.error("Error reading password:", error)
-    throw error // Rethrow to allow higher-level error handling
+    return {
+      error: true,
+      message: "Could not read password.",
+      details: error.message,
+      status: 500,
+    }
   }
 }
 
@@ -139,17 +148,22 @@ export async function updatePassword(dbClient, user_uuid, newPassword) {
  */
 export async function password_verify(dbClient, user_uuid, pw) {
   try {
-    const passwordDetails = await readPassword(dbClient, user_uuid)
+    const passwordResult = await readPassword(dbClient, user_uuid)
 
-    if (!passwordDetails) {
-      // No active password found for the user, or an error occurred in readPassword
+    if (passwordResult.error) {
+      // DB error reading password — propagate to outer catch.
+      throw new Error(passwordResult.message)
+    }
+
+    if (!passwordResult.success) {
+      // No active password found for the user.
       console.warn(
         `Password verification failed: No active password found for user_uuid ${user_uuid}`
       )
       return false
     }
 
-    const { secret_value, algo } = passwordDetails
+    const { secret_value, algo } = passwordResult
     const [actual_hash, salt] = secret_value.split(":")
 
     const { hash: attempted_hash } = await puff_hashing_password(pw, salt, algo)
