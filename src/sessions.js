@@ -118,7 +118,11 @@ export async function createSession(
     query += `) VALUES (${valuePlaceholders})`
 
     await dbClient.query(query, params)
-    await loginUser(dbClient, user_uuid)
+    const loginResult = await loginUser(dbClient, user_uuid)
+    if (loginResult.error) {
+      // Preserve prior behavior of failing session creation on a DB error here.
+      throw new Error(loginResult.message)
+    }
     return {
       session_id: session_id,
       status: 200,

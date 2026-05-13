@@ -230,7 +230,7 @@ export async function deleteUser(dbClient, user_uuid) {
  * Updates the last login time for a user by their UUID.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user to update.
- * @returns {Promise<boolean>} True if the user was updated, false otherwise.
+ * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` if a row was updated, `{ success: false, message, status: 404 }` if not, `{ error: true, message, details, status: 500 }` on DB error.
  */
 export async function loginUser(dbClient, user_uuid) {
   try {
@@ -238,9 +238,17 @@ export async function loginUser(dbClient, user_uuid) {
       "UPDATE users SET user_last_login = NOW() WHERE user_uuid = $1",
       [user_uuid]
     )
-    return result.rowCount > 0
+    if (result.rowCount > 0) {
+      return { success: true, status: 200 }
+    }
+    return { success: false, message: "User not found.", status: 404 }
   } catch (error) {
     console.error("Error in loginUser:", error)
-    throw error
+    return {
+      error: true,
+      message: "Could not update last login timestamp.",
+      details: error.message,
+      status: 500,
+    }
   }
 }
