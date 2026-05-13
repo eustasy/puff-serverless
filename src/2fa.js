@@ -21,11 +21,22 @@ export async function create2fa(
   ]
   try {
     const { rows } = await dbClient.query(query, values)
-    return rows && rows.length > 0 ? rows[0] : null
+    if (rows && rows.length > 0) {
+      return { success: true, twoFactor: rows[0], status: 200 }
+    }
+    return {
+      error: true,
+      message: "2FA creation returned no rows.",
+      status: 500,
+    }
   } catch (error) {
     console.error("Error creating/updating 2FA secret:", error)
-    // Return a more structured error
-    return { error: "Could not create or update 2FA secret.", status: 500 }
+    return {
+      error: true,
+      message: "Could not create 2FA secret.",
+      details: error.message,
+      status: 500,
+    }
   }
 }
 

@@ -83,7 +83,7 @@ export async function onRequestPost(context) {
         label
       )
       if (createResult.error) {
-        console.error("Error storing 2FA secret:", createResult.error)
+        console.error("Error storing 2FA secret:", createResult.message)
         return new Response(
           '<p class="result-negative">Error: Failed to save 2FA setup information. Please try again.</p>',
           {
