@@ -41,10 +41,13 @@ export async function onRequestPost(context) {
 
   try {
     // Step 4: Check if 2FA is Enabled and retrieve secret
-    const secretRecord = await read2fa(dbClient, user_uuid)
+    const secretResult = await read2fa(dbClient, user_uuid)
 
-    if (secretRecord && secretRecord.error) {
-      console.error("Error reading 2FA secret for removal:", secretRecord.error)
+    if (secretResult.error) {
+      console.error(
+        "Error reading 2FA secret for removal:",
+        secretResult.message
+      )
       return new Response(
         "<p>Error: Could not retrieve 2FA status due to a server error.</p>",
         {
@@ -57,8 +60,7 @@ export async function onRequestPost(context) {
       )
     }
 
-    if (!secretRecord || !secretRecord.is_enabled) {
-      // Check is_enabled flag
+    if (!secretResult.success || !secretResult.twoFactor.is_enabled) {
       return new Response(
         "<p>Error: 2FA is not currently enabled for this account.</p>",
         {
@@ -70,6 +72,8 @@ export async function onRequestPost(context) {
         }
       )
     }
+
+    const secretRecord = secretResult.twoFactor
 
     // Step 5: Verify TOTP Code
     // Assuming secret_value is stored directly (not encrypted in this example based on original code's direct use)

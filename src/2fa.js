@@ -38,11 +38,18 @@ export async function read2fa(dbClient, user_uuid) {
   const values = [user_uuid, SECRET_TYPE]
   try {
     const { rows } = await dbClient.query(query, values)
-    return rows && rows.length > 0 ? rows[0] : null
+    if (rows && rows.length > 0) {
+      return { success: true, twoFactor: rows[0], status: 200 }
+    }
+    return { success: false, message: "2FA not configured.", status: 404 }
   } catch (error) {
     console.error("Error reading 2FA secret:", error)
-    // Return a more structured error
-    return { error: "Could not read 2FA secret.", status: 500 }
+    return {
+      error: true,
+      message: "Could not read 2FA secret.",
+      details: error.message,
+      status: 500,
+    }
   }
 }
 

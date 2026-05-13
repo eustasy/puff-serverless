@@ -9,12 +9,14 @@ export async function onRequestPost(context) {
 
   try {
     // Step 2: Check Existing 2FA
-    // read2fa returns null for users with no 2FA row yet (first-time setup),
-    // the row object if one exists, or { error, status } on DB error.
+    // read2fa envelope: { success: true, twoFactor, status } on hit;
+    // { success: false, ..., status: 404 } when no 2FA row yet (first-time setup);
+    // { error: true, message, details, status: 500 } on DB error.
     const twoFactorStatus = await read2fa(dbClient, user_uuid)
+    const twoFactor = twoFactorStatus.success ? twoFactorStatus.twoFactor : null
 
-    if (twoFactorStatus && twoFactorStatus.error) {
-      console.error("Error checking 2FA status:", twoFactorStatus.error)
+    if (twoFactorStatus.error) {
+      console.error("Error checking 2FA status:", twoFactorStatus.message)
       return new Response(
         '<p class="result-negative">Error: Could not check 2FA status. Please try again later.</p>',
         {
@@ -27,7 +29,7 @@ export async function onRequestPost(context) {
       )
     }
 
-    if (twoFactorStatus && twoFactorStatus.is_enabled == true) {
+    if (twoFactor && twoFactor.is_enabled == true) {
       return new Response(
         '<p class="result-negative">Error: Two-Factor Authentication is already enabled. Please remove the existing setup first if you wish to re-configure it.</p>',
         {
@@ -63,7 +65,7 @@ export async function onRequestPost(context) {
 
     // Step 4: Create 2FA Setup if not already present
     let new_secret_for_qr = null // Define here to be accessible for QR code generation
-    if (!twoFactorStatus || !twoFactorStatus.secret_value) {
+    if (!twoFactor || !twoFactor.secret_value) {
       const label = `${APP_NAME}: ${userName}`
 
       // Step 4a: Generate TOTP Secret
@@ -96,12 +98,12 @@ export async function onRequestPost(context) {
     }
 
     // Step 5: The secret is one of the following:
-    // twoFactorStatus.secret_value (if not null and not empty)
+    // twoFactor.secret_value (if a row exists with one set)
     // or the newly generated secret (new_secret_for_qr)
     // Ensure we strip the prefix for the QR code and manual setup display
     let display_secret =
-      twoFactorStatus && twoFactorStatus.secret_value
-        ? twoFactorStatus.secret_value.replace("sim_encrypted::", "")
+      twoFactor && twoFactor.secret_value
+        ? twoFactor.secret_value.replace("sim_encrypted::", "")
         : new_secret_for_qr
     if (!display_secret) {
       // This case should ideally not be reached if logic is correct

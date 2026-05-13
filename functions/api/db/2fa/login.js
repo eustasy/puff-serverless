@@ -124,9 +124,13 @@ export async function onRequestPost(context) {
     }
 
     // Step 5: Retrieve the user's 2FA secret
-    const twoFaData = await read2fa(dbClient, user_uuid)
+    const twoFaResult = await read2fa(dbClient, user_uuid)
 
-    if (!twoFaData || twoFaData.error || !twoFaData.secret_value) {
+    if (
+      twoFaResult.error ||
+      !twoFaResult.success ||
+      !twoFaResult.twoFactor.secret_value
+    ) {
       return new Response(
         JSON.stringify({
           error:
@@ -135,6 +139,8 @@ export async function onRequestPost(context) {
         { status: 400, headers: { "Content-Type": "application/json" } }
       )
     }
+
+    const twoFaData = twoFaResult.twoFactor
 
     if (twoFaData.is_enabled !== true) {
       return new Response(

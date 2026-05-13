@@ -38,9 +38,9 @@ export async function onRequestPost(context) {
 
   try {
     // Step 3: Retrieve Stored Secret from 'secrets' table
-    const secretRecord = await read2fa(dbClient, user_uuid)
-    if (secretRecord.error) {
-      console.error("Error reading 2FA secret:", secretRecord.error)
+    const secretResult = await read2fa(dbClient, user_uuid)
+    if (secretResult.error) {
+      console.error("Error reading 2FA secret:", secretResult.message)
       return new Response(
         '<p class="result-negative">Error: Could not retrieve 2FA secret. Please try again later.</p>',
         {
@@ -52,6 +52,22 @@ export async function onRequestPost(context) {
         }
       )
     }
+
+    if (!secretResult.success) {
+      // No 2FA record — user hasn't started setup yet.
+      return new Response(
+        '<p class="result-negative">Error: 2FA setup has not been started. Please start setup first.</p>',
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#tfa-message-area",
+          },
+        }
+      )
+    }
+
+    const secretRecord = secretResult.twoFactor
 
     if (secretRecord.is_enabled === true) {
       return new Response(
