@@ -16,8 +16,8 @@ export async function verifyTokenAndGetUser(
   ip_country,
   ip_address
 ): Promise<
-  | { error?: never; user_uuid: string; status: 200 }
-  | { user_uuid?: never; error: string; status: number }
+  | { success: true; error?: never; user_uuid: string; status: 200 }
+  | { success?: never; error: string; status: number }
 > {
   try {
     const sessionRecordResult = await dbClient.query(
@@ -60,7 +60,7 @@ export async function verifyTokenAndGetUser(
         console.error("Error updating session last-accessed fields:", err)
       )
 
-    return { user_uuid: sessionRecord.user_uuid, status: 200 }
+    return { success: true, user_uuid: sessionRecord.user_uuid, status: 200 }
   } catch (error) {
     console.error("Error during token verification:", error)
     return { error: "Error during token verification.", status: 500 }
@@ -85,13 +85,14 @@ export async function createSession(
   ip_address,
   ip_country
 ): Promise<
-  | { error?: never; session_id: string; status: 200; expires_at: Date }
   | {
-      session_id?: never
-      expires_at?: never
-      error: string
-      status: number
+      success: true
+      error?: never
+      session_id: string
+      status: 200
+      expires_at: Date
     }
+  | { success?: never; error: string; status: number }
 > {
   if (!user_uuid) {
     return { error: "User UUID is required.", status: 400 }
@@ -135,6 +136,7 @@ export async function createSession(
       throw new Error(loginResult.message)
     }
     return {
+      success: true,
       session_id: session_id,
       status: 200,
       expires_at: expires_at,
@@ -200,15 +202,15 @@ export async function terminateAllOtherSessions(
   user_uuid,
   session_id
 ): Promise<
-  | { error?: never; deletedCount: number; status: 200 }
-  | { deletedCount?: never; error: string; status: number }
+  | { success: true; error?: never; deletedCount: number; status: 200 }
+  | { success?: never; error: string; status: number }
 > {
   try {
     const result = await dbClient.query(
       "UPDATE sessions SET is_active = FALSE WHERE user_uuid = $1 AND session_id != $2 AND is_active = TRUE RETURNING session_id",
       [user_uuid, session_id]
     )
-    return { deletedCount: result.rowCount, status: 200 }
+    return { success: true, deletedCount: result.rowCount, status: 200 }
   } catch (error) {
     console.error("Error in terminateAllOtherSessions:", error)
     return {
@@ -229,15 +231,15 @@ export async function listSessionsForUser(
   dbClient,
   user_uuid
 ): Promise<
-  | { error?: never; sessions: any[]; status: 200 }
-  | { sessions?: never; error: string; status: number }
+  | { success: true; error?: never; sessions: any[]; status: 200 }
+  | { success?: never; error: string; status: number }
 > {
   try {
     const result = await dbClient.query(
       "SELECT session_id, created_at, expires_at, is_active, user_agent, ip_address, ip_country FROM sessions WHERE user_uuid = $1 ORDER BY created_at DESC",
       [user_uuid]
     )
-    return { sessions: result.rows, status: 200 }
+    return { success: true, sessions: result.rows, status: 200 }
   } catch (error) {
     console.error("Error in listSessionsForUser:", error)
     return {

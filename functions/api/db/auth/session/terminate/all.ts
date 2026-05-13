@@ -26,9 +26,9 @@ export const onRequestPost: Handler = async (context) => {
     currentSessionToken
   )
 
-  if (terminationResult.error) {
+  if (!terminationResult.success) {
     return new Response(`<p>Error: ${terminationResult.error}</p>`, {
-      status: terminationResult.status || 500,
+      status: terminationResult.status,
       headers: { "Content-Type": "text/html" },
     })
   }

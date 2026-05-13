@@ -63,7 +63,8 @@ export async function onRequestPost(context) {
         `totp_verification_token=${tokenResult.token_value};`,
         "Path=/",
         "HttpOnly",
-        `Expires=${new Date(tokenResult.expires_at).toUTCString()}`,
+        // 15 minutes — must match the TTL set by createLoginToken
+        "Max-Age=900",
         `SameSite=${context.env.COOKIE_SAMESITE || "Lax"}`,
       ]
       if (context.env.SECURE_COOKIE) {
@@ -84,7 +85,7 @@ export async function onRequestPost(context) {
         `session_token=${loginResult.session_id};`,
         "Path=/",
         "HttpOnly",
-        `Expires=${new Date(loginResult.expires_at).toUTCString()}`,
+        `Max-Age=${context.env.SESSION_MAX_AGE_SECONDS || 2592000}`,
         `SameSite=${context.env.COOKIE_SAMESITE || "Lax"}`,
       ]
       if (context.env.SECURE_COOKIE) {

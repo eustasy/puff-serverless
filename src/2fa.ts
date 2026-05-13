@@ -4,7 +4,7 @@ export async function create2fa(
   dbClient,
   user_uuid,
   secret_value,
-  secret_name = null
+  secret_name: string | null = null
 ): Promise<Envelope<{ twoFactor: any }>> {
   const secret_uuid = crypto.randomUUID()
   const query = `
@@ -71,8 +71,8 @@ export async function delete2fa(
   dbClient,
   user_uuid
 ): Promise<
-  | { error?: never; rowCount: number; status: 200 }
-  | { rowCount?: never; error: string; status: number }
+  | { success: true; error?: never; rowCount: number; status: 200 }
+  | { success?: never; error: string; status: number }
 > {
   const query = `
     DELETE FROM secrets
@@ -85,7 +85,7 @@ export async function delete2fa(
   try {
     const result = await dbClient.query(query, values)
     // Return rowCount for confirmation
-    return { rowCount: result.rowCount, status: 200 }
+    return { success: true, rowCount: result.rowCount, status: 200 }
   } catch (error) {
     console.error("Error deleting 2FA secret:", error)
     return { error: "Could not delete 2FA secret.", status: 500 }
@@ -95,7 +95,16 @@ export async function delete2fa(
 export async function has2fa(
   dbClient,
   user_uuid
-): Promise<Envelope<{ enabled: boolean }>> {
+): Promise<
+  | { success: true; error?: never; enabled: boolean; status: 200 }
+  | {
+      success?: never
+      error: true
+      message: string
+      details?: unknown
+      status: number
+    }
+> {
   const query = `
     SELECT 1
     FROM secrets

@@ -14,7 +14,7 @@ export const onRequestGet: Handler = async (context) => {
   try {
     const result = await listSessionsForUser(dbClient, user_uuid)
 
-    if (result.error) {
+    if (!result.success) {
       return new Response(`<p class=\"result-negative\">${result.error}</p>`, {
         status: result.status,
         headers: { "Content-Type": "text/html" },

@@ -13,7 +13,7 @@ const MESSAGE_MAP = {
 export const onRequestGet: Handler = async (context) => {
   const url = new URL(context.request.url)
   const code = url.searchParams.get("code")
-  const html = MESSAGE_MAP[code] || ""
+  const html = (code && MESSAGE_MAP[code as keyof typeof MESSAGE_MAP]) || ""
   return new Response(html, {
     headers: { "Content-Type": "text/html" },
   })

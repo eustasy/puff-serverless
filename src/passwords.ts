@@ -213,7 +213,16 @@ export async function password_verify(
   dbClient,
   user_uuid,
   pw
-): Promise<Envelope<{ verified: boolean }>> {
+): Promise<
+  | { success: true; error?: never; verified: boolean; status: 200 }
+  | {
+      success?: never
+      error: true
+      message: string
+      details?: unknown
+      status: number
+    }
+> {
   try {
     const passwordResult = await readPassword(dbClient, user_uuid)
 

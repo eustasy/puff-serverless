@@ -64,7 +64,7 @@ const sessionAuthWithCookie: Handler = async (context) => {
       ip_address
     )
 
-    if (authResult.error) {
+    if (!authResult.success) {
       console.warn(
         `sessionAuthWithCookie: Authentication failed. Internal error: ${authResult.error}, Status: ${authResult.status}`
       )

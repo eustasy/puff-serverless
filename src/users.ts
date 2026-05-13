@@ -138,26 +138,22 @@ export async function user_login(
   try {
     const emailReadResult = await readEmail(dbClient, email)
 
-    // Handle cases where readEmail indicates an error, email not found, or unexpected structure
-    if (
-      !emailReadResult ||
-      emailReadResult.error ||
-      !emailReadResult.success ||
-      !emailReadResult.email
-    ) {
-      console.error(
-        "Error reading email:",
-        emailReadResult ? emailReadResult.message : "Unknown error"
-      )
-      // If readEmail returns a message, use it, otherwise default to a generic message
-      const message =
-        emailReadResult && emailReadResult.message
-          ? emailReadResult.message
-          : "Invalid email or password."
-      // If readEmail returns a status for its error, use it, otherwise default to 401
-      const status =
-        emailReadResult && emailReadResult.status ? emailReadResult.status : 401
-      return { error: true, message: message, status: status }
+    if (emailReadResult.error) {
+      console.error("Error reading email:", emailReadResult.message)
+      return {
+        error: true,
+        message: "Invalid email or password.",
+        status: 401,
+      }
+    }
+    if (!emailReadResult.success) {
+      // Email not found — log internally, return generic message to avoid enumeration.
+      console.error("Error reading email:", emailReadResult.message)
+      return {
+        error: true,
+        message: "Invalid email or password.",
+        status: 401,
+      }
     }
 
     const user = emailReadResult.email
@@ -209,11 +205,11 @@ export async function user_login(
       ip_address,
       ip_country
     )
-    if (!session || session.error) {
+    if (!session.success) {
       return {
         error: true,
-        message: session ? session.message : "Session creation failed.",
-        status: session ? session.status : 500,
+        message: session.error,
+        status: session.status,
       }
     }
 

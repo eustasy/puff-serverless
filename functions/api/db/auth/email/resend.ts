@@ -26,33 +26,24 @@ export const onRequestPost: Handler = async (context) => {
 
     const emailRecordResult = await readEmail(dbClient, email_address)
 
-    if (
-      emailRecordResult.error ||
-      !emailRecordResult.success ||
-      !emailRecordResult.email
-    ) {
-      console.error(
-        "Error reading email for user:",
-        emailRecordResult
-          ? emailRecordResult.message
-          : "No email record returned"
+    if (emailRecordResult.error) {
+      console.error("Error reading email for user:", emailRecordResult.message)
+      return new Response(
+        `<p class="result-negative">Could not retrieve your email address. Please try again.</p>`,
+        {
+          status: 500,
+          headers: { "Content-Type": "text/html" },
+        }
       )
-      let userMessage =
-        "Could not retrieve your email address. Please try again."
-      if (
-        emailRecordResult &&
-        emailRecordResult.message === "Email not found."
-      ) {
-        userMessage = `Email address "${escapeHtml(email_address)}" not found for your account.`
-      }
-      return new Response(`<p class="result-negative">${userMessage}</p>`, {
-        // Use 404 if email not found, otherwise 500
-        status:
-          emailRecordResult && emailRecordResult.message === "Email not found."
-            ? 404
-            : 500,
-        headers: { "Content-Type": "text/html" },
-      })
+    }
+    if (!emailRecordResult.success) {
+      return new Response(
+        `<p class="result-negative">Email address "${escapeHtml(email_address)}" not found for your account.</p>`,
+        {
+          status: 404,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
     }
 
     const emailToVerify = emailRecordResult.email
@@ -97,7 +88,7 @@ export const onRequestPost: Handler = async (context) => {
       return new Response(
         `<p class="result-negative">Failed to generate new verification token: ${tokenResult.message}</p>`,
         {
-          status: tokenResult.status || 500,
+          status: 500,
           headers: { "Content-Type": "text/html" },
         }
       )

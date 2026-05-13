@@ -191,11 +191,11 @@ export const onRequestPost: Handler = async (context) => {
 
     // Step 8: Update the last used timestamp for the 2FA secret
     const updateLastUsedResult = await used2fa(dbClient, user_uuid)
-    if (updateLastUsedResult.error) {
+    if (!updateLastUsedResult.success) {
       // Log this error but proceed.
       console.error(
         `Failed to update last used timestamp for 2FA for user ${user_uuid}.`,
-        updateLastUsedResult.message
+        updateLastUsedResult.error
       )
     }
 
@@ -212,7 +212,7 @@ export const onRequestPost: Handler = async (context) => {
       ip_country
     )
 
-    if (sessionResult.error) {
+    if (!sessionResult.success) {
       console.error("Error creating session:", sessionResult.error)
       return new Response(
         '<p class="result-negative">Error creating session. Please try again.</p>',

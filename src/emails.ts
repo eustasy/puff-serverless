@@ -168,7 +168,7 @@ export async function createEmail(
       }
     }
 
-    let token_value = null
+    let token_value: string | null = null
     if (!is_verified) {
       const createTokenResult = await createEmailToken(
         dbClient,
@@ -237,11 +237,7 @@ export async function verifyEmailByToken(
     // Use readToken to get general token details first
     const readTokenResult = await readToken(dbClient, token_value)
 
-    if (
-      readTokenResult.error ||
-      !readTokenResult.success ||
-      !readTokenResult.token
-    ) {
+    if (!readTokenResult.success) {
       console.error(
         "Error reading token in verifyEmailByToken:",
         readTokenResult.message
@@ -277,20 +273,16 @@ export async function verifyEmailByToken(
     // Use readEmail to get the email record
     const emailReadResult = await readEmail(dbClient, email_address)
 
-    if (
-      emailReadResult.error ||
-      !emailReadResult.success ||
-      !emailReadResult.email
-    ) {
-      // Token is valid but email doesn't exist for user? Should be rare.
-      // Or an error occurred reading the email.
+    if (!emailReadResult.success) {
+      // Token is valid but email doesn't exist for user, or read failed.
       await usedToken(dbClient, token_value)
+      const message = emailReadResult.error
+        ? emailReadResult.message
+        : "Email address not found for this user, though token was valid."
       return {
         error: true,
-        message:
-          emailReadResult.message ||
-          "Email address not found for this user, though token was valid.",
-        status: emailReadResult.status || 404,
+        message,
+        status: emailReadResult.error ? 500 : 404,
       }
     }
 
@@ -377,15 +369,11 @@ export async function setPrimaryEmail(
   try {
     const emailReadResult = await readEmail(dbClient, new_primary_email)
 
-    if (
-      emailReadResult.error ||
-      !emailReadResult.success ||
-      !emailReadResult.email
-    ) {
+    if (!emailReadResult.success) {
       return {
         error: true,
         message: emailReadResult.message || "Email address not found.",
-        status: emailReadResult.status || 404,
+        status: emailReadResult.error ? 500 : 404,
       }
     }
 
@@ -468,15 +456,11 @@ export async function deleteEmail(
   try {
     const emailReadResult = await readEmail(dbClient, email_to_remove)
 
-    if (
-      emailReadResult.error ||
-      !emailReadResult.success ||
-      !emailReadResult.email
-    ) {
+    if (!emailReadResult.success) {
       return {
         error: true,
         message: emailReadResult.message || "Email address not found.",
-        status: emailReadResult.status || 404,
+        status: emailReadResult.error ? 500 : 404,
       }
     }
 

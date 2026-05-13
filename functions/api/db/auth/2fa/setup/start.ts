@@ -64,7 +64,7 @@ export const onRequestPost: Handler = async (context) => {
     const userName = userResult.user.user_name
 
     // Step 4: Create 2FA Setup if not already present
-    let new_secret_for_qr = null // Define here to be accessible for QR code generation
+    let new_secret_for_qr: string | null = null // Define here to be accessible for QR code generation
     if (!twoFactor || !twoFactor.secret_value) {
       const label = `${APP_NAME}: ${userName}`
 

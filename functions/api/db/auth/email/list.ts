@@ -7,17 +7,6 @@ export const onRequestGet: Handler = async (context) => {
 
   try {
     const emails = await readEmails(dbClient, user_uuid)
-    if (emails.error) {
-      // Check for error from readEmails
-      console.error("Error reading emails:", emails.error)
-      return new Response(
-        '<p class="result-negative">Failed to load email addresses.</p>',
-        {
-          status: 500,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
-    }
     if (!emails || emails.length === 0) {
       return new Response("<p>No email addresses found for this account.</p>", {
         headers: { "Content-Type": "text/html" },
