@@ -7,10 +7,8 @@ export async function onRequestGet(context) {
   // Step 2: Use has2fa to check the 2FA status.
   const twoFactorStatus = await has2fa(dbClient, user_uuid)
 
-  let is2FAEnabled
-  if (typeof twoFactorStatus === "object" && twoFactorStatus.error) {
-    // Handle error from has2fa (e.g., database issue)
-    console.error("Error checking 2FA status:", twoFactorStatus.error)
+  if (twoFactorStatus.error) {
+    console.error("Error checking 2FA status:", twoFactorStatus.message)
     return new Response(
       "<p>Error: Could not retrieve 2FA status. Please try again later.</p>",
       {
@@ -21,13 +19,11 @@ export async function onRequestGet(context) {
         },
       }
     )
-  } else {
-    is2FAEnabled = twoFactorStatus
   }
 
   let htmlResponse
 
-  if (is2FAEnabled) {
+  if (twoFactorStatus.enabled) {
     htmlResponse = `
       <p>Two-Factor Authentication is currently <strong class="result-positive">enabled</strong>.</p>
       <form hx-post="/api/db/auth/2fa/remove" hx-target="#tfa-message-area" hx-swap="innerHTML">

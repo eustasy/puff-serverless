@@ -140,17 +140,17 @@ export async function user_login(
       return { error: true, message: message, status: status }
     }
 
-    // Check for 2FA — has2fa returns boolean on success or { error, status } on failure
-    const twoFactorEnabled = await has2fa(dbClient, user_uuid)
-    if (typeof twoFactorEnabled === "object" && twoFactorEnabled.error) {
+    // Check for 2FA
+    const twoFactorResult = await has2fa(dbClient, user_uuid)
+    if (twoFactorResult.error) {
       return {
         error: true,
-        message: twoFactorEnabled.error || "Error checking 2FA status.",
-        status: twoFactorEnabled.status || 500,
+        message: twoFactorResult.message || "Error checking 2FA status.",
+        status: twoFactorResult.status || 500,
       }
     }
 
-    if (twoFactorEnabled === true) {
+    if (twoFactorResult.enabled) {
       // If 2FA is enabled, return a response indicating that 2FA is required
       // The application should then prompt the user for their TOTP code
       return {

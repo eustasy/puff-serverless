@@ -74,13 +74,19 @@ export async function has2fa(dbClient, user_uuid) {
   const values = [user_uuid, SECRET_TYPE]
   try {
     const { rows } = await dbClient.query(query, values)
-    return rows && rows.length > 0 // Returns true if enabled 2FA exists, false otherwise
+    return {
+      success: true,
+      enabled: rows && rows.length > 0,
+      status: 200,
+    }
   } catch (error) {
     console.error("Error checking 2FA secret:", error)
-    // To be consistent with other functions, return an error object or throw
-    // For a boolean check, perhaps returning false on error is acceptable if the caller handles it.
-    // However, to signal a DB issue vs. "no 2FA", an error object is better.
-    return { error: "Could not check 2FA status.", status: 500 }
+    return {
+      error: true,
+      message: "Could not check 2FA status.",
+      details: error.message,
+      status: 500,
+    }
   }
 }
 
