@@ -93,17 +93,17 @@ export async function onRequestPost(context) {
 
     const user_uuid = tokenRecord.user_uuid
 
-    const passwordUpdated = await updatePassword(
+    const updateResult = await updatePassword(
       dbClient,
       user_uuid,
       new_password
     )
 
-    if (!passwordUpdated) {
+    if (updateResult.error || !updateResult.success) {
       return new Response(
-        '<p class="result-negative">Failed to update password. Password record issue or no change detected.</p>',
+        `<p class="result-negative">${updateResult.message || "Failed to update password."}</p>`,
         {
-          status: 500,
+          status: updateResult.status || 500,
           headers: { "Content-Type": "text/html" },
         }
       )

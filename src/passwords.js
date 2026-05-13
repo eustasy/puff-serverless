@@ -152,23 +152,39 @@ export async function updatePassword(dbClient, user_uuid, newPassword) {
     try {
       const disableResult = await disablePassword(dbClient, user_uuid)
       if (disableResult.error) {
-        throw new Error(disableResult.message)
+        await dbClient.query("ROLLBACK").catch(() => {})
+        return disableResult
       }
-      const createResult = await createPassword(dbClient, user_uuid, newPassword)
+      const createResult = await createPassword(
+        dbClient,
+        user_uuid,
+        newPassword
+      )
       if (createResult.error || !createResult.success) {
-        throw new Error(
-          createResult.message || "Failed to create new password."
-        )
+        // Propagate the inner envelope: validation failures keep their 400,
+        // DB errors keep their 500. Either way roll back the disable.
+        await dbClient.query("ROLLBACK").catch(() => {})
+        return createResult
       }
       await dbClient.query("COMMIT")
-      return true
+      return { success: true, status: 200 }
     } catch (txError) {
       await dbClient.query("ROLLBACK").catch(() => {})
-      throw txError
+      return {
+        error: true,
+        message: "Could not update password.",
+        details: txError.message,
+        status: 500,
+      }
     }
   } catch (error) {
     console.error("Error in updatePassword:", error)
-    throw error
+    return {
+      error: true,
+      message: "Could not update password.",
+      details: error.message,
+      status: 500,
+    }
   }
 }
 

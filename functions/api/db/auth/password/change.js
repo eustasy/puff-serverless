@@ -65,20 +65,22 @@ export async function onRequestPost(context) {
     }
 
     // Step 6: Update Password using the helper function
-    const passwordUpdated = await updatePassword(
+    const updateResult = await updatePassword(
       dbClient,
       user_uuid,
       new_password
     )
 
-    if (!passwordUpdated) {
-      // This might indicate the user record wasn't found for update, or a DB error occurred within updatePassword
+    if (updateResult.error || !updateResult.success) {
       console.error(
-        `Failed to update password for user_uuid (updatePassword returned false): ${user_uuid}`
+        `Failed to update password for user_uuid ${user_uuid}: ${updateResult.message}`
       )
       return new Response(
-        "<p>Error: Failed to update password. The user record might not exist or an internal error occurred.</p>",
-        { status: 500, headers: { "Content-Type": "text/html" } }
+        `<p>Error: ${updateResult.message || "Failed to update password."}</p>`,
+        {
+          status: updateResult.status || 500,
+          headers: { "Content-Type": "text/html" },
+        }
       )
     }
 
@@ -88,7 +90,7 @@ export async function onRequestPost(context) {
       { status: 200, headers: { "Content-Type": "text/html" } }
     )
   } catch (error) {
-    // This catch block will now primarily catch errors from password_verify or updatePassword if they throw.
+    // password_verify is the only thing in this handler that still throws.
     console.error("Error during password change:", error)
     return new Response(
       "<p>Error: Failed to change password due to a server error.</p>",
