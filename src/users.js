@@ -76,12 +76,11 @@ export async function user_register(dbClient, name, email, password) {
     }
 
     // Step 3. Register the password using createPassword
-    const passwordCreated = await createPassword(dbClient, uuid, password)
-    if (!passwordCreated) {
-      // This case implies an issue within createPassword, like a DB error it couldn't handle.
-      // createPassword itself throws an error on failure, so this might be redundant if not caught and returned as false.
-      // However, if createPassword is modified to return false on specific logical failures (not just DB exceptions), this check is useful.
-      throw new Error("Failed to create password during registration.")
+    const createResult = await createPassword(dbClient, uuid, password)
+    if (createResult.error || !createResult.success) {
+      throw new Error(
+        createResult.message || "Failed to create password during registration."
+      )
     }
 
     return { success: true, user_uuid: uuid, email: email }

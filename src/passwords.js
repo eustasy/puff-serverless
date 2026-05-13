@@ -15,7 +15,11 @@ export async function createPassword(dbClient, user_uuid, password) {
     // Validate password requirements
     const isValid = password_requirements(password)
     if (!isValid) {
-      throw new Error("Password does not meet the required criteria.")
+      return {
+        success: false,
+        message: "Password does not meet the required criteria.",
+        status: 400,
+      }
     }
     // Hash the password
     const { hash, salt, algo } = await puff_hashing_password(password)
@@ -35,10 +39,22 @@ export async function createPassword(dbClient, user_uuid, password) {
       current_secret_type,
       secret_value,
     ])
-    return result.rows.length > 0
+    if (result.rows.length > 0) {
+      return { success: true, status: 200 }
+    }
+    return {
+      error: true,
+      message: "Password creation returned no rows.",
+      status: 500,
+    }
   } catch (error) {
     console.error("Error in createPassword:", error)
-    throw error
+    return {
+      error: true,
+      message: "Could not create password.",
+      details: error.message,
+      status: 500,
+    }
   }
 }
 
@@ -138,9 +154,14 @@ export async function updatePassword(dbClient, user_uuid, newPassword) {
       if (disableResult.error) {
         throw new Error(disableResult.message)
       }
-      const createdNew = await createPassword(dbClient, user_uuid, newPassword)
+      const createResult = await createPassword(dbClient, user_uuid, newPassword)
+      if (createResult.error || !createResult.success) {
+        throw new Error(
+          createResult.message || "Failed to create new password."
+        )
+      }
       await dbClient.query("COMMIT")
-      return createdNew
+      return true
     } catch (txError) {
       await dbClient.query("ROLLBACK").catch(() => {})
       throw txError
