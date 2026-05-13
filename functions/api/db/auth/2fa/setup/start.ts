@@ -3,8 +3,8 @@ import { read2fa, create2fa } from "../../../../../../src/2fa.js"
 import { readUser } from "../../../../../../src/users.js"
 
 export const onRequestPost: Handler = async (context) => {
-  const dbClient = context.data.dbClient
-  const user_uuid = context.data.user_uuid
+  const dbClient = context.data.dbClient!
+  const user_uuid = context.data.user_uuid!
   const APP_NAME = context.env.APP_NAME || "PuffAuth"
 
   try {

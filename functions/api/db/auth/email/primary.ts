@@ -2,8 +2,8 @@ import { setPrimaryEmail } from "../../../../../src/emails.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
 
 export const onRequestPost: Handler = async (context) => {
-  const dbClient = context.data.dbClient
-  const user_uuid = context.data.user_uuid
+  const dbClient = context.data.dbClient!
+  const user_uuid = context.data.user_uuid!
   try {
     const formData = await context.request.formData()
     const new_primary_email_address = formData.get("email_address")

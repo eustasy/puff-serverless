@@ -1,7 +1,7 @@
 import { user_register } from "../../../../src/users.js"
 
 export const onRequestPost: Handler = async (context) => {
-  const dbClient = context.data.dbClient
+  const dbClient = context.data.dbClient!
 
   const formdata = await context.request.formData()
   const email = formdata.get("email")
@@ -9,7 +9,12 @@ export const onRequestPost: Handler = async (context) => {
   const pw = formdata.get("pw")
 
   // Basic validation for required fields
-  if (!email || !name || !pw) {
+  if (
+    typeof email !== "string" ||
+    typeof name !== "string" ||
+    typeof pw !== "string" ||
+    !email || !name || !pw
+  ) {
     return new Response(
       '<p class="result-negative">Name, email, and password are required.</p>',
       {

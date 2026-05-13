@@ -1,7 +1,7 @@
 import { verifyEmailByToken } from "../../../../src/emails.js"
 
 export const onRequestGet: Handler = async (context) => {
-  const dbClient = context.data.dbClient
+  const dbClient = context.data.dbClient!
   const { searchParams } = new URL(context.request.url)
   const token_value = searchParams.get("token")
 

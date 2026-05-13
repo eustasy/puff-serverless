@@ -1,15 +1,15 @@
 import { user_login } from "../../../../src/users.js"
 import { createLoginToken } from "../../../../src/tokens.js"
 
-export async function onRequestPost(context) {
-  const dbClient = context.data.dbClient
+export const onRequestPost: Handler = async (context) => {
+  const dbClient = context.data.dbClient!
 
   try {
     const formdata = await context.request.formData()
     const email = formdata.get("email")
     const pw = formdata.get("pw")
 
-    if (!email || !pw) {
+    if (!email || !pw || typeof email !== "string" || typeof pw !== "string") {
       return new Response(
         '<p class="result-negative">Email and password are required.</p>',
         {
@@ -19,9 +19,9 @@ export async function onRequestPost(context) {
       )
     }
 
-    const user_agent = context.request.headers.get("User-Agent")
-    const ip_address = context.request.headers.get("CF-Connecting-IP")
-    const ip_country = context.request.headers.get("CF-IPCountry")
+    const user_agent = context.request.headers.get("User-Agent") || ""
+    const ip_address = context.request.headers.get("CF-Connecting-IP") || ""
+    const ip_country = context.request.headers.get("CF-IPCountry") || ""
     const loginResult = await user_login(
       dbClient,
       email,
@@ -137,7 +137,7 @@ export async function onRequestPost(context) {
   }
 }
 
-export async function onRequest(context) {
+export const onRequest: Handler = async (context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "POST" },

@@ -2,7 +2,7 @@ import { readEmail } from "../../../../src/emails.js"
 import { createPasswordToken } from "../../../../src/tokens.js"
 
 export const onRequestPost: Handler = async (context) => {
-  const dbClient = context.data.dbClient
+  const dbClient = context.data.dbClient!
 
   // Step 1: Parse form data for email
   let formData

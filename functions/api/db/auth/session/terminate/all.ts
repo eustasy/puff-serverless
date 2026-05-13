@@ -2,8 +2,8 @@ import { terminateAllOtherSessions } from "../../../../../../src/sessions.js"
 import { getCookie } from "../../../../../../src/utilities/headers.js"
 
 export const onRequestPost: Handler = async (context) => {
-  const dbClient = context.data.dbClient
-  const user_uuid = context.data.user_uuid
+  const dbClient = context.data.dbClient!
+  const user_uuid = context.data.user_uuid!
 
   // Step 2: Identify Current Session Token from Cookie
   const cookieHeader = context.request.headers.get("Cookie")

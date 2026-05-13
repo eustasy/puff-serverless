@@ -2,8 +2,8 @@ import { verify } from "otplib"
 import { enable2fa, read2fa } from "../../../../../../src/2fa.js"
 
 export const onRequestPost: Handler = async (context) => {
-  const dbClient = context.data.dbClient
-  const user_uuid = context.data.user_uuid
+  const dbClient = context.data.dbClient!
+  const user_uuid = context.data.user_uuid!
 
   // Step 2: Parse form data for TOTP code
   let formData

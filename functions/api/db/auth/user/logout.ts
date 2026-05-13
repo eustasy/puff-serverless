@@ -2,8 +2,8 @@ import { terminateSpecificSession } from "../../../../../src/sessions.js"
 import { getCookie } from "../../../../../src/utilities/headers.js"
 
 export const onRequestPost: Handler = async (context) => {
-  const dbClient = context.data.dbClient
-  const user_uuid = context.data.user_uuid
+  const dbClient = context.data.dbClient!
+  const user_uuid = context.data.user_uuid!
 
   const cookieHeader = context.request.headers.get("Cookie")
   const token = await getCookie(cookieHeader, "session_token")

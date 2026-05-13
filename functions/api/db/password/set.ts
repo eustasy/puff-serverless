@@ -5,7 +5,7 @@ import {
 import { readToken, usedToken } from "../../../../src/tokens.js"
 
 export const onRequestPost: Handler = async (context) => {
-  const dbClient = context.data.dbClient
+  const dbClient = context.data.dbClient!
   let formData
   let token
   let new_password

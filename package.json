@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.6.2",
+    "@types/pg": "^8.20.0",
     "prettier": "3.8.3",
     "typescript": "^6.0.3",
     "wrangler": "^4.90.0"

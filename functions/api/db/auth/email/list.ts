@@ -2,8 +2,8 @@ import { readEmails } from "../../../../../src/emails.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
 
 export const onRequestGet: Handler = async (context) => {
-  const dbClient = context.data.dbClient
-  const user_uuid = context.data.user_uuid
+  const dbClient = context.data.dbClient!
+  const user_uuid = context.data.user_uuid!
 
   try {
     const emails = await readEmails(dbClient, user_uuid)

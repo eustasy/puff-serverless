@@ -7,8 +7,8 @@ import { createEmailToken, readToken, usedToken } from "./tokens.js"
  * @returns {Promise<object>} - An object with { success: true, exists: boolean } or { error: true, message: string }.
  */
 export async function existsEmail(
-  dbClient,
-  email_address
+  dbClient: DbClient,
+  email_address: string
 ): Promise<TokenEnvelope<{ exists: boolean }>> {
   try {
     const query = {
@@ -16,7 +16,7 @@ export async function existsEmail(
       values: [email_address],
     }
     const result = await dbClient.query(query)
-    return { success: true, exists: result.rowCount > 0 }
+    return { success: true, exists: (result.rowCount ?? 0) > 0 }
   } catch (error) {
     console.error("Error in existsEmail:", error)
     return {
@@ -34,8 +34,8 @@ export async function existsEmail(
  * @returns {Promise<object>} - An object with { success: true, email: record } or { success: false/error: true, message: string }.
  */
 export async function readEmail(
-  dbClient,
-  email_address
+  dbClient: DbClient,
+  email_address: string
 ): Promise<
   | { success: true; error?: never; email: EmailRow }
   | { success: false; error?: never; message: string }
@@ -74,7 +74,7 @@ export async function readEmail(
  * @returns {Promise<Array<object>>} - An array of email objects or an empty array if none found.
  * @throws Will throw an error if the database query fails.
  */
-export async function readEmails(dbClient, user_uuid): Promise<EmailRow[]> {
+export async function readEmails(dbClient: DbClient, user_uuid: string): Promise<EmailRow[]> {
   try {
     const query = {
       text: "SELECT user_uuid, email_address, is_primary, is_verified, verified_at FROM emails WHERE user_uuid = $1 ORDER BY is_primary DESC, verified_at ASC NULLS LAST, email_address ASC",
@@ -98,9 +98,9 @@ export async function readEmails(dbClient, user_uuid): Promise<EmailRow[]> {
  * @returns {Promise<object>} - An object indicating success or failure, and token if generated.
  */
 export async function createEmail(
-  dbClient,
-  user_uuid,
-  email_address,
+  dbClient: DbClient,
+  user_uuid: string,
+  email_address: string,
   is_primary = false,
   is_verified = false
 ): Promise<
@@ -213,8 +213,8 @@ export async function createEmail(
  * @returns {Promise<object>} - An object indicating success or failure.
  */
 export async function verifyEmailByToken(
-  dbClient,
-  token_value
+  dbClient: DbClient,
+  token_value: string
 ): Promise<
   | {
       success: true
@@ -231,8 +231,6 @@ export async function verifyEmailByToken(
       status: number
     }
 > {
-  let tokenRecordFromRead
-
   try {
     // Use readToken to get general token details first
     const readTokenResult = await readToken(dbClient, token_value)
@@ -245,9 +243,12 @@ export async function verifyEmailByToken(
       return { error: true, message: "Error verifying token.", status: 500 }
     }
 
-    tokenRecordFromRead = readTokenResult.token
+    const tokenRecordFromRead = readTokenResult.token
     const { user_uuid, email_address, expires_at, is_used } =
       tokenRecordFromRead
+    if (!email_address) {
+      return { error: true, message: "Token has no associated email address.", status: 500 }
+    }
 
     if (is_used) {
       return {
@@ -339,7 +340,7 @@ export async function verifyEmailByToken(
       success: true,
       message: "Email verified successfully.",
       user_uuid: user_uuid,
-      email_address: email_address,
+      email_address: email_address ?? undefined,
     }
   } catch (error) {
     console.error("Error in verifyEmailByToken:", error)
@@ -359,9 +360,9 @@ export async function verifyEmailByToken(
  * @returns {Promise<object>} - An object indicating success or failure.
  */
 export async function setPrimaryEmail(
-  dbClient,
-  user_uuid,
-  new_primary_email
+  dbClient: DbClient,
+  user_uuid: string,
+  new_primary_email: string
 ): Promise<
   | { success: true; error?: never; message: string; status: 200 }
   | { success?: never; error: true; message: string; status: number }
@@ -412,7 +413,7 @@ export async function setPrimaryEmail(
         [user_uuid, new_primary_email]
       )
 
-      if (promoteResult.rowCount > 0) {
+      if ((promoteResult.rowCount ?? 0) > 0) {
         await dbClient.query("COMMIT")
         return {
           success: true,
@@ -446,9 +447,9 @@ export async function setPrimaryEmail(
  * @returns {Promise<object>} - An object indicating success or failure.
  */
 export async function deleteEmail(
-  dbClient,
-  user_uuid,
-  email_to_remove
+  dbClient: DbClient,
+  user_uuid: string,
+  email_to_remove: string
 ): Promise<
   | { success: true; error?: never; message: string; status: 200 }
   | { success?: never; error: true; message: string; status: number }

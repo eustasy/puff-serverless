@@ -1,8 +1,8 @@
 import { terminateSpecificSession } from "../../../../../../src/sessions.js"
 
 export const onRequestPost: Handler = async (context) => {
-  const dbClient = context.data.dbClient
-  const user_uuid = context.data.user_uuid
+  const dbClient = context.data.dbClient!
+  const user_uuid = context.data.user_uuid!
 
   // Step 2: Get session_id_to_terminate from URL query parameter
   const url = new URL(context.request.url)

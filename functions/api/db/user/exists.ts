@@ -10,7 +10,7 @@ export const onRequestGet: Handler = async (context) => {
     )
   }
 
-  const dbClient = context.data.dbClient
+  const dbClient = context.data.dbClient!
 
   const { searchParams } = new URL(context.request.url)
   const email = searchParams.get("email")

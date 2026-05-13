@@ -11,10 +11,10 @@ import { loginUser } from "./users"
  * @returns {Promise<object>} An object with `user_uuid` if valid, or an `error` message and `status` if invalid/error.
  */
 export async function verifyTokenAndGetUser(
-  dbClient,
-  token,
-  ip_country,
-  ip_address
+  dbClient: DbClient,
+  token: string,
+  ip_country: string | null,
+  ip_address: string | null
 ): Promise<
   | { success: true; error?: never; user_uuid: string; status: 200 }
   | { success?: never; error: string; status: number }
@@ -56,7 +56,7 @@ export async function verifyTokenAndGetUser(
         "UPDATE sessions SET last_accessed_at = CURRENT_TIMESTAMP, last_accessed_ip = $1 WHERE session_id = $2",
         [ip_address || null, token]
       )
-      .catch((err) =>
+      .catch((err: unknown) =>
         console.error("Error updating session last-accessed fields:", err)
       )
 
@@ -79,11 +79,11 @@ export async function verifyTokenAndGetUser(
  * @returns {Promise<object>} An object with the session_id if successful, or an `error` message and `status` if failed.
  */
 export async function createSession(
-  dbClient,
-  user_uuid,
-  user_agent,
-  ip_address,
-  ip_country
+  dbClient: DbClient,
+  user_uuid: string,
+  user_agent: string,
+  ip_address: string,
+  ip_country: string
 ): Promise<
   | {
       success: true
@@ -159,9 +159,9 @@ export async function createSession(
  * @returns {Promise<{success?: boolean, error?: string, status?: number}>} Result of the operation.
  */
 export async function terminateSpecificSession(
-  dbClient,
-  user_uuid,
-  session_id
+  dbClient: DbClient,
+  user_uuid: string,
+  session_id: string
 ): Promise<
   | { error?: never; success: true; status: 200 }
   | { success?: never; error: string; status: number }
@@ -171,7 +171,7 @@ export async function terminateSpecificSession(
       "UPDATE sessions SET is_active = FALSE WHERE session_id = $1 AND user_uuid = $2 AND is_active = TRUE RETURNING session_id",
       [session_id, user_uuid]
     )
-    if (result.rowCount > 0) {
+    if ((result.rowCount ?? 0) > 0) {
       return { success: true, status: 200 }
     } else {
       console.error(
@@ -198,9 +198,9 @@ export async function terminateSpecificSession(
  * @returns {Promise<{deletedCount?: number, error?: string, status?: number}>} Result of the operation.
  */
 export async function terminateAllOtherSessions(
-  dbClient,
-  user_uuid,
-  session_id
+  dbClient: DbClient,
+  user_uuid: string,
+  session_id: string
 ): Promise<
   | { success: true; error?: never; deletedCount: number; status: 200 }
   | { success?: never; error: string; status: number }
@@ -210,7 +210,7 @@ export async function terminateAllOtherSessions(
       "UPDATE sessions SET is_active = FALSE WHERE user_uuid = $1 AND session_id != $2 AND is_active = TRUE RETURNING session_id",
       [user_uuid, session_id]
     )
-    return { success: true, deletedCount: result.rowCount, status: 200 }
+    return { success: true, deletedCount: result.rowCount ?? 0, status: 200 }
   } catch (error) {
     console.error("Error in terminateAllOtherSessions:", error)
     return {
@@ -228,8 +228,8 @@ export async function terminateAllOtherSessions(
  * @returns {Promise<{sessions?: Array<object>, error?: string, status?: number}>} List of sessions or error.
  */
 export async function listSessionsForUser(
-  dbClient,
-  user_uuid
+  dbClient: DbClient,
+  user_uuid: string
 ): Promise<
   | { success: true; error?: never; sessions: SessionRow[]; status: 200 }
   | { success?: never; error: string; status: number }

@@ -13,11 +13,11 @@
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
 export async function createToken(
-  dbClient,
-  user_uuid,
-  token_type,
-  expires_at,
-  email_address = null
+  dbClient: DbClient,
+  user_uuid: string,
+  token_type: string,
+  expires_at: string,
+  email_address: string | null = null
 ): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_value = crypto.randomUUID()
@@ -51,8 +51,8 @@ export async function createToken(
  * @returns {Promise<object|null>} - The token record if found and valid, null otherwise, or an error object.
  */
 export async function readToken(
-  dbClient,
-  token_value
+  dbClient: DbClient,
+  token_value: string
 ): Promise<TokenEnvelope<{ token: TokenRow }>> {
   try {
     let queryString =
@@ -87,8 +87,8 @@ export async function readToken(
  * @returns {Promise<object>} - An object indicating success or failure.
  */
 export async function usedToken(
-  dbClient,
-  token_value
+  dbClient: DbClient,
+  token_value: string
 ): Promise<
   | { success: boolean; error?: never; rowCount: number }
   | { success?: never; error: true; message: string; details?: unknown }
@@ -100,7 +100,7 @@ export async function usedToken(
       values: [true, token_value],
     }
     const result = await dbClient.query(query)
-    return { success: result.rowCount > 0, rowCount: result.rowCount }
+    return { success: (result.rowCount ?? 0) > 0, rowCount: result.rowCount ?? 0 }
   } catch (error) {
     console.error("Error in usedToken:", error)
     return {
@@ -120,9 +120,9 @@ export async function usedToken(
  * @returns {Promise<object>} - An object indicating success (rowCount) or failure.
  */
 export async function deleteToken(
-  dbClient,
-  user_uuid,
-  token_value
+  dbClient: DbClient,
+  user_uuid: string,
+  token_value: string
 ): Promise<
   | { success: true; error?: never; rowCount: number }
   | { success?: never; error: true; message: string; details?: unknown }
@@ -137,7 +137,7 @@ export async function deleteToken(
       values: queryParams,
     }
     const result = await dbClient.query(query)
-    return { success: true, rowCount: result.rowCount }
+    return { success: true, rowCount: result.rowCount ?? 0 }
   } catch (error) {
     console.error("Error in deleteToken:", error)
     return {
@@ -156,9 +156,9 @@ export async function deleteToken(
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
 export async function createEmailToken(
-  dbClient,
-  user_uuid,
-  email_address
+  dbClient: DbClient,
+  user_uuid: string,
+  email_address: string
 ): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_type = "email_verification"
@@ -190,9 +190,9 @@ export async function createEmailToken(
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
 export async function createPasswordToken(
-  dbClient,
-  user_uuid,
-  email_address
+  dbClient: DbClient,
+  user_uuid: string,
+  email_address: string
 ): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_type = "password_reset"
@@ -223,8 +223,8 @@ export async function createPasswordToken(
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
 export async function createLoginToken(
-  dbClient,
-  user_uuid
+  dbClient: DbClient,
+  user_uuid: string
 ): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_type = "totp_verification_pending"
@@ -249,8 +249,8 @@ export async function createLoginToken(
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
 export async function createSudoToken(
-  dbClient,
-  user_uuid
+  dbClient: DbClient,
+  user_uuid: string
 ): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_type = "sudo_elevation"

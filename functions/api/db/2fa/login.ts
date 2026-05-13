@@ -5,7 +5,7 @@ import { read2fa, used2fa } from "../../../../src/2fa.js"
 import { createSession } from "../../../../src/sessions.js"
 
 export const onRequestPost: Handler = async (context) => {
-  const dbClient = context.data.dbClient
+  const dbClient = context.data.dbClient!
   // Step 1: Get the TOTP verification token from the cookie
   const cookieHeader = context.request.headers.get("Cookie")
   const totpVerificationToken = await getCookie(

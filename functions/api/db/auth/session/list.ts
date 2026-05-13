@@ -5,8 +5,8 @@ import {
 } from "../../../../../src/utilities/headers.js"
 
 export const onRequestGet: Handler = async (context) => {
-  const dbClient = context.data.dbClient
-  const user_uuid = context.data.user_uuid
+  const dbClient = context.data.dbClient!
+  const user_uuid = context.data.user_uuid!
 
   const cookieHeader = context.request.headers.get("Cookie")
   const currentSessionToken = await getCookie(cookieHeader, "session_token")

@@ -5,7 +5,7 @@
  * @param {string} cookieName - The name of the cookie to find.
  * @returns {string | null} The value of the cookie, or null if not found.
  */
-export async function getCookie(cookieString, cookieName) {
+export async function getCookie(cookieString: string | null, cookieName: string) {
   if (!cookieString) {
     return null
   }
@@ -25,7 +25,7 @@ export async function getCookie(cookieString, cookieName) {
  * @param {string | null} userAgentString - The User-Agent string from the request headers.
  * @returns {string} A human-readable string describing the browser and OS, or "N/A" if not available.
  */
-export function parseUserAgent(userAgentString) {
+export function parseUserAgent(userAgentString: string | null) {
   if (!userAgentString) return "N/A"
 
   let browser = "Unknown Browser"

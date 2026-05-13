@@ -6,7 +6,6 @@
     "lib": ["ES2022"],
     "types": ["./worker-configuration.d.ts", "./env.d.ts", "node"],
     "strict": true,
-    "noImplicitAny": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,

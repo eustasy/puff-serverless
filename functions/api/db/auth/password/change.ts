@@ -6,8 +6,8 @@ import {
 } from "../../../../../src/passwords.js"
 
 export const onRequestPost: Handler = async (context) => {
-  const dbClient = context.data.dbClient
-  const user_uuid = context.data.user_uuid
+  const dbClient = context.data.dbClient!
+  const user_uuid = context.data.user_uuid!
 
   // Step 2: Parse Form Data
   let current_password, new_password

@@ -1,9 +1,9 @@
 const SECRET_TYPE = "totp_secret"
 
 export async function create2fa(
-  dbClient,
-  user_uuid,
-  secret_value,
+  dbClient: DbClient,
+  user_uuid: string,
+  secret_value: string,
   secret_name: string | null = null
 ): Promise<Envelope<{ twoFactor: TwoFactorRow }>> {
   const secret_uuid = crypto.randomUUID()
@@ -41,8 +41,8 @@ export async function create2fa(
 }
 
 export async function read2fa(
-  dbClient,
-  user_uuid
+  dbClient: DbClient,
+  user_uuid: string
 ): Promise<Envelope<{ twoFactor: TwoFactorRow }>> {
   const query = `
     SELECT user_uuid, secret_type, secret_value, secret_name, is_enabled, secret_created_at, secret_last_used
@@ -68,8 +68,8 @@ export async function read2fa(
 }
 
 export async function delete2fa(
-  dbClient,
-  user_uuid
+  dbClient: DbClient,
+  user_uuid: string
 ): Promise<
   | { success: true; error?: never; rowCount: number; status: 200 }
   | { success?: never; error: string; status: number }
@@ -85,7 +85,7 @@ export async function delete2fa(
   try {
     const result = await dbClient.query(query, values)
     // Return rowCount for confirmation
-    return { success: true, rowCount: result.rowCount, status: 200 }
+    return { success: true, rowCount: result.rowCount ?? 0, status: 200 }
   } catch (error) {
     console.error("Error deleting 2FA secret:", error)
     return { error: "Could not delete 2FA secret.", status: 500 }
@@ -93,8 +93,8 @@ export async function delete2fa(
 }
 
 export async function has2fa(
-  dbClient,
-  user_uuid
+  dbClient: DbClient,
+  user_uuid: string
 ): Promise<
   | { success: true; error?: never; enabled: boolean; status: 200 }
   | {
@@ -130,8 +130,8 @@ export async function has2fa(
 }
 
 export async function enable2fa(
-  dbClient,
-  user_uuid
+  dbClient: DbClient,
+  user_uuid: string
 ): Promise<
   | { success: true; error?: never; record: TwoFactorRow; status: 200 }
   | { success: false; error: string; status: number }
@@ -167,8 +167,8 @@ export async function enable2fa(
 }
 
 export async function used2fa(
-  dbClient,
-  user_uuid
+  dbClient: DbClient,
+  user_uuid: string
 ): Promise<
   | { success: true; error?: never; record: TwoFactorRow; status: 200 }
   | { success: false; error: string; status: number }

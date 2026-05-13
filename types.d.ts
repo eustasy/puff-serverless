@@ -1,8 +1,8 @@
-import type { Client } from "pg"
-
 declare global {
+  type DbClient = import("pg").Client
+
   interface RequestData extends Record<string, unknown> {
-    dbClient?: Client
+    dbClient?: DbClient
     user_uuid?: string
   }
 
@@ -90,3 +90,4 @@ declare global {
 }
 
 export {}
+

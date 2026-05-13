@@ -1,8 +1,8 @@
 import { has2fa } from "../../../../../src/2fa.js"
 
 export const onRequestGet: Handler = async (context) => {
-  const dbClient = context.data.dbClient
-  const user_uuid = context.data.user_uuid
+  const dbClient = context.data.dbClient!
+  const user_uuid = context.data.user_uuid!
 
   // Step 2: Use has2fa to check the 2FA status.
   const twoFactorStatus = await has2fa(dbClient, user_uuid)

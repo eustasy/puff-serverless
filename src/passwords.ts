@@ -11,9 +11,9 @@ import {
  * @returns {Promise<boolean>} True if the password was created successfully, false otherwise.
  */
 export async function createPassword(
-  dbClient,
-  user_uuid,
-  password
+  dbClient: DbClient,
+  user_uuid: string,
+  password: string
 ): Promise<Envelope> {
   try {
     // Validate password requirements
@@ -69,8 +69,8 @@ export async function createPassword(
  * @returns {Promise<object>} Envelope: `{ success: true, secret_value, algo, status: 200 }` on hit, `{ success: false, message, status: 404 }` on miss, `{ error: true, message, details, status: 500 }` on DB error.
  */
 export async function readPassword(
-  dbClient,
-  user_uuid
+  dbClient: DbClient,
+  user_uuid: string
 ): Promise<Envelope<{ secret_value: string; algo: string }>> {
   try {
     const query = `
@@ -119,8 +119,8 @@ export async function readPassword(
  * @returns {Promise<boolean>} True if any active password was found and disabled, false otherwise.
  */
 export async function disablePassword(
-  dbClient,
-  user_uuid
+  dbClient: DbClient,
+  user_uuid: string
 ): Promise<Envelope<{ disabled: boolean }>> {
   try {
     const query = `
@@ -155,9 +155,9 @@ export async function disablePassword(
  * @returns {Promise<boolean>} True if the new password was created successfully.
  */
 export async function updatePassword(
-  dbClient,
-  user_uuid,
-  newPassword
+  dbClient: DbClient,
+  user_uuid: string,
+  newPassword: string
 ): Promise<Envelope> {
   try {
     // Atomic disable-then-create so a failure between the two doesn't leave
@@ -210,9 +210,9 @@ export async function updatePassword(
  * @returns {boolean} True if the password is verified, false otherwise.
  */
 export async function password_verify(
-  dbClient,
-  user_uuid,
-  pw
+  dbClient: DbClient,
+  user_uuid: string,
+  pw: string
 ): Promise<
   | { success: true; error?: never; verified: boolean; status: 200 }
   | {
@@ -272,7 +272,7 @@ export async function password_verify(
  * @param {string} pw - The password to check.
  * @returns {boolean} True if the password meets all requirements, false otherwise.
  */
-export function password_requirements(pw) {
+export function password_requirements(pw: string) {
   var result = true
   if (pw.length < 12) {
     result = false
@@ -293,7 +293,7 @@ export function password_requirements(pw) {
  * @param {string} pw - The password to check.
  * @returns {string} HTML string with the results of the password requirements check.
  */
-export async function password_requirements_html(pw) {
+export async function password_requirements_html(pw: string) {
   var response_html = "<h3>Password Requirements</h3><ul>"
 
   if (pw.length >= 12) {

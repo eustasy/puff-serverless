@@ -6,7 +6,7 @@
  * @param {*} value - Value to escape.
  * @returns {string} HTML-safe string.
  */
-export function escapeHtml(value) {
+export function escapeHtml(value: unknown) {
   if (value === null || value === undefined) return ""
   return String(value)
     .replace(/&/g, "&amp;")
