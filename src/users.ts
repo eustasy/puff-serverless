@@ -12,7 +12,7 @@ import { has2fa } from "./2fa.js"
 export async function readUser(
   dbClient,
   user_uuid
-): Promise<Envelope<{ user: any }>> {
+): Promise<Envelope<{ user: UserRow }>> {
   try {
     const query =
       "SELECT user_uuid, user_name, user_created_at, user_last_login FROM users WHERE user_uuid = $1 AND user_active = TRUE LIMIT 1"

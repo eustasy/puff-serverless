@@ -53,7 +53,7 @@ export async function createToken(
 export async function readToken(
   dbClient,
   token_value
-): Promise<TokenEnvelope<{ token: any }>> {
+): Promise<TokenEnvelope<{ token: TokenRow }>> {
   try {
     let queryString =
       "SELECT user_uuid, email_address, token_type, expires_at, is_used FROM tokens WHERE token_value = $1"

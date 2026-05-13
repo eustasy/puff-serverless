@@ -5,7 +5,7 @@ export async function create2fa(
   user_uuid,
   secret_value,
   secret_name: string | null = null
-): Promise<Envelope<{ twoFactor: any }>> {
+): Promise<Envelope<{ twoFactor: TwoFactorRow }>> {
   const secret_uuid = crypto.randomUUID()
   const query = `
     INSERT INTO secrets (secret_uuid, user_uuid, secret_type, secret_value, secret_name, is_enabled)
@@ -43,7 +43,7 @@ export async function create2fa(
 export async function read2fa(
   dbClient,
   user_uuid
-): Promise<Envelope<{ twoFactor: any }>> {
+): Promise<Envelope<{ twoFactor: TwoFactorRow }>> {
   const query = `
     SELECT user_uuid, secret_type, secret_value, secret_name, is_enabled, secret_created_at, secret_last_used
     FROM secrets
@@ -133,7 +133,7 @@ export async function enable2fa(
   dbClient,
   user_uuid
 ): Promise<
-  | { success: true; error?: never; record: any; status: 200 }
+  | { success: true; error?: never; record: TwoFactorRow; status: 200 }
   | { success: false; error: string; status: number }
   | { success?: never; error: string; status: number }
 > {
@@ -170,7 +170,7 @@ export async function used2fa(
   dbClient,
   user_uuid
 ): Promise<
-  | { success: true; error?: never; record: any; status: 200 }
+  | { success: true; error?: never; record: TwoFactorRow; status: 200 }
   | { success: false; error: string; status: number }
   | { success?: never; error: string; status: number }
 > {

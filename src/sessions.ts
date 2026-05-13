@@ -231,7 +231,7 @@ export async function listSessionsForUser(
   dbClient,
   user_uuid
 ): Promise<
-  | { success: true; error?: never; sessions: any[]; status: 200 }
+  | { success: true; error?: never; sessions: SessionRow[]; status: 200 }
   | { success?: never; error: string; status: number }
 > {
   try {

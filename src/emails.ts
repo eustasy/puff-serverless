@@ -37,7 +37,7 @@ export async function readEmail(
   dbClient,
   email_address
 ): Promise<
-  | { success: true; error?: never; email: any }
+  | { success: true; error?: never; email: EmailRow }
   | { success: false; error?: never; message: string }
   | {
       success?: never
@@ -74,7 +74,7 @@ export async function readEmail(
  * @returns {Promise<Array<object>>} - An array of email objects or an empty array if none found.
  * @throws Will throw an error if the database query fails.
  */
-export async function readEmails(dbClient, user_uuid): Promise<any[]> {
+export async function readEmails(dbClient, user_uuid): Promise<EmailRow[]> {
   try {
     const query = {
       text: "SELECT email_address, is_primary, is_verified, verified_at FROM emails WHERE user_uuid = $1 ORDER BY is_primary DESC, verified_at ASC NULLS LAST, email_address ASC",
