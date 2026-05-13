@@ -200,10 +200,10 @@ export async function user_login(
 }
 
 /**
- * Deletes a user by their UUID.
+ * Soft-deletes a user by their UUID (sets user_active = FALSE).
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user to delete.
- * @returns {Promise<boolean>} True if the user was deleted, false otherwise.
+ * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` on hit, `{ success: false, message, status: 404 }` if no row matched, `{ error: true, message, details, status: 500 }` on DB error.
  */
 export async function deleteUser(dbClient, user_uuid) {
   try {
@@ -211,10 +211,18 @@ export async function deleteUser(dbClient, user_uuid) {
       "UPDATE users SET user_active = FALSE WHERE user_uuid = $1",
       [user_uuid]
     )
-    return result.rowCount > 0
+    if (result.rowCount > 0) {
+      return { success: true, status: 200 }
+    }
+    return { success: false, message: "User not found.", status: 404 }
   } catch (error) {
     console.error("Error in deleteUser:", error)
-    throw error
+    return {
+      error: true,
+      message: "Could not delete user.",
+      details: error.message,
+      status: 500,
+    }
   }
 }
 
