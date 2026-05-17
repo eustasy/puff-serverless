@@ -18,12 +18,41 @@ as `file:line`; old-PHP-server context links to [`eustasy/puff-server`](https://
 
 Blockers. The app must not be deployed to production until these are done.
 
-- [ ] **Wire up email delivery.** Verification and reset links are currently `console.log`'d server-side as a placeholder. Cloudflare logs are not a safe delivery channel — these leak tokens.
-  - [ ] Integrate an email-sending provider/binding.
-  - [ ] Replace the registration verification-link log — `src/users.ts:79`.
-  - [ ] Replace the password-reset-link log — `functions/api/db/password/request.ts:62`.
-  - [ ] Replace the resend-verification-link log — `functions/api/db/auth/email/resend.ts:99`.
-  - [ ] Remove both `// SECURITY: remove before production` log sites once delivery works.
+### Email delivery
+
+Verification and reset links are currently `console.log`'d server-side as a placeholder.
+Cloudflare logs are not a safe delivery channel — these leak tokens. Provider: **Mailtrap**.
+
+**Configuration & secrets**
+
+- [ ] Store the Mailtrap API token as a Cloudflare secret (e.g. `MAILTRAP_TOKEN` via `wrangler secret put`) — never commit it.
+- [ ] Add the token to `.env` for local development (already git-ignored; alongside the existing Hyperdrive connection string).
+- [ ] Add a `MAILTRAP_SENDER` (and optional sender-name) env var; decide the production sender address/domain (demo uses `hello@demomailtrap.co`).
+- [ ] Decide dev behaviour: Mailtrap sandbox/testing inbox vs. live sending API, and how to switch by environment.
+
+**Mailer module**
+
+- [ ] Decide integration approach: Mailtrap REST API via native `fetch` (`POST https://send.api.mailtrap.io/api/send`, `Authorization: Bearer`) — recommended for Workers — vs. the `mailtrap` npm SDK (Node-oriented; would need bundling verification).
+- [ ] Create `src/mailer.ts` with a `sendEmail()` helper returning the standard `{ success }` / `{ error }` envelope; read the token/sender from `context.env`.
+- [ ] Handle and log Mailtrap API failures without leaking the token; define retry/timeout behaviour.
+
+**Templates**
+
+- [ ] Email verification template (text + HTML).
+- [ ] Password-reset template (text + HTML).
+- [ ] Resend-verification template (may reuse the verification template).
+
+**Call-site wiring**
+
+- [ ] Replace the registration verification-link log — `src/users.ts:79`.
+- [ ] Replace the password-reset-link log — `functions/api/db/password/request.ts:62`.
+- [ ] Replace the resend-verification-link log — `functions/api/db/auth/email/resend.ts:99`.
+- [ ] Decide failure behaviour when a send fails mid-registration (abort vs. proceed and let the user resend).
+- [ ] Remove both `// SECURITY: remove before production` log sites once delivery works.
+
+**Docs**
+
+- [ ] Add the new email env vars (`MAILTRAP_TOKEN`, `MAILTRAP_SENDER`, …) to the `ARCHITECTURE.md` env-vars table.
 - [ ] **Document production deployment.** `ARCHITECTURE.md:43` ("for Production Deployment") is a bare `TODO` stub.
   - [ ] Document Hyperdrive / production database setup.
   - [ ] Document required env vars for production (`SECURE_COOKIE`, `COOKIE_SAMESITE`, `SESSION_MAX_AGE_SECONDS`, etc.).
