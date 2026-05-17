@@ -190,9 +190,6 @@ export async function createEmail(
           status: 500,
         }
       }
-      console.log(
-        `Verification token ${createTokenResult.token_value} generated for ${email_address}`
-      )
       token_value = createTokenResult.token_value
     }
 

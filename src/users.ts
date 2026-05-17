@@ -2,6 +2,7 @@ import { createSession } from "./sessions.js"
 import { createEmail, existsEmail, readEmail } from "./emails.js"
 import { createPassword, password_verify } from "./passwords.js"
 import { has2fa } from "./2fa.js"
+import { sendVerificationEmail } from "./mailer.js"
 
 /**
  * Retrieves a user's details by their UUID.
@@ -34,6 +35,7 @@ export async function readUser(
 
 export async function user_register(
   dbClient: DbClient,
+  env: Env,
   name: string,
   email: string,
   password: string
@@ -74,13 +76,21 @@ export async function user_register(
           "Failed to add primary email during registration."
       )
     }
-    // Log the verification link using the token from createEmailResult
+    // Send the verification email. A delivery failure is non-fatal: the account
+    // is already created, and the user can request a fresh link from the resend
+    // flow — so we log and continue rather than aborting registration.
     if (createEmailResult.token_value) {
-      // TODO Wait for email messaging to be implemented
-      // SECURITY: remove before production — leaks verification token into Cloudflare logs
-      console.log(
-        `Verification link: /api/email/verify?token=${createEmailResult.token_value}`
+      const mailResult = await sendVerificationEmail(
+        env,
+        email,
+        createEmailResult.token_value
       )
+      if (mailResult.error) {
+        console.error(
+          "Failed to send verification email during registration:",
+          mailResult.message
+        )
+      }
     }
 
     // Step 3. Register the password using createPassword

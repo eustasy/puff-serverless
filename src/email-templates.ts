@@ -1,0 +1,56 @@
+// Transactional email templates. Pure string builders — no I/O, no env access.
+// Each builder returns matching plain-text and HTML bodies plus a subject line.
+
+import { escapeHtml } from "./utilities/escape.js"
+
+export interface EmailContent {
+  subject: string
+  text: string
+  html: string
+}
+
+// Minimal, inline-styled HTML shell. Email clients ignore external stylesheets
+// and our CSP, so styling stays inline and structure stays simple.
+function layout(heading: string, bodyHtml: string): string {
+  return `<!doctype html>
+<html lang="en">
+  <body style="font-family: sans-serif; line-height: 1.5; color: #1a1a1a;">
+    <h1 style="font-size: 1.2em;">${escapeHtml(heading)}</h1>
+    ${bodyHtml}
+  </body>
+</html>`
+}
+
+export function verificationEmail(link: string): EmailContent {
+  const heading = "Verify your email address"
+  return {
+    subject: heading,
+    text:
+      `Welcome! Please verify your email address by opening the link below:\n\n` +
+      `${link}\n\n` +
+      `This link expires in 24 hours. If you did not create an account, you can ignore this email.`,
+    html: layout(
+      heading,
+      `<p>Welcome! Please verify your email address using the link below.</p>
+    <p><a href="${escapeHtml(link)}">Verify email address</a></p>
+    <p>This link expires in 24 hours. If you did not create an account, you can ignore this email.</p>`
+    ),
+  }
+}
+
+export function passwordResetEmail(link: string): EmailContent {
+  const heading = "Reset your password"
+  return {
+    subject: heading,
+    text:
+      `A password reset was requested for your account. To set a new password, open the link below:\n\n` +
+      `${link}\n\n` +
+      `This link expires in 24 hours. If you did not request this, you can ignore this email and your password will stay the same.`,
+    html: layout(
+      heading,
+      `<p>A password reset was requested for your account.</p>
+    <p><a href="${escapeHtml(link)}">Set a new password</a></p>
+    <p>This link expires in 24 hours. If you did not request this, you can ignore this email and your password will stay the same.</p>`
+    ),
+  }
+}

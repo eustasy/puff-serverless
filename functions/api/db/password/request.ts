@@ -1,5 +1,6 @@
 import { readEmail } from "../../../../src/emails.js"
 import { createPasswordToken } from "../../../../src/tokens.js"
+import { sendPasswordResetEmail } from "../../../../src/mailer.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -58,11 +59,17 @@ export const onRequestPost: Handler = async (context) => {
     }
     const token_value = tokenResult.token_value
 
-    // Step 5: Email Sending (Simulated)
-    // SECURITY: remove before production — leaks password-reset token into Cloudflare logs
-    console.log(
-      `Password reset link for ${email}: /reset/set?token=${token_value}`
+    // Step 5: Send the password-reset email. Delivery failures are logged but
+    // not surfaced — the response stays generic either way to avoid revealing
+    // whether the email exists.
+    const mailResult = await sendPasswordResetEmail(
+      context.env,
+      email,
+      token_value
     )
+    if (mailResult.error) {
+      console.error("Failed to send password reset email:", mailResult.message)
+    }
 
     // Step 6: Response (Always generic)
     return genericSuccessResponse

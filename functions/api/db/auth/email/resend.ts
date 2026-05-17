@@ -1,6 +1,7 @@
 import { createEmailToken, readToken } from "../../../../../src/tokens.js" // TODO use readToken to check if a token already exists
 import { readEmail } from "../../../../../src/emails.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
+import { sendVerificationEmail } from "../../../../../src/mailer.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -94,12 +95,26 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    // SECURITY: the token must be delivered out-of-band (email).
-    // Never include tokenResult.token_value in the response body.
-    // TODO Wait for email messaging to be implemented; log link until then.
-    console.log(
-      `Verification link: /api/db/email/verify?token=${tokenResult.token_value}`
+    // Deliver the token out-of-band (email). The user explicitly asked to
+    // resend, so a delivery failure is reported back rather than swallowed.
+    const mailResult = await sendVerificationEmail(
+      context.env,
+      email_address,
+      tokenResult.token_value
     )
+    if (mailResult.error) {
+      console.error(
+        "Failed to send verification email on resend:",
+        mailResult.message
+      )
+      return new Response(
+        `<p class="result-negative">Could not send the verification email right now. Please try again shortly.</p>`,
+        {
+          status: 502,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
+    }
 
     return new Response(
       `<p class="result-positive">A new verification link has been sent to ${escapeHtml(email_address)}.</p>`,

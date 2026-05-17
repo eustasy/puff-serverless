@@ -18,41 +18,40 @@ as `file:line`; old-PHP-server context links to [`eustasy/puff-server`](https://
 
 Blockers. The app must not be deployed to production until these are done.
 
-### Email delivery
+### Email delivery — _implemented (Mailtrap)_
 
-Verification and reset links are currently `console.log`'d server-side as a placeholder.
-Cloudflare logs are not a safe delivery channel — these leak tokens. Provider: **Mailtrap**.
+Verification and reset links are sent via Mailtrap (`src/mailer.ts`). Remaining
+unchecked items are production-deploy operations, not code.
 
 **Configuration & secrets**
 
-- [ ] Store the Mailtrap API token as a Cloudflare secret (e.g. `MAILTRAP_TOKEN` via `wrangler secret put`) — never commit it.
-- [ ] Add the token to `.env` for local development (already git-ignored; alongside the existing Hyperdrive connection string).
-- [ ] Add a `MAILTRAP_SENDER` (and optional sender-name) env var; decide the production sender address/domain (demo uses `hello@demomailtrap.co`).
-- [ ] Decide dev behaviour: Mailtrap sandbox/testing inbox vs. live sending API, and how to switch by environment.
+- [ ] Store the Mailtrap API token as a Cloudflare secret (`MAILTRAP_TOKEN` via `wrangler secret put`) for production — never commit it. _(local `.env` done; production secret pending.)_
+- [x] Add the token to `.env` for local development (git-ignored, alongside the Hyperdrive connection string).
+- [x] Add `MAILTRAP_SENDER` / `MAILTRAP_SENDER_NAME` env vars (local `.env` uses the `hello@demomailtrap.co` demo sender; pick a verified production domain before launch).
+- [x] Dev behaviour decided: live sending API by default; set `MAILTRAP_API_URL` to a sandbox inbox URL to test without delivering real mail.
 
 **Mailer module**
 
-- [ ] Decide integration approach: Mailtrap REST API via native `fetch` (`POST https://send.api.mailtrap.io/api/send`, `Authorization: Bearer`) — recommended for Workers — vs. the `mailtrap` npm SDK (Node-oriented; would need bundling verification).
-- [ ] Create `src/mailer.ts` with a `sendEmail()` helper returning the standard `{ success }` / `{ error }` envelope; read the token/sender from `context.env`.
-- [ ] Handle and log Mailtrap API failures without leaking the token; define retry/timeout behaviour.
+- [x] Integration approach: Mailtrap REST API via native `fetch` — no SDK dependency.
+- [x] `src/mailer.ts` — `sendEmail()` plus `sendVerificationEmail()` / `sendPasswordResetEmail()`, returning the standard envelope.
+- [x] API failures logged (without the token) and returned as `502` envelopes; 10s timeout via `AbortSignal.timeout`; no automatic retry (resend/re-request flows cover it).
 
 **Templates**
 
-- [ ] Email verification template (text + HTML).
-- [ ] Password-reset template (text + HTML).
-- [ ] Resend-verification template (may reuse the verification template).
+- [x] Verification + password-reset templates (text + HTML) — `src/email-templates.ts`.
+- [x] Resend reuses the verification template.
 
 **Call-site wiring**
 
-- [ ] Replace the registration verification-link log — `src/users.ts:79`.
-- [ ] Replace the password-reset-link log — `functions/api/db/password/request.ts:62`.
-- [ ] Replace the resend-verification-link log — `functions/api/db/auth/email/resend.ts:99`.
-- [ ] Decide failure behaviour when a send fails mid-registration (abort vs. proceed and let the user resend).
-- [ ] Remove both `// SECURITY: remove before production` log sites once delivery works.
+- [x] Registration verification email — `src/users.ts` (`user_register` now takes `env`).
+- [x] Password-reset email — `functions/api/db/password/request.ts`.
+- [x] Resend verification email — `functions/api/db/auth/email/resend.ts`.
+- [x] Mid-registration send failure: non-fatal — the account is created and the user can resend; a failure is logged, not aborted.
+- [x] Both `// SECURITY: remove before production` log sites removed.
 
 **Docs**
 
-- [ ] Add the new email env vars (`MAILTRAP_TOKEN`, `MAILTRAP_SENDER`, …) to the `ARCHITECTURE.md` env-vars table.
+- [x] Email env vars added to the `ARCHITECTURE.md` env-vars table.
 - [ ] **Document production deployment.** `ARCHITECTURE.md:43` ("for Production Deployment") is a bare `TODO` stub.
   - [ ] Document Hyperdrive / production database setup.
   - [ ] Document required env vars for production (`SECURE_COOKIE`, `COOKIE_SAMESITE`, `SESSION_MAX_AGE_SECONDS`, etc.).

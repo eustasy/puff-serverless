@@ -27,7 +27,7 @@ export const onRequestPost: Handler = async (context) => {
   }
 
   try {
-    const results = await user_register(dbClient, name, email, pw)
+    const results = await user_register(dbClient, context.env, name, email, pw)
     if (results && results.success) {
       // Redirect to login page on successful registration
       return new Response(null, {
