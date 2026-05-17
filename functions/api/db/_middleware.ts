@@ -1,5 +1,56 @@
 import { Client } from "pg"
 
+// Methods that cannot change server state — exempt from the cross-origin guard.
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"])
+
+/**
+ * Cross-origin write guard.
+ *
+ * `SameSite=Lax` (the default session-cookie policy) already blocks classic
+ * cross-SITE CSRF. It does NOT block a request from a sibling subdomain — same
+ * site, different origin — which matters for an SSO deployment under a shared
+ * registrable domain. For state-changing methods this guard requires the
+ * browser-set `Sec-Fetch-Site: same-origin`, falling back to an `Origin`-header
+ * match where `Sec-Fetch-*` is absent. A request carrying neither header is a
+ * non-browser client with no victim cookie jar, so it is not a CSRF vector and
+ * is allowed through.
+ *
+ * Token-gated GETs (e.g. `/api/db/email/verify`) are exempt automatically:
+ * GET is a safe method, and the URL token is the capability.
+ */
+const crossOriginWriteGuard: Handler = (context) => {
+  const { request } = context
+
+  if (!SAFE_METHODS.has(request.method)) {
+    const secFetchSite = request.headers.get("Sec-Fetch-Site")
+    const origin = request.headers.get("Origin")
+
+    let blocked = false
+    if (secFetchSite !== null) {
+      // Sent by all current browsers; cannot be set by page JavaScript.
+      blocked = secFetchSite !== "same-origin"
+    } else if (origin !== null) {
+      // Older browser, or a client that sends Origin but not Sec-Fetch-*.
+      blocked = origin !== new URL(request.url).origin
+    }
+    // Neither header present -> not a browser-driven request; allowed.
+
+    if (blocked) {
+      const { pathname } = new URL(request.url)
+      console.warn(
+        `Blocked cross-origin ${request.method} ${pathname} ` +
+          `(Sec-Fetch-Site=${secFetchSite ?? "absent"}, Origin=${origin ?? "absent"})`
+      )
+      return new Response(
+        '<p class="result-negative">Request blocked: cross-origin requests are not allowed.</p>',
+        { status: 403, headers: { "Content-Type": "text/html" } }
+      )
+    }
+  }
+
+  return context.next()
+}
+
 /**
  * Middleware to:
  * 1. Check for Hyperdrive configuration.
@@ -76,5 +127,6 @@ const databaseConnectionMiddleware: Handler = async (context) => {
   }
 }
 
-// This will apply the databaseConnectionMiddleware to all requests under /api/db.
-export const onRequest = [databaseConnectionMiddleware]
+// Applies to every request under /api/db (including /api/db/auth). The
+// cross-origin guard runs first, so a blocked write never opens a DB connection.
+export const onRequest = [crossOriginWriteGuard, databaseConnectionMiddleware]
