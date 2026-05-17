@@ -1,5 +1,9 @@
 # Puff Serverless
 
+[![CI: Build](https://github.com/eustasy/puff-serverless/actions/workflows/build.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/build.yml)
+[![CI: Typecheck](https://github.com/eustasy/puff-serverless/actions/workflows/typecheck.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/typecheck.yml)
+[![CI: Prettier](https://github.com/eustasy/puff-serverless/actions/workflows/prettier.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/prettier.yml)
+
 ## Project Goals & Use Case
 
 The intent of Puff Serverless is to allow the deployment of hyper-scalable solution for centralized single sign-on, access control, and unified billing for multiple organisations across multiple applications.
