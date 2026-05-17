@@ -2,6 +2,12 @@
 // Tokens can be used for various purposes such as email verification, password resets, etc.
 // token_type can be 'email_verification' or 'password_reset' by default, but can be extended for other uses.
 // SQL schema for tokens table: sql/tokens.sql
+//
+// createToken + consumeToken are the recommended pair for any single-use-token
+// flow: createToken issues the token, consumeToken atomically validates and
+// spends it in one statement, so it is free of the readToken -> check -> usedToken
+// TOCTOU race. readToken / usedToken / deleteToken are retained for the rarer
+// cases that genuinely need a non-consuming read or an out-of-band delete.
 
 /**
  * Creates a new token in the database.
@@ -109,6 +115,50 @@ export async function usedToken(
     return {
       error: true,
       message: "Server error while updating token.",
+      details: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+/**
+ * Atomically consumes a single-use token: marks it used and returns its
+ * record in one statement. This is the TOCTOU-safe replacement for the
+ * readToken -> check is_used -> usedToken sequence — concurrent requests with
+ * the same token cannot both succeed, because only one UPDATE can match the
+ * `is_used = FALSE` predicate.
+ *
+ * A `rowCount === 0` result collapses every failure mode — missing, wrong
+ * type, expired, or already used — into one "invalid token" outcome.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} token_value - The value of the token to consume.
+ * @param {string} expected_type - The token_type the caller requires.
+ * @returns {Promise<object>} - { success: true, token } on success, or an error object.
+ */
+export async function consumeToken(
+  dbClient: DbClient,
+  token_value: string,
+  expected_type: string
+): Promise<TokenEnvelope<{ token: TokenRow }>> {
+  try {
+    const query = {
+      text: "UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2 AND is_used = FALSE AND expires_at > NOW() RETURNING user_uuid, email_address, token_type, expires_at, is_used",
+      values: [token_value, expected_type],
+    }
+    const result = await dbClient.query(query)
+
+    if (result.rows.length > 0) {
+      return { success: true, token: result.rows[0] }
+    } else {
+      return {
+        error: true,
+        message: "Invalid, expired, or already-used token.",
+      }
+    }
+  } catch (error) {
+    console.error("Error in consumeToken:", error)
+    return {
+      error: true,
+      message: "Server error while consuming token.",
       details: error instanceof Error ? error.message : String(error),
     }
   }

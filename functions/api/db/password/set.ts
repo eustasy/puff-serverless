@@ -2,7 +2,7 @@ import {
   password_requirements,
   updatePassword,
 } from "../../../../src/passwords.js"
-import { readToken, usedToken } from "../../../../src/tokens.js"
+import { consumeToken } from "../../../../src/tokens.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -54,9 +54,12 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    const tokenReadResult = await readToken(dbClient, token)
+    // Atomically consume the reset token. consumeToken marks it used and
+    // validates type/expiry/used in one statement; a missing, wrong-type,
+    // expired, or already-used token all collapse into this single failure.
+    const tokenResult = await consumeToken(dbClient, token, "password_reset")
 
-    if (!tokenReadResult.success || !tokenReadResult.token) {
+    if (!tokenResult.success) {
       return new Response(
         '<p class="result-negative">Invalid or expired password reset token.</p>',
         {
@@ -66,32 +69,7 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    const tokenRecord = tokenReadResult.token
-
-    if (tokenRecord.is_used === true) {
-      return new Response(
-        '<p class="result-negative">Password reset token has already been used.</p>',
-        {
-          status: 400,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
-    }
-
-    const now = new Date()
-    const tokenExpiresAt = new Date(tokenRecord.expires_at)
-    if (now > tokenExpiresAt) {
-      await usedToken(dbClient, token)
-      return new Response(
-        '<p class="result-negative">Password reset token has expired.</p>',
-        {
-          status: 400,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
-    }
-
-    const user_uuid = tokenRecord.user_uuid
+    const user_uuid = tokenResult.token.user_uuid
 
     const updateResult = await updatePassword(dbClient, user_uuid, new_password)
 
@@ -105,9 +83,9 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    await usedToken(dbClient, token)
-
-    // Redirect to login page on successful password reset
+    // The token was already consumed atomically above — no separate
+    // mark-used step. A failure here burns the token (the user requests a
+    // fresh reset), the deliberate tradeoff over leaving a replay window.
     return new Response(null, {
       status: 303,
       headers: {

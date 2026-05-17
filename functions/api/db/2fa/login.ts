@@ -1,5 +1,5 @@
 import { verify } from "otplib"
-import { readToken, usedToken } from "../../../../src/tokens.js"
+import { readToken, consumeToken } from "../../../../src/tokens.js"
 import { getCookie } from "../../../../src/utilities/headers.js"
 import { read2fa, used2fa } from "../../../../src/2fa.js"
 import { createSession } from "../../../../src/sessions.js"
@@ -177,16 +177,31 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    // Step 7: Mark the TOTP verification token as used
-    const markUsedResult = await usedToken(dbClient, totpVerificationToken)
-    if (markUsedResult.error) {
-      // Log this error but proceed, as the user has successfully authenticated with TOTP.
-      // The main risk is token reuse if this fails, but the token is short-lived.
-      console.error(
-        `Failed to mark TOTP verification token ${totpVerificationToken} as used for user ${user_uuid}.`,
-        markUsedResult.message
+    // Step 7: Atomically consume the TOTP verification token. The readToken
+    // above was a non-consuming check so a wrong TOTP code does not burn the
+    // token; consuming only happens here, after a valid code. The atomic
+    // UPDATE re-checks type/expiry/used, so a concurrent replay of the same
+    // token cannot also reach session creation — exactly one consumer wins.
+    // A failure is fatal (no longer swallowed): the user logs in again.
+    const consumeResult = await consumeToken(
+      dbClient,
+      totpVerificationToken,
+      "totp_verification_pending"
+    )
+    if (!consumeResult.success) {
+      return new Response(
+        '<p class="result-negative">Error: 2FA verification token is no longer valid. Please try logging in again.</p>',
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#message-area",
+            "Set-Cookie": `totp_verification_token=; HttpOnly; Path=/; Max-Age=0; SameSite=${
+              context.env.COOKIE_SAMESITE || "Lax"
+            }${context.env.SECURE_COOKIE ? "; Secure" : ""}`,
+          },
+        }
       )
-      // Depending on security posture, you might choose to return an error here.
     }
 
     // Step 8: Update the last used timestamp for the 2FA secret

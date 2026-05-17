@@ -1,4 +1,4 @@
-import { createEmailToken, readToken, usedToken } from "./tokens.js"
+import { createEmailToken, consumeToken } from "./tokens.js"
 
 /**
  * Checks if an email address exists in the database.
@@ -232,44 +232,30 @@ export async function verifyEmailByToken(
     }
 > {
   try {
-    // Use readToken to get general token details first
-    const readTokenResult = await readToken(dbClient, token_value)
+    // Atomically consume the verification token. consumeToken marks it used
+    // and validates type/expiry/used in one statement, so concurrent
+    // verifications of the same token cannot both proceed. A missing,
+    // wrong-type, expired, or already-used token all collapse here.
+    const consumeResult = await consumeToken(
+      dbClient,
+      token_value,
+      "email_verification"
+    )
 
-    if (!readTokenResult.success) {
-      console.error(
-        "Error reading token in verifyEmailByToken:",
-        readTokenResult.message
-      )
-      return { error: true, message: "Error verifying token.", status: 500 }
+    if (!consumeResult.success) {
+      return {
+        error: true,
+        message: "Invalid, expired, or already-used verification token.",
+        status: 400,
+      }
     }
 
-    const tokenRecordFromRead = readTokenResult.token
-    const { user_uuid, email_address, expires_at, is_used } =
-      tokenRecordFromRead
+    const { user_uuid, email_address } = consumeResult.token
     if (!email_address) {
       return {
         error: true,
         message: "Token has no associated email address.",
         status: 500,
-      }
-    }
-
-    if (is_used) {
-      return {
-        error: true,
-        message: "Verification token has already been used.",
-        status: 400,
-      }
-    }
-
-    const now = new Date()
-    const tokenExpiresAt = new Date(expires_at)
-
-    if (now > tokenExpiresAt) {
-      return {
-        error: true,
-        message: "Verification token expired.",
-        status: 400,
       }
     }
 
@@ -280,7 +266,7 @@ export async function verifyEmailByToken(
 
     if (!emailReadResult.success) {
       // Token is valid but email doesn't exist for user, or read failed.
-      await usedToken(dbClient, token_value)
+      // The token is already spent — a fresh one is requested on retry.
       const message = emailReadResult.error
         ? emailReadResult.message
         : "Email address not found for this user, though token was valid."
@@ -295,7 +281,6 @@ export async function verifyEmailByToken(
 
     // Ensure the email from the token matches the user_uuid from the email record
     if (emailRecord.user_uuid !== user_uuid) {
-      await usedToken(dbClient, token_value)
       return {
         error: true,
         message: "Token-email mismatch with user account.",
@@ -305,8 +290,6 @@ export async function verifyEmailByToken(
 
     if (emailRecord.is_verified) {
       // Email already verified, token is now redundant for this specific email.
-      // Mark the token as used.
-      await usedToken(dbClient, token_value)
       return {
         success: true, // Or info: true
         message: "Email address already verified.",
@@ -321,23 +304,12 @@ export async function verifyEmailByToken(
     const updateEmailResult = await dbClient.query(updateEmailQuery)
 
     if (updateEmailResult.rowCount === 0) {
-      // This case should be rare if emailRecord was found earlier
-      // Mark the token as used.
-      await usedToken(dbClient, token_value)
+      // This case should be rare if emailRecord was found earlier.
       return {
         error: true,
         message: "Failed to update email verification status.",
         status: 500,
       }
-    }
-
-    // Mark the token as used
-    const usedTokenResult = await usedToken(dbClient, token_value)
-    if (!usedTokenResult.success) {
-      // Log this, but proceed with verification as email is updated.
-      console.warn(
-        `Failed to mark token ${token_value} as used after verification, but email was verified.`
-      )
     }
 
     return {
