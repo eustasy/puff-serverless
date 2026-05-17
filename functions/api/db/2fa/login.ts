@@ -128,11 +128,14 @@ export const onRequestPost: Handler = async (context) => {
 
     if (!twoFaResult.success || !twoFaResult.twoFactor.secret_value) {
       return new Response(
-        JSON.stringify({
-          error:
-            "2FA setup not found for this user. Please ensure 2FA is configured.",
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        '<p class="result-negative">Error: 2FA is not configured for this account. Please contact support.</p>',
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#message-area",
+          },
+        }
       )
     }
 
@@ -140,8 +143,14 @@ export const onRequestPost: Handler = async (context) => {
 
     if (twoFaData.is_enabled !== true) {
       return new Response(
-        JSON.stringify({ error: "2FA is not enabled for this account." }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        '<p class="result-negative">Error: 2FA is not enabled for this account. Please contact support.</p>',
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#message-area",
+          },
+        }
       )
     }
 
@@ -151,8 +160,14 @@ export const onRequestPost: Handler = async (context) => {
         `Invalid secret_value format for user ${user_uuid} of type 'totp_secret'.`
       )
       return new Response(
-        JSON.stringify({ error: "Internal error with 2FA secret storage." }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        '<p class="result-negative">Error: Internal server error. Please try again or contact support.</p>',
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#message-area",
+          },
+        }
       )
     }
     const storedSecret = twoFaData.secret_value.replace("sim_encrypted::", "")
