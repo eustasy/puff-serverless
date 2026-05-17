@@ -67,14 +67,25 @@ unchecked items are production-deploy operations, not code.
 
 Defence-in-depth work to land shortly after launch.
 
-- [ ] **CSRF protection / run-once tokens.** PHP had a `Runonces` table and `runonce.*` functions for single-use, session-bound tokens. The current HTMX forms have no CSRF protection.
-  - [ ] Decide on an approach (per-form run-once token vs. relying on `SameSite` cookies).
-  - [ ] Add a `runonce`/CSRF token table + `src` helpers if a token approach is chosen.
-  - [ ] Issue and validate tokens across the HTMX forms.
+- [ ] **CSRF — `Origin` / `Sec-Fetch-Site` enforcement in middleware.** `SameSite=Lax` (the default) already blocks classic cross-site CSRF, so no CSRF token table is needed. The residual gap is _same-site_ requests from a sibling subdomain (`*.eustasy.org`), which `SameSite` does not stop — relevant for an SSO product. Close it in middleware rather than with per-form tokens.
+  - [ ] In a `functions/api/db/_middleware.ts`-level check, reject state-changing requests (POST, etc.) whose `Sec-Fetch-Site` is not `same-origin` — falling back to an `Origin`-header match where the `Sec-Fetch-*` headers are absent.
+  - [ ] Audit that every state-changing endpoint is POST (Lax still sends the cookie on top-level GET navigations); token-gated GETs such as `/api/db/email/verify` are exempt.
+  - [ ] Treat `COOKIE_SAMESITE=None` as a misconfiguration (warn) unless the origin check is in place — on its own it removes all CSRF protection.
+- [ ] **Atomic single-use token consumption (`consumeToken`).** The `tokens` table is already the run-once primitive (the typed, expiring, user-scoped successor to PHP's `Runonces`), but consumption is not atomic: `readToken` → check `is_used` → … → `usedToken` is a TOCTOU race — concurrent requests with the same token both pass the check. Affects `2fa/login.ts` (and `usedToken` failure there is swallowed), `password/set.ts`, and `emails.ts#verifyEmailByToken`.
+  - [ ] Add `consumeToken(dbClient, token_value, expected_type)` to `src/tokens.ts` — a single atomic `UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2 AND is_used = FALSE AND expires_at > NOW() RETURNING …`; `rowCount === 0` collapses used / expired / wrong-type / missing into one "invalid token" outcome.
+  - [ ] Switch the three consume sites (`2fa/login.ts:63`, `password/set.ts:57`, `emails.ts:236`) from `readToken` + `usedToken` to `consumeToken`. Accept the deliberate tradeoff: a transient failure _after_ the atomic update burns the token (user requests a fresh one) — the safe choice over leaving a replay window.
+  - [ ] Retain `readToken`, `usedToken`, and `deleteToken` — they remain available for future non-consume token uses. **`createToken` + `consumeToken` are the recommended pair for any new single-use-token flow**; reach for the others only when a non-consuming read or out-of-band delete is genuinely needed. Document this in the `src/tokens.ts` header comment.
+- [ ] **TOTP code replay protection (RFC 6238 §5.2).** A valid TOTP code is currently accepted repeatedly within its ~30–90s window, in both `2fa/login.ts` and `2fa/setup/verify.ts`. This cannot use the `tokens` table — a TOTP code's key is the derived `(user, time-step)`, not a value we issued.
+  - [ ] Add a `totp_used_codes (user_uuid, time_step, used_at)` table with `UNIQUE (user_uuid, time_step)`.
+  - [ ] On a valid code, resolve the matched step (otplib `checkDelta`) and `INSERT … ON CONFLICT DO NOTHING`; `rowCount === 0` means replay → reject. This is set-membership, **not** a high-water mark — a high-water mark would lock out a user whose clock is briefly fast.
+  - [ ] Set an explicit, small `window` (±1 step) on the `verify()` calls — currently defaulted.
+  - [ ] `secret_last_used` stays informational only; it is not the replay guard.
+  - [ ] Prune rows older than the acceptance window (folds into the scheduled cleanup job below).
 - [ ] **Scheduled cleanup jobs.** This server soft-terminates sessions and marks tokens used, but never reaps them (PHP's hourly cron hard-deleted old sessions).
   - [ ] Add a [Cloudflare Cron Trigger](https://developers.cloudflare.com/workers/configuration/cron-triggers/) handler.
   - [ ] Purge expired / inactive sessions.
   - [ ] Purge used / expired tokens.
+  - [ ] Purge `totp_used_codes` rows older than the TOTP acceptance window.
 - [ ] **CSP violation reporting.** PHP exposed `api/csp_report.php` and logged breaches.
   - [ ] Add a `report-uri` / `report-to` directive to the CSP in `public/_headers`.
   - [ ] Add a collecting endpoint under `functions/api/`.
