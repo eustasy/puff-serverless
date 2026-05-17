@@ -26,7 +26,8 @@ unchecked items are production-deploy operations, not code.
 **Configuration & secrets**
 
 - [x] Store the Mailtrap API token as a Cloudflare secret (`MAILTRAP_TOKEN`) on the `puff-serverless` Worker via `wrangler secret put`.
-- [ ] Set the non-secret email vars for production — `MAILTRAP_SENDER`, `MAILTRAP_SENDER_NAME`, `APP_URL` — as `vars` in `wrangler.jsonc` (currently only in local `.env`); `APP_URL` must be the real production origin.
+- [x] Set the non-secret email vars for production — `MAILTRAP_SENDER` (`puff@eustasy.org`), `MAILTRAP_SENDER_NAME`, `APP_URL` (`https://puff-serverless.eustasy.org`) — as `vars` in `wrangler.jsonc`.
+- [x] `eustasy.org` confirmed as a verified sending domain in Mailtrap — sends from `puff@eustasy.org` are accepted.
 - [x] Add the token to `.env` for local development (git-ignored, alongside the Hyperdrive connection string).
 - [x] Add `MAILTRAP_SENDER` / `MAILTRAP_SENDER_NAME` env vars (local `.env` uses the `hello@demomailtrap.co` demo sender; pick a verified production domain before launch).
 - [x] Dev behaviour decided: live sending API by default; set `MAILTRAP_API_URL` to a sandbox inbox URL to test without delivering real mail.
