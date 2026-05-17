@@ -4,13 +4,13 @@ Outstanding work, organised into phases. Phases are ordered by dependency and
 priority — earlier phases unblock or de-risk later ones. Source markers are cited
 as `file:line`; old-PHP-server context links to [`eustasy/puff-server`](https://github.com/eustasy/puff-server).
 
-| Phase | Goal | Gate |
-| ----- | ---- | ---- |
-| 1 | Production readiness | Required before any production deploy |
-| 2 | Security hardening | Should land soon after launch |
-| 3 | Account & password parity | Core feature parity with the PHP server |
-| 4 | Extended capabilities & integrations | Larger, optional-scope work |
-| 5 | Developer experience & polish | Ongoing |
+| Phase | Goal                                 | Gate                                    |
+| ----- | ------------------------------------ | --------------------------------------- |
+| 1     | Production readiness                 | Required before any production deploy   |
+| 2     | Security hardening                   | Should land soon after launch           |
+| 3     | Account & password parity            | Core feature parity with the PHP server |
+| 4     | Extended capabilities & integrations | Larger, optional-scope work             |
+| 5     | Developer experience & polish        | Ongoing                                 |
 
 ---
 
