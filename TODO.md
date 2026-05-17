@@ -54,9 +54,14 @@ unchecked items are production-deploy operations, not code.
 **Docs**
 
 - [x] Email env vars added to the `ARCHITECTURE.md` env-vars table.
-- [ ] **Document production deployment.** `ARCHITECTURE.md:43` ("for Production Deployment") is a bare `TODO` stub.
-  - [ ] Document Hyperdrive / production database setup.
-  - [ ] Document required env vars for production (`SECURE_COOKIE`, `COOKIE_SAMESITE`, `SESSION_MAX_AGE_SECONDS`, etc.).
+
+### Production deployment docs — _done_
+
+- [x] **Document production deployment.** `ARCHITECTURE.md` "for Production Deployment" and a new "Deploying to Production" section now cover the full flow.
+  - [x] Hyperdrive / production database setup (`wrangler hyperdrive create`, schema import order).
+  - [x] Auth, secrets, vars, `npm run deploy`, and custom-domain steps; production env vars cross-referenced to the Environment Variables table.
+
+> **Phase 1 complete** — the app is no longer blocked from a production deploy.
 
 ## Phase 2 — Security hardening
 

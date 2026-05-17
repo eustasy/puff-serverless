@@ -5,6 +5,7 @@
 - [Deployment](#deployment)
   - [First time project setup](#first-time-project-setup)
   - [Continuous Development](#continuous-development)
+  - [Deploying to Production](#deploying-to-production)
   - [Directories](#directories)
   - [Special Files](#special-files)
 - [Libraries](#libraries)
@@ -40,7 +41,18 @@ WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://user:password
 
 ##### for Production Deployment
 
-TODO
+Production uses [CockroachDB Cloud](https://www.cockroachlabs.com/) (or any Postgres-compatible database) reached through [Cloudflare Hyperdrive](https://developers.cloudflare.com/hyperdrive/), which pools connections at the edge.
+
+1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on).
+2. Create a Hyperdrive configuration pointing at it:
+
+   ```sh
+   npx wrangler hyperdrive create puff-serverless --connection-string="postgres://user:password@host:26257/puff?sslmode=verify-full"
+   ```
+
+3. Copy the returned Hyperdrive ID into `wrangler.jsonc` under `hyperdrive[].id` (binding name `HYPERDRIVE`).
+
+The `HYPERDRIVE` binding is what `functions/api/db/_middleware.ts` opens its `pg` client against. Local development bypasses the deployed Hyperdrive config via `WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` (see above), so the same `wrangler.jsonc` works in both environments.
 
 ### Continuous Development
 
@@ -61,6 +73,34 @@ You may also need to update types:
 ```sh
 npx wrangler types
 ```
+
+### Deploying to Production
+
+Deployment uses `wrangler deploy` — the Workers path (see [Directories](#directories) for why the build step still uses the Pages Functions compiler). Node.js v22+ is required; `wrangler` refuses to run on older versions.
+
+1. **Authenticate Wrangler** (once per machine):
+
+   ```sh
+   npx wrangler login
+   ```
+
+2. **Set secrets.** Secrets are encrypted by Cloudflare and never committed to the repo:
+
+   ```sh
+   npx wrangler secret put MAILTRAP_TOKEN
+   ```
+
+3. **Set variables.** Confirm the `vars` block in `wrangler.jsonc` (`MAILTRAP_SENDER`, `MAILTRAP_SENDER_NAME`, `APP_URL`) holds production values, and set the operational variables from the [Environment Variables](#environment-variables) table. In particular, `SECURE_COOKIE` should be truthy in production so auth cookies are restricted to HTTPS, and `APP_URL` must be the public origin so email links resolve.
+
+4. **Deploy:**
+
+   ```sh
+   npm run deploy
+   ```
+
+   This builds the bundle (`wrangler pages functions build`) and then runs `wrangler deploy`.
+
+5. **Custom domain.** By default the Worker is served at `puff-serverless.<account>.workers.dev`. To serve it at its public origin, add a [custom domain](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) for the Worker (via the Cloudflare dashboard, or a `routes` entry in `wrangler.jsonc`), and keep `APP_URL` in sync with it.
 
 ### Directories
 
