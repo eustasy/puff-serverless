@@ -1,5 +1,5 @@
 import { verify } from "otplib"
-import { enable2fa, read2fa } from "../../../../../../src/2fa.js"
+import { enable2fa, read2fa, used2fa } from "../../../../../../src/2fa.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -108,10 +108,12 @@ export const onRequestPost: Handler = async (context) => {
     const verifyResult = await verify({
       token: totp_code,
       secret: storedSecret,
+      epochTolerance: 30, // accept ±1 time step for clock skew
     })
 
     if (verifyResult.valid) {
-      // Step 5: On Successful Verification, enable 2FA in 'secrets' table
+      // Step 5: Enable 2FA before calling used2fa, so the secret is marked
+      // enabled and used2fa can update secret_last_used in the same pass.
       const enable2faResult = await enable2fa(dbClient, user_uuid)
       if (enable2faResult.error) {
         console.error("Error enabling 2FA:", enable2faResult.error)
@@ -119,6 +121,25 @@ export const onRequestPost: Handler = async (context) => {
           '<p class="result-negative">Error: Failed to enable 2FA due to a server error.</p>',
           {
             status: 500,
+            headers: {
+              "Content-Type": "text/html",
+              "HX-Retarget": "#tfa-message-area",
+            },
+          }
+        )
+      }
+
+      // Step 6: Record the used code and update last-used timestamp.
+      // used2fa rejects replays via INSERT ON CONFLICT DO NOTHING.
+      const used2faResult = await used2fa(dbClient, user_uuid, totp_code)
+      if (!used2faResult.success) {
+        const isServerError = used2faResult.error === true
+        return new Response(
+          isServerError
+            ? '<p class="result-negative">Error: Failed to verify 2FA setup due to a server error.</p>'
+            : '<p class="result-negative">Error: TOTP code has already been used. Please wait for the next code and try again.</p>',
+          {
+            status: isServerError ? 500 : 400,
             headers: {
               "Content-Type": "text/html",
               "HX-Retarget": "#tfa-message-area",

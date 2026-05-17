@@ -168,34 +168,33 @@ export async function enable2fa(
 
 export async function used2fa(
   dbClient: DbClient,
-  user_uuid: string
-): Promise<
-  | { success: true; error?: never; record: TwoFactorRow; status: 200 }
-  | { success: false; error: string; status: number }
-  | { success?: never; error: string; status: number }
-> {
-  const query = `
-    UPDATE secrets
-    SET secret_last_used = CURRENT_TIMESTAMP
-    WHERE user_uuid = $1 AND secret_type = $2 AND is_enabled = TRUE
-    RETURNING *;
-  `
-  // Only update if 2FA is enabled.
-  const values = [user_uuid, SECRET_TYPE]
+  user_uuid: string,
+  totp_code: string
+): Promise<Envelope<{}>> {
   try {
-    const { rows } = await dbClient.query(query, values)
-    if (rows && rows.length > 0) {
-      return { success: true, record: rows[0], status: 200 }
-    } else {
-      // This could mean 2FA is not enabled, or the record doesn't exist.
+    const insertResult = await dbClient.query({
+      text: "INSERT INTO totp_used_codes (user_uuid, totp_code, used_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING",
+      values: [user_uuid, totp_code],
+    })
+    if ((insertResult.rowCount ?? 0) === 0) {
       return {
         success: false,
-        error: "Could not update 2FA last used: not found or not enabled.",
-        status: 404,
+        message: "TOTP code has already been used.",
+        status: 400,
       }
     }
+    await dbClient.query(
+      "UPDATE secrets SET secret_last_used = CURRENT_TIMESTAMP WHERE user_uuid = $1 AND secret_type = $2 AND is_enabled = TRUE",
+      [user_uuid, SECRET_TYPE]
+    )
+    return { success: true, status: 200 }
   } catch (error) {
-    console.error("Error updating 2FA last used timestamp:", error)
-    return { error: "Could not update 2FA last used timestamp.", status: 500 }
+    console.error("Error in used2fa:", error)
+    return {
+      error: true,
+      message: "Server error while recording TOTP code.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
   }
 }

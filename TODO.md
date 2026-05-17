@@ -75,12 +75,12 @@ Defence-in-depth work to land shortly after launch.
   - [x] Add `consumeToken(dbClient, token_value, expected_type)` to `src/tokens.ts` — a single atomic `UPDATE tokens SET is_used = TRUE WHERE token_value = $1 AND token_type = $2 AND is_used = FALSE AND expires_at > NOW() RETURNING …`; `rowCount === 0` collapses used / expired / wrong-type / missing into one "invalid token" outcome.
   - [x] Switch the three consume sites from `readToken` + `usedToken` to `consumeToken`. `password/set.ts` and `emails.ts#verifyEmailByToken` consume directly. `2fa/login.ts` keeps `readToken` as a deliberate non-consuming pre-check — it needs `user_uuid` to load the 2FA secret before verifying, and a wrong TOTP code must not burn the token — then `consumeToken` runs after a valid code; its failure is now fatal, not swallowed. Deliberate tradeoff accepted: a transient failure _after_ the atomic update burns the token (user requests a fresh one).
   - [x] Retained `readToken`, `usedToken`, and `deleteToken` for future non-consume token uses. **`createToken` + `consumeToken` are the recommended pair for any new single-use-token flow** — documented in the `src/tokens.ts` header comment.
-- [ ] **TOTP code replay protection (RFC 6238 §5.2).** A valid TOTP code is currently accepted repeatedly within its ~30–90s window, in both `2fa/login.ts` and `2fa/setup/verify.ts`. This cannot use the `tokens` table — a TOTP code's key is the derived `(user, time-step)`, not a value we issued.
-  - [ ] Add a `totp_used_codes (user_uuid, time_step, used_at)` table with `UNIQUE (user_uuid, time_step)`.
-  - [ ] On a valid code, resolve the matched step (otplib `checkDelta`) and `INSERT … ON CONFLICT DO NOTHING`; `rowCount === 0` means replay → reject. This is set-membership, **not** a high-water mark — a high-water mark would lock out a user whose clock is briefly fast.
-  - [ ] Set an explicit, small `window` (±1 step) on the `verify()` calls — currently defaulted.
-  - [ ] `secret_last_used` stays informational only; it is not the replay guard.
-  - [ ] Prune rows older than the acceptance window (folds into the scheduled cleanup job below).
+- [x] **TOTP code replay protection (RFC 6238 §5.2).** A valid TOTP code is currently accepted repeatedly within its ~30–90s window, in both `2fa/login.ts` and `2fa/setup/verify.ts`. This cannot use the `tokens` table — a TOTP code's key is the user-provided value, not a value we issued.
+  - [x] Add `sql/totp_used_codes.sql` — `(user_uuid, totp_code)` primary key with `used_at` for cleanup, FK to users with ON DELETE CASCADE.
+  - [x] Add `recordTotpCode(dbClient, user_uuid, totp_code)` to `src/2fa.ts` — `INSERT … ON CONFLICT DO NOTHING`; `rowCount === 0` means replay → `success: false`. Called after a valid code in both login and setup/verify, before `consumeToken` so a replay does not burn the pending-login token.
+  - [x] Set `epochTolerance: 30` (±1 time step for clock skew) on both `verify()` calls — previously defaulted to 0.
+  - [x] `secret_last_used` stays informational only; it is not the replay guard.
+  - [ ] Prune `totp_used_codes` rows older than the acceptance window (folds into the scheduled cleanup job below).
 - [ ] **Scheduled cleanup jobs.** This server soft-terminates sessions and marks tokens used, but never reaps them (PHP's hourly cron hard-deleted old sessions).
   - [ ] Add a [Cloudflare Cron Trigger](https://developers.cloudflare.com/workers/configuration/cron-triggers/) handler.
   - [ ] Purge expired / inactive sessions.

@@ -176,6 +176,7 @@ export const onRequestPost: Handler = async (context) => {
     const verifyResult = await verify({
       token: totp_code,
       secret: storedSecret,
+      epochTolerance: 30, // accept ±1 time step for clock skew
     })
 
     if (!verifyResult.valid) {
@@ -192,7 +193,29 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    // Step 7: Atomically consume the TOTP verification token. The readToken
+    // Step 7: Record code and update last-used timestamp. used2fa does an
+    // INSERT ON CONFLICT DO NOTHING into totp_used_codes — rowCount === 0
+    // means this exact code was already accepted for this user within the
+    // cleanup window, so reject. Runs before consumeToken so a replay does
+    // not burn the pending-login token.
+    const used2faResult = await used2fa(dbClient, user_uuid, totp_code)
+    if (!used2faResult.success) {
+      const isServerError = used2faResult.error === true
+      return new Response(
+        isServerError
+          ? '<p class="result-negative">An unexpected error occurred. Please try again.</p>'
+          : '<p class="result-negative">Error: TOTP code has already been used. Please wait for the next code and try again.</p>',
+        {
+          status: isServerError ? 500 : 400,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#message-area",
+          },
+        }
+      )
+    }
+
+    // Step 8: Atomically consume the TOTP verification token. The readToken
     // above was a non-consuming check so a wrong TOTP code does not burn the
     // token; consuming only happens here, after a valid code. The atomic
     // UPDATE re-checks type/expiry/used, so a concurrent replay of the same
@@ -216,16 +239,6 @@ export const onRequestPost: Handler = async (context) => {
             }${context.env.SECURE_COOKIE ? "; Secure" : ""}`,
           },
         }
-      )
-    }
-
-    // Step 8: Update the last used timestamp for the 2FA secret
-    const updateLastUsedResult = await used2fa(dbClient, user_uuid)
-    if (!updateLastUsedResult.success) {
-      // Log this error but proceed.
-      console.error(
-        `Failed to update last used timestamp for 2FA for user ${user_uuid}.`,
-        updateLastUsedResult.error
       )
     }
 
@@ -256,7 +269,7 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    // Step 10: Return success response with session cookie and redirect
+    // Step 11: Return success response with session cookie and redirect
     const headers = new Headers({
       "Location": "/account", // Redirect to the account page
       "HX-Redirect": "/account",
