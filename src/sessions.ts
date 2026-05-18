@@ -6,8 +6,8 @@ import { updateLastLogin } from "./users"
  *
  * @param {Client} dbClient - An active pg.Client instance (expected to be connected).
  * @param {string} token - The session token to verify.
- * @param {string} [ip_country] - (Optional) The country code from the current request's CF-IPCountry header.
- * @param {string} [ip_address] - (Optional) The IP address from CF-Connecting-IP, written to last_accessed_ip on successful auth.
+ * @param {string} [ip_country] - The country code from the current request's CF-IPCountry header.
+ * @param {string} [ip_address] - The IP address from CF-Connecting-IP, written to last_accessed_ip on successful auth.
  * @returns {Promise<object>} An object with `user_uuid` if valid, or an `error` message and `status` if invalid/error.
  */
 export async function verifyTokenAndGetUser(
@@ -73,9 +73,9 @@ export async function verifyTokenAndGetUser(
  *
  * @param {Client} dbClient - An active pg.Client instance (expected to be connected).
  * @param {string} user_uuid - The UUID of the user starting the session.
- * @param {string} [user_agent] - (Optional) The user agent string from the request.
- * @param {string} [ip_address] - (Optional) The IP address from the request.
- * @param {string} [ip_country] - (Optional) The country code from CF-IPCountry header.
+ * @param {string} [user_agent] - The user agent string from the request.
+ * @param {string} [ip_address] - The IP address from the request.
+ * @param {string} [ip_country] - The country code from CF-IPCountry header.
  * @returns {Promise<object>} An object with the session_id if successful, or an `error` message and `status` if failed.
  */
 export async function createSession(

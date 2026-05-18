@@ -9,7 +9,7 @@ import {
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
  * @param {string} password - The plain text password.
- * @returns {Promise<boolean>} True if the password was created successfully, false otherwise.
+ * @returns {Promise<Envelope>} `{ success: true, status: 200 }`, `{ success: false, message, status: 400 }` on validation failure, or an error envelope.
  */
 export async function createPassword(
   dbClient: DbClient,
@@ -117,7 +117,7 @@ export async function readPassword(
  * Sets is_enabled to FALSE and updates secret_last_used.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
- * @returns {Promise<boolean>} True if any active password was found and disabled, false otherwise.
+ * @returns {Promise<Envelope<{ disabled: boolean }>>} `{ success: true, disabled }` where `disabled` is false when no active password was found, or an error envelope.
  */
 export async function disablePassword(
   dbClient: DbClient,
@@ -153,7 +153,7 @@ export async function disablePassword(
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
  * @param {string} newPassword - The new plain text password.
- * @returns {Promise<boolean>} True if the new password was created successfully.
+ * @returns {Promise<Envelope>} `{ success: true, status: 200 }` or an error envelope.
  */
 export async function updatePassword(
   dbClient: DbClient,
@@ -208,7 +208,7 @@ export async function updatePassword(
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user to verify the password for.
  * @param {string} pw - The plain text password to verify.
- * @returns {boolean} True if the password is verified, false otherwise.
+ * @returns {Promise<object>} `{ success: true, verified: boolean, needs_upgrade: boolean, status: 200 }` or `{ error: true, message, status }` on DB error.
  */
 export async function verifyPassword(
   dbClient: DbClient,
@@ -364,10 +364,11 @@ export function minPasswordLength(env: Env): number {
 }
 
 /**
- * Checks if a password meets the requirements for length, number, and special characters.
+ * Returns true if the password meets all requirements; false if it falls short.
+ * Use `passwordRequirementsHtml` for a user-facing breakdown of each criterion.
  * @param {string} pw - The password to check.
  * @param {number} minLength - Minimum acceptable length (default DEFAULT_MIN_PASSWORD_LENGTH).
- * @returns {boolean} True if the password meets all requirements, false otherwise.
+ * @returns {boolean} True if all requirements are met, false otherwise.
  */
 export function passwordRequirements(
   pw: string,
@@ -389,10 +390,12 @@ export function passwordRequirements(
 }
 
 /**
- * Checks if a password meets the requirements for length, number, and special characters.
+ * Returns an HTML fragment listing each password requirement with pass/fail styling.
+ * Includes a HaveIBeenPwned k-anonymity lookup for the supplied password.
+ * Use `passwordRequirements` for a boolean check without the HTML or network call.
  * @param {string} pw - The password to check.
  * @param {number} minLength - Minimum acceptable length (default DEFAULT_MIN_PASSWORD_LENGTH).
- * @returns {string} HTML string with the results of the password requirements check.
+ * @returns {Promise<string>} HTML fragment with per-criterion pass/fail indicators.
  */
 export async function passwordRequirementsHtml(
   pw: string,

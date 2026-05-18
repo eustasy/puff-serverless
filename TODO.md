@@ -127,7 +127,7 @@ Larger, optional-scope features. Each is independent and can be scheduled on dem
 Non-blocking quality work; pick up alongside related changes.
 
 - [x] **Consistent function names.** Renamed across all `src/` modules and call sites: snake_case → camelCase (`password_verify` → `verifyPassword`, `password_requirements` → `passwordRequirements`, `password_requirements_html` → `passwordRequirementsHtml`, `user_register` → `registerUser`, `user_login` → `loginUser`); verb/action alignment (`listSessionsForUser` → `readSessions`, `terminateSpecificSession` → `terminateSession`, `getMinPasswordLength` → `minPasswordLength`, `passwordReused` → `isPasswordReused`); and disambiguated the old `loginUser` (timestamp-touch helper) → `updateLastLogin` to free the name for the main login function. Skipped: `usedToken`, `has2fa`, `existsEmail`, `verifyEmailByToken` — left as-is by design.
-- [ ] consistent function descriptions
+- [x] **Consistent function descriptions.** Added JSDoc to all undocumented `src/` exports (`2fa.ts` × 6, `email-templates.ts` × 3); corrected four stale `@returns {Promise<boolean>}` in `passwords.ts` to describe the actual Envelope shapes; disambiguated the identical descriptions on `passwordRequirements` / `passwordRequirementsHtml`; improved vague "An object indicating success or failure" returns in `emails.ts`; removed redundant `(Optional)` text from bracketed params in `sessions.ts`.
 - [ ] do not log sensitive data
 - [ ] .html auth handling
 - [ ] outstanding issues on puff-serverless github

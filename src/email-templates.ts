@@ -21,6 +21,11 @@ function layout(heading: string, bodyHtml: string): string {
 </html>`
 }
 
+/**
+ * Builds the email-verification message sent after registration or a resend request.
+ * @param {string} link - Absolute URL of the verification endpoint (includes the token).
+ * @returns {EmailContent} Subject, plain-text, and HTML bodies.
+ */
 export function verificationEmail(link: string): EmailContent {
   const heading = "Verify your email address"
   return {
@@ -38,6 +43,11 @@ export function verificationEmail(link: string): EmailContent {
   }
 }
 
+/**
+ * Builds the password-reset message sent when a reset is requested.
+ * @param {string} link - Absolute URL of the reset endpoint (includes the token).
+ * @returns {EmailContent} Subject, plain-text, and HTML bodies.
+ */
 export function passwordResetEmail(link: string): EmailContent {
   const heading = "Reset your password"
   return {
@@ -55,6 +65,12 @@ export function passwordResetEmail(link: string): EmailContent {
   }
 }
 
+/**
+ * Builds the 2FA-bypass message sent when a user cannot access their authenticator.
+ * The link is single-use and expires in 1 hour.
+ * @param {string} link - Absolute URL of the bypass-verify endpoint (includes the token).
+ * @returns {EmailContent} Subject, plain-text, and HTML bodies.
+ */
 export function twoFactorBypassEmail(link: string): EmailContent {
   const heading = "Complete your login without a code"
   return {

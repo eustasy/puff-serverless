@@ -1,5 +1,14 @@
 const SECRET_TYPE = "totp_secret"
 
+/**
+ * Creates a pending (disabled) TOTP secret for a user. The secret is stored
+ * with `is_enabled = FALSE`; call `enable2fa` after the user verifies a code.
+ * @param {DbClient} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user.
+ * @param {string} secret_value - The base32-encoded TOTP secret.
+ * @param {string | null} [secret_name] - Optional label for the authenticator entry.
+ * @returns {Promise<Envelope<{ twoFactor: TwoFactorRow }>>} `{ success: true, twoFactor }` or an error envelope.
+ */
 export async function create2fa(
   dbClient: DbClient,
   user_uuid: string,
@@ -40,6 +49,12 @@ export async function create2fa(
   }
 }
 
+/**
+ * Reads the TOTP secret record for a user.
+ * @param {DbClient} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user.
+ * @returns {Promise<Envelope<{ twoFactor: TwoFactorRow }>>} `{ success: true, twoFactor }`, `{ success: false }` when not configured, or an error envelope.
+ */
 export async function read2fa(
   dbClient: DbClient,
   user_uuid: string
@@ -67,6 +82,12 @@ export async function read2fa(
   }
 }
 
+/**
+ * Deletes the TOTP secret record for a user, removing 2FA from the account entirely.
+ * @param {DbClient} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user.
+ * @returns {Promise<object>} `{ success: true, rowCount }` or `{ error, status }`.
+ */
 export async function delete2fa(
   dbClient: DbClient,
   user_uuid: string
@@ -92,6 +113,12 @@ export async function delete2fa(
   }
 }
 
+/**
+ * Checks whether the user has an enabled TOTP secret.
+ * @param {DbClient} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user.
+ * @returns {Promise<object>} `{ success: true, enabled: boolean }` or an error envelope.
+ */
 export async function has2fa(
   dbClient: DbClient,
   user_uuid: string
@@ -129,6 +156,12 @@ export async function has2fa(
   }
 }
 
+/**
+ * Marks the user's TOTP secret as enabled after a successful setup verification.
+ * @param {DbClient} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user.
+ * @returns {Promise<object>} `{ success: true, record }` on success, `{ success: false }` if no secret exists to enable, or an error envelope.
+ */
 export async function enable2fa(
   dbClient: DbClient,
   user_uuid: string
@@ -166,6 +199,16 @@ export async function enable2fa(
   }
 }
 
+/**
+ * Records a TOTP code as used to prevent replay within the acceptance window
+ * (RFC 6238 §5.2). Returns `{ success: false }` if the code is already recorded —
+ * the caller should treat this as an invalid attempt. Also stamps `secret_last_used`
+ * on a successful first use.
+ * @param {DbClient} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user.
+ * @param {string} totp_code - The 6-digit TOTP code that was accepted.
+ * @returns {Promise<Envelope>} `{ success: true }`, `{ success: false }` on replay, or an error envelope.
+ */
 export async function used2fa(
   dbClient: DbClient,
   user_uuid: string,

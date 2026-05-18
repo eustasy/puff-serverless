@@ -98,7 +98,7 @@ export async function readEmails(
  * @param {string} email_address - The email address to add.
  * @param {boolean} is_primary - Whether this email should be the primary email.
  * @param {boolean} is_verified - Whether this email is already verified.
- * @returns {Promise<object>} - An object indicating success or failure, and token if generated.
+ * @returns {Promise<object>} `{ success: true, email_address, is_primary, is_verified, token_value }` where `token_value` is null when the email is pre-verified or when the address belongs to another user (enumeration prevention), or `{ error: true, message, status }` on conflict/DB error.
  */
 export async function createEmail(
   dbClient: DbClient,
@@ -207,10 +207,10 @@ export async function createEmail(
 }
 
 /**
- * Verifies an email address using a token.
+ * Verifies an email address by atomically consuming its verification token.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} token_value - The verification token.
- * @returns {Promise<object>} - An object indicating success or failure.
+ * @returns {Promise<object>} `{ success: true, user_uuid?, email_address? }` or `{ error: true, message, status }` when the token is invalid, expired, already used, or the email is missing.
  */
 export async function verifyEmailByToken(
   dbClient: DbClient,
@@ -329,11 +329,12 @@ export async function verifyEmailByToken(
 }
 
 /**
- * Sets an email address as the primary email for a user.
+ * Sets an email address as the primary email for a user. The address must
+ * already belong to the user and be verified. Demote-then-promote is atomic.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
  * @param {string} new_primary_email - The email address to set as primary.
- * @returns {Promise<object>} - An object indicating success or failure.
+ * @returns {Promise<object>} `{ success: true, message, status: 200 }` or `{ error: true, message, status }` on ownership/verification failure or DB error.
  */
 export async function setPrimaryEmail(
   dbClient: DbClient,
@@ -416,11 +417,12 @@ export async function setPrimaryEmail(
 }
 
 /**
- * Removes a non-primary email address for a user.
+ * Removes a non-primary email address for a user. Primary addresses must be
+ * demoted first.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
  * @param {string} email_to_remove - The email address to remove.
- * @returns {Promise<object>} - An object indicating success or failure.
+ * @returns {Promise<object>} `{ success: true, message, status: 200 }` or `{ error: true, message, status }` when the address is primary, not found, or not owned by the user.
  */
 export async function deleteEmail(
   dbClient: DbClient,
