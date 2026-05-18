@@ -244,3 +244,9 @@ th {
   padding: 5px;
   word-break: break-all;
 }
+.tfa-bypass {
+  margin-top: 1.5em;
+}
+.tfa-bypass summary {
+  cursor: pointer;
+}

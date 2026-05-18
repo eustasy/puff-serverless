@@ -13,7 +13,11 @@
 // whether a failure is fatal. There is no automatic retry — the verification
 // and password-reset flows both expose a user-driven resend/re-request path.
 
-import { verificationEmail, passwordResetEmail } from "./email-templates.js"
+import {
+  verificationEmail,
+  passwordResetEmail,
+  twoFactorBypassEmail,
+} from "./email-templates.js"
 
 const DEFAULT_API_URL = "https://send.api.mailtrap.io/api/send"
 const SEND_TIMEOUT_MS = 10000
@@ -171,5 +175,37 @@ export async function sendPasswordResetEmail(
     text: content.text,
     html: content.html,
     category: "Password Reset",
+  })
+}
+
+/**
+ * Sends a 2FA-bypass message containing an absolute, single-use login link.
+ * @param {Env} env - The Worker environment bindings.
+ * @param {string} to - Recipient email address (a verified address on the account).
+ * @param {string} token - The 2FA-bypass token value.
+ * @returns {Promise<Envelope>} Result of the underlying {@link sendEmail} call.
+ */
+export async function sendTwoFactorBypassEmail(
+  env: Env,
+  to: string,
+  token: string
+): Promise<Envelope> {
+  const origin = appOrigin(env)
+  if (!origin) {
+    return {
+      error: true,
+      message: "Email delivery is not configured.",
+      status: 500,
+    }
+  }
+
+  const link = `${origin}/api/db/2fa/bypass/verify?token=${encodeURIComponent(token)}`
+  const content = twoFactorBypassEmail(link)
+  return sendEmail(env, {
+    to,
+    subject: content.subject,
+    text: content.text,
+    html: content.html,
+    category: "2FA Bypass",
   })
 }

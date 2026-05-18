@@ -53,7 +53,25 @@
       <p class="centered-link">
         Don't have an account? <a href="/register">Register</a>
       </p>
-      <!-- TODO instead of password reset add a flow to bypass 2FA with email -->
+      <details class="tfa-bypass">
+        <summary>Lost access to your authenticator?</summary>
+        <p>
+          We can email a one-time link to a verified email address on your
+          account. Opening it completes this login without a code.
+        </p>
+        <form
+          hx-post="/api/db/2fa/bypass/request"
+          hx-target="#bypass-result"
+          hx-swap="innerHTML"
+          hx-disabled-elt="button"
+        >
+          <button type="submit" class="btn-safe">
+            Email me a bypass link
+            <img class="htmx-indicator" src="/assets/bars.svg" />
+          </button>
+        </form>
+        <div id="bypass-result" class="result-area"></div>
+      </details>
       <p class="centered-link-secondary">
         Go to <a href="/logout">Logout</a> Page
       </p>

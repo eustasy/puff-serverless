@@ -54,3 +54,22 @@ export function passwordResetEmail(link: string): EmailContent {
     ),
   }
 }
+
+export function twoFactorBypassEmail(link: string): EmailContent {
+  const heading = "Complete your login without a code"
+  return {
+    subject: heading,
+    text:
+      `A login to your account is waiting for two-factor authentication. ` +
+      `If you cannot use your authenticator app, open the link below to complete the login:\n\n` +
+      `${link}\n\n` +
+      `This link expires in 1 hour and can be used once. If you did not try to log in, you can ignore this email and your account stays protected.`,
+    html: layout(
+      heading,
+      `<p>A login to your account is waiting for two-factor authentication.</p>
+    <p>If you cannot use your authenticator app, complete the login using the link below.</p>
+    <p><a href="${escapeHtml(link)}">Complete login</a></p>
+    <p>This link expires in 1 hour and can be used once. If you did not try to log in, you can ignore this email and your account stays protected.</p>`
+    ),
+  }
+}
