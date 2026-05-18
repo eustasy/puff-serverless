@@ -30,4 +30,14 @@ interface Env {
   // Minimum password length. Optional; defaults to 12 (DEFAULT_MIN_PASSWORD_LENGTH).
   // Can only raise the minimum above the built-in floor — see minPasswordLength.
   MIN_PASSWORD_LENGTH?: string
+  // Password-policy toggles. Set to "true" to enable; absent/any other value = disabled.
+  // See ARCHITECTURE.md "Environment Variables" and src/passwords.ts passwordConfig().
+  REQUIRE_NUMBER?: string
+  REQUIRE_CAPITAL?: string
+  REQUIRE_SPECIAL_CHAR?: string
+  REQUIRE_NOT_COMPROMISED?: string
+  SHOW_ZXCVBN?: string
+  /** When "true", zxcvbn score ≥ 3 is the hard gate; REQUIRE_NUMBER /
+   *  REQUIRE_CAPITAL / REQUIRE_SPECIAL_CHAR become suggestions, not rules. */
+  REQUIRE_ZXCVBN?: string
 }

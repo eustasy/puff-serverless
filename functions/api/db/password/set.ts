@@ -1,5 +1,5 @@
 import {
-  minPasswordLength,
+  passwordConfig,
   passwordRequirements,
   isPasswordReused,
   updatePassword,
@@ -45,9 +45,9 @@ export const onRequestPost: Handler = async (context) => {
   }
 
   try {
-    const passwordCheckResult = passwordRequirements(
+    const passwordCheckResult = await passwordRequirements(
       new_password,
-      minPasswordLength(context.env)
+      passwordConfig(context.env)
     )
     if (!passwordCheckResult) {
       return new Response(

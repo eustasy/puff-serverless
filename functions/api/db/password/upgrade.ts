@@ -9,7 +9,7 @@
 // is the capability.
 
 import {
-  minPasswordLength,
+  passwordConfig,
   passwordRequirements,
   isPasswordReused,
   updatePassword,
@@ -59,7 +59,9 @@ export const onRequestPost: Handler = async (context) => {
 
   try {
     // Enforce the (raised) minimum — passing it is the whole point of the flow.
-    if (!passwordRequirements(new_password, minPasswordLength(context.env))) {
+    if (
+      !(await passwordRequirements(new_password, passwordConfig(context.env)))
+    ) {
       return new Response(
         '<p class="result-negative">New password does not meet requirements.</p>',
         { status: 400, headers: { "Content-Type": "text/html" } }

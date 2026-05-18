@@ -3,6 +3,8 @@ import {
   puff_hashing_password,
   passwordNeedsUpgrade,
 } from "./utilities/hashing.js"
+import zxcvbn from "zxcvbn"
+import { escapeHtml } from "./utilities/escape.js"
 
 /**
  * Creates a new password hash for a user and stores it in the database.
@@ -18,7 +20,7 @@ export async function createPassword(
 ): Promise<Envelope> {
   try {
     // Validate password requirements
-    const isValid = passwordRequirements(password)
+    const isValid = await passwordRequirements(password)
     if (!isValid) {
       return {
         success: false,
@@ -364,98 +366,182 @@ export function minPasswordLength(env: Env): number {
 }
 
 /**
- * Returns true if the password meets all requirements; false if it falls short.
- * Use `passwordRequirementsHtml` for a user-facing breakdown of each criterion.
- * @param {string} pw - The password to check.
- * @param {number} minLength - Minimum acceptable length (default DEFAULT_MIN_PASSWORD_LENGTH).
- * @returns {boolean} True if all requirements are met, false otherwise.
+ * All operator-configurable password-policy settings resolved from env vars.
+ * Pass this to `passwordRequirements` and `passwordRequirementsHtml` so they
+ * apply the same policy. See ARCHITECTURE.md "Environment Variables".
  */
-export function passwordRequirements(
-  pw: string,
-  minLength: number = DEFAULT_MIN_PASSWORD_LENGTH
-) {
-  var result = true
-  if (pw.length < minLength) {
-    result = false
+export interface PasswordConfig {
+  minLength: number
+  requireNumber: boolean
+  requireCapital: boolean
+  requireSpecial: boolean
+  /** Fail if the password appears in HaveIBeenPwned breach data. */
+  requireNotCompromised: boolean
+  showZxcvbn: boolean
+  /** When true, zxcvbn score ≥ 3 is the hard gate; individual require* rules
+   *  are shown as suggestions rather than enforced. minLength still applies. */
+  requireZxcvbn: boolean
+}
+
+// Canonical all-off config used when a plain minLength number is passed.
+function minLengthOnlyConfig(minLength: number): PasswordConfig {
+  return {
+    minLength,
+    requireNumber: false,
+    requireCapital: false,
+    requireSpecial: false,
+    requireNotCompromised: false,
+    showZxcvbn: false,
+    requireZxcvbn: false,
   }
-  //var hasNumber = /\d/
-  //if (!hasNumber.test(pw)) {
-  //  result = false
-  //}
-  //var hasSpecial = /[!-\/:-@[-`{-~]/
-  //if (!hasSpecial.test(pw)) {
-  //  result = false
-  //}
-  return result
 }
 
 /**
- * Returns an HTML fragment listing each password requirement with pass/fail styling.
- * Includes a HaveIBeenPwned k-anonymity lookup for the supplied password.
- * Use `passwordRequirements` for a boolean check without the HTML or network call.
+ * Builds a PasswordConfig from the Worker environment bindings.
+ * @param {Env} env - The Worker environment bindings.
+ * @returns {PasswordConfig} Resolved policy ready for the requirement functions.
+ */
+export function passwordConfig(env: Env): PasswordConfig {
+  const requireZxcvbn = env.REQUIRE_ZXCVBN === "true"
+  return {
+    minLength: minPasswordLength(env),
+    requireNumber: env.REQUIRE_NUMBER === "true",
+    requireCapital: env.REQUIRE_CAPITAL === "true",
+    requireSpecial: env.REQUIRE_SPECIAL_CHAR === "true",
+    requireNotCompromised: env.REQUIRE_NOT_COMPROMISED === "true",
+    showZxcvbn: requireZxcvbn || env.SHOW_ZXCVBN === "true",
+    requireZxcvbn,
+  }
+}
+
+// Shared HIBP k-anonymity lookup. Returns the breach count (0 = clean).
+// Throws on network error so callers can decide how to handle unavailability.
+async function hibpBreachCount(pw: string): Promise<number> {
+  const pwSha1 = await puff_hashing_sha1_hibp(pw)
+  const response = await fetch(
+    "https://api.pwnedpasswords.com/range/" + pwSha1.f5
+  )
+  const text = await response.text()
+  for (const line of text.split("\n")) {
+    if (line.slice(0, 35) === pwSha1.l35.toUpperCase()) {
+      return parseInt(line.substring(36))
+    }
+  }
+  return 0
+}
+
+/**
+ * Returns true if the password meets all configured requirements; false if it
+ * falls short. Pass a `PasswordConfig` (from `passwordConfig(env)`) for the
+ * full policy, or a plain number for a length-only check (used internally by
+ * `createPassword`, which has no env access).
+ * Use `passwordRequirementsHtml` for a user-facing breakdown of each criterion.
+ * When `requireNotCompromised` is set this makes a network call to HIBP; a
+ * fetch error is treated as passing (fail-open) so a HIBP outage never blocks
+ * legitimate users.
  * @param {string} pw - The password to check.
- * @param {number} minLength - Minimum acceptable length (default DEFAULT_MIN_PASSWORD_LENGTH).
+ * @param {PasswordConfig | number} config - Policy config or minimum length.
+ * @returns {Promise<boolean>} True if all requirements are met, false otherwise.
+ */
+export async function passwordRequirements(
+  pw: string,
+  config: PasswordConfig | number = DEFAULT_MIN_PASSWORD_LENGTH
+): Promise<boolean> {
+  const cfg = typeof config === "number" ? minLengthOnlyConfig(config) : config
+
+  if (pw.length < cfg.minLength) return false
+
+  if (cfg.requireZxcvbn) {
+    if (zxcvbn(pw).score < 3) return false
+  } else {
+    if (cfg.requireNumber && !/\d/.test(pw)) return false
+    if (cfg.requireCapital && !/[A-Z]/.test(pw)) return false
+    if (cfg.requireSpecial && !/[^a-zA-Z\d]/.test(pw)) return false
+  }
+
+  if (cfg.requireNotCompromised) {
+    try {
+      if ((await hibpBreachCount(pw)) > 0) return false
+    } catch {
+      // Fail-open: HIBP unavailability must not block legitimate users.
+    }
+  }
+
+  return true
+}
+
+const ZXCVBN_LABELS = ["Too weak", "Weak", "Fair", "Strong", "Very strong"]
+
+/**
+ * Returns an HTML fragment listing each password requirement with pass/fail
+ * styling. Includes a zxcvbn strength estimate (when configured) and a
+ * HaveIBeenPwned k-anonymity lookup. Use `passwordRequirements` for a boolean
+ * check without the HTML or network call.
+ * @param {string} pw - The password to check.
+ * @param {PasswordConfig | number} config - Policy config or minimum length.
  * @returns {Promise<string>} HTML fragment with per-criterion pass/fail indicators.
  */
 export async function passwordRequirementsHtml(
   pw: string,
-  minLength: number = DEFAULT_MIN_PASSWORD_LENGTH
-) {
-  var response_html = "<h3>Password Requirements</h3><ul>"
+  config: PasswordConfig | number = DEFAULT_MIN_PASSWORD_LENGTH
+): Promise<string> {
+  const cfg = typeof config === "number" ? minLengthOnlyConfig(config) : config
 
-  const lengthClass =
-    pw.length >= minLength ? "result-positive" : "result-negative"
-  response_html += `<li class="${lengthClass}"><strong>Must</strong> be at least ${minLength} characters long</li>`
+  let html = "<h3>Password Requirements</h3><ul>"
 
-  var hasNumber = /\d/
-  if (hasNumber.test(pw)) {
-    response_html += '<li class="result-positive">Should contain a number</li>'
-  } else {
-    response_html += '<li class="result-negative">Should contain a number</li>'
+  // Min length — always enforced regardless of other settings.
+  const lengthOk = pw.length >= cfg.minLength
+  html += `<li class="${lengthOk ? "result-positive" : "result-negative"}"><strong>Must</strong> be at least ${cfg.minLength} characters long</li>`
+
+  // Individual character-class rules. When zxcvbn is the hard gate these are
+  // shown as suggestions ("Should") rather than hard requirements ("Must").
+  const ruleStrength = cfg.requireZxcvbn ? "Should" : "<strong>Must</strong>"
+  if (cfg.requireNumber) {
+    const ok = /\d/.test(pw)
+    html += `<li class="${ok ? "result-positive" : "result-negative"}">${ruleStrength} contain a number</li>`
+  }
+  if (cfg.requireCapital) {
+    const ok = /[A-Z]/.test(pw)
+    html += `<li class="${ok ? "result-positive" : "result-negative"}">${ruleStrength} contain an uppercase letter</li>`
+  }
+  if (cfg.requireSpecial) {
+    const ok = /[^a-zA-Z\d]/.test(pw)
+    html += `<li class="${ok ? "result-positive" : "result-negative"}">${ruleStrength} contain a special character</li>`
   }
 
-  var hasSpecial = /[^a-zA-Z\d]/
-  if (hasSpecial.test(pw)) {
-    response_html +=
-      '<li class="result-positive">Should contain a special character</li>'
-  } else {
-    response_html +=
-      '<li class="result-negative">Should contain a special character</li>'
-  }
-
-  var pw_sha1 = await puff_hashing_sha1_hibp(pw)
-  //response_html += '<li>' + pw_sha1.f5 + ' : ' + pw_sha1.l35 + '</li>'
-  try {
-    var compromised = 0
-    const response = await fetch(
-      "https://api.pwnedpasswords.com/range/" + pw_sha1.f5
-    )
-    const text = await response.text()
-    //response_html += '<li>' + text + '</li>'
-    var inputArray = text.split("\n")
-    for (var i = 0; i < inputArray.length; i++) {
-      let line_f35 = inputArray[i].slice(0, 35)
-      let line_ln = inputArray[i].substring(36)
-      //response_html += '<li>' + i + ' : ' + line_f35 + ' : ' + line_ln + '</li>'
-      if (line_f35 == pw_sha1.l35.toUpperCase()) {
-        compromised = parseInt(line_ln)
-        break
-      }
+  // zxcvbn strength estimate — shown when SHOW_ZXCVBN or REQUIRE_ZXCVBN is set.
+  if (cfg.showZxcvbn) {
+    const est = zxcvbn(pw)
+    const passing = est.score >= 3
+    const label = ZXCVBN_LABELS[est.score]
+    const prefix = cfg.requireZxcvbn
+      ? "<strong>Must</strong> be strong enough — "
+      : "Password strength: "
+    html += `<li class="${passing ? "result-positive" : "result-negative"}">${prefix}${escapeHtml(label)}`
+    if (est.feedback.warning) {
+      html += ` — ${escapeHtml(est.feedback.warning)}`
     }
+    html += "</li>"
+    for (const suggestion of est.feedback.suggestions) {
+      html += `<li class="result-info">${escapeHtml(suggestion)}</li>`
+    }
+  }
 
-    if (compromised > 0) {
-      response_html +=
-        '<li class="result-negative">Has been compromised ' +
-        Intl.NumberFormat().format(compromised) +
-        " times</li>"
+  // HaveIBeenPwned k-anonymity check — always shown.
+  const hibpLabel = cfg.requireNotCompromised
+    ? "<strong>Must</strong> not be in known data breaches"
+    : "Not found in known data breaches"
+  try {
+    const count = await hibpBreachCount(pw)
+    if (count > 0) {
+      html += `<li class="result-negative">Found in ${Intl.NumberFormat().format(count)} known data breach${count === 1 ? "" : "es"}</li>`
     } else {
-      response_html +=
-        '<li class="result-positive">Should not be compromised</li>'
+      html += `<li class="result-positive">${hibpLabel}</li>`
     }
   } catch (err) {
-    response_html += "<li>" + err + "</li>"
+    html += `<li>${err}</li>`
   }
 
-  response_html += "</ul>"
-  return response_html
+  html += "</ul>"
+  return html
 }
