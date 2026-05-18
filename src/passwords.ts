@@ -408,9 +408,6 @@ export async function passwordRequirementsHtml(
   response_html += `<li class="${lengthClass}"><strong>Must</strong> be at least ${minLength} characters long</li>`
 
   var hasNumber = /\d/
-  // TODO Test these assertions:
-  //hasNumber.test("ABC33SDF");  // true
-  //hasNumber.test("ABCSDF");  // false
   if (hasNumber.test(pw)) {
     response_html += '<li class="result-positive">Should contain a number</li>'
   } else {

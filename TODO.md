@@ -130,12 +130,12 @@ Non-blocking quality work; pick up alongside related changes.
 - [x] **Consistent function names.** Renamed across all `src/` modules and call sites: snake_case → camelCase (`password_verify` → `verifyPassword`, `password_requirements` → `passwordRequirements`, `password_requirements_html` → `passwordRequirementsHtml`, `user_register` → `registerUser`, `user_login` → `loginUser`); verb/action alignment (`listSessionsForUser` → `readSessions`, `terminateSpecificSession` → `terminateSession`, `getMinPasswordLength` → `minPasswordLength`, `passwordReused` → `isPasswordReused`); and disambiguated the old `loginUser` (timestamp-touch helper) → `updateLastLogin` to free the name for the main login function. Skipped: `usedToken`, `has2fa`, `existsEmail`, `verifyEmailByToken` — left as-is by design.
 - [x] **Consistent function descriptions.** Added JSDoc to all undocumented `src/` exports (`2fa.ts` × 6, `email-templates.ts` × 3); corrected four stale `@returns {Promise<boolean>}` in `passwords.ts` to describe the actual Envelope shapes; disambiguated the identical descriptions on `passwordRequirements` / `passwordRequirementsHtml`; improved vague "An object indicating success or failure" returns in `emails.ts`; removed redundant `(Optional)` text from bracketed params in `sessions.ts`.
 - [x] **Do not log sensitive data.** Removed email address (PII) from password-reset "not found" log in `functions/api/db/password/request.ts`; removed `session_id` (auth credential) from the `terminateSession` error log in `src/sessions.ts`. All other console calls log only error objects, UUIDs, or internal status strings.
-- [ ] .html auth handling
 - [ ] **Add a test suite.** There is currently no automated testing — only `lint` + build (old-repo issue [#16](https://github.com/eustasy/puff-server/issues/16) raised the same gap).
 - [ ] **Add a password-strength estimator (Dropbox `zxcvbn`)** — issue [#24](https://github.com/eustasy/puff-server/issues/24) (Low). Augments the live requirements check.
 - [x] **Reuse existing token in resend.** `email/resend.ts` now queries for an unexpired, unused `email_verification` token before calling `createEmailToken` — repeated resend clicks reuse the same token rather than accumulating new ones. (`readToken` was removed; it only looks up by `token_value`, which the resend flow does not have.)
-- [ ] **Verify password-requirements assertions.** Confirm the `hasNumber` regex behaves as the commented assertions claim, then remove the stale comment — `src/passwords.ts:308`.
+- [x] **Verify password-requirements assertions.** Both regexes confirmed correct; stale TODO comment removed. `hasSpecial` (`/[^a-zA-Z\d]/`) matches spaces, which is intentional — a space counts as a special character.
 - [ ] Sitemap generation
+- [ ] .html auth handling
 
 ## Phase 6 — Organisations
 
