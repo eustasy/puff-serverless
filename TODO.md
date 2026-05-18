@@ -121,13 +121,6 @@ Larger, optional-scope features. Each is independent and can be scheduled on dem
   - [x] Add a `key_values` table to `sql/` — `(user_uuid, kv_key)` composite PK, `ON DELETE CASCADE` to `users`.
   - [x] Add `src/keyvalues.ts` with the CRUD envelope helpers (`readKeyValue`, `readKeyValues`, `searchKeyValues`, `setKeyValue`, `deleteKeyValue`). `setKeyValue` is an upsert covering PHP `create` + `update`; `searchKeyValues` is the `like` equivalent with LIKE wildcards escaped. A per-user key cap (`MAX_KEYS_PER_USER`) guards against abuse.
   - [x] Add endpoints under `functions/api/db/auth/keyvalues/` — `list` (GET, optional `?key=` substring filter), `set` (POST upsert), `remove` (POST delete) — plus a "Stored Data" section in `public/account.html`.
-- [ ] **Hooks / extensibility system.** PHP had `_hooks/` + `puff_hook()` for pluggable behaviour (e.g. the `ldap-login` hook adding profile fields).
-  - [ ] Design extension points suited to the Workers bundle.
-  - [ ] Document the hooks (old-repo issue [#17](https://github.com/eustasy/puff-server/issues/17) notes the PHP hooks were never documented).
-- [ ] **LDAP / Active Directory authentication.** PHP `ldap.authenticate.php` bound against an LDAP server, auto-created the member on first login, then issued a session.
-  - [ ] **Blocker:** raw LDAP sockets are not available on Workers — pick an LDAP-over-HTTP gateway or directory-provider API first.
-  - [ ] Implement the bind + auto-provision-on-first-login flow.
-- [ ] **Support multiple databases by default** — old-repo issue [#19](https://github.com/eustasy/puff-server/issues/19) (Priority: High). Currently a single Hyperdrive binding in `wrangler.jsonc`.
 
 ## Phase 5 — Developer experience & polish
 
@@ -147,6 +140,22 @@ Non-blocking quality work; pick up alongside related changes.
 - [ ] .html auth handling
 - [ ] consistent function names
 - [ ] consistent function descriptions
+
+## Phase 7 — OAuth Server
+
+Become an OAuth identity provider, and consume external logins (Microsoft,
+GitHub, Google) over OAuth. Deferred from Phase 4 — not suitable for now;
+OAuth-based external login is preferred over LDAP.
+
+- [ ] **Hooks / extensibility system.** PHP had `_hooks/` + `puff_hook()` for pluggable behaviour (e.g. the `ldap-login` hook adding profile fields).
+  - [ ] Design extension points suited to the Workers bundle.
+  - [ ] Document the hooks (old-repo issue [#17](https://github.com/eustasy/puff-server/issues/17) notes the PHP hooks were never documented).
+- [ ] **LDAP / Active Directory authentication.** PHP `ldap.authenticate.php` bound against an LDAP server, auto-created the member on first login, then issued a session.
+  - [ ] **Blocker:** raw LDAP sockets are not available on Workers — pick an LDAP-over-HTTP gateway or directory-provider API first.
+  - [ ] Implement the bind + auto-provision-on-first-login flow.
+
+## Phase 8 — Billing
+- [ ] Maybe: optional second database. Old-repo issue [#19](https://github.com/eustasy/puff-server/issues/19) wanted multiple DB connections "by default" to separate domains (it names auth vs. billing). Deferred, no priority — single-DB is the right default, there is no second domain today, and splitting one would lose the cross-table FK / `ON DELETE CASCADE` integrity the schema relies on. Revisit only if a domain with its own scaling, regioning, or compliance boundary actually appears.
 
 ---
 
