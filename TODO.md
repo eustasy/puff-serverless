@@ -112,6 +112,7 @@ Core feature parity with the PHP server, focused on the account/password lifecyc
   - [x] Add a reversible disable that also terminates all sessions. (`disableUser` in `src/users.ts` — transactional `user_active = FALSE` + `terminateAllSessions`. `user_login` now rejects disabled accounts after a proven password.)
   - [x] Add a re-enable flow. (`enableUser` in `src/users.ts`.)
   - [x] The old `deleteUser` (which only soft-deleted) is now a real permanent hard delete — a single `DELETE FROM users`, with all child rows removed by `ON DELETE CASCADE` foreign keys (`sql/*.sql` updated; existing databases need the cascade `ALTER`).
+- [ ] webauthn + passkeys
 
 ## Phase 4 — Extended capabilities & integrations
 
@@ -132,14 +133,13 @@ Non-blocking quality work; pick up alongside related changes.
 - [ ] .html auth handling
 - [ ] **Add a test suite.** There is currently no automated testing — only `lint` + build (old-repo issue [#16](https://github.com/eustasy/puff-server/issues/16) raised the same gap).
 - [ ] **Add a password-strength estimator (Dropbox `zxcvbn`)** — issue [#24](https://github.com/eustasy/puff-server/issues/24) (Low). Augments the live requirements check.
-- [ ] **Reuse `readToken` in resend.** `email/resend.ts` imports `readToken` to check whether a token already exists before issuing a new one, but does not yet use it — `functions/api/db/auth/email/resend.ts:1`.
+- [x] **Reuse existing token in resend.** `email/resend.ts` now queries for an unexpired, unused `email_verification` token before calling `createEmailToken` — repeated resend clicks reuse the same token rather than accumulating new ones. (`readToken` was removed; it only looks up by `token_value`, which the resend flow does not have.)
 - [ ] **Verify password-requirements assertions.** Confirm the `hasNumber` regex behaves as the commented assertions claim, then remove the stale comment — `src/passwords.ts:308`.
+- [ ] Sitemap generation
 
 ## Phase 6 — Organisations
 
-- [ ] Sitemap generation
 - [ ] organisations
-- [ ] webauthn + passkeys
 
 ## Phase 7 — OAuth Server
 

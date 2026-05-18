@@ -1,4 +1,4 @@
-import { createEmailToken, readToken } from "../../../../../src/tokens.js" // TODO use readToken to check if a token already exists
+import { createEmailToken } from "../../../../../src/tokens.js"
 import { readEmail } from "../../../../../src/emails.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
 import { sendVerificationEmail } from "../../../../../src/mailer.js"
@@ -74,25 +74,33 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    // If the email is not verified, proceed to create a new token.
-    // The previous logic to read an existing token using emailToVerify.token_value was flawed
-    // as emails table doesn't store token_value directly.
-    // A user requesting to resend implies they need a new (or resent) token.
-    const tokenResult = await createEmailToken(
-      dbClient,
-      user_uuid,
-      email_address
+    // Reuse an existing valid token if one exists — avoids accumulating unused
+    // tokens on repeated resend clicks and keeps the old link working.
+    const existingTokenResult = await dbClient.query(
+      "SELECT token_value FROM tokens WHERE user_uuid = $1 AND token_type = 'email_verification' AND email_address = $2 AND is_used = FALSE AND expires_at > NOW() ORDER BY expires_at DESC LIMIT 1",
+      [user_uuid, email_address]
     )
 
-    if (tokenResult.error) {
-      console.error("Failed to create verification token:", tokenResult.message)
-      return new Response(
-        `<p class="result-negative">Failed to generate new verification token: ${tokenResult.message}</p>`,
-        {
-          status: 500,
-          headers: { "Content-Type": "text/html" },
-        }
+    let token_value: string
+    if (existingTokenResult.rows.length > 0) {
+      token_value = existingTokenResult.rows[0].token_value
+    } else {
+      const tokenResult = await createEmailToken(
+        dbClient,
+        user_uuid,
+        email_address
       )
+      if (tokenResult.error) {
+        console.error(
+          "Failed to create verification token:",
+          tokenResult.message
+        )
+        return new Response(
+          `<p class="result-negative">Failed to generate verification token. Please try again.</p>`,
+          { status: 500, headers: { "Content-Type": "text/html" } }
+        )
+      }
+      token_value = tokenResult.token_value
     }
 
     // Deliver the token out-of-band (email). The user explicitly asked to
@@ -100,7 +108,7 @@ export const onRequestPost: Handler = async (context) => {
     const mailResult = await sendVerificationEmail(
       context.env,
       email_address,
-      tokenResult.token_value
+      token_value
     )
     if (mailResult.error) {
       console.error(
