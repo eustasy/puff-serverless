@@ -1,4 +1,5 @@
 import { generateSecret, generateURI } from "otplib"
+import { renderSVG } from "uqr"
 import { read2fa, create2fa } from "../../../../../../src/2fa.js"
 import { readUser } from "../../../../../../src/users.js"
 
@@ -121,21 +122,28 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    // Step 6: Generate QR Code Data (TOTP Auth URI)
+    // Step 6: Generate the TOTP auth URI and render it to a QR code.
+    // The URI embeds the TOTP secret, so the QR code is rendered here, in the
+    // Worker, as an inline SVG — the secret is never sent to a third-party
+    // image service. Inline SVG is page markup, not a fetched resource, so it
+    // is also unaffected by the page's `default-src https:` CSP.
     const otpauthUri = generateURI({
       issuer: APP_NAME,
       label: userName,
       secret: display_secret,
     })
+    const qrCodeSvg = renderSVG(otpauthUri, { border: 2 }).replace(
+      "<svg",
+      '<svg class="tfa-qr-code" width="200" height="200" role="img" aria-label="Two-factor authentication QR code"'
+    )
 
     // Step 7: Response - HTML for HTMX
-    // TODO: [Security] Consider using a more secure method for generating QR codes
     const htmlResponse = `
       <div>
         <h3>Setup Two-Factor Authentication</h3>
         <p>Scan the QR code with your authenticator app or enter the setup code manually.</p>
         <div class="tfa-qr-layout">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauthUri)}" alt="QR Code" class="tfa-qr-code"/>
+          ${qrCodeSvg}
           <div>
             <p><strong>Manual Setup Code:</strong></p>
             <p class="tfa-secret-display">${display_secret}</p>
