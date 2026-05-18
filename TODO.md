@@ -144,7 +144,7 @@ Non-blocking quality work; pick up alongside related changes.
 - [x] **Add a password-strength estimator (Dropbox `zxcvbn`) with configurable policy.** `zxcvbn` npm package added. `PasswordConfig` interface and `passwordConfig(env)` added to `src/passwords.ts`; all five requirement endpoints updated to pass the full config. New env vars: `REQUIRE_NUMBER`, `REQUIRE_CAPITAL`, `REQUIRE_SPECIAL_CHAR`, `REQUIRE_NOT_COMPROMISED`, `SHOW_ZXCVBN`, `REQUIRE_ZXCVBN`. When `REQUIRE_ZXCVBN` is set, score ≥ 3 is the hard gate and the individual character-class rules become suggestions; `MIN_PASSWORD_LENGTH` always applies. `REQUIRE_NOT_COMPROMISED` makes the HIBP check a hard gate (fail-open on network error). `passwordRequirements` is now async to support the HIBP network call.
 - [x] **Reuse existing token in resend.** `email/resend.ts` now queries for an unexpired, unused `email_verification` token before calling `createEmailToken` — repeated resend clicks reuse the same token rather than accumulating new ones. (`readToken` was removed; it only looks up by `token_value`, which the resend flow does not have.)
 - [x] **Verify password-requirements assertions.** Both regexes confirmed correct; stale TODO comment removed. `hasSpecial` (`/[^a-zA-Z\d]/`) matches spaces, which is intentional — a space counts as a special character.
-- [ ] Sitemap generation
+- [x] **Sitemap generation.** `functions/sitemap.xml.ts` serves `/sitemap.xml` dynamically from `context.env.APP_URL` — covers `/`, `/login`, `/register`, `/reset/request`; excludes authenticated and token-gated pages. `public/robots.txt` added pointing to the sitemap.
 - [ ] .html auth handling
 
 ## Phase 6 — Organisations
