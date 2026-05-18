@@ -10,11 +10,13 @@
 
 import type { UserLoginSuccess } from "../users.js"
 import { createLoginToken, createPasswordUpgradeToken } from "../tokens.js"
+import { readNext, clearNextCookie } from "./next.js"
 
 export async function loginOutcomeResponse(
   dbClient: DbClient,
   env: Env,
-  result: UserLoginSuccess
+  result: UserLoginSuccess,
+  request: Request
 ): Promise<Response> {
   const sameSite = env.COOKIE_SAMESITE || "Lax"
   const secure = !!env.SECURE_COOKIE
@@ -81,7 +83,9 @@ export async function loginOutcomeResponse(
     })
   }
 
-  // A session was created — issue the session cookie and go to the account.
+  // A session was created — issue the session cookie and go to the account,
+  // or to the page the visitor was originally headed for (the `login_next`
+  // cookie, set by the root middleware), clearing that cookie once consumed.
   const cookie = [
     `session_token=${result.session_id}`,
     "Path=/",
@@ -90,8 +94,11 @@ export async function loginOutcomeResponse(
     `SameSite=${sameSite}`,
   ]
   if (secure) cookie.push("Secure")
-  return new Response(null, {
-    status: 303,
-    headers: { "Set-Cookie": cookie.join("; "), "HX-Redirect": "/account" },
-  })
+
+  const next = await readNext(request)
+  const headers = new Headers({ "HX-Redirect": next || "/account" })
+  headers.append("Set-Cookie", cookie.join("; "))
+  if (next) headers.append("Set-Cookie", clearNextCookie(env))
+
+  return new Response(null, { status: 303, headers })
 }

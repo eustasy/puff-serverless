@@ -12,6 +12,7 @@ import {
 import { consumeToken } from "../../../../../src/tokens.js"
 import { createSession } from "../../../../../src/sessions.js"
 import { getCookie } from "../../../../../src/utilities/headers.js"
+import { readNext, clearNextCookie } from "../../../../../src/utilities/next.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -166,7 +167,10 @@ export const onRequestPost: Handler = async (context) => {
   const headers = new Headers({ "Content-Type": "text/html" })
   headers.append("Set-Cookie", clearChallenge.join("; "))
   headers.append("Set-Cookie", sessionCookie.join("; "))
-  headers.set("HX-Redirect", "/account")
+  // Honour the `login_next` cookie set by the root middleware, then clear it.
+  const next = await readNext(context.request)
+  if (next) headers.append("Set-Cookie", clearNextCookie(context.env))
+  headers.set("HX-Redirect", next || "/account")
   return new Response(null, { status: 303, headers })
 }
 

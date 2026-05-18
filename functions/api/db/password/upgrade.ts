@@ -22,6 +22,7 @@ import {
 import { has2fa } from "../../../../src/2fa.js"
 import { createSession } from "../../../../src/sessions.js"
 import { getCookie } from "../../../../src/utilities/headers.js"
+import { readNext, clearNextCookie } from "../../../../src/utilities/next.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -221,7 +222,11 @@ export const onRequestPost: Handler = async (context) => {
     ]
     if (secure) sessionCookie.push("Secure")
     headers.append("Set-Cookie", sessionCookie.join("; "))
-    headers.set("HX-Redirect", "/account")
+    // Honour the `login_next` cookie set by the root middleware, then clear it.
+    // (The 2FA branch above leaves it intact for the /2fa step to consume.)
+    const next = await readNext(context.request)
+    if (next) headers.append("Set-Cookie", clearNextCookie(context.env))
+    headers.set("HX-Redirect", next || "/account")
     return new Response(null, { status: 303, headers })
   } catch (error) {
     console.error("Error during password upgrade:", error)

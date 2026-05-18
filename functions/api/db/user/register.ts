@@ -73,7 +73,12 @@ export const onRequestPost: Handler = async (context) => {
       if (!loginResult.error) {
         // Same outcome as a normal login: a session, or the 2FA /
         // password-upgrade step.
-        return await loginOutcomeResponse(dbClient, context.env, loginResult)
+        return await loginOutcomeResponse(
+          dbClient,
+          context.env,
+          loginResult,
+          context.request
+        )
       }
       // Password did not match the existing account — keep the generic
       // conflict response, revealing nothing about the password.

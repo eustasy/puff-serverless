@@ -1,6 +1,7 @@
 import { verify } from "otplib"
 import { readToken, consumeToken } from "../../../../src/tokens.js"
 import { getCookie } from "../../../../src/utilities/headers.js"
+import { readNext, clearNextCookie } from "../../../../src/utilities/next.js"
 import { read2fa, used2fa } from "../../../../src/2fa.js"
 import { createSession } from "../../../../src/sessions.js"
 
@@ -269,12 +270,19 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    // Step 11: Return success response with session cookie and redirect
+    // Step 11: Return success response with session cookie and redirect.
+    // Honour the `login_next` cookie (set by the root middleware when the
+    // visitor was sent here from a session-gated page), then clear it.
+    const next = await readNext(context.request)
+    const destination = next || "/account"
     const headers = new Headers({
-      "Location": "/account", // Redirect to the account page
-      "HX-Redirect": "/account",
+      "Location": destination,
+      "HX-Redirect": destination,
       "Content-Type": "text/html", // Though with redirect, body might not be shown
     })
+    if (next) {
+      headers.append("Set-Cookie", clearNextCookie(context.env))
+    }
 
     const cookieOptions = [
       `session_token=${sessionResult.session_id}`,

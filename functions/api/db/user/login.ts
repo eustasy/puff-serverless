@@ -44,7 +44,12 @@ export const onRequestPost: Handler = async (context) => {
     }
 
     // Session cookie, or redirect into the 2FA / password-upgrade step.
-    return await loginOutcomeResponse(dbClient, context.env, loginResult)
+    return await loginOutcomeResponse(
+      dbClient,
+      context.env,
+      loginResult,
+      context.request
+    )
   } catch (error) {
     console.error("Error in loginUser endpoint:", error)
     if (

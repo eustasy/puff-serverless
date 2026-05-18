@@ -1,5 +1,6 @@
 import { getCookie } from "../src/utilities/headers.js"
 import { verifySessionToken } from "../src/sessions.js"
+import { setNextCookie } from "../src/utilities/next.js"
 
 // Group A — pages that need a specific cookie to be worth serving. Missing →
 // /login. Presence-only: the matching API endpoint does the real token check;
@@ -27,17 +28,22 @@ const GUEST_ONLY = new Set(["/login", "/register"])
 // the HTML. Keep the two path lists in sync.
 
 const htmlAuthGuard: Handler = async (context) => {
-  const { pathname } = new URL(context.request.url)
+  const { pathname, search } = new URL(context.request.url)
   const cookieHeader = context.request.headers.get("Cookie")
 
   const requiredCookie = REQUIRE_COOKIE[pathname]
   if (requiredCookie) {
     const cookie = await getCookie(cookieHeader, requiredCookie)
     if (!cookie) {
-      return new Response(null, {
-        status: 302,
-        headers: { Location: "/login" },
-      })
+      const headers: Record<string, string> = { Location: "/login" }
+      // Stash where the visitor was headed so the endpoint that grants the
+      // session can return them here (see src/utilities/next.ts). Only the
+      // session-gated pages are useful return targets — /2fa and
+      // /password-upgrade are mid-login and would have no valid flow token.
+      if (requiredCookie === "session_token") {
+        headers["Set-Cookie"] = setNextCookie(context.env, pathname + search)
+      }
+      return new Response(null, { status: 302, headers })
     }
     return context.next()
   }
