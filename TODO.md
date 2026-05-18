@@ -144,6 +144,7 @@ Non-blocking quality work; pick up alongside related changes.
 - [ ] outstanding issues on puff-serverless github
 - [ ] organisations
 - [ ] webauthn + passkeys
+- [ ] .html auth handling
 
 ---
 
