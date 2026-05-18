@@ -2,7 +2,7 @@ import { generateAuthenticationOptions } from "@simplewebauthn/server"
 import type { AuthenticatorTransportFuture } from "@simplewebauthn/server"
 import { generateChallenge, isoBase64URL } from "@simplewebauthn/server/helpers"
 import {
-  getUserByUsername,
+  getUserByUsernameOrEmail,
   listPasskeys,
   getRpConfig,
 } from "../../../../../src/passkeys.js"
@@ -38,7 +38,7 @@ export const onRequestPost: Handler = async (context) => {
   // Look up user — enumeration-safe: generate a real challenge regardless, but
   // return empty allowCredentials if the user doesn't exist. The browser will
   // then present any resident credential it holds for this RP.
-  const userResult = await getUserByUsername(dbClient, username)
+  const userResult = await getUserByUsernameOrEmail(dbClient, username)
 
   let allowCredentials: {
     id: string
