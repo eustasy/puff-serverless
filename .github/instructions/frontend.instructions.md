@@ -80,7 +80,7 @@ Password and email fields use delayed keyup triggers for live feedback:
 <input
   type="password"
   name="pw"
-  hx-post="/api/password/requirements"
+  hx-post="/api/password-requirements"
   hx-sync="closest form:abort"
   hx-trigger="keyup changed delay:500ms"
   hx-target="#password-requirements-output"

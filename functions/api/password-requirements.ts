@@ -1,4 +1,4 @@
-import { password_requirements_html } from "../../../src/passwords.js"
+import { password_requirements_html } from "../../src/passwords.js"
 
 export const onRequestPost: Handler = async (context) => {
   const pw = (await context.request.formData()).get("pw")
