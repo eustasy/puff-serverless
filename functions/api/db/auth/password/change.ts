@@ -83,7 +83,7 @@ export const onRequestPost: Handler = async (context) => {
         `Failed to update password for user_uuid ${user_uuid}: ${updateResult.message}`
       )
       return new Response(
-        `<p>Error: ${updateResult.message || "Failed to update password."}</p>`,
+        `<p>Error: ${escapeHtml(updateResult.message || "Failed to update password.")}</p>`,
         {
           status: updateResult.status || 500,
           headers: { "Content-Type": "text/html" },

@@ -19,7 +19,18 @@ export async function hashing_wrapper(pw: string, algo: string) {
   return hash
 }
 
-// puff_hashing_password(pw, salt = "", algo = "SHA-384")
+// The hash algorithm new passwords are stored with. password_verify flags any
+// active hash stored under a different algorithm as needing an upgrade, and
+// user_login transparently re-hashes it on the next successful login.
+export const PREFERRED_PASSWORD_ALGO = "SHA-384"
+
+// True if a stored password hash uses an algorithm other than the current
+// preferred one, and so should be transparently re-hashed on the next login.
+export function passwordNeedsUpgrade(algo: string) {
+  return algo !== PREFERRED_PASSWORD_ALGO
+}
+
+// puff_hashing_password(pw, salt = "", algo = PREFERRED_PASSWORD_ALGO)
 // salt is optional, if not provided, a random UUID will be generated
 // algo can be "SHA-1", "SHA-256", "SHA-384", "SHA-512", or "MD5"
 // - source: https://developers.cloudflare.com/workers/runtime-apis/web-crypto/#supported-algorithms
@@ -30,7 +41,7 @@ export async function hashing_wrapper(pw: string, algo: string) {
 export async function puff_hashing_password(
   pw: string,
   salt = "",
-  algo = "SHA-384"
+  algo = PREFERRED_PASSWORD_ALGO
 ) {
   if (salt.length === 0) {
     salt = crypto.randomUUID()

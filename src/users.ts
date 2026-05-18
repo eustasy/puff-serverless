@@ -1,6 +1,6 @@
 import { createSession } from "./sessions.js"
 import { createEmail, existsEmail, readEmail } from "./emails.js"
-import { createPassword, password_verify } from "./passwords.js"
+import { createPassword, password_verify, updatePassword } from "./passwords.js"
 import { has2fa } from "./2fa.js"
 import { sendVerificationEmail } from "./mailer.js"
 
@@ -182,6 +182,20 @@ export async function user_login(
         error: true,
         message: "Invalid email or password.",
         status: 401,
+      }
+    }
+
+    // Transparently re-hash a password stored under an outdated algorithm so it
+    // migrates to the current one without the user noticing. Best-effort: this
+    // runs once the password is proven, before the 2FA gate, and a failed
+    // upgrade (e.g. the old password no longer meets requirements) must never
+    // block an otherwise valid login.
+    if (verifyResult.needs_upgrade) {
+      const upgradeResult = await updatePassword(dbClient, user_uuid, password)
+      if (upgradeResult.error || !upgradeResult.success) {
+        console.error(
+          `Password-hash upgrade-on-login failed for user_uuid ${user_uuid}: ${upgradeResult.message}`
+        )
       }
     }
 

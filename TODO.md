@@ -101,9 +101,9 @@ Defence-in-depth work to land shortly after launch.
 
 Core feature parity with the PHP server, focused on the account/password lifecycle.
 
-- [ ] **Password-hash upgrade-on-login.** PHP transparently re-hashed outdated methods on successful login (`password.upgrade.php`) plus a batch endpoint. This server only knows `puff_password_SHA-384` with no migration path.
-  - [ ] Add hash-method detection / "needs upgrade" check.
-  - [ ] Re-hash transparently on successful login.
+- [x] **Password-hash upgrade-on-login.** PHP transparently re-hashed outdated methods on successful login (`password.upgrade.php`) plus a batch endpoint. This server only knows `puff_password_SHA-384` with no migration path.
+  - [x] Add hash-method detection / "needs upgrade" check. (`PREFERRED_PASSWORD_ALGO` + `passwordNeedsUpgrade()` in `src/utilities/hashing.ts`; surfaced as `needs_upgrade` on `password_verify`.)
+  - [x] Re-hash transparently on successful login. (`user_login` calls `updatePassword` when `needs_upgrade` is set — best-effort, never blocks the login.)
 - [ ] **Disallow re-using previous passwords** — issue [#22](https://github.com/eustasy/puff-server/issues/22) (Medium). Disabled password hashes are already retained in `secrets`, so reuse can be detected at change/reset time.
 - [ ] **Minimum-password-length setting with force-upgrade on login** — issue [#23](https://github.com/eustasy/puff-server/issues/23) (Medium). Length is currently hardcoded to 12 in `src/passwords.ts`; make it configurable and re-check on login.
 - [ ] **Prompt when an old (disabled) password is used in a login attempt** — issue [#21](https://github.com/eustasy/puff-server/issues/21) (Low).

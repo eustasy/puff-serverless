@@ -1,6 +1,7 @@
 import {
   puff_hashing_sha1_hibp,
   puff_hashing_password,
+  passwordNeedsUpgrade,
 } from "./utilities/hashing.js"
 
 /**
@@ -214,7 +215,13 @@ export async function password_verify(
   user_uuid: string,
   pw: string
 ): Promise<
-  | { success: true; error?: never; verified: boolean; status: 200 }
+  | {
+      success: true
+      error?: never
+      verified: boolean
+      needs_upgrade: boolean
+      status: 200
+    }
   | {
       success?: never
       error: true
@@ -243,7 +250,12 @@ export async function password_verify(
       console.warn(
         `Password verification failed: No active password found for user_uuid ${user_uuid}`
       )
-      return { success: true, verified: false, status: 200 }
+      return {
+        success: true,
+        verified: false,
+        needs_upgrade: false,
+        status: 200,
+      }
     }
 
     const { secret_value, algo } = passwordResult
@@ -254,6 +266,9 @@ export async function password_verify(
     return {
       success: true,
       verified: attempted_hash === actual_hash,
+      // Only meaningful when verified — a wrong password never triggers a
+      // re-hash. The caller gates the upgrade on a successful login.
+      needs_upgrade: passwordNeedsUpgrade(algo),
       status: 200,
     }
   } catch (error) {
