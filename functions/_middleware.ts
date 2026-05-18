@@ -1,37 +1,90 @@
+import { Client } from "pg"
 import { getCookie } from "../src/utilities/headers.js"
+import { verifyTokenAndGetUser } from "../src/sessions.js"
 
-// Pages that require a session cookie. This is a UX redirect only — the real
-// auth gate is in functions/api/db/auth/_middleware.ts. We don't open a DB
-// connection here; we just skip serving the HTML shell when there is clearly
-// no session, rather than letting HTMX discover the 401s itself.
-//
-// /2fa and /password-upgrade are intentionally excluded: they are mid-login
-// flow pages reached with totp_verification_token / password_upgrade_token
-// cookies, not session_token, and protecting them here would break those flows.
-//
-// IMPORTANT: this middleware only runs for these paths because they are listed
-// in `assets.run_worker_first` in wrangler.jsonc. Static assets are served
-// BEFORE the Worker by default, so without that list a request for /account
-// would be answered straight from public/account.html and this code would
-// never execute. `assets.binding` ("ASSETS") must also be set — context.next()
-// falls through to env.ASSETS.fetch() to serve the HTML when the cookie is
-// present. Keep PROTECTED_PATHS and run_worker_first in sync.
-const PROTECTED_PATHS = new Set(["/account", "/logout"])
+// Group A — pages that need a specific cookie to be worth serving. Missing →
+// /login. Presence-only: the matching API endpoint does the real token check;
+// this just avoids serving a shell guaranteed to fail.
+//   /account, /logout        need a session.
+//   /2fa, /password-upgrade  are mid-login flow pages reached with short-lived
+//                            (15-min) flow-token cookies, not a session.
+const REQUIRE_COOKIE: Record<string, string> = {
+  "/account": "session_token",
+  "/logout": "session_token",
+  "/2fa": "totp_verification_token",
+  "/password-upgrade": "password_upgrade_token",
+}
+
+// Group B — guest-only pages. A *valid* session → /account. Verified against
+// the DB (not presence-only) so a stale/terminated session_token cannot trap
+// the user on /login unable to sign in again.
+const GUEST_ONLY = new Set(["/login", "/register"])
+
+// IMPORTANT: every path above must also be listed in `assets.run_worker_first`
+// in wrangler.jsonc, and `assets.binding` ("ASSETS") must be set. Static assets
+// are served BEFORE the Worker by default — without run_worker_first this code
+// never runs — and context.next() falls through to env.ASSETS.fetch() to serve
+// the HTML. Keep the two path lists in sync.
+
+// Verify a session_token against the DB. Only called when a session_token
+// cookie is actually present, so logged-out visitors never open a connection.
+// Fails open: a DB error serves the page rather than blocking login.
+async function hasValidSession(
+  env: Env,
+  token: string,
+  request: Request
+): Promise<boolean> {
+  if (!env.HYPERDRIVE || !env.HYPERDRIVE.connectionString) return false
+  const client = new Client(env.HYPERDRIVE.connectionString)
+  try {
+    await client.connect()
+    const result = await verifyTokenAndGetUser(
+      client,
+      token,
+      request.headers.get("CF-IPCountry"),
+      request.headers.get("CF-Connecting-IP")
+    )
+    return result.success === true
+  } catch (error) {
+    console.error("Root middleware session check failed:", error)
+    return false
+  } finally {
+    try {
+      await client.end()
+    } catch {}
+  }
+}
 
 const htmlAuthGuard: Handler = async (context) => {
   const { pathname } = new URL(context.request.url)
-  if (PROTECTED_PATHS.has(pathname)) {
-    const sessionToken = await getCookie(
-      context.request.headers.get("Cookie"),
-      "session_token"
-    )
-    if (!sessionToken) {
+  const cookieHeader = context.request.headers.get("Cookie")
+
+  const requiredCookie = REQUIRE_COOKIE[pathname]
+  if (requiredCookie) {
+    const cookie = await getCookie(cookieHeader, requiredCookie)
+    if (!cookie) {
       return new Response(null, {
         status: 302,
         headers: { Location: "/login" },
       })
     }
+    return context.next()
   }
+
+  if (GUEST_ONLY.has(pathname)) {
+    const sessionToken = await getCookie(cookieHeader, "session_token")
+    if (
+      sessionToken &&
+      (await hasValidSession(context.env, sessionToken, context.request))
+    ) {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: "/account" },
+      })
+    }
+    return context.next()
+  }
+
   return context.next()
 }
 

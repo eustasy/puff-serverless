@@ -9,7 +9,7 @@
 	"assets": {
 		"directory": "./public",
 		"binding": "ASSETS",
-		"run_worker_first": ["/account", "/logout"]
+		"run_worker_first": ["/account", "/logout", "/2fa", "/password-upgrade", "/login", "/register"]
 	},
 	"hyperdrive": [
 		{
