@@ -189,6 +189,90 @@
         >
           <p>Loading sessions...</p>
         </div>
+
+        <div id="keyvalue-controls" class="grid-container grid-header">
+          <div class="grid-item">
+            <h2>Stored Data</h2>
+          </div>
+          <div class="grid-item">
+            <button
+              class="btn-safe"
+              hx-get="/api/db/auth/keyvalues/list"
+              hx-target="#keyvalue-list-container"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this"
+            >
+              Refresh
+              <img class="htmx-indicator" src="/assets/bars.svg" />
+            </button>
+          </div>
+        </div>
+
+        <div id="keyvalue-message-area" class="result-area spacer-bottom"></div>
+
+        <form
+          id="keyvalue-set-form"
+          hx-post="/api/db/auth/keyvalues/set"
+          hx-target="#keyvalue-message-area"
+          hx-swap="innerHTML"
+          class="grid-container"
+        >
+          <div class="grid-item">
+            <label for="kv-key">Key:</label>
+            <input
+              type="text"
+              id="kv-key"
+              name="key"
+              placeholder="Key"
+              maxlength="128"
+              required
+              class="form-input"
+            />
+          </div>
+          <div class="grid-item">
+            <label for="kv-value">Value:</label>
+            <input
+              type="text"
+              id="kv-value"
+              name="value"
+              placeholder="Value"
+              maxlength="4096"
+              class="form-input"
+            />
+          </div>
+          <div class="grid-item">
+            <button type="submit" class="btn-save">
+              Save
+              <img class="htmx-indicator" src="/assets/bars.svg" />
+            </button>
+          </div>
+        </form>
+
+        <div class="grid-container">
+          <div class="grid-item">
+            <label for="kv-search">Filter keys:</label>
+            <input
+              type="search"
+              id="kv-search"
+              name="key"
+              placeholder="Search keys"
+              class="form-input"
+              hx-get="/api/db/auth/keyvalues/list"
+              hx-trigger="keyup changed delay:300ms, search"
+              hx-target="#keyvalue-list-container"
+              hx-swap="innerHTML"
+            />
+          </div>
+        </div>
+
+        <div
+          id="keyvalue-list-container"
+          hx-get="/api/db/auth/keyvalues/list"
+          hx-trigger="load, keyValueListChanged from:body"
+          hx-swap="innerHTML"
+        >
+          <p>Loading stored data...</p>
+        </div>
       </main>
     </div>
   </body>

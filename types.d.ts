@@ -87,6 +87,14 @@ declare global {
     secret_value: string
     secret_type: string
   }
+
+  interface KeyValueRow {
+    user_uuid: string
+    kv_key: string
+    kv_value: string
+    created_at: Date
+    updated_at: Date
+  }
 }
 
 export {}

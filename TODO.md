@@ -117,10 +117,10 @@ Core feature parity with the PHP server, focused on the account/password lifecyc
 
 Larger, optional-scope features. Each is independent and can be scheduled on demand.
 
-- [ ] **Per-user key/value store.** PHP had a `KeyValues` table and `Puff_Member_Key_*` functions (create/value/update/destroy/like) for arbitrary per-user metadata.
-  - [ ] Add a `key_values` table to `sql/`.
-  - [ ] Add `src/keyvalues.ts` with the CRUD envelope helpers.
-  - [ ] Add endpoints under `functions/api/db/auth/`.
+- [x] **Per-user key/value store.** PHP had a `KeyValues` table and `Puff_Member_Key_*` functions (create/value/update/destroy/like) for arbitrary per-user metadata.
+  - [x] Add a `key_values` table to `sql/` — `(user_uuid, kv_key)` composite PK, `ON DELETE CASCADE` to `users`.
+  - [x] Add `src/keyvalues.ts` with the CRUD envelope helpers (`readKeyValue`, `readKeyValues`, `searchKeyValues`, `setKeyValue`, `deleteKeyValue`). `setKeyValue` is an upsert covering PHP `create` + `update`; `searchKeyValues` is the `like` equivalent with LIKE wildcards escaped. A per-user key cap (`MAX_KEYS_PER_USER`) guards against abuse.
+  - [x] Add endpoints under `functions/api/db/auth/keyvalues/` — `list` (GET, optional `?key=` substring filter), `set` (POST upsert), `remove` (POST delete) — plus a "Stored Data" section in `public/account.html`.
 - [ ] **Hooks / extensibility system.** PHP had `_hooks/` + `puff_hook()` for pluggable behaviour (e.g. the `ldap-login` hook adding profile fields).
   - [ ] Design extension points suited to the Workers bundle.
   - [ ] Document the hooks (old-repo issue [#17](https://github.com/eustasy/puff-server/issues/17) notes the PHP hooks were never documented).

@@ -225,6 +225,15 @@ The `tokens` table is used for storing various types of temporary tokens, each s
 
 It's crucial that `token_type` and `secret_type` are used consistently throughout the application to ensure correct retrieval and processing of these values. All sensitive values in these tables (like `secret_value`) should be appropriately protected (e.g., encrypted, hashed where applicable).
 
+**`key_values` Table Usage:**
+
+The `key_values` table is a per-user key/value store for arbitrary string metadata — the successor to the PHP server's `KeyValues` table.
+
+- `user_uuid`, `kv_key`: Composite primary key — one value per key per user. The key is also the lookup index, so no secondary index is needed.
+- `kv_value`: The stored value (up to `MAX_VALUE_LENGTH`).
+- `created_at`, `updated_at`: Timestamps; `updated_at` is refreshed by `setKeyValue` on every upsert.
+- Managed by `src/keyvalues.ts` and the `functions/api/db/auth/keyvalues/` endpoints (`list`, `set`, `remove`). Rows are removed with the user via `ON DELETE CASCADE`.
+
 ## Project Maintenance
 
 [Dependabot](https://github.com/eustasy/puff-serverless/blob/cf-pages/.github/dependabot.yml) should update NPM and GitHub Actions with automatic pull requests.
