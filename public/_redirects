@@ -1,1 +1,7 @@
-
+# Cloudflare _redirects — see https://developers.cloudflare.com/pages/configuration/redirects/
+#
+# .well-known URIs redirected to their in-app location (issue #111).
+# /.well-known/change-password is the W3C-defined path that browsers and
+# password managers probe to send the user straight to the change-password
+# UI; in this app that form lives on the account page.
+/.well-known/change-password  /account  302

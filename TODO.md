@@ -112,7 +112,6 @@ Core feature parity with the PHP server, focused on the account/password lifecyc
   - [x] Add a reversible disable that also terminates all sessions. (`disableUser` in `src/users.ts` — transactional `user_active = FALSE` + `terminateAllSessions`. `user_login` now rejects disabled accounts after a proven password.)
   - [x] Add a re-enable flow. (`enableUser` in `src/users.ts`.)
   - [x] The old `deleteUser` (which only soft-deleted) is now a real permanent hard delete — a single `DELETE FROM users`, with all child rows removed by `ON DELETE CASCADE` foreign keys (`sql/*.sql` updated; existing databases need the cascade `ALTER`).
-  - [ ] Not yet wired to endpoints — `disable`/`enable`/`delete` are `src/` functions only; they need an admin (or self-service delete) surface.
 
 ## Phase 4 — Extended capabilities & integrations
 
@@ -143,6 +142,8 @@ Non-blocking quality work; pick up alongside related changes.
 
 - [ ] Sitemap generation
 - [ ] outstanding issues on puff-serverless github
+- [ ] organisations
+- [ ] webauthn + passkeys
 
 ---
 
