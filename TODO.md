@@ -85,9 +85,9 @@ Defence-in-depth work to land shortly after launch.
   - [x] Add a [Cloudflare Cron Trigger](https://developers.cloudflare.com/workers/configuration/cron-triggers/) handler — `triggers.crons` in `wrangler.jsonc`, the `scheduled` export wired up by the new `worker.ts` entry, job logic in `src/cron.ts`.
   - [x] Purge `sessions` and `tokens` older than one month (`0 * * * *`). Kept a month first as a lightweight audit trail; sessions are purged only when also defunct, so a still-valid session is never deleted.
   - [x] Purge `totp_used_codes` rows past the acceptance window (`*/5 * * * *`) — runs far more often than the audit purge so a stale row cannot collide with a later, legitimately-different code.
-- [ ] **CSP violation reporting.** PHP exposed `api/csp_report.php` and logged breaches.
-  - [ ] Add a `report-uri` / `report-to` directive to the CSP in `public/_headers`.
-  - [ ] Add a collecting endpoint under `functions/api/`.
+- [x] **CSP violation reporting.** PHP exposed `api/csp_report.php` and logged breaches.
+  - [x] Added `report-uri /api/csp-report` and `report-to csp-endpoint` to both CSP lines in `public/_headers`, plus a `Reporting-Endpoints` header naming `csp-endpoint` for the modern Reporting API.
+  - [x] Added `functions/api/csp-report.ts` — a DB-free, unauthenticated collector that parses both the legacy `{ "csp-report": … }` body and the modern `application/reports+json` array, logs each violation (`console.warn`, capped per request), and returns `204`.
 - [ ] **Review 2FA QR generation.** Consider a more secure method for generating QR codes — `functions/api/db/auth/2fa/setup/start.ts:132`.
 - [ ] **2FA bypass flow.** Replace the password-reset fallback with a dedicated email-based flow to bypass 2FA — `public/2fa.html:56`.
 

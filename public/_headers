@@ -5,9 +5,13 @@
   ## Recommended by https://securityheaders.com/
   # Block content not loaded over HTTPS, and any scripts not from 'self'
   # Note that script-src 'self' doesn't allow unsafe inline scripts by default
-  #Content-Security-Policy: default-src https:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none';
+  # Violations are reported to functions/api/csp-report.ts via both the legacy
+  # `report-uri` and the modern Reporting API `report-to` (see Reporting-Endpoints).
+  #Content-Security-Policy: default-src https:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; report-uri /api/csp-report; report-to csp-endpoint;
   # This alternative CSP simply does not allow scripts from other domains.
-  Content-Security-Policy: default-src https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none';
+  Content-Security-Policy: default-src https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; report-uri /api/csp-report; report-to csp-endpoint;
+  # Names the `csp-endpoint` group used by the CSP `report-to` directive above.
+  Reporting-Endpoints: csp-endpoint="/api/csp-report"
   # Disallow powerful features in the browser
   Permissions-Policy: microphone=(), camera=(), geolocation=(), display-capture=(), web-share=()
   # Always load on HTTPS
