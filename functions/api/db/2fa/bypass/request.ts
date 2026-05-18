@@ -54,6 +54,23 @@ export const onRequestPost: Handler = async (context) => {
       return sessionExpired()
     }
 
+    // Guard against the compound attack: email resets the password (factor 1)
+    // then email bypasses 2FA (factor 2), leaving email as the sole factor.
+    // If a password_reset token was consumed in the last 24 h for this user,
+    // the inbox has already been used once — deny the bypass so email alone
+    // cannot grant full access. The window matches the password_reset token
+    // lifetime; tokens are retained for a month so the row will be present.
+    const recentResetResult = await dbClient.query(
+      "SELECT 1 FROM tokens WHERE user_uuid = $1 AND token_type = 'password_reset' AND is_used = TRUE AND created_at > NOW() - INTERVAL '24 hours' LIMIT 1",
+      [pending.user_uuid]
+    )
+    if ((recentResetResult.rowCount ?? 0) > 0) {
+      return new Response(
+        '<p class="result-negative">A password reset was recently completed on this account. For security, please log in normally using your authenticator app. If you have lost access to your authenticator, please contact support.</p>',
+        { status: 403, headers: { "Content-Type": "text/html" } }
+      )
+    }
+
     // The bypass link must only ever go to an address the user has proven
     // they control. readEmails is ordered primary-first, so the first
     // verified row is the primary email when the primary is verified.

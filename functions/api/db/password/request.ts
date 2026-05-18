@@ -38,7 +38,7 @@ export const onRequestPost: Handler = async (context) => {
     const user = await readEmail(dbClient, email)
     if (!user.success || !user.email.user_uuid) {
       // If no user found, return generic success to avoid leaking info
-      console.log(`Password reset requested for non-existent email: ${email}`)
+      console.log("Password reset requested for unrecognized email address.")
       return genericSuccessResponse
     }
 

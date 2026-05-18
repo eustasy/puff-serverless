@@ -175,7 +175,7 @@ export async function terminateSession(
       return { success: true, status: 200 }
     } else {
       console.error(
-        `Session termination failed: Session ${session_id} not found or not owned by user ${user_uuid}.`
+        `Session termination failed: session not found or not owned by user ${user_uuid}.`
       )
       return { error: "Session not found or already terminated.", status: 404 }
     }
