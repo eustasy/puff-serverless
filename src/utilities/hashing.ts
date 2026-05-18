@@ -19,9 +19,9 @@ export async function hashing_wrapper(pw: string, algo: string) {
   return hash
 }
 
-// The hash algorithm new passwords are stored with. password_verify flags any
+// The hash algorithm new passwords are stored with. verifyPassword flags any
 // active hash stored under a different algorithm as needing an upgrade, and
-// user_login transparently re-hashes it on the next successful login.
+// loginUser transparently re-hashes it on the next successful login.
 export const PREFERRED_PASSWORD_ALGO = "SHA-384"
 
 // True if a stored password hash uses an algorithm other than the current

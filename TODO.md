@@ -126,6 +126,11 @@ Larger, optional-scope features. Each is independent and can be scheduled on dem
 
 Non-blocking quality work; pick up alongside related changes.
 
+- [x] **Consistent function names.** Renamed across all `src/` modules and call sites: snake_case → camelCase (`password_verify` → `verifyPassword`, `password_requirements` → `passwordRequirements`, `password_requirements_html` → `passwordRequirementsHtml`, `user_register` → `registerUser`, `user_login` → `loginUser`); verb/action alignment (`listSessionsForUser` → `readSessions`, `terminateSpecificSession` → `terminateSession`, `getMinPasswordLength` → `minPasswordLength`, `passwordReused` → `isPasswordReused`); and disambiguated the old `loginUser` (timestamp-touch helper) → `updateLastLogin` to free the name for the main login function. Skipped: `usedToken`, `has2fa`, `existsEmail`, `verifyEmailByToken` — left as-is by design.
+- [ ] consistent function descriptions
+- [ ] do not log sensitive data
+- [ ] .html auth handling
+- [ ] outstanding issues on puff-serverless github
 - [ ] **Add a test suite.** There is currently no automated testing — only `lint` + build (old-repo issue [#16](https://github.com/eustasy/puff-server/issues/16) raised the same gap).
 - [ ] **Add a password-strength estimator (Dropbox `zxcvbn`)** — issue [#24](https://github.com/eustasy/puff-server/issues/24) (Low). Augments the live requirements check.
 - [ ] **Reuse `readToken` in resend.** `email/resend.ts` imports `readToken` to check whether a token already exists before issuing a new one, but does not yet use it — `functions/api/db/auth/email/resend.ts:1`.
@@ -134,12 +139,8 @@ Non-blocking quality work; pick up alongside related changes.
 ## Phase 6
 
 - [ ] Sitemap generation
-- [ ] outstanding issues on puff-serverless github
 - [ ] organisations
 - [ ] webauthn + passkeys
-- [ ] .html auth handling
-- [ ] consistent function names
-- [ ] consistent function descriptions
 
 ## Phase 7 — OAuth Server
 

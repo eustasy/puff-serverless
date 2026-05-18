@@ -1,4 +1,4 @@
-// Turns a successful user_login outcome into its HTTP response: the session
+// Turns a successful loginUser outcome into its HTTP response: the session
 // cookie, or the redirect into the 2FA / password-upgrade step. Shared by the
 // login endpoint and the "re-register as an existing user" path (issue #20)
 // so the two stay byte-identical.

@@ -1,4 +1,4 @@
-import { terminateSpecificSession } from "../../../../../src/sessions.js"
+import { terminateSession } from "../../../../../src/sessions.js"
 import { getCookie } from "../../../../../src/utilities/headers.js"
 
 export const onRequestPost: Handler = async (context) => {
@@ -19,7 +19,7 @@ export const onRequestPost: Handler = async (context) => {
   }
 
   try {
-    const result = await terminateSpecificSession(dbClient, user_uuid, token)
+    const result = await terminateSession(dbClient, user_uuid, token)
 
     if (result.error) {
       console.error("Error ending session:", result.error)

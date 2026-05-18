@@ -18,7 +18,7 @@ export async function createPassword(
 ): Promise<Envelope> {
   try {
     // Validate password requirements
-    const isValid = password_requirements(password)
+    const isValid = passwordRequirements(password)
     if (!isValid) {
       return {
         success: false,
@@ -210,7 +210,7 @@ export async function updatePassword(
  * @param {string} pw - The plain text password to verify.
  * @returns {boolean} True if the password is verified, false otherwise.
  */
-export async function password_verify(
+export async function verifyPassword(
   dbClient: DbClient,
   user_uuid: string,
   pw: string
@@ -295,7 +295,7 @@ export async function password_verify(
  * @returns Envelope: `{ success: true, reused: boolean, status: 200 }`, or
  *          `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function passwordReused(
+export async function isPasswordReused(
   dbClient: DbClient,
   user_uuid: string,
   candidate: string
@@ -332,7 +332,7 @@ export async function passwordReused(
 
     return { success: true, reused: false, status: 200 }
   } catch (error) {
-    console.error("Error in passwordReused:", error)
+    console.error("Error in isPasswordReused:", error)
     return {
       error: true,
       message: "Could not check password history.",
@@ -344,7 +344,7 @@ export async function passwordReused(
 
 // The built-in minimum password length. MIN_PASSWORD_LENGTH (an operator-set
 // runtime var) can only raise the minimum above this floor — see
-// getMinPasswordLength — so endpoint checks are always >= this value and the
+// minPasswordLength — so endpoint checks are always >= this value and the
 // env-free createPassword check below can never be stricter than the caller.
 export const DEFAULT_MIN_PASSWORD_LENGTH = 12
 
@@ -356,7 +356,7 @@ export const DEFAULT_MIN_PASSWORD_LENGTH = 12
  * @param {Env} env - The Worker environment bindings.
  * @returns {number} The effective minimum password length.
  */
-export function getMinPasswordLength(env: Env): number {
+export function minPasswordLength(env: Env): number {
   const parsed = parseInt(env.MIN_PASSWORD_LENGTH ?? "", 10)
   return Number.isInteger(parsed) && parsed > DEFAULT_MIN_PASSWORD_LENGTH
     ? parsed
@@ -369,7 +369,7 @@ export function getMinPasswordLength(env: Env): number {
  * @param {number} minLength - Minimum acceptable length (default DEFAULT_MIN_PASSWORD_LENGTH).
  * @returns {boolean} True if the password meets all requirements, false otherwise.
  */
-export function password_requirements(
+export function passwordRequirements(
   pw: string,
   minLength: number = DEFAULT_MIN_PASSWORD_LENGTH
 ) {
@@ -394,7 +394,7 @@ export function password_requirements(
  * @param {number} minLength - Minimum acceptable length (default DEFAULT_MIN_PASSWORD_LENGTH).
  * @returns {string} HTML string with the results of the password requirements check.
  */
-export async function password_requirements_html(
+export async function passwordRequirementsHtml(
   pw: string,
   minLength: number = DEFAULT_MIN_PASSWORD_LENGTH
 ) {

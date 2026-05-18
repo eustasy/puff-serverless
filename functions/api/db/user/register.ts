@@ -1,5 +1,5 @@
-import { user_register, user_login } from "../../../../src/users.js"
-import { getMinPasswordLength } from "../../../../src/passwords.js"
+import { registerUser, loginUser } from "../../../../src/users.js"
+import { minPasswordLength } from "../../../../src/passwords.js"
 import { loginOutcomeResponse } from "../../../../src/utilities/login-response.js"
 
 export const onRequestPost: Handler = async (context) => {
@@ -29,7 +29,7 @@ export const onRequestPost: Handler = async (context) => {
   }
 
   try {
-    const results = await user_register(dbClient, context.env, name, email, pw)
+    const results = await registerUser(dbClient, context.env, name, email, pw)
     if (results && results.success) {
       // Redirect to login page on successful registration
       return new Response(null, {
@@ -39,7 +39,7 @@ export const onRequestPost: Handler = async (context) => {
         },
       })
     } else {
-      // This case might be hit if user_register returns something unexpected without throwing an error
+      // This case might be hit if registerUser returns something unexpected without throwing an error
       return new Response(
         '<p class="result-negative">Registration failed. Please try again.</p>',
         {
@@ -49,26 +49,26 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
   } catch (error) {
-    console.error("Error in user_register endpoint:", error)
+    console.error("Error in registerUser endpoint:", error)
     if (
       error instanceof Error &&
       error.message === "Email is already registered."
     ) {
       // The email is taken. If the supplied password also matches the existing
       // account, this is a returning user who forgot they already had one —
-      // log them in rather than erroring (issue #20). user_register threw
+      // log them in rather than erroring (issue #20). registerUser threw
       // before creating anything, so there is no partial state to undo.
       const user_agent = context.request.headers.get("User-Agent") || ""
       const ip_address = context.request.headers.get("CF-Connecting-IP") || ""
       const ip_country = context.request.headers.get("CF-IPCountry") || ""
-      const loginResult = await user_login(
+      const loginResult = await loginUser(
         dbClient,
         email,
         pw,
         user_agent,
         ip_address,
         ip_country,
-        getMinPasswordLength(context.env)
+        minPasswordLength(context.env)
       )
       if (!loginResult.error) {
         // Same outcome as a normal login: a session, or the 2FA /

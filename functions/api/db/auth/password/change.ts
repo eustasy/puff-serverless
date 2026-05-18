@@ -1,9 +1,9 @@
 import {
-  getMinPasswordLength,
-  password_requirements,
-  password_requirements_html,
-  password_verify,
-  passwordReused,
+  minPasswordLength,
+  passwordRequirements,
+  passwordRequirementsHtml,
+  verifyPassword,
+  isPasswordReused,
   updatePassword,
 } from "../../../../../src/passwords.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
@@ -41,10 +41,10 @@ export const onRequestPost: Handler = async (context) => {
 
   try {
     // Step 4: Password Strength Check (New Password)
-    const minLength = getMinPasswordLength(context.env)
-    const isPasswordStrong = password_requirements(new_password, minLength)
+    const minLength = minPasswordLength(context.env)
+    const isPasswordStrong = passwordRequirements(new_password, minLength)
     if (!isPasswordStrong) {
-      const requirementsHtml = await password_requirements_html(
+      const requirementsHtml = await passwordRequirementsHtml(
         new_password,
         minLength
       )
@@ -58,7 +58,7 @@ export const onRequestPost: Handler = async (context) => {
     }
 
     // Step 5: Verify Current Password
-    const verifyResult = await password_verify(
+    const verifyResult = await verifyPassword(
       dbClient,
       user_uuid,
       current_password
@@ -82,7 +82,11 @@ export const onRequestPost: Handler = async (context) => {
     }
 
     // Step 6: Reject reuse of a current or previous password (issue #22).
-    const reuseResult = await passwordReused(dbClient, user_uuid, new_password)
+    const reuseResult = await isPasswordReused(
+      dbClient,
+      user_uuid,
+      new_password
+    )
     if (reuseResult.error) {
       console.error("Error checking password history:", reuseResult.message)
       return new Response(

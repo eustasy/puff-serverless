@@ -1,5 +1,5 @@
-import { user_login } from "../../../../src/users.js"
-import { getMinPasswordLength } from "../../../../src/passwords.js"
+import { loginUser } from "../../../../src/users.js"
+import { minPasswordLength } from "../../../../src/passwords.js"
 import { loginOutcomeResponse } from "../../../../src/utilities/login-response.js"
 
 export const onRequestPost: Handler = async (context) => {
@@ -23,14 +23,14 @@ export const onRequestPost: Handler = async (context) => {
     const user_agent = context.request.headers.get("User-Agent") || ""
     const ip_address = context.request.headers.get("CF-Connecting-IP") || ""
     const ip_country = context.request.headers.get("CF-IPCountry") || ""
-    const loginResult = await user_login(
+    const loginResult = await loginUser(
       dbClient,
       email,
       pw,
       user_agent,
       ip_address,
       ip_country,
-      getMinPasswordLength(context.env)
+      minPasswordLength(context.env)
     )
 
     if (loginResult.error) {
@@ -46,7 +46,7 @@ export const onRequestPost: Handler = async (context) => {
     // Session cookie, or redirect into the 2FA / password-upgrade step.
     return await loginOutcomeResponse(dbClient, context.env, loginResult)
   } catch (error) {
-    console.error("Error in user_login endpoint:", error)
+    console.error("Error in loginUser endpoint:", error)
     if (
       error instanceof Error &&
       (error.message.toLowerCase().includes("formdata") ||

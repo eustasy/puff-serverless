@@ -1,4 +1,4 @@
-import { listSessionsForUser } from "../../../../../src/sessions.js"
+import { readSessions } from "../../../../../src/sessions.js"
 import {
   getCookie,
   parseUserAgent,
@@ -12,7 +12,7 @@ export const onRequestGet: Handler = async (context) => {
   const currentSessionToken = await getCookie(cookieHeader, "session_token")
 
   try {
-    const result = await listSessionsForUser(dbClient, user_uuid)
+    const result = await readSessions(dbClient, user_uuid)
 
     if (!result.success) {
       return new Response(`<p class=\"result-negative\">${result.error}</p>`, {

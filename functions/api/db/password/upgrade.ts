@@ -9,9 +9,9 @@
 // is the capability.
 
 import {
-  getMinPasswordLength,
-  password_requirements,
-  passwordReused,
+  minPasswordLength,
+  passwordRequirements,
+  isPasswordReused,
   updatePassword,
 } from "../../../../src/passwords.js"
 import {
@@ -59,9 +59,7 @@ export const onRequestPost: Handler = async (context) => {
 
   try {
     // Enforce the (raised) minimum — passing it is the whole point of the flow.
-    if (
-      !password_requirements(new_password, getMinPasswordLength(context.env))
-    ) {
+    if (!passwordRequirements(new_password, minPasswordLength(context.env))) {
       return new Response(
         '<p class="result-negative">New password does not meet requirements.</p>',
         { status: 400, headers: { "Content-Type": "text/html" } }
@@ -87,7 +85,7 @@ export const onRequestPost: Handler = async (context) => {
 
     // The new password must differ from the current and every previous one —
     // in particular it cannot be the too-short password being replaced.
-    const reuseResult = await passwordReused(
+    const reuseResult = await isPasswordReused(
       dbClient,
       pending.user_uuid,
       new_password

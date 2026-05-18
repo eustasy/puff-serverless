@@ -1,7 +1,7 @@
 import {
-  getMinPasswordLength,
-  password_requirements,
-  passwordReused,
+  minPasswordLength,
+  passwordRequirements,
+  isPasswordReused,
   updatePassword,
 } from "../../../../src/passwords.js"
 import { consumeToken, readToken } from "../../../../src/tokens.js"
@@ -45,9 +45,9 @@ export const onRequestPost: Handler = async (context) => {
   }
 
   try {
-    const passwordCheckResult = password_requirements(
+    const passwordCheckResult = passwordRequirements(
       new_password,
-      getMinPasswordLength(context.env)
+      minPasswordLength(context.env)
     )
     if (!passwordCheckResult) {
       return new Response(
@@ -82,7 +82,7 @@ export const onRequestPost: Handler = async (context) => {
 
     // Reject reuse of any current or previous password (issue #22). Done
     // before the token is consumed — see the comment above.
-    const reuseResult = await passwordReused(
+    const reuseResult = await isPasswordReused(
       dbClient,
       pending.user_uuid,
       new_password

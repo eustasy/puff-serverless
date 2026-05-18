@@ -1,6 +1,6 @@
 import {
-  getMinPasswordLength,
-  password_requirements_html,
+  minPasswordLength,
+  passwordRequirementsHtml,
 } from "../../src/passwords.js"
 
 export const onRequestPost: Handler = async (context) => {
@@ -14,9 +14,9 @@ export const onRequestPost: Handler = async (context) => {
       }
     )
   }
-  const response_html = await password_requirements_html(
+  const response_html = await passwordRequirementsHtml(
     pw,
-    getMinPasswordLength(context.env)
+    minPasswordLength(context.env)
   )
   return new Response(response_html)
 }

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto"
-import { loginUser } from "./users"
+import { updateLastLogin } from "./users"
 
 /**
  * Verifies a session token against the database.
@@ -130,7 +130,7 @@ export async function createSession(
     query += `) VALUES (${valuePlaceholders})`
 
     await dbClient.query(query, params)
-    const loginResult = await loginUser(dbClient, user_uuid)
+    const loginResult = await updateLastLogin(dbClient, user_uuid)
     if (loginResult.error) {
       // Preserve prior behavior of failing session creation on a DB error here.
       throw new Error(loginResult.message)
@@ -158,7 +158,7 @@ export async function createSession(
  * @param {string} session_id - The ID of the session to terminate.
  * @returns {Promise<{success?: boolean, error?: string, status?: number}>} Result of the operation.
  */
-export async function terminateSpecificSession(
+export async function terminateSession(
   dbClient: DbClient,
   user_uuid: string,
   session_id: string
@@ -180,7 +180,7 @@ export async function terminateSpecificSession(
       return { error: "Session not found or already terminated.", status: 404 }
     }
   } catch (error) {
-    console.error("Error in terminateSpecificSession:", error)
+    console.error("Error in terminateSession:", error)
     return {
       error: "Failed to terminate session due to a server error.",
       status: 500,
@@ -258,7 +258,7 @@ export async function terminateAllSessions(
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<{sessions?: Array<object>, error?: string, status?: number}>} List of sessions or error.
  */
-export async function listSessionsForUser(
+export async function readSessions(
   dbClient: DbClient,
   user_uuid: string
 ): Promise<
@@ -272,7 +272,7 @@ export async function listSessionsForUser(
     )
     return { success: true, sessions: result.rows, status: 200 }
   } catch (error) {
-    console.error("Error in listSessionsForUser:", error)
+    console.error("Error in readSessions:", error)
     return {
       error: "Failed to list sessions due to a server error.",
       status: 500,

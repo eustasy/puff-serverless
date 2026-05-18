@@ -1,4 +1,4 @@
-import { terminateSpecificSession } from "../../../../../../src/sessions.js"
+import { terminateSession } from "../../../../../../src/sessions.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -17,7 +17,7 @@ export const onRequestPost: Handler = async (context) => {
   }
 
   // Step 4: Terminate Specific Session using the helper function
-  const terminationResult = await terminateSpecificSession(
+  const terminationResult = await terminateSession(
     dbClient,
     user_uuid,
     session_id_to_terminate

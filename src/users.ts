@@ -2,8 +2,8 @@ import { createSession, terminateAllSessions } from "./sessions.js"
 import { createEmail, existsEmail, readEmail } from "./emails.js"
 import {
   createPassword,
-  password_verify,
-  passwordReused,
+  verifyPassword,
+  isPasswordReused,
   updatePassword,
 } from "./passwords.js"
 import { has2fa } from "./2fa.js"
@@ -38,7 +38,7 @@ export async function readUser(
   }
 }
 
-export async function user_register(
+export async function registerUser(
   dbClient: DbClient,
   env: Env,
   name: string,
@@ -162,7 +162,7 @@ export type UserLoginResult =
 
 export type UserLoginSuccess = Extract<UserLoginResult, { success: true }>
 
-export async function user_login(
+export async function loginUser(
   dbClient: DbClient,
   email: string,
   password: string,
@@ -195,7 +195,7 @@ export async function user_login(
     const user = emailReadResult.email
     const user_uuid = user.user_uuid
 
-    const verifyResult = await password_verify(dbClient, user_uuid, password)
+    const verifyResult = await verifyPassword(dbClient, user_uuid, password)
     if (verifyResult.error) {
       return {
         error: true,
@@ -208,9 +208,9 @@ export async function user_login(
       // one the user previously used on this account (a now-disabled secret
       // row) and, if so, give a more helpful prompt than the generic failure.
       // We only reach here once the active password has already failed above,
-      // so any passwordReused hit is necessarily a *previous* password.
+      // so any isPasswordReused hit is necessarily a *previous* password.
       // A DB error here is non-fatal — fall through to the generic message.
-      const previous = await passwordReused(dbClient, user_uuid, password)
+      const previous = await isPasswordReused(dbClient, user_uuid, password)
       if (previous.success && previous.reused) {
         return {
           error: true,
@@ -333,7 +333,7 @@ export async function user_login(
 /**
  * Disables a user account (reversible). Sets `user_active = FALSE` and
  * terminates every active session in one transaction, so the user is logged
- * out everywhere immediately and `user_login` will reject them. Reverse with
+ * out everywhere immediately and `loginUser` will reject them. Reverse with
  * `enableUser`; for a permanent removal use `deleteUser`.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user to disable.
@@ -464,7 +464,7 @@ export async function deleteUser(
  * @param {string} user_uuid - The UUID of the user to update.
  * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` if a row was updated, `{ success: false, message, status: 404 }` if not, `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function loginUser(
+export async function updateLastLogin(
   dbClient: DbClient,
   user_uuid: string
 ): Promise<Envelope> {
@@ -478,7 +478,7 @@ export async function loginUser(
     }
     return { success: false, message: "User not found.", status: 404 }
   } catch (error) {
-    console.error("Error in loginUser:", error)
+    console.error("Error in updateLastLogin:", error)
     return {
       error: true,
       message: "Could not update last login timestamp.",
