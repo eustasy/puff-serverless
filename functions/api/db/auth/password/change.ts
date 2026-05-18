@@ -4,6 +4,7 @@ import {
   password_verify,
   updatePassword,
 } from "../../../../../src/passwords.js"
+import { escapeHtml } from "../../../../../src/utilities/escape.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -60,7 +61,7 @@ export const onRequestPost: Handler = async (context) => {
     if (verifyResult.error) {
       console.error("Error verifying current password:", verifyResult.message)
       return new Response(
-        `<p>Error: ${verifyResult.message || "Could not verify current password."}</p>`,
+        `<p>Error: ${escapeHtml(verifyResult.message || "Could not verify current password.")}</p>`,
         {
           status: verifyResult.status || 500,
           headers: { "Content-Type": "text/html" },
