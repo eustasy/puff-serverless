@@ -40,4 +40,7 @@ interface Env {
   /** When "true", zxcvbn score ≥ 3 is the hard gate; REQUIRE_NUMBER /
    *  REQUIRE_CAPITAL / REQUIRE_SPECIAL_CHAR become suggestions, not rules. */
   REQUIRE_ZXCVBN?: string
+  // WebAuthn / Passkey settings. Optional; defaults derived from APP_URL and APP_NAME.
+  WEBAUTHN_RP_ID?: string
+  WEBAUTHN_RP_NAME?: string
 }

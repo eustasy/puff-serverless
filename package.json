@@ -11,6 +11,7 @@
     "format": "npx prettier --write **/*.{js,ts,mjs,md,cjs,json,yml,html,css,less,sass}"
   },
   "dependencies": {
+    "@simplewebauthn/server": "^13.3.0",
     "otplib": "^13.4.0",
     "pg": "^8.20.0",
     "uqr": "^0.1.3",

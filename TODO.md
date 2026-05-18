@@ -112,7 +112,17 @@ Core feature parity with the PHP server, focused on the account/password lifecyc
   - [x] Add a reversible disable that also terminates all sessions. (`disableUser` in `src/users.ts` — transactional `user_active = FALSE` + `terminateAllSessions`. `user_login` now rejects disabled accounts after a proven password.)
   - [x] Add a re-enable flow. (`enableUser` in `src/users.ts`.)
   - [x] The old `deleteUser` (which only soft-deleted) is now a real permanent hard delete — a single `DELETE FROM users`, with all child rows removed by `ON DELETE CASCADE` foreign keys (`sql/*.sql` updated; existing databases need the cascade `ALTER`).
-- [ ] webauthn + passkeys
+- [x] **WebAuthn / Passkeys.** Passkey login does not trigger the 2FA gate — the passkey itself satisfies both factors.
+  - [x] `sql/passkeys.sql` — new table with `credential_id UNIQUE` index for O(1) lookup during authentication; FK to `users` with `ON DELETE CASCADE`.
+  - [x] `src/passkeys.ts` — domain module: `listPasskeys`, `getPasskeyByCredentialId`, `savePasskey`, `updatePasskeyCounter`, `deletePasskey`, `getUserByUsername`, `getRpConfig`. RP ID defaults to hostname of `APP_URL`; RP name defaults to `APP_NAME`.
+  - [x] `createWebAuthnToken` added to `src/tokens.ts` — inserts a caller-supplied challenge (base64url bytes) as `token_value`, so the challenge and the look-up key are the same string. Token types: `webauthn_registration_challenge`, `webauthn_authentication_challenge` (5-minute TTL each).
+  - [x] Registration endpoints under `functions/api/db/auth/passkeys/` (authenticated): `register/start.ts` generates options + challenge token + cookie; `register/complete.ts` verifies via `@simplewebauthn/server`, saves credential; `list.ts` returns HTML fragment; `delete.ts` removes (user-ownership guard).
+  - [x] Authentication endpoints under `functions/api/db/passkeys/authenticate/` (unauthenticated): `start.ts` generates auth options (enumeration-safe: always returns valid JSON even if username absent); `complete.ts` consumes token atomically, verifies response, updates counter, grants session **directly** — no `has2fa` check.
+  - [x] `public/assets/webauthn.js` — minimal ES module using raw `navigator.credentials` API; no bundler or third-party browser library needed. Base64url encode/decode helpers included.
+  - [x] `public/account.html` — Passkeys section (list + register button) with `hx-trigger="passkeysChanged from:body"` pattern matching the 2FA section.
+  - [x] `public/login.html` — passkey login form (username input + "Use Passkey" button) below the password form.
+  - [x] New env vars: `WEBAUTHN_RP_ID` (default: hostname from `APP_URL`), `WEBAUTHN_RP_NAME` (default: `APP_NAME`).
+  - [x] `@simplewebauthn/server` v13 added (uses Web Crypto API — Workers-native; no Node crypto dependency).
 
 ## Phase 4 — Extended capabilities & integrations
 

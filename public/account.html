@@ -19,6 +19,7 @@
     <title>Account Management</title>
     <link rel="stylesheet" href="/assets/main.css" />
     <script src="/assets/htmx_2.0.4.min.js"></script>
+    <script src="/assets/webauthn.js" defer></script>
   </head>
   <body>
     <div class="container wide">
@@ -144,6 +145,29 @@
           hx-swap="innerHTML"
         >
           <p>Loading 2FA status...</p>
+        </div>
+
+        <div id="passkey-controls" class="grid-container grid-header">
+          <div class="grid-item">
+            <h2>Passkeys</h2>
+          </div>
+          <div class="grid-item">
+            <button id="register-passkey" class="btn-save">
+              Register a Passkey
+              <img class="htmx-indicator" src="/assets/bars.svg" />
+            </button>
+          </div>
+        </div>
+
+        <div id="passkey-message-area" class="result-area spacer-bottom"></div>
+
+        <div
+          id="passkey-list-container"
+          hx-get="/api/db/auth/passkeys/list"
+          hx-trigger="load, passkeysChanged from:body"
+          hx-swap="innerHTML"
+        >
+          <p>Loading passkeys...</p>
         </div>
 
         <p><a href="/logout">Log Out</a></p>

@@ -88,6 +88,19 @@ declare global {
     secret_type: string
   }
 
+  interface PasskeyRow {
+    passkey_uuid: string
+    user_uuid: string
+    credential_id: string
+    public_key: string
+    counter: number
+    transports: string[] | null
+    passkey_name: string | null
+    created_at: Date
+    last_used_at: Date | null
+    is_enabled: boolean
+  }
+
   interface KeyValueRow {
     user_uuid: string
     kv_key: string

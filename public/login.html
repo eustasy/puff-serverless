@@ -18,6 +18,7 @@
     />
     <title>Login</title>
     <script src="/assets/htmx_2.0.4.min.js"></script>
+    <script src="/assets/webauthn.js" defer></script>
     <link rel="stylesheet" href="/assets/main.css" />
   </head>
   <body>
@@ -72,6 +73,21 @@
         </button>
       </form>
       <div id="login-result" class="result-area"></div>
+
+      <hr />
+      <div class="form-group">
+        <label for="passkey-username">Sign in with a passkey:</label>
+        <input
+          type="text"
+          id="passkey-username"
+          name="username"
+          placeholder="Username"
+          autocomplete="username webauthn"
+        />
+      </div>
+      <button id="passkey-login-btn" class="btn-safe">Use Passkey</button>
+      <div id="passkey-result" class="result-area"></div>
+
       <p class="centered-link">
         Don't have an account? <a href="/register">Register</a>
       </p>

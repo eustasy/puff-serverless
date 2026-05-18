@@ -352,6 +352,46 @@ export async function createBypassToken(
 }
 
 /**
+ * Creates a WebAuthn challenge token with a caller-supplied token_value (the
+ * base64url-encoded challenge bytes). Unlike createToken, which generates a
+ * random UUID, WebAuthn requires the stored value to equal the challenge that
+ * was signed by the authenticator so the complete step can look it up.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user.
+ * @param {"webauthn_registration_challenge"|"webauthn_authentication_challenge"} token_type
+ * @param {string} challenge - base64url-encoded 32-byte challenge (used as token_value).
+ * @param {string} expires_at - ISO timestamp for expiry (5 minutes from now).
+ * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
+ */
+export async function createWebAuthnToken(
+  dbClient: DbClient,
+  user_uuid: string,
+  token_type:
+    | "webauthn_registration_challenge"
+    | "webauthn_authentication_challenge",
+  challenge: string,
+  expires_at: string
+): Promise<TokenEnvelope<{ token_value: string }>> {
+  try {
+    const result = await dbClient.query(
+      "INSERT INTO tokens (user_uuid, token_type, token_value, expires_at, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING token_value",
+      [user_uuid, token_type, challenge, expires_at]
+    )
+    if (result.rows.length > 0) {
+      return { success: true, token_value: challenge }
+    }
+    return { error: true, message: "Failed to create WebAuthn token." }
+  } catch (error) {
+    console.error("Error in createWebAuthnToken:", error)
+    return {
+      error: true,
+      message: "Server error while creating WebAuthn token.",
+      details: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+/**
  * Creates a new sudo token in the database.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
