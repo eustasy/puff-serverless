@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto"
+import { Client } from "pg"
 import { updateLastLogin } from "./users"
 
 /**
@@ -64,6 +65,48 @@ export async function verifyTokenAndGetUser(
   } catch (error) {
     console.error("Error during token verification:", error)
     return { error: "Error during token verification.", status: 500 }
+  }
+}
+
+/**
+ * Verifies a session token by opening its own short-lived database connection.
+ * For callers that run outside the functions/api/db middleware chain and so
+ * have no injected dbClient — e.g. the root functions/_middleware.ts deciding
+ * whether to redirect an already-logged-in user away from /login.
+ *
+ * Returns a plain boolean. Fails open: a connection or query error is logged
+ * and returns false, so a database problem never blocks page delivery.
+ *
+ * @param {Env} env - Worker environment, for the Hyperdrive connection string.
+ * @param {string} token - The session token to verify.
+ * @param {string | null} ip_country - The CF-IPCountry header value.
+ * @param {string | null} ip_address - The CF-Connecting-IP header value.
+ * @returns {Promise<boolean>} true only if the session is currently valid.
+ */
+export async function verifySessionToken(
+  env: Env,
+  token: string,
+  ip_country: string | null,
+  ip_address: string | null
+): Promise<boolean> {
+  if (!env.HYPERDRIVE || !env.HYPERDRIVE.connectionString) return false
+  const client = new Client(env.HYPERDRIVE.connectionString)
+  try {
+    await client.connect()
+    const result = await verifyTokenAndGetUser(
+      client,
+      token,
+      ip_country,
+      ip_address
+    )
+    return result.success === true
+  } catch (error) {
+    console.error("verifySessionToken: session check failed:", error)
+    return false
+  } finally {
+    try {
+      await client.end()
+    } catch {}
   }
 }
 
