@@ -6,6 +6,7 @@
   - [First time project setup](#first-time-project-setup)
   - [Continuous Development](#continuous-development)
   - [Deploying to Production](#deploying-to-production)
+  - [Scheduled cleanup](#scheduled-cleanup)
   - [Directories](#directories)
   - [Special Files](#special-files)
 - [Libraries](#libraries)
@@ -102,6 +103,21 @@ Deployment uses `wrangler deploy` — the Workers path (see [Directories](#direc
 
 5. **Custom domain.** By default the Worker is served at `puff-serverless.<account>.workers.dev`. To serve it at its public origin, add a [custom domain](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) for the Worker (via the Cloudflare dashboard, or a `routes` entry in `wrangler.jsonc`), and keep `APP_URL` in sync with it.
 
+The Cron Triggers (see [Scheduled cleanup](#scheduled-cleanup)) are declared in `wrangler.jsonc` and registered automatically by `wrangler deploy` — no extra step.
+
+### Scheduled cleanup
+
+The request path only ever _soft_-expires data: sessions are marked inactive, tokens marked used, TOTP codes recorded — nothing is deleted inline. A [Cloudflare Cron Trigger](https://developers.cloudflare.com/workers/configuration/cron-triggers/) reaps that data instead.
+
+The schedules are declared as `triggers.crons` in `wrangler.jsonc`; the `scheduled` handler is added by `worker.ts` and the job itself is `src/cron.ts`. That module is the one DB caller with no `_middleware.ts` in front of it, so it opens and closes its own `pg` client.
+
+| Schedule      | Action                                                                                                                                            |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `*/5 * * * *` | Purge `totp_used_codes` rows past the TOTP acceptance window. Runs often so a stale row cannot collide with a later, legitimately-different code. |
+| `0 * * * *`   | Additionally purge `sessions` and `tokens` older than one month. They are kept that long first — a defunct row is a lightweight audit record.     |
+
+Sessions are purged only when also defunct (inactive or past expiry), so a still-valid session is never deleted even if `SESSION_MAX_AGE_SECONDS` is raised beyond a month.
+
 ### Directories
 
 The project deploys as a single Cloudflare Worker bundle. The Worker serves static files from `public/` via [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/), and the dynamic endpoints under `functions/` are compiled into the same bundle using Pages Functions directory-routing conventions. The build step is `wrangler pages functions build` (the Pages Functions compiler) but the deploy command is `wrangler deploy` — the Workers path.
@@ -119,13 +135,14 @@ The project deploys as a single Cloudflare Worker bundle. The Worker serves stat
 
 ### Special Files
 
-| File                                                                                                                                   | Contents                        | Deployed to                                                                                               |
-| -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| [public/\_redirects](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_redirects)                                       | Redirect Rules                  | [Cloudflare Pages Redirects](https://developers.cloudflare.com/pages/platform/redirects/)                 |
-| [public/\_headers](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_headers)                                           | HTTP response headers           | [Cloudflare Pages Headers](https://developers.cloudflare.com/pages/platform/headers/)                     |
-| _build.sh_                                                                                                                             | Build Commands                  | [Cloudflare Pages Build](https://developers.cloudflare.com/pages/how-to/build-commands-branches/)         |
-| [functions/api/db/\_middleware.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/functions/api/db/_middleware.js)           | Database connection middleware. | [Cloudflare Functions Middleware](https://developers.cloudflare.com/pages/platform/functions/middleware/) |
-| [functions/api/db/auth/\_middleware.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/functions/api/db/auth/_middleware.js) | Authentication middleware.      | [Cloudflare Functions Middleware](https://developers.cloudflare.com/pages/platform/functions/middleware/) |
+| File                                                                                                                                   | Contents                                                           | Deployed to                                                                                               |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| [worker.ts](https://github.com/eustasy/puff-serverless/blob/cf-pages/worker.ts)                                                        | Worker entry (`main`): compiled `fetch` + the `scheduled` handler. | Bundled into Worker                                                                                       |
+| [public/\_redirects](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_redirects)                                       | Redirect Rules                                                     | [Cloudflare Pages Redirects](https://developers.cloudflare.com/pages/platform/redirects/)                 |
+| [public/\_headers](https://github.com/eustasy/puff-serverless/blob/cf-pages/public/_headers)                                           | HTTP response headers                                              | [Cloudflare Pages Headers](https://developers.cloudflare.com/pages/platform/headers/)                     |
+| _build.sh_                                                                                                                             | Build Commands                                                     | [Cloudflare Pages Build](https://developers.cloudflare.com/pages/how-to/build-commands-branches/)         |
+| [functions/api/db/\_middleware.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/functions/api/db/_middleware.js)           | Database connection middleware.                                    | [Cloudflare Functions Middleware](https://developers.cloudflare.com/pages/platform/functions/middleware/) |
+| [functions/api/db/auth/\_middleware.js](https://github.com/eustasy/puff-serverless/blob/cf-pages/functions/api/db/auth/_middleware.js) | Authentication middleware.                                         | [Cloudflare Functions Middleware](https://developers.cloudflare.com/pages/platform/functions/middleware/) |
 
 ## Libraries
 

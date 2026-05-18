@@ -77,15 +77,14 @@ Defence-in-depth work to land shortly after launch.
   - [x] Retained `readToken`, `usedToken`, and `deleteToken` for future non-consume token uses. **`createToken` + `consumeToken` are the recommended pair for any new single-use-token flow** — documented in the `src/tokens.ts` header comment.
 - [x] **TOTP code replay protection (RFC 6238 §5.2).** A valid TOTP code is currently accepted repeatedly within its ~30–90s window, in both `2fa/login.ts` and `2fa/setup/verify.ts`. This cannot use the `tokens` table — a TOTP code's key is the user-provided value, not a value we issued.
   - [x] Add `sql/totp_used_codes.sql` — `(user_uuid, totp_code)` primary key with `used_at` for cleanup, FK to users with ON DELETE CASCADE.
-  - [x] Add `recordTotpCode(dbClient, user_uuid, totp_code)` to `src/2fa.ts` — `INSERT … ON CONFLICT DO NOTHING`; `rowCount === 0` means replay → `success: false`. Called after a valid code in both login and setup/verify, before `consumeToken` so a replay does not burn the pending-login token.
+  - [x] The replay `INSERT … ON CONFLICT DO NOTHING` lives in `used2fa(dbClient, user_uuid, totp_code)` (`src/2fa.ts`); `rowCount === 0` means replay → `success: false`. Called after a valid code in both login and setup/verify — before `consumeToken` in login so a replay does not burn the pending-login token, and after `enable2fa` in setup so the same call also updates `secret_last_used`.
   - [x] Set `epochTolerance: 30` (±1 time step for clock skew) on both `verify()` calls — previously defaulted to 0.
   - [x] `secret_last_used` stays informational only; it is not the replay guard.
-  - [ ] Prune `totp_used_codes` rows older than the acceptance window (folds into the scheduled cleanup job below).
-- [ ] **Scheduled cleanup jobs.** This server soft-terminates sessions and marks tokens used, but never reaps them (PHP's hourly cron hard-deleted old sessions).
-  - [ ] Add a [Cloudflare Cron Trigger](https://developers.cloudflare.com/workers/configuration/cron-triggers/) handler.
-  - [ ] Purge expired / inactive sessions.
-  - [ ] Purge used / expired tokens.
-  - [ ] Purge `totp_used_codes` rows older than the TOTP acceptance window.
+  - [x] Prune `totp_used_codes` rows older than the acceptance window — done by the scheduled cleanup job below.
+- [x] **Scheduled cleanup jobs.** This server soft-terminates sessions and marks tokens used, but never reaps them (PHP's hourly cron hard-deleted old sessions).
+  - [x] Add a [Cloudflare Cron Trigger](https://developers.cloudflare.com/workers/configuration/cron-triggers/) handler — `triggers.crons` in `wrangler.jsonc`, the `scheduled` export wired up by the new `worker.ts` entry, job logic in `src/cron.ts`.
+  - [x] Purge `sessions` and `tokens` older than one month (`0 * * * *`). Kept a month first as a lightweight audit trail; sessions are purged only when also defunct, so a still-valid session is never deleted.
+  - [x] Purge `totp_used_codes` rows past the acceptance window (`*/5 * * * *`) — runs far more often than the audit purge so a stale row cannot collide with a later, legitimately-different code.
 - [ ] **CSP violation reporting.** PHP exposed `api/csp_report.php` and logged breaches.
   - [ ] Add a `report-uri` / `report-to` directive to the CSP in `public/_headers`.
   - [ ] Add a collecting endpoint under `functions/api/`.

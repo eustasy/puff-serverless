@@ -1,8 +1,11 @@
 {
 	"name": "puff-serverless",
-	"main": "./dist/worker/index.js",
+	"main": "./worker.ts",
 	"compatibility_date": "2026-03-22",
 	"compatibility_flags": ["nodejs_compat"],
+	"triggers": {
+		"crons": ["*/5 * * * *", "0 * * * *"]
+	},
 	"assets": {
 		"directory": "./public"
 	},

@@ -21,6 +21,8 @@ There is no test suite. `npm run lint` is the gate before pushing; CI runs Prett
 
 The project deploys as a **single Cloudflare Worker bundle**, but is authored with **Pages Functions** directory-routing conventions. The build step (`wrangler pages functions build`) is the Pages compiler; the deploy step (`wrangler deploy`) is the Workers path. `public/` is served as Workers Static Assets; `functions/` is compiled into the same bundle. `dist/worker/` is a build artifact — never edit it.
 
+`wrangler.jsonc`'s `main` is **`worker.ts`**, not the compiled bundle. The Pages compiler emits only a `fetch` handler; `worker.ts` is a thin entry that forwards `fetch` to the compiled `dist/worker/index.js` and adds the `scheduled` handler (Cron Triggers — see `src/cron.ts`). It sits outside the `tsconfig.json` `include` globs on purpose, because it imports the post-build artifact.
+
 Node built-ins are marked `--external` in the build script (see `package.json`); `nodejs_compat` provides them at runtime. `compatibility_date` lives in both `wrangler.jsonc` and the build script.
 
 ## Architecture
@@ -40,6 +42,8 @@ Endpoints read `context.data.dbClient` / `context.data.user_uuid` directly — n
 ### `src/` domain modules
 
 `src/` holds backend logic with no HTTP handling, one module per domain (`users`, `sessions`, `passwords`, `emails`, `tokens`, `2fa`, plus `src/utilities/`). Every `src/` function takes `dbClient` as its first parameter and returns a structured envelope (`{ success: true, ... }` / `{ error: true, ... }` / `{ exists: boolean }`) — they do not throw or return raw rows. The sole exception is `user_register`, which throws (wrap calls in try/catch).
+
+`src/cron.ts` is a deliberate departure: it runs on a Cron Trigger with no `_middleware.ts` in front of it, so it opens and closes its own `pg` client rather than receiving one. It is the scheduled-cleanup job (purges old sessions/tokens and stale TOTP replay-guard rows).
 
 ### Database
 
