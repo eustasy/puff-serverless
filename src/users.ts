@@ -114,15 +114,11 @@ export async function user_register(
   }
 }
 
-export async function user_login(
-  dbClient: DbClient,
-  email: string,
-  password: string,
-  user_agent: string,
-  ip_address: string,
-  ip_country: string,
-  min_password_length: number
-): Promise<
+// Outcome of a password-login attempt. One error variant and three success
+// variants: 2FA required, password upgrade required, or a session granted.
+// loginOutcomeResponse (src/utilities/login-response.ts) turns the success
+// variants into the corresponding HTTP response.
+export type UserLoginResult =
   | {
       success?: never
       error: true
@@ -163,7 +159,18 @@ export async function user_login(
       message: string
       status: number
     }
-> {
+
+export type UserLoginSuccess = Extract<UserLoginResult, { success: true }>
+
+export async function user_login(
+  dbClient: DbClient,
+  email: string,
+  password: string,
+  user_agent: string,
+  ip_address: string,
+  ip_country: string,
+  min_password_length: number
+): Promise<UserLoginResult> {
   try {
     const emailReadResult = await readEmail(dbClient, email)
 

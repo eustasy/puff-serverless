@@ -1,4 +1,6 @@
-import { user_register } from "../../../../src/users.js"
+import { user_register, user_login } from "../../../../src/users.js"
+import { getMinPasswordLength } from "../../../../src/passwords.js"
+import { loginOutcomeResponse } from "../../../../src/utilities/login-response.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -52,10 +54,36 @@ export const onRequestPost: Handler = async (context) => {
       error instanceof Error &&
       error.message === "Email is already registered."
     ) {
-      return new Response(`<p class="result-negative">${error.message}</p>`, {
-        status: 409, // 409 Conflict is appropriate for existing email
-        headers: { "Content-Type": "text/html" },
-      })
+      // The email is taken. If the supplied password also matches the existing
+      // account, this is a returning user who forgot they already had one —
+      // log them in rather than erroring (issue #20). user_register threw
+      // before creating anything, so there is no partial state to undo.
+      const user_agent = context.request.headers.get("User-Agent") || ""
+      const ip_address = context.request.headers.get("CF-Connecting-IP") || ""
+      const ip_country = context.request.headers.get("CF-IPCountry") || ""
+      const loginResult = await user_login(
+        dbClient,
+        email,
+        pw,
+        user_agent,
+        ip_address,
+        ip_country,
+        getMinPasswordLength(context.env)
+      )
+      if (!loginResult.error) {
+        // Same outcome as a normal login: a session, or the 2FA /
+        // password-upgrade step.
+        return await loginOutcomeResponse(dbClient, context.env, loginResult)
+      }
+      // Password did not match the existing account — keep the generic
+      // conflict response, revealing nothing about the password.
+      return new Response(
+        '<p class="result-negative">Email is already registered.</p>',
+        {
+          status: 409, // 409 Conflict is appropriate for existing email
+          headers: { "Content-Type": "text/html" },
+        }
+      )
     }
     return new Response(
       '<p class="result-negative">An unexpected error occurred during registration.</p>',
