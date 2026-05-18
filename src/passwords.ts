@@ -5,6 +5,7 @@ import {
 } from "./utilities/hashing.js"
 import zxcvbn from "zxcvbn"
 import { escapeHtml } from "./utilities/escape.js"
+import { runInTransaction, Rollback } from "./utilities/transaction.js"
 
 /**
  * Creates a new password hash for a user and stores it in the database.
@@ -164,13 +165,12 @@ export async function updatePassword(
 ): Promise<Envelope> {
   try {
     // Atomic disable-then-create so a failure between the two doesn't leave
-    // the user with no enabled password.
-    await dbClient.query("BEGIN")
-    try {
+    // the user with no enabled password. runInTransaction retries the whole
+    // pair on a SERIALIZABLE serialization failure.
+    return await runInTransaction(dbClient, async (): Promise<Envelope> => {
       const disableResult = await disablePassword(dbClient, user_uuid)
       if (disableResult.error) {
-        await dbClient.query("ROLLBACK").catch(() => {})
-        return disableResult
+        throw new Rollback<Envelope>(disableResult)
       }
       const createResult = await createPassword(
         dbClient,
@@ -180,20 +180,10 @@ export async function updatePassword(
       if (createResult.error || !createResult.success) {
         // Propagate the inner envelope: validation failures keep their 400,
         // DB errors keep their 500. Either way roll back the disable.
-        await dbClient.query("ROLLBACK").catch(() => {})
-        return createResult
+        throw new Rollback<Envelope>(createResult)
       }
-      await dbClient.query("COMMIT")
       return { success: true, status: 200 }
-    } catch (txError) {
-      await dbClient.query("ROLLBACK").catch(() => {})
-      return {
-        error: true,
-        message: "Could not update password.",
-        details: txError instanceof Error ? txError.message : String(txError),
-        status: 500,
-      }
-    }
+    })
   } catch (error) {
     console.error("Error in updatePassword:", error)
     return {

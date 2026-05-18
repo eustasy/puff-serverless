@@ -9,6 +9,8 @@
 // Every helper takes `dbClient` first and returns the standard `Envelope`
 // shape (see types.d.ts) — they never throw or return raw rows.
 
+import { runInTransaction, Rollback } from "./utilities/transaction.js"
+
 // Parity with the PHP `KeyValues.Key` column (varchar(128)).
 export const MAX_KEY_LENGTH = 128
 // The PHP value column was also varchar(128); widened here — "arbitrary
@@ -173,8 +175,11 @@ export async function setKeyValue(
     return { success: false, message: invalid, status: 400 }
   }
   try {
-    await dbClient.query("BEGIN")
-    try {
+    // SERIALIZABLE isolation makes the count-check + insert race-free: a
+    // concurrent insert that would push the key count past the limit forces a
+    // serialization failure, which runInTransaction retries.
+    type SetResult = Envelope<{ created: boolean }>
+    return await runInTransaction(dbClient, async (): Promise<SetResult> => {
       const existing = await dbClient.query(
         "SELECT 1 FROM key_values WHERE user_uuid = $1 AND kv_key = $2 LIMIT 1",
         [user_uuid, key]
@@ -187,12 +192,11 @@ export async function setKeyValue(
           [user_uuid]
         )
         if (countResult.rows[0].count >= MAX_KEYS_PER_USER) {
-          await dbClient.query("ROLLBACK")
-          return {
+          throw new Rollback<SetResult>({
             success: false,
             message: `You have reached the limit of ${MAX_KEYS_PER_USER} stored keys. Remove a key before adding another.`,
             status: 409,
-          }
+          })
         }
       }
 
@@ -202,12 +206,8 @@ export async function setKeyValue(
         "INSERT INTO key_values (user_uuid, kv_key, kv_value) VALUES ($1, $2, $3) ON CONFLICT (user_uuid, kv_key) DO UPDATE SET kv_value = excluded.kv_value, updated_at = NOW()",
         [user_uuid, key, value]
       )
-      await dbClient.query("COMMIT")
       return { success: true, created: isNewKey, status: isNewKey ? 201 : 200 }
-    } catch (txError) {
-      await dbClient.query("ROLLBACK").catch(() => {})
-      throw txError
-    }
+    })
   } catch (error) {
     console.error("Error in setKeyValue:", error)
     return {

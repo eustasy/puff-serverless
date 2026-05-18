@@ -8,6 +8,7 @@ import {
 } from "./passwords.js"
 import { has2fa } from "./2fa.js"
 import { sendVerificationEmail } from "./mailer.js"
+import { runInTransaction, Rollback } from "./utilities/transaction.js"
 
 /**
  * Retrieves a user's details by their UUID.
@@ -346,36 +347,37 @@ export async function disableUser(
   try {
     // Flag flip and session purge are one unit: a user must never be left
     // marked inactive while still holding a live session, or vice versa.
-    await dbClient.query("BEGIN")
-    try {
-      const result = await dbClient.query(
-        "UPDATE users SET user_active = FALSE WHERE user_uuid = $1 RETURNING user_uuid",
-        [user_uuid]
-      )
-      if ((result.rowCount ?? 0) === 0) {
-        await dbClient.query("ROLLBACK").catch(() => {})
-        return { success: false, message: "User not found.", status: 404 }
+    // runInTransaction retries the pair on a SERIALIZABLE serialization failure.
+    type DisableResult = Envelope<{ terminated_sessions: number }>
+    return await runInTransaction(
+      dbClient,
+      async (): Promise<DisableResult> => {
+        const result = await dbClient.query(
+          "UPDATE users SET user_active = FALSE WHERE user_uuid = $1 RETURNING user_uuid",
+          [user_uuid]
+        )
+        if ((result.rowCount ?? 0) === 0) {
+          throw new Rollback<DisableResult>({
+            success: false,
+            message: "User not found.",
+            status: 404,
+          })
+        }
+        const sessions = await terminateAllSessions(dbClient, user_uuid)
+        if (!sessions.success) {
+          throw new Rollback<DisableResult>({
+            error: true,
+            message: sessions.error,
+            status: sessions.status,
+          })
+        }
+        return {
+          success: true,
+          terminated_sessions: sessions.deletedCount,
+          status: 200,
+        }
       }
-      const sessions = await terminateAllSessions(dbClient, user_uuid)
-      if (!sessions.success) {
-        await dbClient.query("ROLLBACK").catch(() => {})
-        return { error: true, message: sessions.error, status: sessions.status }
-      }
-      await dbClient.query("COMMIT")
-      return {
-        success: true,
-        terminated_sessions: sessions.deletedCount,
-        status: 200,
-      }
-    } catch (txError) {
-      await dbClient.query("ROLLBACK").catch(() => {})
-      return {
-        error: true,
-        message: "Could not disable user.",
-        details: txError instanceof Error ? txError.message : String(txError),
-        status: 500,
-      }
-    }
+    )
   } catch (error) {
     console.error("Error in disableUser:", error)
     return {

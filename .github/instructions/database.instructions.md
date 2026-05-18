@@ -33,25 +33,52 @@ Schema files live in `sql/`, one file per table. `users.sql` must be imported fi
 
 ## Transactions
 
-Wrap multi-step writes in explicit transactions when a partial failure would leave the database in an inconsistent state:
+Wrap multi-step writes in explicit transactions when a partial failure would leave the database in an inconsistent state. Do **not** hand-roll `BEGIN`/`COMMIT`/`ROLLBACK` — use `runInTransaction` from `src/utilities/transaction.ts`:
 
-```javascript
-await dbClient.query("BEGIN")
-try {
+```typescript
+import { runInTransaction, Rollback } from "./utilities/transaction.js"
+
+return await runInTransaction(dbClient, async (): Promise<Envelope> => {
   // multiple INSERT/UPDATE/DELETE statements
-  await dbClient.query("COMMIT")
-} catch (txError) {
-  await dbClient.query("ROLLBACK").catch(() => {})
-  throw txError
-}
+  return { success: true, status: 200 }
+})
 ```
+
+`runInTransaction` owns the transaction boundary: it issues the `BEGIN`/`COMMIT`, rolls back on any throw, and resolves with whatever the callback returns. The callback **must not** issue its own `BEGIN`/`COMMIT`/`ROLLBACK`.
+
+### Why this is required (CockroachDB SERIALIZABLE)
+
+CockroachDB runs every transaction at SERIALIZABLE isolation. When it cannot order a transaction against a concurrent one, it aborts the loser with a _retryable_ serialization failure (SQLSTATE `40001` / `RETRY_SERIALIZABLE`) and expects the client to **rerun the whole transaction**. A multi-statement transaction issued over separate round-trips cannot be retried server-side, so `runInTransaction` does it — up to 5 attempts with exponential backoff + jitter. Hand-rolled `BEGIN`/`COMMIT` blocks turn a retryable `40001` into a spurious 500.
+
+Single auto-committed statements outside an explicit transaction are auto-retried by the server and need no wrapping.
+
+### Aborting with a non-error result
+
+To abort the transaction (ROLLBACK) but resolve with a value instead of throwing — e.g. a not-found row or a limit hit _after_ a write has already been issued — `throw new Rollback(value)`. `runInTransaction` rolls back and resolves with `value`; it is never treated as retryable. Use this for business-rule aborts so a partial transaction is never committed:
+
+```typescript
+return await runInTransaction(dbClient, async (): Promise<Envelope> => {
+  const result = await dbClient.query("UPDATE ... RETURNING ...", [id])
+  if ((result.rowCount ?? 0) === 0) {
+    throw new Rollback<Envelope>({
+      success: false,
+      message: "Not found.",
+      status: 404,
+    })
+  }
+  // ... further writes ...
+  return { success: true, status: 200 }
+})
+```
+
+The callback may run more than once, so it must be safe to replay — no external side effects that cannot be repeated.
 
 Examples in the codebase:
 
-- `setPrimaryEmail` (`src/emails.js`) wraps demote-old-primary + promote-new-primary.
-- `updatePassword` (`src/passwords.js`) wraps disable-old + create-new.
-
-The `.catch(() => {})` on `ROLLBACK` ensures a rollback-failure (e.g. already-aborted transaction) does not shadow the original thrown error.
+- `setPrimaryEmail` (`src/emails.ts`) wraps demote-old-primary + promote-new-primary.
+- `updatePassword` (`src/passwords.ts`) wraps disable-old + create-new.
+- `setKeyValue` (`src/keyvalues.ts`) wraps the key-count check + insert.
+- `disableUser` (`src/users.ts`) wraps the inactive-flag flip + session purge.
 
 ## Conflict Handling
 
