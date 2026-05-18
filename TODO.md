@@ -135,7 +135,7 @@ Non-blocking quality work; pick up alongside related changes.
 - [ ] **Reuse `readToken` in resend.** `email/resend.ts` imports `readToken` to check whether a token already exists before issuing a new one, but does not yet use it — `functions/api/db/auth/email/resend.ts:1`.
 - [ ] **Verify password-requirements assertions.** Confirm the `hasNumber` regex behaves as the commented assertions claim, then remove the stale comment — `src/passwords.ts:308`.
 
-## Phase 6
+## Phase 6 — Organisations
 
 - [ ] Sitemap generation
 - [ ] organisations
