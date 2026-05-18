@@ -1,4 +1,7 @@
-import { password_requirements_html } from "../../src/passwords.js"
+import {
+  getMinPasswordLength,
+  password_requirements_html,
+} from "../../src/passwords.js"
 
 export const onRequestPost: Handler = async (context) => {
   const pw = (await context.request.formData()).get("pw")
@@ -11,7 +14,10 @@ export const onRequestPost: Handler = async (context) => {
       }
     )
   }
-  const response_html = await password_requirements_html(pw)
+  const response_html = await password_requirements_html(
+    pw,
+    getMinPasswordLength(context.env)
+  )
   return new Response(response_html)
 }
 

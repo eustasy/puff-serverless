@@ -296,6 +296,34 @@ export async function createLoginToken(
 }
 
 /**
+ * Creates a new password-upgrade token in the database. Issued when a login
+ * succeeds but the password is shorter than the current MIN_PASSWORD_LENGTH;
+ * the user must set a longer password before a session is granted. Fifteen
+ * minutes — same window as the 2FA login step it parallels.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user.
+ * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
+ */
+export async function createPasswordUpgradeToken(
+  dbClient: DbClient,
+  user_uuid: string
+): Promise<TokenEnvelope<{ token_value: string }>> {
+  try {
+    const token_type = "password_upgrade"
+    const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+
+    return await createToken(dbClient, user_uuid, token_type, expires_at)
+  } catch (error) {
+    console.error("Error in createPasswordUpgradeToken:", error)
+    return {
+      error: true,
+      message: "Server error while creating password-upgrade token.",
+      details: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+/**
  * Creates a new 2FA-bypass token in the database. Emailed to the user's
  * verified address; opening the link completes a pending login without a
  * TOTP code. One hour — long enough for email delivery, short for a

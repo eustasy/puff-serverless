@@ -342,14 +342,39 @@ export async function passwordReused(
   }
 }
 
+// The built-in minimum password length. MIN_PASSWORD_LENGTH (an operator-set
+// runtime var) can only raise the minimum above this floor — see
+// getMinPasswordLength — so endpoint checks are always >= this value and the
+// env-free createPassword check below can never be stricter than the caller.
+export const DEFAULT_MIN_PASSWORD_LENGTH = 12
+
+/**
+ * Resolves the configured minimum password length. MIN_PASSWORD_LENGTH is
+ * optional and operator-set; a missing, non-numeric, or below-floor value
+ * falls back to DEFAULT_MIN_PASSWORD_LENGTH. The minimum can only be raised,
+ * never lowered below the built-in floor.
+ * @param {Env} env - The Worker environment bindings.
+ * @returns {number} The effective minimum password length.
+ */
+export function getMinPasswordLength(env: Env): number {
+  const parsed = parseInt(env.MIN_PASSWORD_LENGTH ?? "", 10)
+  return Number.isInteger(parsed) && parsed > DEFAULT_MIN_PASSWORD_LENGTH
+    ? parsed
+    : DEFAULT_MIN_PASSWORD_LENGTH
+}
+
 /**
  * Checks if a password meets the requirements for length, number, and special characters.
  * @param {string} pw - The password to check.
+ * @param {number} minLength - Minimum acceptable length (default DEFAULT_MIN_PASSWORD_LENGTH).
  * @returns {boolean} True if the password meets all requirements, false otherwise.
  */
-export function password_requirements(pw: string) {
+export function password_requirements(
+  pw: string,
+  minLength: number = DEFAULT_MIN_PASSWORD_LENGTH
+) {
   var result = true
-  if (pw.length < 12) {
+  if (pw.length < minLength) {
     result = false
   }
   //var hasNumber = /\d/
@@ -366,18 +391,18 @@ export function password_requirements(pw: string) {
 /**
  * Checks if a password meets the requirements for length, number, and special characters.
  * @param {string} pw - The password to check.
+ * @param {number} minLength - Minimum acceptable length (default DEFAULT_MIN_PASSWORD_LENGTH).
  * @returns {string} HTML string with the results of the password requirements check.
  */
-export async function password_requirements_html(pw: string) {
+export async function password_requirements_html(
+  pw: string,
+  minLength: number = DEFAULT_MIN_PASSWORD_LENGTH
+) {
   var response_html = "<h3>Password Requirements</h3><ul>"
 
-  if (pw.length >= 12) {
-    response_html +=
-      '<li class="result-positive"><strong>Must</strong> be at least 12 characters long</li>'
-  } else {
-    response_html +=
-      '<li class="result-negative"><strong>Must</strong> be at least 12 characters long</li>'
-  }
+  const lengthClass =
+    pw.length >= minLength ? "result-positive" : "result-negative"
+  response_html += `<li class="${lengthClass}"><strong>Must</strong> be at least ${minLength} characters long</li>`
 
   var hasNumber = /\d/
   // TODO Test these assertions:

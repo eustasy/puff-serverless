@@ -115,7 +115,8 @@ export async function user_login(
   password: string,
   user_agent: string,
   ip_address: string,
-  ip_country: string
+  ip_country: string,
+  min_password_length: number
 ): Promise<
   | {
       success?: never
@@ -123,6 +124,7 @@ export async function user_login(
       message: string
       status: number
       totp_required?: never
+      password_upgrade_required?: never
       session_id?: never
       user_uuid?: never
     }
@@ -130,6 +132,17 @@ export async function user_login(
       success: true
       error?: never
       totp_required: true
+      password_upgrade_required?: never
+      session_id?: never
+      user_uuid: string
+      message: string
+      status: number
+    }
+  | {
+      success: true
+      error?: never
+      password_upgrade_required: true
+      totp_required?: never
       session_id?: never
       user_uuid: string
       message: string
@@ -140,6 +153,7 @@ export async function user_login(
       error?: never
       session_id: string
       totp_required?: never
+      password_upgrade_required?: never
       user_uuid: string
       message: string
       status: number
@@ -182,6 +196,23 @@ export async function user_login(
         error: true,
         message: "Invalid email or password.",
         status: 401,
+      }
+    }
+
+    // Force-upgrade a password that is now shorter than the configured
+    // minimum (MIN_PASSWORD_LENGTH may have been raised since it was set).
+    // The plaintext is only available here, at login, so the length re-check
+    // has to happen now. The caller routes the user to a forced
+    // password-change step before any session is granted. This is checked
+    // ahead of the hash re-hash and the 2FA gate: the upgrade flow writes a
+    // fresh hash anyway, and 2FA is resumed once the new password is set.
+    if (password.length < min_password_length) {
+      return {
+        success: true,
+        password_upgrade_required: true,
+        user_uuid: user_uuid,
+        message: "Password upgrade required.",
+        status: 202,
       }
     }
 

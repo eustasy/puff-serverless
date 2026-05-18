@@ -27,4 +27,7 @@ interface Env {
   SECURE_COOKIE?: string
   SESSION_MAX_AGE_SECONDS?: string
   MAILTRAP_API_URL?: string
+  // Minimum password length. Optional; defaults to 12 (DEFAULT_MIN_PASSWORD_LENGTH).
+  // Can only raise the minimum above the built-in floor — see getMinPasswordLength.
+  MIN_PASSWORD_LENGTH?: string
 }

@@ -1,4 +1,5 @@
 import {
+  getMinPasswordLength,
   password_requirements,
   password_requirements_html,
   password_verify,
@@ -40,9 +41,13 @@ export const onRequestPost: Handler = async (context) => {
 
   try {
     // Step 4: Password Strength Check (New Password)
-    const isPasswordStrong = password_requirements(new_password)
+    const minLength = getMinPasswordLength(context.env)
+    const isPasswordStrong = password_requirements(new_password, minLength)
     if (!isPasswordStrong) {
-      const requirementsHtml = await password_requirements_html(new_password)
+      const requirementsHtml = await password_requirements_html(
+        new_password,
+        minLength
+      )
       return new Response(
         `<div>
            <p>Error: New password does not meet requirements.</p>
