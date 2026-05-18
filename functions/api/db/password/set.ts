@@ -1,8 +1,9 @@
 import {
   password_requirements,
+  passwordReused,
   updatePassword,
 } from "../../../../src/passwords.js"
-import { consumeToken } from "../../../../src/tokens.js"
+import { consumeToken, readToken } from "../../../../src/tokens.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -54,9 +55,58 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
+    // Validate the reset token WITHOUT consuming it first, so that a rejected
+    // password (previously used) does not burn the token and force the user to
+    // request a brand-new reset email. consumeToken below remains the atomic
+    // single-use gate; this read only resolves the user for the reuse check.
+    const tokenRead = await readToken(dbClient, token)
+    const pending = tokenRead.success ? tokenRead.token : null
+    if (
+      !pending ||
+      pending.token_type !== "password_reset" ||
+      pending.is_used ||
+      new Date(pending.expires_at) < new Date()
+    ) {
+      return new Response(
+        '<p class="result-negative">Invalid or expired password reset token.</p>',
+        {
+          status: 400,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
+    }
+
+    // Reject reuse of any current or previous password (issue #22). Done
+    // before the token is consumed — see the comment above.
+    const reuseResult = await passwordReused(
+      dbClient,
+      pending.user_uuid,
+      new_password
+    )
+    if (reuseResult.error) {
+      return new Response(
+        '<p class="result-negative">Could not check password history. Please try again.</p>',
+        {
+          status: 500,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
+    }
+    if (reuseResult.reused) {
+      return new Response(
+        '<p class="result-negative">You cannot reuse a previous password. Please choose a new one.</p>',
+        {
+          status: 400,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
+    }
+
     // Atomically consume the reset token. consumeToken marks it used and
     // validates type/expiry/used in one statement; a missing, wrong-type,
     // expired, or already-used token all collapse into this single failure.
+    // It is also the race-safe authority: if two requests pass the read-check
+    // above concurrently, only one consumeToken UPDATE wins.
     const tokenResult = await consumeToken(dbClient, token, "password_reset")
 
     if (!tokenResult.success) {

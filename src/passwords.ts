@@ -283,6 +283,66 @@ export async function password_verify(
 }
 
 /**
+ * Checks whether a candidate password matches any password the user has used
+ * before — their current one or any historical one. Every password change
+ * retains the old 'puff_password_%' secret row (is_enabled = FALSE), each with
+ * its own salt and algorithm, so reuse is detected by re-hashing the candidate
+ * with each stored row's salt+algo and comparing.
+ *
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user.
+ * @param {string} candidate - The plain text password being proposed.
+ * @returns Envelope: `{ success: true, reused: boolean, status: 200 }`, or
+ *          `{ error: true, message, details, status: 500 }` on DB error.
+ */
+export async function passwordReused(
+  dbClient: DbClient,
+  user_uuid: string,
+  candidate: string
+): Promise<
+  | { success: true; error?: never; reused: boolean; status: 200 }
+  | {
+      success?: never
+      error: true
+      message: string
+      details?: unknown
+      status: number
+    }
+> {
+  try {
+    // Every password row, enabled or not — the current password counts as
+    // reuse too, so there is no is_enabled filter.
+    const query = `
+      SELECT secret_type, secret_value
+      FROM secrets
+      WHERE user_uuid = $1 AND secret_type LIKE 'puff_password_%';
+    `
+    const result = await dbClient.query(query, [user_uuid])
+
+    for (const row of result.rows) {
+      const [stored_hash, salt] = row.secret_value.split(":")
+      // Skip any malformed row rather than letting it abort the whole check.
+      if (!stored_hash || !salt) continue
+      const algo = row.secret_type.replace("puff_password_", "")
+      const { hash } = await puff_hashing_password(candidate, salt, algo)
+      if (hash === stored_hash) {
+        return { success: true, reused: true, status: 200 }
+      }
+    }
+
+    return { success: true, reused: false, status: 200 }
+  } catch (error) {
+    console.error("Error in passwordReused:", error)
+    return {
+      error: true,
+      message: "Could not check password history.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
+/**
  * Checks if a password meets the requirements for length, number, and special characters.
  * @param {string} pw - The password to check.
  * @returns {boolean} True if the password meets all requirements, false otherwise.

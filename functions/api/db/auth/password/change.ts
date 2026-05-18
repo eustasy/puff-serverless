@@ -2,6 +2,7 @@ import {
   password_requirements,
   password_requirements_html,
   password_verify,
+  passwordReused,
   updatePassword,
 } from "../../../../../src/passwords.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
@@ -75,7 +76,26 @@ export const onRequestPost: Handler = async (context) => {
       })
     }
 
-    // Step 6: Update Password using the helper function
+    // Step 6: Reject reuse of a current or previous password (issue #22).
+    const reuseResult = await passwordReused(dbClient, user_uuid, new_password)
+    if (reuseResult.error) {
+      console.error("Error checking password history:", reuseResult.message)
+      return new Response(
+        `<p>Error: ${escapeHtml(reuseResult.message || "Could not check password history.")}</p>`,
+        {
+          status: reuseResult.status || 500,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
+    }
+    if (reuseResult.reused) {
+      return new Response(
+        "<p>Error: Your new password must be different from your current and previous passwords.</p>",
+        { status: 400, headers: { "Content-Type": "text/html" } }
+      )
+    }
+
+    // Step 7: Update Password using the helper function
     const updateResult = await updatePassword(dbClient, user_uuid, new_password)
 
     if (updateResult.error || !updateResult.success) {
@@ -91,7 +111,7 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    // Step 7: Response
+    // Step 8: Response
     return new Response(
       "<p>Password changed successfully.</p>", // Consider an HX-Redirect if applicable
       { status: 200, headers: { "Content-Type": "text/html" } }
