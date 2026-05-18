@@ -108,9 +108,11 @@ Core feature parity with the PHP server, focused on the account/password lifecyc
 - [x] **Minimum-password-length setting with force-upgrade on login** — issue [#23](https://github.com/eustasy/puff-server/issues/23) (Medium). Length is currently hardcoded to 12 in `src/passwords.ts`; make it configurable and re-check on login. (`MIN_PASSWORD_LENGTH` env var via `getMinPasswordLength()`; `password_requirements` parameterised. `user_login` re-checks the plaintext length and, when too short, returns `password_upgrade_required` — `user/login.ts` issues a `password_upgrade` token and redirects to the new `/password-upgrade` page, handled by `functions/api/db/password/upgrade.ts`, which completes the login or hands off to 2FA.)
 - [x] **Prompt when an old (disabled) password is used in a login attempt** — issue [#21](https://github.com/eustasy/puff-server/issues/21) (Low). (`user_login` runs `passwordReused` on a failed verify; since the active password already failed, any hit is a previous password — the user gets a "you previously used this password" prompt instead of the generic failure.)
 - [x] **Log the user in when registration uses an existing username+password pair** — issue [#20](https://github.com/eustasy/puff-server/issues/20) (Low). (When registration hits an existing email, `register.ts` runs `user_login`; a matching password logs the user in — session, 2FA, or password-upgrade — via the shared `loginOutcomeResponse` helper. A wrong password keeps the generic 409.)
-- [ ] **Account disable vs. delete.** PHP distinguished `member.disable` (reversible: `Active=0` + kill all sessions) from `member.destroy`. This server only has soft-delete via `user_active`.
-  - [ ] Add a reversible disable that also terminates all sessions.
-  - [ ] Add a re-enable flow.
+- [x] **Account disable vs. delete.** PHP distinguished `member.disable` (reversible: `Active=0` + kill all sessions) from `member.destroy`. This server only has soft-delete via `user_active`.
+  - [x] Add a reversible disable that also terminates all sessions. (`disableUser` in `src/users.ts` — transactional `user_active = FALSE` + `terminateAllSessions`. `user_login` now rejects disabled accounts after a proven password.)
+  - [x] Add a re-enable flow. (`enableUser` in `src/users.ts`.)
+  - [x] The old `deleteUser` (which only soft-deleted) is now a real permanent hard delete — a single `DELETE FROM users`, with all child rows removed by `ON DELETE CASCADE` foreign keys (`sql/*.sql` updated; existing databases need the cascade `ALTER`).
+  - [ ] Not yet wired to endpoints — `disable`/`enable`/`delete` are `src/` functions only; they need an admin (or self-service delete) surface.
 
 ## Phase 4 — Extended capabilities & integrations
 
@@ -137,6 +139,11 @@ Non-blocking quality work; pick up alongside related changes.
 - [ ] **Reuse `readToken` in resend.** `email/resend.ts` imports `readToken` to check whether a token already exists before issuing a new one, but does not yet use it — `functions/api/db/auth/email/resend.ts:1`.
 - [ ] **Verify password-requirements assertions.** Confirm the `hasNumber` regex behaves as the commented assertions claim, then remove the stale comment — `src/passwords.ts:308`.
 
+## Phase 6
+
+- [ ] Sitemap generation
+- [ ] outstanding issues on puff-serverless github
+
 ---
 
 ## Reference — already at parity or intentionally dropped
@@ -145,4 +152,3 @@ No action needed; recorded so the PHP-server comparison is complete.
 
 - **GeoIP** — PHP bundled the MaxMind GeoLite2 database; this server gets `CF-IPCountry` from Cloudflare for free (used in session IP-country checks).
 - **HSTS** — PHP had `hsts-attempt.php`; now a static `Strict-Transport-Security` header in `public/_headers`.
-- **Sitemap generation, cookie-consent banner, manual-JSON cleanup (issue #14)** — not applicable to a headless auth/SSO service.

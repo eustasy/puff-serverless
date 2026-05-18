@@ -1,4 +1,4 @@
-import { createSession } from "./sessions.js"
+import { createSession, terminateAllSessions } from "./sessions.js"
 import { createEmail, existsEmail, readEmail } from "./emails.js"
 import {
   createPassword,
@@ -226,6 +226,24 @@ export async function user_login(
       }
     }
 
+    // Reject logins for disabled accounts (see disableUser). Checked only
+    // after the password is proven, so a wrong password still gets the
+    // generic failure and the disabled state is never revealed to anyone who
+    // cannot already authenticate. A missing users row (should not happen —
+    // emails has a foreign key) is treated as disabled, failing closed.
+    const activeResult = await dbClient.query(
+      "SELECT user_active FROM users WHERE user_uuid = $1 LIMIT 1",
+      [user_uuid]
+    )
+    if (activeResult.rows[0]?.user_active !== true) {
+      return {
+        error: true,
+        message:
+          "This account has been disabled. Please contact support if you believe this is an error.",
+        status: 403,
+      }
+    }
+
     // Force-upgrade a password that is now shorter than the configured
     // minimum (MIN_PASSWORD_LENGTH may have been raised since it was set).
     // The plaintext is only available here, at login, so the length re-check
@@ -313,10 +331,108 @@ export async function user_login(
 }
 
 /**
- * Soft-deletes a user by their UUID (sets user_active = FALSE).
+ * Disables a user account (reversible). Sets `user_active = FALSE` and
+ * terminates every active session in one transaction, so the user is logged
+ * out everywhere immediately and `user_login` will reject them. Reverse with
+ * `enableUser`; for a permanent removal use `deleteUser`.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user to disable.
+ * @returns {Promise<object>} Envelope: `{ success: true, terminated_sessions, status: 200 }` on hit, `{ success: false, message, status: 404 }` if no such user, `{ error: true, message, details, status: 500 }` on DB error.
+ */
+export async function disableUser(
+  dbClient: DbClient,
+  user_uuid: string
+): Promise<Envelope<{ terminated_sessions: number }>> {
+  try {
+    // Flag flip and session purge are one unit: a user must never be left
+    // marked inactive while still holding a live session, or vice versa.
+    await dbClient.query("BEGIN")
+    try {
+      const result = await dbClient.query(
+        "UPDATE users SET user_active = FALSE WHERE user_uuid = $1 RETURNING user_uuid",
+        [user_uuid]
+      )
+      if ((result.rowCount ?? 0) === 0) {
+        await dbClient.query("ROLLBACK").catch(() => {})
+        return { success: false, message: "User not found.", status: 404 }
+      }
+      const sessions = await terminateAllSessions(dbClient, user_uuid)
+      if (!sessions.success) {
+        await dbClient.query("ROLLBACK").catch(() => {})
+        return { error: true, message: sessions.error, status: sessions.status }
+      }
+      await dbClient.query("COMMIT")
+      return {
+        success: true,
+        terminated_sessions: sessions.deletedCount,
+        status: 200,
+      }
+    } catch (txError) {
+      await dbClient.query("ROLLBACK").catch(() => {})
+      return {
+        error: true,
+        message: "Could not disable user.",
+        details: txError instanceof Error ? txError.message : String(txError),
+        status: 500,
+      }
+    }
+  } catch (error) {
+    console.error("Error in disableUser:", error)
+    return {
+      error: true,
+      message: "Could not disable user.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
+/**
+ * Re-enables a previously disabled user account (sets `user_active = TRUE`).
+ * Sessions terminated by `disableUser` are not restored — the user logs in
+ * fresh. Idempotent: enabling an already-active account succeeds.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user to enable.
+ * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` on hit, `{ success: false, message, status: 404 }` if no such user, `{ error: true, message, details, status: 500 }` on DB error.
+ */
+export async function enableUser(
+  dbClient: DbClient,
+  user_uuid: string
+): Promise<Envelope> {
+  try {
+    const result = await dbClient.query(
+      "UPDATE users SET user_active = TRUE WHERE user_uuid = $1",
+      [user_uuid]
+    )
+    if ((result.rowCount ?? 0) > 0) {
+      return { success: true, status: 200 }
+    }
+    return { success: false, message: "User not found.", status: 404 }
+  } catch (error) {
+    console.error("Error in enableUser:", error)
+    return {
+      error: true,
+      message: "Could not enable user.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
+/**
+ * Permanently deletes a user and every row that belongs to them — sessions,
+ * secrets, emails, tokens, and TOTP replay-guard rows. Irreversible; for a
+ * reversible suspension use `disableUser`.
+ *
+ * Child rows are removed by the `ON DELETE CASCADE` on each child table's
+ * `user_uuid` foreign key (see `sql/*.sql`), so a single `DELETE FROM users`
+ * is atomic and sufficient — no explicit transaction or per-table delete.
+ * Note: a database created before the cascade was added must have the
+ * `ALTER TABLE … ADD CONSTRAINT … ON DELETE CASCADE` migration applied, or
+ * this fails with a foreign-key violation.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user to delete.
- * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` on hit, `{ success: false, message, status: 404 }` if no row matched, `{ error: true, message, details, status: 500 }` on DB error.
+ * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` on hit, `{ success: false, message, status: 404 }` if no such user, `{ error: true, message, details, status: 500 }` on DB error.
  */
 export async function deleteUser(
   dbClient: DbClient,
@@ -324,7 +440,7 @@ export async function deleteUser(
 ): Promise<Envelope> {
   try {
     const result = await dbClient.query(
-      "UPDATE users SET user_active = FALSE WHERE user_uuid = $1",
+      "DELETE FROM users WHERE user_uuid = $1 RETURNING user_uuid",
       [user_uuid]
     )
     if ((result.rowCount ?? 0) > 0) {

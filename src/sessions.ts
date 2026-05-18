@@ -221,6 +221,37 @@ export async function terminateAllOtherSessions(
 }
 
 /**
+ * Terminates every active session for a user by marking them all inactive —
+ * no exclusion. Used when disabling an account, so the user is logged out
+ * everywhere at once.
+ *
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user whose sessions to end.
+ * @returns {Promise<object>} `{ success: true, deletedCount, status: 200 }` or `{ error, status }`.
+ */
+export async function terminateAllSessions(
+  dbClient: DbClient,
+  user_uuid: string
+): Promise<
+  | { success: true; error?: never; deletedCount: number; status: 200 }
+  | { success?: never; error: string; status: number }
+> {
+  try {
+    const result = await dbClient.query(
+      "UPDATE sessions SET is_active = FALSE WHERE user_uuid = $1 AND is_active = TRUE RETURNING session_id",
+      [user_uuid]
+    )
+    return { success: true, deletedCount: result.rowCount ?? 0, status: 200 }
+  } catch (error) {
+    console.error("Error in terminateAllSessions:", error)
+    return {
+      error: "Failed to terminate sessions due to a server error.",
+      status: 500,
+    }
+  }
+}
+
+/**
  * Lists all active sessions for a given user.
  *
  * @param {Client} dbClient - An active pg.Client instance.

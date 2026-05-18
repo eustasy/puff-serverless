@@ -8,6 +8,6 @@ CREATE TABLE public.secrets (
   secret_last_used TIMESTAMP NULL,
   secret_value STRING NOT NULL,
   CONSTRAINT secrets_pkey PRIMARY KEY (secret_uuid ASC),
-  CONSTRAINT secrets_user_uuid_fkey FOREIGN KEY (user_uuid) REFERENCES public.users(user_uuid),
+  CONSTRAINT secrets_user_uuid_fkey FOREIGN KEY (user_uuid) REFERENCES public.users(user_uuid) ON DELETE CASCADE,
   INDEX idx_secrets_user_uuid_secret_type_is_enabled (user_uuid, secret_type, is_enabled ASC)
 ) LOCALITY REGIONAL BY TABLE IN PRIMARY REGION

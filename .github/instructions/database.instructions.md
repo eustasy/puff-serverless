@@ -15,7 +15,7 @@ Schema files live in `sql/`, one file per table. `users.sql` must be imported fi
 
 ### Tables
 
-- **`users`**: `user_uuid` (PK), `user_name`, `user_active` (soft-delete flag), `user_created_at`, `user_last_login`.
+- **`users`**: `user_uuid` (PK), `user_name`, `user_active` (account enabled/disabled flag), `user_created_at`, `user_last_login`.
 - **`sessions`**: `session_id` (PK), `user_uuid` (FK), `created_at`, `expires_at`, `is_active`, `last_accessed_at`, `last_accessed_ip`, `user_agent`, `ip_address`, `ip_country`.
 - **`emails`**: `email_address` (PK), `user_uuid` (FK), `is_primary`, `is_verified`, `verified_at`.
 - **`secrets`**: `secret_uuid` (PK), `user_uuid` (FK), `secret_type`, `secret_value`, `secret_name`, `is_enabled`, `secret_created_at`, `secret_last_used`. Used for both passwords (`secret_type = 'puff_password_SHA-384'`) and TOTP (`secret_type = 'totp_secret'`).
@@ -71,8 +71,9 @@ This is cleaner than matching on `error.constraint` in a catch block (constraint
 
 ## Soft Deletion
 
-- Users are soft-deleted by setting `user_active = FALSE`. Queries for active users filter on `user_active = TRUE`.
-- Sessions are soft-terminated by setting `is_active = FALSE`. They are never hard-deleted.
+- Users can be reversibly **disabled** (`disableUser`, `src/users.js`): `user_active = FALSE` plus termination of every session, in one transaction. Re-enable with `enableUser`. Queries for active users filter on `user_active = TRUE`.
+- `deleteUser` (`src/users.js`) is a **permanent hard delete** — a single `DELETE FROM users`; every child row (sessions, secrets, emails, tokens, TOTP replay-guard rows) is removed by the `ON DELETE CASCADE` on each child table's `user_uuid` foreign key. Use `disableUser` for anything reversible.
+- Sessions are soft-terminated by setting `is_active = FALSE`. They are never hard-deleted (except as a child row of `deleteUser`).
 - Tokens are marked as used via `is_used = TRUE`. They may also be hard-deleted in some flows.
 
 ## Secrets Table Usage
