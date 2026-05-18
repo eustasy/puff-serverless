@@ -1,6 +1,11 @@
 import { createSession } from "./sessions.js"
 import { createEmail, existsEmail, readEmail } from "./emails.js"
-import { createPassword, password_verify, updatePassword } from "./passwords.js"
+import {
+  createPassword,
+  password_verify,
+  passwordReused,
+  updatePassword,
+} from "./passwords.js"
 import { has2fa } from "./2fa.js"
 import { sendVerificationEmail } from "./mailer.js"
 
@@ -192,6 +197,21 @@ export async function user_login(
       }
     }
     if (!verifyResult.verified) {
+      // The current password didn't match. Check whether the supplied value is
+      // one the user previously used on this account (a now-disabled secret
+      // row) and, if so, give a more helpful prompt than the generic failure.
+      // We only reach here once the active password has already failed above,
+      // so any passwordReused hit is necessarily a *previous* password.
+      // A DB error here is non-fatal — fall through to the generic message.
+      const previous = await passwordReused(dbClient, user_uuid, password)
+      if (previous.success && previous.reused) {
+        return {
+          error: true,
+          message:
+            "That is a password you previously used on this account. Please enter your current password, or reset it if you have forgotten it.",
+          status: 401,
+        }
+      }
       return {
         error: true,
         message: "Invalid email or password.",
