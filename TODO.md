@@ -145,6 +145,8 @@ Non-blocking quality work; pick up alongside related changes.
 - [ ] organisations
 - [ ] webauthn + passkeys
 - [ ] .html auth handling
+- [ ] consistent function names
+- [ ] consistent function descriptions
 
 ---
 
