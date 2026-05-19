@@ -5,6 +5,8 @@
     "build": "npx wrangler pages functions build --outdir=./dist/worker/ --compatibility-flags=nodejs_compat --compatibility-date=2026-03-22 --external=crypto --external=events --external=fs --external=net --external=dns --external=tls --external=stream --external=buffer --external=string_decoder --external=path --external=util --external=node:crypto --external=node:events --external=node:fs --external=node:net --external=node:dns --external=node:tls --external=node:stream --external=node:buffer --external=node:string_decoder --external=node:path --external=node:util",
     "dev": "npm run build && npx wrangler dev",
     "deploy": "npm run build && npx wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "typecheck:strict": "tsc --noEmit --strict --noImplicitOverride --noUnusedLocals --noUnusedParameters --noImplicitReturns --noFallthroughCasesInSwitch --exactOptionalPropertyTypes --noUncheckedIndexedAccess --noPropertyAccessFromIndexSignature",
     "lint": "npx prettier --check **/*.{js,ts,mjs,md,cjs,json,yml,html,css,less,sass} && npm run typecheck",
@@ -23,6 +25,7 @@
     "@types/zxcvbn": "^4.4.5",
     "prettier": "3.8.3",
     "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
     "wrangler": "^4.92.0"
   }
 }

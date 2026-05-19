@@ -12,10 +12,14 @@ npm run typecheck         # tsc --noEmit (strict)
 npm run typecheck:strict  # tsc with every extra strictness flag on
 npm run lint              # prettier --check + typecheck
 npm run format            # prettier --write
+npm test                  # vitest run (unit tests)
+npm run test:watch        # vitest in watch mode
 npx wrangler types        # regenerate worker-configuration.d.ts (runs in prebuild)
 ```
 
-There is no test suite. `npm run lint` is the gate before pushing; CI runs Prettier and the build.
+`npm run lint` is the gate before pushing; CI runs Prettier and the build.
+
+Unit tests live in `test/`, one `*.test.ts` file per `src/` module, run with [Vitest](https://vitest.dev). They run in plain Node and never open a real database: `src/` functions take `dbClient` as their first parameter, so tests pass a fake `pg` client (`test/helpers/fake-db.ts`) that scripts query responses by SQL match. `test/helpers/fake-env.ts` builds a minimal `Env`. `test/**/*.ts` is in the `tsconfig` `include`, so `npm run typecheck` covers tests too.
 
 ## Build model
 

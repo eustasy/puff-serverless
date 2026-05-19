@@ -16,6 +16,7 @@
   "include": [
     "functions/**/*.ts",
     "src/**/*.ts",
+    "test/**/*.ts",
     "worker-configuration.d.ts",
     "env.d.ts",
     "types.d.ts"
