@@ -3,6 +3,7 @@ import {
   verificationEmail,
   passwordResetEmail,
   twoFactorBypassEmail,
+  organisationInvitationEmail,
 } from "../src/email-templates.js"
 
 const LINK = "https://app.example/verify?token=abc123"
@@ -37,6 +38,23 @@ describe("twoFactorBypassEmail", () => {
     expect(email.text).toContain(LINK)
     expect(email.text).toContain("1 hour")
     expect(email.text).toContain("used once")
+  })
+})
+
+describe("organisationInvitationEmail", () => {
+  it("builds an invitation message naming the organisation", () => {
+    const email = organisationInvitationEmail(LINK, "Acme")
+    expect(email.subject).toContain("Acme")
+    expect(email.text).toContain(LINK)
+    expect(email.text).toContain("Acme")
+    expect(email.text).toContain("7 days")
+    expect(email.html).toContain(LINK)
+  })
+
+  it("escapes the organisation name in the HTML body", () => {
+    const email = organisationInvitationEmail(LINK, "<b>Acme</b>")
+    expect(email.html).toContain("&lt;b&gt;Acme&lt;/b&gt;")
+    expect(email.html).not.toContain("<b>Acme</b>")
   })
 })
 

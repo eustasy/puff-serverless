@@ -4,6 +4,7 @@ import {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendTwoFactorBypassEmail,
+  sendOrganisationInvitationEmail,
 } from "../src/mailer.js"
 import { fakeEnv } from "./helpers/fake-env.js"
 
@@ -121,5 +122,25 @@ describe("templated senders", () => {
     expect(sentBody(fetchMock).text).toContain(
       "https://app.example.com/api/db/2fa/bypass/verify?token=btok"
     )
+  })
+
+  it("sendOrganisationInvitationEmail builds an absolute /invite link", async () => {
+    const fetchMock = stubFetch(new Response("", { status: 200 }))
+    await sendOrganisationInvitationEmail(
+      configured,
+      "a@b.test",
+      "itok",
+      "Acme"
+    )
+    const body = sentBody(fetchMock)
+    expect(body.text).toContain("https://app.example.com/invite?token=itok")
+    expect(body.subject).toContain("Acme")
+  })
+
+  it("returns 500 when APP_URL is unset", async () => {
+    const env = fakeEnv({ MAILTRAP_TOKEN: "t", MAILTRAP_SENDER: "s@e.test" })
+    expect(
+      await sendOrganisationInvitationEmail(env, "a@b.test", "itok", "Acme")
+    ).toMatchObject({ error: true, status: 500 })
   })
 })

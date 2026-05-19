@@ -145,6 +145,17 @@ declare global {
     added_at: Date
     added_by: string | null
   }
+
+  interface OrganisationInvitationRow {
+    invitation_token: string
+    org_uuid: string
+    email_address: string
+    roles: string[]
+    invited_by: string | null
+    created_at: Date
+    expires_at: Date
+    is_used: boolean
+  }
 }
 
 export {}

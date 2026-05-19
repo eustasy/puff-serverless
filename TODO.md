@@ -205,8 +205,8 @@ envelopes, no HTTP. Multi-step writes use `runInTransaction`.
 
 ### Member invitations
 
-- [ ] Inviting by email must work whether or not the invitee already has an account. Add an `org_invitation` `token_type` on the existing `tokens` table (via the `createToken` / `consumeToken` pair); the token carries the org, the offered role(s), and the invited address.
-- [ ] `POST …/members/invite` issues the token and emails a link (new `src/email-templates.ts` builder + `src/mailer.ts` helper). Accepting consumes the token: an existing user is added directly; a new visitor is routed through registration first, then added.
+- [x] Invitations work whether or not the invitee has an account, via a dedicated `sql/organisation_invitations.sql` table — the generic `tokens` table has no columns for the organisation and role set an invitation must carry, and a real FK to `organisations` (`ON DELETE CASCADE`) keeps pending invitations consistent. `src/invitations.ts` — `createInvitation`, `readInvitation`, `acceptInvitation` (atomic single-`UPDATE` consume, like `consumeToken`), `listInvitations`, `revokeInvitation`.
+- [x] `POST …/members/invite` issues the invitation and emails a link (`organisationInvitationEmail` template + `sendOrganisationInvitationEmail` mailer helper); `…/invitations/list` + `…/invitations/revoke` manage pending ones. The link opens `/invite?token=…`: `db/organisations/invitation/view` previews it unauthenticated, `auth/organisations/invitation/accept` consumes it for the signed-in user (a new invitee registers first, then accepts with the same token — a frontend navigation, no backend change to registration). Possession of the token is the capability; the accepting account need not own the invited address.
 
 ### Lifecycle & integrity
 

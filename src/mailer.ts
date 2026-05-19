@@ -17,6 +17,7 @@ import {
   verificationEmail,
   passwordResetEmail,
   twoFactorBypassEmail,
+  organisationInvitationEmail,
 } from "./email-templates.js"
 
 const DEFAULT_API_URL = "https://send.api.mailtrap.io/api/send"
@@ -207,5 +208,39 @@ export async function sendTwoFactorBypassEmail(
     text: content.text,
     html: content.html,
     category: "2FA Bypass",
+  })
+}
+
+/**
+ * Sends an organisation-invitation message containing an absolute accept link.
+ * @param {Env} env - The Worker environment bindings.
+ * @param {string} to - Recipient email address (the invited address).
+ * @param {string} token - The invitation token value.
+ * @param {string} organisationName - Name of the inviting organisation.
+ * @returns {Promise<Envelope>} Result of the underlying {@link sendEmail} call.
+ */
+export async function sendOrganisationInvitationEmail(
+  env: Env,
+  to: string,
+  token: string,
+  organisationName: string
+): Promise<Envelope> {
+  const origin = appOrigin(env)
+  if (!origin) {
+    return {
+      error: true,
+      message: "Email delivery is not configured.",
+      status: 500,
+    }
+  }
+
+  const link = `${origin}/invite?token=${encodeURIComponent(token)}`
+  const content = organisationInvitationEmail(link, organisationName)
+  return sendEmail(env, {
+    to,
+    subject: content.subject,
+    text: content.text,
+    html: content.html,
+    category: "Organisation Invitation",
   })
 }

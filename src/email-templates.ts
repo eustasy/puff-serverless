@@ -89,3 +89,31 @@ export function twoFactorBypassEmail(link: string): EmailContent {
     ),
   }
 }
+
+/**
+ * Builds the organisation-invitation message sent when a user is invited to
+ * join an organisation.
+ * @param {string} link - Absolute URL of the invitation-accept page (includes the token).
+ * @param {string} organisationName - Name of the inviting organisation.
+ * @returns {EmailContent} Subject, plain-text, and HTML bodies.
+ */
+export function organisationInvitationEmail(
+  link: string,
+  organisationName: string
+): EmailContent {
+  const heading = `You've been invited to join ${organisationName}`
+  return {
+    subject: heading,
+    text:
+      `You have been invited to join the organisation "${organisationName}".\n\n` +
+      `Open the link below to accept — you can sign in, or create an account if you do not have one:\n\n` +
+      `${link}\n\n` +
+      `This invitation expires in 7 days. If you were not expecting it, you can ignore this email.`,
+    html: layout(
+      heading,
+      `<p>You have been invited to join the organisation <strong>${escapeHtml(organisationName)}</strong>.</p>
+    <p><a href="${escapeHtml(link)}">Accept invitation</a></p>
+    <p>You can sign in, or create an account if you do not have one. This invitation expires in 7 days. If you were not expecting it, you can ignore this email.</p>`
+    ),
+  }
+}
