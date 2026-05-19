@@ -1,18 +1,19 @@
+import { setKeyValue } from "../../../../../src/user-keyvalues.js"
 import {
-  setKeyValue,
   MAX_KEY_LENGTH,
   MAX_VALUE_LENGTH,
-} from "../../../../../src/keyvalues.js"
+} from "../../../../../src/utilities/keyvalues-shared.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
 
 /**
- * Creates or updates a single key/value pair for the authenticated user.
- * A new key and an existing key are both accepted (upsert) — the response
- * reports which happened.
+ * Creates or updates a single self-owned key/value pair for the authenticated
+ * user (owner and subject are both the caller). A new key and an existing key
+ * are both accepted (upsert) — the response reports which happened.
  */
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
   const user_uuid = context.data.user_uuid!
+  const owner = { type: "user" as const, user_uuid }
 
   try {
     const formData = await context.request.formData()
@@ -56,7 +57,7 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    const result = await setKeyValue(dbClient, user_uuid, key, rawValue)
+    const result = await setKeyValue(dbClient, user_uuid, owner, key, rawValue)
 
     if (!result.success) {
       return new Response(

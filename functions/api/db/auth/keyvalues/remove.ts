@@ -1,12 +1,14 @@
-import { deleteKeyValue } from "../../../../../src/keyvalues.js"
+import { deleteKeyValue } from "../../../../../src/user-keyvalues.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
 
 /**
- * Deletes a single key/value pair for the authenticated user.
+ * Deletes a single self-owned key/value pair for the authenticated user
+ * (owner and subject are both the caller).
  */
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
   const user_uuid = context.data.user_uuid!
+  const owner = { type: "user" as const, user_uuid }
 
   try {
     const formData = await context.request.formData()
@@ -20,7 +22,7 @@ export const onRequestPost: Handler = async (context) => {
     }
 
     const key = rawKey.trim()
-    const result = await deleteKeyValue(dbClient, user_uuid, key)
+    const result = await deleteKeyValue(dbClient, user_uuid, owner, key)
 
     if (!result.success) {
       return new Response(

@@ -128,10 +128,7 @@ Core feature parity with the PHP server, focused on the account/password lifecyc
 
 Larger, optional-scope features. Each is independent and can be scheduled on demand.
 
-- [x] **Per-user key/value store.** PHP had a `KeyValues` table and `Puff_Member_Key_*` functions (create/value/update/destroy/like) for arbitrary per-user metadata.
-  - [x] Add a `key_values` table to `sql/` — `(user_uuid, kv_key)` composite PK, `ON DELETE CASCADE` to `users`.
-  - [x] Add `src/keyvalues.ts` with the CRUD envelope helpers (`readKeyValue`, `readKeyValues`, `searchKeyValues`, `setKeyValue`, `deleteKeyValue`). `setKeyValue` is an upsert covering PHP `create` + `update`; `searchKeyValues` is the `like` equivalent with LIKE wildcards escaped. A per-user key cap (`MAX_KEYS_PER_USER`) guards against abuse.
-  - [x] Add endpoints under `functions/api/db/auth/keyvalues/` — `list` (GET, optional `?key=` substring filter), `set` (POST upsert), `remove` (POST delete) — plus a "Stored Data" section in `public/account.html`.
+- [x] **Per-user key/value store.** PHP had a `KeyValues` table and `Puff_Member_Key_*` functions (create/value/update/destroy/like) for arbitrary per-user metadata. Now superseded by the generalised KV store — see `Phase 6 → Key/value scoping`. The user-scoped surface (`user_key_values`, `src/user-keyvalues.ts`, the `functions/api/db/auth/keyvalues/` endpoints, the account-page "Stored Data" section) is unchanged from the user's point of view but is now one subject within a five-subject system.
 
 ## Phase 5 — Developer experience & polish
 
@@ -225,10 +222,11 @@ envelopes, no HTTP. Multi-step writes use `runInTransaction`.
 - [x] A `test/*.test.ts` file per new `src/` module (`organisations`, `teams`, `memberships`, `permissions`), following the `FakeDb` pattern.
 - [x] `ARCHITECTURE.md` table-usage reference ("Organisations, Teams & Memberships Table Usage") and the `database.instructions.md` table list updated for the five new tables; import order updated across `CLAUDE.md` / `ARCHITECTURE.md` / `database.instructions.md`.
 
-### Key/value scoping (later)
+### Key/value scoping
 
-- [ ] `key_values` is per-user today. Generalise the scope to any of: per-user, per-role, per-team, per-organisation, or per-**app** — a value owned by a linked OAuth app itself, distinct from a per-client / per-user-of-that-app value. This makes the store the backing data layer for the linked-app permission system.
-- [ ] Design tension: a single polymorphic `(scope_type, scope_id)` pair loses the FK + `ON DELETE CASCADE` integrity the rest of the schema keeps. Options to weigh — one table per scope, one row with a nullable FK column per scope plus a `CHECK` that exactly one is set, or accepting the polymorphic pair with application-level cleanup. Decide alongside the Phase 7 app model.
+- [x] Generalised KV from per-user to per-subject (user / team / organisation / org-role / team-role), each with a first-class **owner** dimension (`owner_user_uuid` + `owner_org_uuid` nullable FKs, CHECK exactly-one-set, both CASCADE; primary key includes a computed STORED `owner_id`). One `sql/*_key_values.sql` table per subject; one `src/*-keyvalues.ts` module each, sharing `src/utilities/keyvalues-shared.ts` (constants, validation, the SERIALIZABLE upsert flow). The `apps` subject + `owner_app_uuid` column are deferred to Phase 7 alongside `sql/apps.sql`.
+- [x] **Inheritance resolver** — `src/keyvalues-resolver.ts`'s `resolveKeyValue` walks user → team-role → org-role → team → org (most-specific first), all filtered by the `owner` namespace, returning `{ values: string[], source }`. The role tier merges + de-duplicates across the user's roles in that scope (decided 2026-05-19: roles do not block each other at the KV layer; granular perms are stored as separate keys, not as competing values).
+- [x] **Endpoints** — self-owned user data stays at `functions/api/db/auth/keyvalues/{list,set,remove}.ts`. Org-owned data has five new trees under `functions/api/db/auth/organisations/[org_uuid]/`: `keyvalues/` (org subject), `users/[user_uuid]/keyvalues/` (user subject), `roles/[role]/keyvalues/` (org-role subject), `teams/[team_uuid]/keyvalues/` (team subject), `teams/[team_uuid]/roles/[role]/keyvalues/` (team-role subject). Gated by `can(...)` with new `org:keyvalues:read/write` and `team:keyvalues:read/write` actions in `src/permissions.ts`.
 
 ### Open decisions
 
@@ -259,17 +257,14 @@ separate, lower-priority track.
 
 ### App entitlements & permissions
 
-Decided: **org and team RBAC stays code-defined** — the fixed puff role set and
-the role → permission `can()` matrix live in `src/permissions.ts`, and only role
-_assignments_ are in the database. Organisations are not given customisable
-roles. The data-driven, database-backed model is exclusively for **apps**, and
-an app entitlement ("license") is assigned to **specific users or whole teams**
-— never to a whole organisation (orgs use the puff roles).
+Decided 2026-05-19: **entitlements are KV rows under an app's owner namespace**, not a separate `app_user_grants` / `app_team_grants` schema. The Phase 6 KV work is the unified storage and resolution layer (see `Phase 6 → Key/value scoping`). Org and team RBAC stays code-defined in `src/permissions.ts`; only the data-driven, database-backed model — for **apps** — is KV-backed.
 
-- [ ] App entitlements live in the database — two grant tables, each with real FKs (`ON DELETE CASCADE`), so a polymorphic grantee column is avoided: `sql/app_user_grants.sql` (`app_uuid` → `apps`, `user_uuid` → `users`) and `sql/app_team_grants.sql` (`app_uuid` → `apps`, `team_uuid` → `teams`). A grantee may be any user — member or guest.
-- [ ] Each grant carries the app's role/permission value. App roles/permissions are **app-defined data**, not Puff's code-defined catalogue — Puff stores them and emits them as OIDC claims; the app enforces them itself.
-- [ ] A user's effective access to an app = their direct `app_user_grants` ∪ grants to any team they belong to (`app_team_grants` joined through `team_members`). A team grant flows to current and future team members; "licensed" = a grant exists (the seat count for Phase 8 billing).
-- [ ] Grantees must belong to the app's organisation — an application-layer check (the FK only proves the user/team exists, not that it is in the right org).
+- [ ] Add the **app subject + app owner** to the KV layer: `sql/app_key_values.sql` (subject = `app_uuid → apps`) plus `ALTER` on every existing `*_key_values.sql` to add a nullable `owner_app_uuid` FK (CASCADE) and extend the `one_owner` CHECK to permit a third owner column.
+- [ ] Extend `src/utilities/keyvalues-shared.ts`'s `Owner` discriminated union with `{ type: "app", app_uuid }`; thread it through `ownerFilter` / `ownerInsertValues` / the upsert flow.
+- [ ] Add the **app tier** to `src/keyvalues-resolver.ts` — after `org` as the global fallback (the chain becomes user → team-role → org-role → team → org → app).
+- [ ] App-management UI endpoints register entitlements: e.g. an app grants permission `perm:export` to user U with `setKeyValue(user_uuid=U, owner={app}, key="perm:export", value="granted")`; or to a team with the `team_key_values` table. Resolution at request time uses `resolveKeyValue` with the app's owner.
+- [ ] Constrain entitlement grantees to the app's organisation at the application layer (FKs alone only prove the user/team exists).
+- [ ] "Licensed" = at least one KV row owned by the app exists for that user/team/org subject (the seat count for Phase 8 billing).
 
 ### Puff as OAuth client (federated / social login)
 

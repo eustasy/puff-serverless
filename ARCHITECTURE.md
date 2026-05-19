@@ -231,14 +231,21 @@ The `tokens` table is used for storing various types of temporary tokens, each s
 
 It's crucial that `token_type` and `secret_type` are used consistently throughout the application to ensure correct retrieval and processing of these values. All sensitive values in these tables (like `secret_value`) should be appropriately protected (e.g., encrypted, hashed where applicable).
 
-**`key_values` Table Usage:**
+**Key/Value Store Table Usage:**
 
-The `key_values` table is a per-user key/value store for arbitrary string metadata — the successor to the PHP server's `KeyValues` table.
+The KV store is the unified mechanism for both descriptive per-entity metadata and the data-driven permission/entitlement system (see Phase 7 in `TODO.md`). One table per **subject** type, each row carrying a first-class **owner** dimension — so app A's row about user U and org O's row about user U coexist as different rows. Phase 7 adds an `apps` subject + owner column.
 
-- `user_uuid`, `kv_key`: Composite primary key — one value per key per user. The key is also the lookup index, so no secondary index is needed.
-- `kv_value`: The stored value (up to `MAX_VALUE_LENGTH`).
-- `created_at`, `updated_at`: Timestamps; `updated_at` is refreshed by `setKeyValue` on every upsert.
-- Managed by `src/keyvalues.ts` and the `functions/api/db/auth/keyvalues/` endpoints (`list`, `set`, `remove`). Rows are removed with the user via `ON DELETE CASCADE`.
+- **`user_key_values`** — subject `user_uuid → users`. Successor to the PHP `KeyValues` table; also stores app-owned and org-owned data attached to a user.
+- **`team_key_values`** — subject `team_uuid → teams`. Team-level defaults.
+- **`organisation_key_values`** — subject `org_uuid → organisations`. Org-level data (e.g. licensing).
+- **`org_role_key_values`** — subject `(org_uuid, role)`. Data scoped to a specific org role; perms applied to every user holding that role.
+- **`team_role_key_values`** — subject `(team_uuid, role)`. Same idea, scoped to a team role.
+
+Every table has the same shape: subject FK(s) (NOT NULL, CASCADE) + `kv_key`/`kv_value` + nullable `owner_user_uuid` / `owner_org_uuid` FKs (CASCADE) + computed STORED `owner_id = COALESCE(...)` + a CHECK that exactly one owner column is set. The primary key includes `owner_id`, so the unique tuple is (subject, owner, key). `created_at` / `updated_at` are managed in `src/utilities/keyvalues-shared.ts`'s shared upsert.
+
+Managed by `src/{user,team,organisation,org-role,team-role}-keyvalues.ts` (each exports `readKeyValue` / `readKeyValues` / `searchKeyValues` / `setKeyValue` / `deleteKeyValue`), the shared `src/utilities/keyvalues-shared.ts`, the inheritance-resolver in `src/keyvalues-resolver.ts`, and endpoints under `functions/api/db/auth/keyvalues/` (self-owned user data) and `functions/api/db/auth/organisations/[org_uuid]/...keyvalues/...` (org-owned data against org / users / teams / roles).
+
+The resolver walks **user → team-role → org-role → team → org** (most-specific first), filtered by the `owner` namespace, returning `{ values: string[], source }`. The role tier merges + de-duplicates when a user holds multiple roles with values for the same key — by design, roles do not override each other within a tier.
 
 **Organisations, Teams & Memberships Table Usage:**
 

@@ -51,6 +51,8 @@ export type OrgAction =
   | "org:members:roles"
   | "org:teams:create"
   | "org:teams:manage"
+  | "org:keyvalues:read"
+  | "org:keyvalues:write"
 
 /** Team-scoped actions — authorised against a user's `TeamRole`s. */
 export type TeamAction =
@@ -60,6 +62,8 @@ export type TeamAction =
   | "team:members:add"
   | "team:members:remove"
   | "team:members:roles"
+  | "team:keyvalues:read"
+  | "team:keyvalues:write"
 
 // --- Capability matrix -----------------------------------------------------
 // Role -> the actions it grants. Coarse-grained on purpose: rules that depend
@@ -80,6 +84,8 @@ const ORG_ROLE_ACTIONS: Record<OrgRole, readonly OrgAction[]> = {
     "org:members:roles",
     "org:teams:create",
     "org:teams:manage",
+    "org:keyvalues:read",
+    "org:keyvalues:write",
   ],
   admin: [
     "org:view",
@@ -90,9 +96,11 @@ const ORG_ROLE_ACTIONS: Record<OrgRole, readonly OrgAction[]> = {
     "org:members:roles",
     "org:teams:create",
     "org:teams:manage",
+    "org:keyvalues:read",
+    "org:keyvalues:write",
   ],
-  member: ["org:view", "org:members:view"],
-  billing: ["org:view", "org:billing"],
+  member: ["org:view", "org:members:view", "org:keyvalues:read"],
+  billing: ["org:view", "org:billing", "org:keyvalues:read"],
 }
 
 const TEAM_ROLE_ACTIONS: Record<TeamRole, readonly TeamAction[]> = {
@@ -103,8 +111,10 @@ const TEAM_ROLE_ACTIONS: Record<TeamRole, readonly TeamAction[]> = {
     "team:members:add",
     "team:members:remove",
     "team:members:roles",
+    "team:keyvalues:read",
+    "team:keyvalues:write",
   ],
-  member: ["team:view"],
+  member: ["team:view", "team:keyvalues:read"],
 }
 
 function toCapabilitySets(

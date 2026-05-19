@@ -105,12 +105,37 @@ declare global {
     is_enabled: boolean
   }
 
-  interface KeyValueRow {
-    user_uuid: string
+  // Shared columns for every *_key_values table.
+  interface KeyValueRowCommon {
     kv_key: string
     kv_value: string
+    owner_user_uuid: string | null
+    owner_org_uuid: string | null
+    owner_id: string
     created_at: Date
     updated_at: Date
+  }
+
+  interface UserKeyValueRow extends KeyValueRowCommon {
+    user_uuid: string
+  }
+
+  interface TeamKeyValueRow extends KeyValueRowCommon {
+    team_uuid: string
+  }
+
+  interface OrganisationKeyValueRow extends KeyValueRowCommon {
+    org_uuid: string
+  }
+
+  interface OrgRoleKeyValueRow extends KeyValueRowCommon {
+    org_uuid: string
+    role: string
+  }
+
+  interface TeamRoleKeyValueRow extends KeyValueRowCommon {
+    team_uuid: string
+    role: string
   }
 
   interface OrganisationRow {

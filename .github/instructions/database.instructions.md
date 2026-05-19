@@ -82,7 +82,7 @@ Examples in the codebase:
 
 - `setPrimaryEmail` (`src/emails.ts`) wraps demote-old-primary + promote-new-primary.
 - `updatePassword` (`src/passwords.ts`) wraps disable-old + create-new.
-- `setKeyValue` (`src/keyvalues.ts`) wraps the key-count check + insert.
+- `upsertKeyValue` (`src/utilities/keyvalues-shared.ts`) wraps the per-owner key-count check + insert — shared by all five KV subject modules.
 - `disableUser` (`src/users.ts`) wraps the inactive-flag flip + session purge.
 
 ## Conflict Handling

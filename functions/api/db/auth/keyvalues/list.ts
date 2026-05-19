@@ -1,22 +1,26 @@
-import { readKeyValues, searchKeyValues } from "../../../../../src/keyvalues.js"
+import {
+  readKeyValues,
+  searchKeyValues,
+} from "../../../../../src/user-keyvalues.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
 
 /**
- * Lists the authenticated user's key/value pairs as an HTML table fragment.
- * An optional `?key=` query parameter filters the list to keys containing that
- * substring (the `Puff_Member_Key_Like` equivalent).
+ * Lists the authenticated user's self-owned key/value pairs as an HTML table
+ * fragment. Owner and subject are both the caller — what they have stored
+ * about themselves. An optional `?key=` query parameter filters the list.
  */
 export const onRequestGet: Handler = async (context) => {
   const dbClient = context.data.dbClient!
   const user_uuid = context.data.user_uuid!
+  const owner = { type: "user" as const, user_uuid }
 
   try {
     const url = new URL(context.request.url)
     const search = (url.searchParams.get("key") ?? "").trim()
 
     const result = search
-      ? await searchKeyValues(dbClient, user_uuid, search)
-      : await readKeyValues(dbClient, user_uuid)
+      ? await searchKeyValues(dbClient, user_uuid, owner, search)
+      : await readKeyValues(dbClient, user_uuid, owner)
 
     if (!result.success) {
       return new Response(
