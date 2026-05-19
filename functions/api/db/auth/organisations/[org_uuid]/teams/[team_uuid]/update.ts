@@ -6,7 +6,7 @@ import {
   methodNotAllowed,
 } from "../../../../../../../../src/utilities/responses.js"
 
-/** Updates a team's name and slug. */
+/** Updates a team's name. */
 export const onRequestPost: Handler<"org_uuid" | "team_uuid"> = async (
   context
 ) => {
@@ -17,11 +17,9 @@ export const onRequestPost: Handler<"org_uuid" | "team_uuid"> = async (
   }
 
   let name = ""
-  let slug = ""
   try {
     const formData = await context.request.formData()
     name = String(formData.get("name") ?? "")
-    slug = String(formData.get("slug") ?? "")
   } catch {
     return resultNegative("Invalid request format. Expected form data.", 400)
   }
@@ -29,8 +27,7 @@ export const onRequestPost: Handler<"org_uuid" | "team_uuid"> = async (
   const result = await updateTeam(
     context.data.dbClient!,
     String(context.params.team_uuid),
-    name,
-    slug
+    name
   )
   if (!result.success) {
     return resultNegative(result.message, result.status)

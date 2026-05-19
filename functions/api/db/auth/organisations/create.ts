@@ -11,11 +11,9 @@ import {
  */
 export const onRequestPost: Handler = async (context) => {
   let name = ""
-  let slug = ""
   try {
     const formData = await context.request.formData()
     name = String(formData.get("name") ?? "")
-    slug = String(formData.get("slug") ?? "")
   } catch {
     return resultNegative("Invalid request format. Expected form data.", 400)
   }
@@ -23,7 +21,6 @@ export const onRequestPost: Handler = async (context) => {
   const result = await createOrganisation(
     context.data.dbClient!,
     name,
-    slug,
     context.data.user_uuid!
   )
   if (!result.success) {

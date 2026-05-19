@@ -3,61 +3,43 @@
 // Every function takes `dbClient` first and returns the standard Envelope. A
 // user's relationship to an organisation is the set of role grants in
 // `organisation_members` (see src/memberships.ts); creating an organisation
-// makes the creator its first `owner`.
+// makes the creator its first `owner`. Organisations are identified solely by
+// `org_uuid` — there is no slug, and names need not be unique.
 
-import { runInTransaction, Rollback } from "./utilities/transaction.js"
+import { runInTransaction } from "./utilities/transaction.js"
 import { OWNER_ROLE } from "./permissions.js"
 
 /** Longest accepted organisation display name. */
 export const MAX_NAME_LENGTH = 128
-/** Longest accepted URL slug. */
-export const MAX_SLUG_LENGTH = 64
-
-// A slug is one or more lowercase alphanumeric segments joined by single
-// hyphens — safe to place in a URL path without escaping.
-const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-
-// SQLSTATE for a unique-constraint violation — a slug collision on UPDATE,
-// where ON CONFLICT does not apply.
-const UNIQUE_VIOLATION = "23505"
 
 const ORG_COLUMNS =
-  "org_uuid, org_name, org_slug, org_active, org_created_at, org_created_by"
+  "org_uuid, org_name, org_active, org_created_at, org_created_by"
 
-/** Validates an organisation name + slug. Returns an error message, or null. */
-function validateInput(name: string, slug: string): string | null {
+/** Validates an organisation name. Returns an error message, or null. */
+function validateName(name: string): string | null {
   if (typeof name !== "string" || name.trim() === "") {
     return "An organisation name is required."
   }
   if (name.trim().length > MAX_NAME_LENGTH) {
     return `Names cannot be longer than ${MAX_NAME_LENGTH} characters.`
   }
-  if (
-    typeof slug !== "string" ||
-    slug.length > MAX_SLUG_LENGTH ||
-    !SLUG_PATTERN.test(slug)
-  ) {
-    return "A URL slug of lowercase letters, numbers and hyphens is required."
-  }
   return null
 }
 
 /**
  * Creates an organisation and makes the creator its first `owner`, in one
- * transaction. The slug must be unique across all organisations.
+ * transaction.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} name - Display name.
- * @param {string} slug - URL-safe slug (lowercase alphanumeric + hyphens).
  * @param {string} creator_uuid - UUID of the user creating the organisation.
- * @returns {Promise<Envelope<{ organisation: OrganisationRow }>>} `{ success: true, organisation, status: 201 }`, `{ success: false, message, status: 400|409 }`, or an error envelope.
+ * @returns {Promise<Envelope<{ organisation: OrganisationRow }>>} `{ success: true, organisation, status: 201 }`, `{ success: false, message, status: 400 }`, or an error envelope.
  */
 export async function createOrganisation(
   dbClient: DbClient,
   name: string,
-  slug: string,
   creator_uuid: string
 ): Promise<Envelope<{ organisation: OrganisationRow }>> {
-  const invalid = validateInput(name, slug)
+  const invalid = validateName(name)
   if (invalid) {
     return { success: false, message: invalid, status: 400 }
   }
@@ -66,19 +48,11 @@ export async function createOrganisation(
     const org_uuid = crypto.randomUUID()
     return await runInTransaction(dbClient, async (): Promise<Result> => {
       const insert = await dbClient.query(
-        `INSERT INTO organisations (org_uuid, org_name, org_slug, org_created_by)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (org_slug) DO NOTHING
+        `INSERT INTO organisations (org_uuid, org_name, org_created_by)
+         VALUES ($1, $2, $3)
          RETURNING ${ORG_COLUMNS}`,
-        [org_uuid, name.trim(), slug, creator_uuid]
+        [org_uuid, name.trim(), creator_uuid]
       )
-      if (insert.rowCount === 0) {
-        throw new Rollback<Result>({
-          success: false,
-          message: "That organisation URL is already taken.",
-          status: 409,
-        })
-      }
       // The creator is the first owner; they added themselves.
       await dbClient.query(
         "INSERT INTO organisation_members (org_uuid, user_uuid, role, added_by) VALUES ($1, $2, $3, $2)",
@@ -129,40 +103,31 @@ export async function readOrganisation(
 }
 
 /**
- * Updates an organisation's name and slug.
+ * Updates an organisation's name.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} org_uuid - The organisation UUID.
  * @param {string} name - New display name.
- * @param {string} slug - New URL-safe slug.
- * @returns {Promise<Envelope<{ organisation: OrganisationRow }>>} `{ success: true, organisation, status: 200 }`, `{ success: false, message, status: 400|404|409 }`, or an error envelope.
+ * @returns {Promise<Envelope<{ organisation: OrganisationRow }>>} `{ success: true, organisation, status: 200 }`, `{ success: false, message, status: 400|404 }`, or an error envelope.
  */
 export async function updateOrganisation(
   dbClient: DbClient,
   org_uuid: string,
-  name: string,
-  slug: string
+  name: string
 ): Promise<Envelope<{ organisation: OrganisationRow }>> {
-  const invalid = validateInput(name, slug)
+  const invalid = validateName(name)
   if (invalid) {
     return { success: false, message: invalid, status: 400 }
   }
   try {
     const result = await dbClient.query(
-      `UPDATE organisations SET org_name = $2, org_slug = $3 WHERE org_uuid = $1 RETURNING ${ORG_COLUMNS}`,
-      [org_uuid, name.trim(), slug]
+      `UPDATE organisations SET org_name = $2 WHERE org_uuid = $1 RETURNING ${ORG_COLUMNS}`,
+      [org_uuid, name.trim()]
     )
     if ((result.rowCount ?? 0) === 0) {
       return { success: false, message: "Organisation not found.", status: 404 }
     }
     return { success: true, organisation: result.rows[0], status: 200 }
   } catch (error) {
-    if ((error as { code?: string }).code === UNIQUE_VIOLATION) {
-      return {
-        success: false,
-        message: "That organisation URL is already taken.",
-        status: 409,
-      }
-    }
     console.error("Error in updateOrganisation:", error)
     return {
       error: true,
@@ -276,12 +241,12 @@ export async function listOrganisationsForUser(
 ): Promise<Envelope<{ organisations: OrganisationWithRoles[] }>> {
   try {
     const result = await dbClient.query(
-      `SELECT o.org_uuid, o.org_name, o.org_slug, o.org_active, o.org_created_at, o.org_created_by,
+      `SELECT o.org_uuid, o.org_name, o.org_active, o.org_created_at, o.org_created_by,
               array_agg(m.role ORDER BY m.role) AS roles
        FROM organisations o
        JOIN organisation_members m ON m.org_uuid = o.org_uuid
        WHERE m.user_uuid = $1
-       GROUP BY o.org_uuid, o.org_name, o.org_slug, o.org_active, o.org_created_at, o.org_created_by
+       GROUP BY o.org_uuid, o.org_name, o.org_active, o.org_created_at, o.org_created_by
        ORDER BY o.org_name ASC`,
       [user_uuid]
     )

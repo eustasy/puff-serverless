@@ -116,7 +116,6 @@ declare global {
   interface OrganisationRow {
     org_uuid: string
     org_name: string
-    org_slug: string
     org_active: boolean
     org_created_at: Date
     org_created_by: string | null
@@ -126,7 +125,6 @@ declare global {
     team_uuid: string
     org_uuid: string
     team_name: string
-    team_slug: string
     team_created_at: Date
   }
 

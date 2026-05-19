@@ -172,8 +172,8 @@ is an additive migration, not a rewrite.
 
 ### Schema (`sql/`)
 
-- [x] `sql/organisations.sql` — `org_uuid` PK, `org_name`, `org_slug` (unique, URL-safe), `org_active` (reversible-disable flag, mirroring `user_active`), `org_created_at`, `org_created_by` (FK → `users`, `ON DELETE SET NULL`).
-- [x] `sql/teams.sql` — `team_uuid` PK, `org_uuid` (FK → `organisations`, `ON DELETE CASCADE`), `team_name`, `team_slug`, `team_created_at`. Unique `(org_uuid, team_slug)` — slugs are unique within an org, not globally; that index also covers the `org_uuid` FK.
+- [x] `sql/organisations.sql` — `org_uuid` PK, `org_name`, `org_active` (reversible-disable flag, mirroring `user_active`), `org_created_at`, `org_created_by` (FK → `users`, `ON DELETE SET NULL`). Identified by UUID — no slug, names need not be unique.
+- [x] `sql/teams.sql` — `team_uuid` PK, `org_uuid` (FK → `organisations`, `ON DELETE CASCADE`), `team_name`, `team_created_at`, plus `idx_teams_org_uuid` for the FK and `listTeams` lookups.
 - [x] `sql/organisation_members.sql` — organisation-scoped role grants. Composite PK `(org_uuid, user_uuid, role)`; FKs to `organisations` and `users`, both `ON DELETE CASCADE`; `added_at`, `added_by` (FK → `users`, `ON DELETE SET NULL`). `idx_organisation_members_user_uuid` serves the `user_uuid` FK and "orgs for a user" lookups.
 - [x] `sql/team_members.sql` — team-scoped role grants. Composite PK `(team_uuid, user_uuid, role)`; FKs to `teams` and `users`, both `ON DELETE CASCADE`; `added_at`, `added_by`. `idx_team_members_user_uuid` serves the `user_uuid` FK and guest detection (team grants with no `organisation_members` row). There is deliberately no "team membership requires org membership" constraint.
 - [ ] The `role` columns are plain text in Phase 6; Phase 7 migrates them to FKs into a `roles` table (additive — see Phase 7).
@@ -233,7 +233,6 @@ envelopes, no HTTP. Multi-step writes use `runInTransaction`.
 
 - [ ] **How "guest" is surfaced.** Derive it (a user with grants but no `member` org role) or store an explicit flag on `organisation_members`. Leaning derived — confirm.
 - [ ] **v2 permission granularity.** Whether custom roles select from a platform-defined catalogue of actions or carry free-form permission strings that linked apps interpret themselves. Affects how Phase 7 exposes them.
-- [ ] **Slug lifecycle.** Whether `org_slug` / `team_slug` are immutable after creation or renameable (and how to handle existing links/bookmarks if renameable).
 
 ## Phase 7 — OAuth identity provider & federated login
 

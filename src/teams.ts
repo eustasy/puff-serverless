@@ -1,77 +1,52 @@
 // Teams — a subdivision of an organisation (Phase 6).
 //
-// A team always belongs to one organisation (FK `ON DELETE CASCADE`); its slug
-// is unique within that organisation, not globally. Team membership lives in
-// `team_members` (see src/memberships.ts) and is independent of organisation
-// membership — a user with only team grants is a guest of the organisation.
+// A team always belongs to one organisation (FK `ON DELETE CASCADE`). Team
+// membership lives in `team_members` (see src/memberships.ts) and is
+// independent of organisation membership — a user with only team grants is a
+// guest of the organisation. Teams are identified solely by `team_uuid` —
+// there is no slug, and names need not be unique within an organisation.
 
 /** Longest accepted team display name. */
 export const MAX_NAME_LENGTH = 128
-/** Longest accepted URL slug. */
-export const MAX_SLUG_LENGTH = 64
 
-// One or more lowercase alphanumeric segments joined by single hyphens.
-const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const TEAM_COLUMNS = "team_uuid, org_uuid, team_name, team_created_at"
 
-// SQLSTATE for a unique-constraint violation — a slug collision on UPDATE.
-const UNIQUE_VIOLATION = "23505"
-
-const TEAM_COLUMNS =
-  "team_uuid, org_uuid, team_name, team_slug, team_created_at"
-
-/** Validates a team name + slug. Returns an error message, or null. */
-function validateInput(name: string, slug: string): string | null {
+/** Validates a team name. Returns an error message, or null. */
+function validateName(name: string): string | null {
   if (typeof name !== "string" || name.trim() === "") {
     return "A team name is required."
   }
   if (name.trim().length > MAX_NAME_LENGTH) {
     return `Names cannot be longer than ${MAX_NAME_LENGTH} characters.`
   }
-  if (
-    typeof slug !== "string" ||
-    slug.length > MAX_SLUG_LENGTH ||
-    !SLUG_PATTERN.test(slug)
-  ) {
-    return "A URL slug of lowercase letters, numbers and hyphens is required."
-  }
   return null
 }
 
 /**
- * Creates a team within an organisation. The slug must be unique within that
- * organisation. The caller is responsible for the team's first members.
+ * Creates a team within an organisation. The caller is responsible for the
+ * team's first members.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} org_uuid - The owning organisation's UUID.
  * @param {string} name - Display name.
- * @param {string} slug - URL-safe slug (unique within the organisation).
- * @returns {Promise<Envelope<{ team: TeamRow }>>} `{ success: true, team, status: 201 }`, `{ success: false, message, status: 400|404|409 }`, or an error envelope.
+ * @returns {Promise<Envelope<{ team: TeamRow }>>} `{ success: true, team, status: 201 }`, `{ success: false, message, status: 400|404 }`, or an error envelope.
  */
 export async function createTeam(
   dbClient: DbClient,
   org_uuid: string,
-  name: string,
-  slug: string
+  name: string
 ): Promise<Envelope<{ team: TeamRow }>> {
-  const invalid = validateInput(name, slug)
+  const invalid = validateName(name)
   if (invalid) {
     return { success: false, message: invalid, status: 400 }
   }
   try {
     const team_uuid = crypto.randomUUID()
     const result = await dbClient.query(
-      `INSERT INTO teams (team_uuid, org_uuid, team_name, team_slug)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (org_uuid, team_slug) DO NOTHING
+      `INSERT INTO teams (team_uuid, org_uuid, team_name)
+       VALUES ($1, $2, $3)
        RETURNING ${TEAM_COLUMNS}`,
-      [team_uuid, org_uuid, name.trim(), slug]
+      [team_uuid, org_uuid, name.trim()]
     )
-    if (result.rowCount === 0) {
-      return {
-        success: false,
-        message: "That team URL is already taken in this organisation.",
-        status: 409,
-      }
-    }
     return { success: true, team: result.rows[0], status: 201 }
   } catch (error) {
     // A foreign-key violation means the organisation no longer exists.
@@ -119,40 +94,31 @@ export async function readTeam(
 }
 
 /**
- * Updates a team's name and slug.
+ * Updates a team's name.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} team_uuid - The team UUID.
  * @param {string} name - New display name.
- * @param {string} slug - New URL-safe slug.
- * @returns {Promise<Envelope<{ team: TeamRow }>>} `{ success: true, team, status: 200 }`, `{ success: false, message, status: 400|404|409 }`, or an error envelope.
+ * @returns {Promise<Envelope<{ team: TeamRow }>>} `{ success: true, team, status: 200 }`, `{ success: false, message, status: 400|404 }`, or an error envelope.
  */
 export async function updateTeam(
   dbClient: DbClient,
   team_uuid: string,
-  name: string,
-  slug: string
+  name: string
 ): Promise<Envelope<{ team: TeamRow }>> {
-  const invalid = validateInput(name, slug)
+  const invalid = validateName(name)
   if (invalid) {
     return { success: false, message: invalid, status: 400 }
   }
   try {
     const result = await dbClient.query(
-      `UPDATE teams SET team_name = $2, team_slug = $3 WHERE team_uuid = $1 RETURNING ${TEAM_COLUMNS}`,
-      [team_uuid, name.trim(), slug]
+      `UPDATE teams SET team_name = $2 WHERE team_uuid = $1 RETURNING ${TEAM_COLUMNS}`,
+      [team_uuid, name.trim()]
     )
     if ((result.rowCount ?? 0) === 0) {
       return { success: false, message: "Team not found.", status: 404 }
     }
     return { success: true, team: result.rows[0], status: 200 }
   } catch (error) {
-    if ((error as { code?: string }).code === UNIQUE_VIOLATION) {
-      return {
-        success: false,
-        message: "That team URL is already taken in this organisation.",
-        status: 409,
-      }
-    }
     console.error("Error in updateTeam:", error)
     return {
       error: true,

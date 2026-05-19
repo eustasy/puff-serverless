@@ -20,8 +20,8 @@ Schema files live in `sql/`, one file per table. Import in foreign-key order: `u
 - **`emails`**: `email_address` (PK), `user_uuid` (FK), `is_primary`, `is_verified`, `verified_at`.
 - **`secrets`**: `secret_uuid` (PK), `user_uuid` (FK), `secret_type`, `secret_value`, `secret_name`, `is_enabled`, `secret_created_at`, `secret_last_used`. Used for both passwords (`secret_type = 'puff_password_SHA-384'`) and TOTP (`secret_type = 'totp_secret'`).
 - **`tokens`**: `token_value` (PK), `user_uuid` (FK), `token_type`, `expires_at`, `created_at`, `is_used`, `email_address`. Types: `'email_verification'`, `'password_reset'`, `'totp_verification_pending'`, `'sudo_elevation'`.
-- **`organisations`**: `org_uuid` (PK), `org_name`, `org_slug` (unique), `org_active`, `org_created_at`, `org_created_by` (FK → `users`, `ON DELETE SET NULL`).
-- **`teams`**: `team_uuid` (PK), `org_uuid` (FK → `organisations`, cascade), `team_name`, `team_slug`, `team_created_at`. Unique `(org_uuid, team_slug)`.
+- **`organisations`**: `org_uuid` (PK), `org_name`, `org_active`, `org_created_at`, `org_created_by` (FK → `users`, `ON DELETE SET NULL`).
+- **`teams`**: `team_uuid` (PK), `org_uuid` (FK → `organisations`, cascade), `team_name`, `team_created_at`.
 - **`organisation_members`**: composite PK `(org_uuid, user_uuid, role)`, FKs to `organisations` / `users` (cascade), `added_at`, `added_by` (FK → `users`, `SET NULL`). One row per (user, role).
 - **`team_members`**: composite PK `(team_uuid, user_uuid, role)`, FKs to `teams` / `users` (cascade), `added_at`, `added_by`. Same shape as `organisation_members`.
 - **`organisation_invitations`**: `invitation_token` (PK), `org_uuid` (FK → `organisations`, cascade), `email_address`, `roles` (`STRING[]`), `invited_by` (FK → `users`, `SET NULL`), `created_at`, `expires_at`, `is_used`.

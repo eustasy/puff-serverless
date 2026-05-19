@@ -45,8 +45,6 @@ export const onRequestGet: Handler<"org_uuid" | "team_uuid"> = async (
   <form hx-post="${base}/update" hx-target="#team-message-area" hx-swap="innerHTML" class="grid-container">
     <div class="grid-item"><label>Name:
       <input type="text" name="name" value="${escapeHtml(team.team_name)}" maxlength="128" required class="form-input" /></label></div>
-    <div class="grid-item"><label>Slug:
-      <input type="text" name="slug" value="${escapeHtml(team.team_slug)}" maxlength="64" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required class="form-input" /></label></div>
     <div class="grid-item"><button type="submit" class="btn-save">Save</button></div>
   </form>`
   }

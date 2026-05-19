@@ -14,11 +14,9 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
   }
 
   let name = ""
-  let slug = ""
   try {
     const formData = await context.request.formData()
     name = String(formData.get("name") ?? "")
-    slug = String(formData.get("slug") ?? "")
   } catch {
     return resultNegative("Invalid request format. Expected form data.", 400)
   }
@@ -26,8 +24,7 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
   const result = await createTeam(
     context.data.dbClient!,
     String(context.params.org_uuid),
-    name,
-    slug
+    name
   )
   if (!result.success) {
     return resultNegative(result.message, result.status)

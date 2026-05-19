@@ -13,7 +13,6 @@ import { FakeDb, pgError } from "./helpers/fake-db.js"
 const orgRow = (over: Partial<OrganisationRow> = {}): OrganisationRow => ({
   org_uuid: "org-1",
   org_name: "Acme",
-  org_slug: "acme",
   org_active: true,
   org_created_at: new Date(),
   org_created_by: "user-1",
@@ -23,24 +22,18 @@ const orgRow = (over: Partial<OrganisationRow> = {}): OrganisationRow => ({
 describe("createOrganisation", () => {
   it("rejects an empty name with 400 before any query", async () => {
     const db = new FakeDb()
-    expect(
-      await createOrganisation(db.client, "  ", "acme", "user-1")
-    ).toMatchObject({ success: false, status: 400 })
+    expect(await createOrganisation(db.client, "  ", "user-1")).toMatchObject({
+      success: false,
+      status: 400,
+    })
     expect(db.calls).toHaveLength(0)
-  })
-
-  it("rejects a slug that is not URL-safe with 400", async () => {
-    const db = new FakeDb()
-    expect(
-      await createOrganisation(db.client, "Acme", "Not A Slug", "user-1")
-    ).toMatchObject({ success: false, status: 400 })
   })
 
   it("creates the organisation and makes the creator its owner", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO organisations/, { rows: [orgRow()] })
     db.on(/INSERT INTO organisation_members/, { rowCount: 1 })
-    const result = await createOrganisation(db.client, "Acme", "acme", "user-1")
+    const result = await createOrganisation(db.client, "Acme", "user-1")
     expect(result).toMatchObject({ success: true, status: 201 })
     // The membership insert grants the creator the owner role, against the
     // same generated org UUID the organisation row was inserted with.
@@ -55,15 +48,12 @@ describe("createOrganisation", () => {
     expect(memberInsert?.values[2]).toBe("owner")
   })
 
-  it("rejects a duplicate slug with 409", async () => {
+  it("returns 500 when the insert throws", async () => {
     const db = new FakeDb()
-    db.on(/INSERT INTO organisations/, { rows: [] })
-    const result = await createOrganisation(db.client, "Acme", "acme", "user-1")
-    expect(result).toMatchObject({ success: false, status: 409 })
-    // The rollback means no membership row was written.
-    expect(
-      db.calls.some((c) => c.text.includes("INSERT INTO organisation_members"))
-    ).toBe(false)
+    db.on(/INSERT INTO organisations/, pgError("08006"))
+    expect((await createOrganisation(db.client, "Acme", "user-1")).status).toBe(
+      500
+    )
   })
 })
 
@@ -87,28 +77,28 @@ describe("readOrganisation", () => {
 })
 
 describe("updateOrganisation", () => {
-  it("updates the name and slug", async () => {
+  it("updates the name", async () => {
     const db = new FakeDb()
     db.on(/UPDATE organisations/, { rows: [orgRow({ org_name: "Acme Inc" })] })
     expect(
-      await updateOrganisation(db.client, "org-1", "Acme Inc", "acme")
+      await updateOrganisation(db.client, "org-1", "Acme Inc")
     ).toMatchObject({ success: true, status: 200 })
+  })
+
+  it("rejects an empty name with 400", async () => {
+    const db = new FakeDb()
+    expect(await updateOrganisation(db.client, "org-1", " ")).toMatchObject({
+      success: false,
+      status: 400,
+    })
   })
 
   it("returns 404 when the organisation does not exist", async () => {
     const db = new FakeDb()
     db.on(/UPDATE organisations/, { rowCount: 0, rows: [] })
-    expect(
-      (await updateOrganisation(db.client, "org-1", "Acme", "acme")).status
-    ).toBe(404)
-  })
-
-  it("maps a slug collision to 409", async () => {
-    const db = new FakeDb()
-    db.on(/UPDATE organisations/, pgError("23505"))
-    expect(
-      (await updateOrganisation(db.client, "org-1", "Acme", "taken")).status
-    ).toBe(409)
+    expect((await updateOrganisation(db.client, "org-1", "Acme")).status).toBe(
+      404
+    )
   })
 })
 

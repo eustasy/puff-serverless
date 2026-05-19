@@ -12,7 +12,6 @@ const teamRow = (over: Partial<TeamRow> = {}): TeamRow => ({
   team_uuid: "team-1",
   org_uuid: "org-1",
   team_name: "Platform",
-  team_slug: "platform",
   team_created_at: new Date(),
   ...over,
 })
@@ -20,7 +19,7 @@ const teamRow = (over: Partial<TeamRow> = {}): TeamRow => ({
 describe("createTeam", () => {
   it("rejects an empty name with 400 before any query", async () => {
     const db = new FakeDb()
-    expect(await createTeam(db.client, "org-1", "", "platform")).toMatchObject({
+    expect(await createTeam(db.client, "org-1", "")).toMatchObject({
       success: false,
       status: 400,
     })
@@ -30,24 +29,16 @@ describe("createTeam", () => {
   it("creates a team", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO teams/, { rows: [teamRow()] })
-    const result = await createTeam(db.client, "org-1", "Platform", "platform")
+    const result = await createTeam(db.client, "org-1", "Platform")
     expect(result).toMatchObject({ success: true, status: 201 })
-  })
-
-  it("rejects a slug already used in the organisation with 409", async () => {
-    const db = new FakeDb()
-    db.on(/INSERT INTO teams/, { rows: [] })
-    expect(
-      (await createTeam(db.client, "org-1", "Platform", "platform")).status
-    ).toBe(409)
   })
 
   it("maps a missing organisation (FK violation) to 404", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO teams/, pgError("23503"))
-    expect(
-      (await createTeam(db.client, "ghost-org", "Platform", "platform")).status
-    ).toBe(404)
+    expect((await createTeam(db.client, "ghost-org", "Platform")).status).toBe(
+      404
+    )
   })
 })
 
@@ -71,28 +62,19 @@ describe("readTeam", () => {
 })
 
 describe("updateTeam", () => {
-  it("updates the name and slug", async () => {
+  it("updates the name", async () => {
     const db = new FakeDb()
     db.on(/UPDATE teams/, { rows: [teamRow({ team_name: "Core" })] })
-    expect(await updateTeam(db.client, "team-1", "Core", "core")).toMatchObject(
-      { success: true, status: 200 }
-    )
+    expect(await updateTeam(db.client, "team-1", "Core")).toMatchObject({
+      success: true,
+      status: 200,
+    })
   })
 
   it("returns 404 when the team does not exist", async () => {
     const db = new FakeDb()
     db.on(/UPDATE teams/, { rowCount: 0, rows: [] })
-    expect((await updateTeam(db.client, "team-1", "Core", "core")).status).toBe(
-      404
-    )
-  })
-
-  it("maps a slug collision to 409", async () => {
-    const db = new FakeDb()
-    db.on(/UPDATE teams/, pgError("23505"))
-    expect(
-      (await updateTeam(db.client, "team-1", "Core", "taken")).status
-    ).toBe(409)
+    expect((await updateTeam(db.client, "team-1", "Core")).status).toBe(404)
   })
 })
 
@@ -116,10 +98,7 @@ describe("deleteTeam", () => {
 describe("listTeams", () => {
   it("returns every team in the organisation", async () => {
     const db = new FakeDb()
-    const rows = [
-      teamRow(),
-      teamRow({ team_uuid: "team-2", team_slug: "core" }),
-    ]
+    const rows = [teamRow(), teamRow({ team_uuid: "team-2" })]
     db.on(/FROM teams WHERE org_uuid/, { rows })
     expect(await listTeams(db.client, "org-1")).toEqual({
       success: true,

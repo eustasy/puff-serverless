@@ -40,8 +40,6 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
   <form hx-post="${base}/update" hx-target="#org-message-area" hx-swap="innerHTML" class="grid-container">
     <div class="grid-item"><label>Name:
       <input type="text" name="name" value="${escapeHtml(org.org_name)}" maxlength="128" required class="form-input" /></label></div>
-    <div class="grid-item"><label>URL slug:
-      <input type="text" name="slug" value="${escapeHtml(org.org_slug)}" maxlength="64" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required class="form-input" /></label></div>
     <div class="grid-item"><button type="submit" class="btn-save">Save</button></div>
   </form>`
   }
@@ -69,8 +67,6 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
   <form hx-post="${base}/teams/create" hx-target="#org-message-area" hx-swap="innerHTML" class="grid-container">
     <div class="grid-item"><label>Team name:
       <input type="text" name="name" maxlength="128" required class="form-input" /></label></div>
-    <div class="grid-item"><label>Slug:
-      <input type="text" name="slug" maxlength="64" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required class="form-input" /></label></div>
     <div class="grid-item"><button type="submit" class="btn-save">Create Team</button></div>
   </form>`
   }
