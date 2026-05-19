@@ -164,11 +164,12 @@ membership. Polymorphic "scope" columns are avoided — they would break the FK 
 `ON DELETE CASCADE` integrity the schema relies on — so organisation- and
 team-scoped grants are separate tables.
 
-**Roles.** Phase 6 ships a fixed, code-defined role set (text discriminators
-validated in `src/`, matching the `secret_type` / `token_type` idiom). Phase 7
-adds per-organisation **custom roles** and exposes them to linked OAuth apps as a
-permission system — the schema and the capability helper below are shaped so that
-is an additive migration, not a rewrite.
+**Roles.** Organisation and team RBAC is **code-defined and fixed**: the role
+set and the role → permission mapping both live in `src/permissions.ts` (the
+`can()` matrix), not the database. Only role _assignments_ — which user holds
+which role — are stored in tables. Organisations are not given customisable
+roles; they use the fixed puff role set. The data-driven, customisable
+permission model is exclusively for linked apps (Phase 7).
 
 ### Schema (`sql/`)
 
@@ -176,13 +177,13 @@ is an additive migration, not a rewrite.
 - [x] `sql/teams.sql` — `team_uuid` PK, `org_uuid` (FK → `organisations`, `ON DELETE CASCADE`), `team_name`, `team_created_at`, plus `idx_teams_org_uuid` for the FK and `listTeams` lookups.
 - [x] `sql/organisation_members.sql` — organisation-scoped role grants. Composite PK `(org_uuid, user_uuid, role)`; FKs to `organisations` and `users`, both `ON DELETE CASCADE`; `added_at`, `added_by` (FK → `users`, `ON DELETE SET NULL`). `idx_organisation_members_user_uuid` serves the `user_uuid` FK and "orgs for a user" lookups.
 - [x] `sql/team_members.sql` — team-scoped role grants. Composite PK `(team_uuid, user_uuid, role)`; FKs to `teams` and `users`, both `ON DELETE CASCADE`; `added_at`, `added_by`. `idx_team_members_user_uuid` serves the `user_uuid` FK and guest detection (team grants with no `organisation_members` row). There is deliberately no "team membership requires org membership" constraint.
-- [ ] The `role` columns are plain text in Phase 6; Phase 7 migrates them to FKs into a `roles` table (additive — see Phase 7).
+- [x] The `role` columns are plain text, validated in `src/` against the fixed `src/permissions.ts` role set. They stay plain text — Puff's org/team roles are code-defined, not a database `roles` table.
 - [x] Schema import order extended to `users` → `organisations` → `teams` → `organisation_members` / `team_members`; ordering note updated in `CLAUDE.md`, `ARCHITECTURE.md`, and `database.instructions.md`.
 
 ### Roles & authorisation
 
 - [x] Role set as a `src/permissions.ts` constant — organisation roles `owner` / `admin` / `member` / `billing`, team roles `lead` / `member` (`ORG_ROLES` / `TEAM_ROLES`). A user may hold any combination. `OWNER_ROLE` / `DEFAULT_ORG_ROLE` / `DEFAULT_TEAM_ROLE` exported for the domain modules; `isOrgRole` / `isTeamRole` type guards validate role names from request input.
-- [x] `can(roles, action)` capability helper — resolves a role set to a boolean for a typed action (`OrgAction` / `TeamAction`, e.g. `org:update`, `org:teams:create`, `team:members:add`). The action prefix selects the scope. Endpoints check the capability, never a raw role string. Phase 6 backs it with a code-defined matrix; Phase 7's `role_permissions` table swaps in behind it with no call-site changes.
+- [x] `can(roles, action)` capability helper — resolves a role set to a boolean for a typed action (`OrgAction` / `TeamAction`, e.g. `org:update`, `org:teams:create`, `team:members:add`). The action prefix selects the scope. Endpoints check the capability, never a raw role string. The role → permission matrix is code-defined in `src/permissions.ts` and stays that way — org/team roles are not customisable; the data-driven permission model (Phase 7) is apps-only.
 - [x] `owner` is privileged: an organisation must always retain at least one `owner` — enforced by `removeOrgMember` / `setOrgMemberRoles` in `src/memberships.ts`.
 - [x] Owners can grant any role to any user: `addOrgMember` and the team equivalents accept a `user_uuid` with no prior relationship to the org — this is how an external user becomes a guest or a member.
 
@@ -232,7 +233,6 @@ envelopes, no HTTP. Multi-step writes use `runInTransaction`.
 ### Open decisions
 
 - [ ] **How "guest" is surfaced.** Derive it (a user with grants but no `member` org role) or store an explicit flag on `organisation_members`. Leaning derived — confirm.
-- [ ] **v2 permission granularity.** Whether custom roles select from a platform-defined catalogue of actions or carry free-form permission strings that linked apps interpret themselves. Affects how Phase 7 exposes them.
 
 ## Phase 7 — OAuth identity provider & federated login
 
@@ -254,16 +254,22 @@ separate, lower-priority track.
 - [ ] `sql/oauth_grants.sql` — authorization codes, access tokens, and refresh tokens issued to apps: short-lived codes, refresh-token rotation, and a remembered per-(user, app) scope grant so consent is not re-prompted every time.
 - [ ] Authorization Code flow with PKCE (OAuth 2.1 — no implicit flow). Endpoints under `functions/`: `/oauth/authorize` (consent screen; reuses the session cookie to identify the user), `/oauth/token` (code → tokens, refresh), `/oauth/userinfo`, `/.well-known/openid-configuration`, and a JWKS endpoint.
 - [ ] ID tokens are signed JWTs via Web Crypto (Workers-native, as with WebAuthn). Decide signing-key storage and rotation, published through JWKS.
-- [ ] Scopes & claims: standard OIDC (`openid`, `profile`, `email`) plus organisation/team membership and **role claims**, so an app receives the user's roles for _its_ org — this is where the custom roles below surface.
+- [ ] Scopes & claims: standard OIDC (`openid`, `profile`, `email`) plus organisation/team membership and **role claims** (the user's fixed puff org/team roles), and the user's **app entitlements** for the requesting app — see App entitlements below.
 - [ ] App-management UI — org admins register/edit apps, view and rotate `client_secret`, manage redirect URIs. Endpoints under `functions/api/db/auth/organisations/[org_uuid]/apps/`.
 
-### Custom roles & permission system (moved from Phase 6)
+### App entitlements & permissions
 
-- [ ] `sql/roles.sql` — per-organisation custom roles. `role_uuid` PK, `org_uuid` FK (`ON DELETE CASCADE`), `role_key`, `role_name`; the built-in Phase 6 roles become a reserved/seeded set.
-- [ ] `sql/role_permissions.sql` — maps a role to the permissions/actions it grants.
-- [ ] Migrate the `role` text columns on `organisation_members` / `team_members` to FKs into `roles` — additive, since Phase 6 ships them as plain text.
-- [ ] Switch `can(roles, action)` (Phase 6's capability helper) from the code constant to `role_permissions`, with no call-site changes.
-- [ ] Expose roles/permissions to linked apps as OIDC claims and a `userinfo` field, so an app runs its own access checks from Puff-issued roles.
+Decided: **org and team RBAC stays code-defined** — the fixed puff role set and
+the role → permission `can()` matrix live in `src/permissions.ts`, and only role
+_assignments_ are in the database. Organisations are not given customisable
+roles. The data-driven, database-backed model is exclusively for **apps**, and
+an app entitlement ("license") is assigned to **specific users or whole teams**
+— never to a whole organisation (orgs use the puff roles).
+
+- [ ] App entitlements live in the database — two grant tables, each with real FKs (`ON DELETE CASCADE`), so a polymorphic grantee column is avoided: `sql/app_user_grants.sql` (`app_uuid` → `apps`, `user_uuid` → `users`) and `sql/app_team_grants.sql` (`app_uuid` → `apps`, `team_uuid` → `teams`). A grantee may be any user — member or guest.
+- [ ] Each grant carries the app's role/permission value. App roles/permissions are **app-defined data**, not Puff's code-defined catalogue — Puff stores them and emits them as OIDC claims; the app enforces them itself.
+- [ ] A user's effective access to an app = their direct `app_user_grants` ∪ grants to any team they belong to (`app_team_grants` joined through `team_members`). A team grant flows to current and future team members; "licensed" = a grant exists (the seat count for Phase 8 billing).
+- [ ] Grantees must belong to the app's organisation — an application-layer check (the FK only proves the user/team exists, not that it is in the right org).
 
 ### Puff as OAuth client (federated / social login)
 
