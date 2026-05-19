@@ -211,8 +211,8 @@ envelopes, no HTTP. Multi-step writes use `runInTransaction`.
 ### Lifecycle & integrity
 
 - [x] Last-owner guard: `removeOrgMember` / `setOrgMemberRoles` reject any change that would leave an organisation with no `owner` (transactional owner-count check in `src/memberships.ts`).
-- [ ] `deleteUser` interaction: cascades already drop a user's membership rows, but a user who is an org's sole `owner` would orphan it — `deleteUser` (or a pre-check) must reassign ownership or block. Decide and document.
-- [ ] `disableUser` keeps memberships intact — a disabled user is gated at login by `user_active`, as today; org access is not separately stripped.
+- [x] `deleteUser` interaction: a transactional sole-owner pre-check in `src/users.ts` refuses (409) to delete a user who is the only `owner` of an organisation, naming those organisations — the caller transfers ownership or deletes them first. (`org_created_by` / `added_by` / `invited_by` are all `ON DELETE SET NULL`, so deleting a user never cascades into organisations; only the `organisation_members` owner row could orphan one.)
+- [x] `disableUser` keeps organisation and team memberships intact — a disabled user cannot log in (`loginUser` rejects on `user_active`), so cannot exercise them, and re-enabling restores access. Noted in the `disableUser` doc comment.
 
 ### Frontend (`public/`)
 

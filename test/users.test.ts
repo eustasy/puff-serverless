@@ -237,8 +237,9 @@ describe("enableUser", () => {
 })
 
 describe("deleteUser", () => {
-  it("succeeds when a row was deleted", async () => {
+  it("succeeds when the user solely owns no organisation", async () => {
     const db = new FakeDb()
+    db.on(/HAVING count/, { rows: [] }) // sole-owner pre-check: none
     db.on(/DELETE FROM users/, { rows: [{ user_uuid: "user-1" }] })
     expect(await deleteUser(db.client, "user-1")).toEqual({
       success: true,
@@ -248,8 +249,20 @@ describe("deleteUser", () => {
 
   it("returns 404 when the user does not exist", async () => {
     const db = new FakeDb()
+    db.on(/HAVING count/, { rows: [] })
     db.on(/DELETE FROM users/, { rows: [] })
     expect((await deleteUser(db.client, "user-1")).status).toBe(404)
+  })
+
+  it("refuses with 409 when the user is an organisation's sole owner", async () => {
+    const db = new FakeDb()
+    db.on(/HAVING count/, { rows: [{ org_name: "Acme" }] })
+    const result = await deleteUser(db.client, "user-1")
+    expect(result).toMatchObject({ success: false, status: 409 })
+    // The user row is left untouched.
+    expect(db.calls.some((c) => c.text.includes("DELETE FROM users"))).toBe(
+      false
+    )
   })
 })
 

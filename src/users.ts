@@ -9,6 +9,7 @@ import {
 import { has2fa } from "./2fa.js"
 import { sendVerificationEmail } from "./mailer.js"
 import { runInTransaction, Rollback } from "./utilities/transaction.js"
+import { OWNER_ROLE } from "./permissions.js"
 
 /**
  * Retrieves a user's details by their UUID.
@@ -335,7 +336,9 @@ export async function loginUser(
  * Disables a user account (reversible). Sets `user_active = FALSE` and
  * terminates every active session in one transaction, so the user is logged
  * out everywhere immediately and `loginUser` will reject them. Reverse with
- * `enableUser`; for a permanent removal use `deleteUser`.
+ * `enableUser`; for a permanent removal use `deleteUser`. Organisation and
+ * team memberships are deliberately kept — a disabled user cannot log in to
+ * exercise them, and re-enabling restores access intact.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user to disable.
  * @returns {Promise<object>} Envelope: `{ success: true, terminated_sessions, status: 200 }` on hit, `{ success: false, message, status: 404 }` if no such user, `{ error: true, message, details, status: 500 }` on DB error.
@@ -423,32 +426,69 @@ export async function enableUser(
 
 /**
  * Permanently deletes a user and every row that belongs to them — sessions,
- * secrets, emails, tokens, and TOTP replay-guard rows. Irreversible; for a
- * reversible suspension use `disableUser`.
+ * secrets, emails, tokens, TOTP replay-guard rows, and organisation/team
+ * memberships. Irreversible; for a reversible suspension use `disableUser`.
  *
- * Child rows are removed by the `ON DELETE CASCADE` on each child table's
- * `user_uuid` foreign key (see `sql/*.sql`), so a single `DELETE FROM users`
- * is atomic and sufficient — no explicit transaction or per-table delete.
- * Note: a database created before the cascade was added must have the
- * `ALTER TABLE … ADD CONSTRAINT … ON DELETE CASCADE` migration applied, or
- * this fails with a foreign-key violation.
+ * Refuses (409) to delete a user who is the *only* owner of an organisation:
+ * the membership `ON DELETE CASCADE` would drop their owner row and orphan the
+ * organisation. The caller must transfer ownership or delete those
+ * organisations first. The sole-owner check and the delete run in one
+ * transaction, so a concurrent ownership change cannot slip an orphaning
+ * delete through.
+ *
+ * Other child rows are removed by the `ON DELETE CASCADE` on each child
+ * table's `user_uuid` foreign key (see `sql/*.sql`). A database created before
+ * the cascade was added must have the `ALTER TABLE … ON DELETE CASCADE`
+ * migration applied, or this fails with a foreign-key violation.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user to delete.
- * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` on hit, `{ success: false, message, status: 404 }` if no such user, `{ error: true, message, details, status: 500 }` on DB error.
+ * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` on hit, `{ success: false, message, status: 404|409 }` if absent or a sole owner, `{ error: true, message, details, status: 500 }` on DB error.
  */
 export async function deleteUser(
   dbClient: DbClient,
   user_uuid: string
 ): Promise<Envelope> {
   try {
-    const result = await dbClient.query(
-      "DELETE FROM users WHERE user_uuid = $1 RETURNING user_uuid",
-      [user_uuid]
-    )
-    if ((result.rowCount ?? 0) > 0) {
+    return await runInTransaction(dbClient, async (): Promise<Envelope> => {
+      // Organisations this user owns that have no other owner. Deleting the
+      // user would cascade away their owner row and leave these unmanageable.
+      const soleOwned = await dbClient.query(
+        `SELECT o.org_name
+         FROM organisations o
+         JOIN organisation_members owners
+           ON owners.org_uuid = o.org_uuid AND owners.role = $2
+         WHERE o.org_uuid IN (
+           SELECT org_uuid FROM organisation_members
+           WHERE user_uuid = $1 AND role = $2
+         )
+         GROUP BY o.org_uuid, o.org_name
+         HAVING count(*) = 1`,
+        [user_uuid, OWNER_ROLE]
+      )
+      if ((soleOwned.rowCount ?? 0) > 0) {
+        const names = soleOwned.rows.map((row) => row.org_name).join(", ")
+        throw new Rollback<Envelope>({
+          success: false,
+          message:
+            `This account is the only owner of: ${names}. ` +
+            `Transfer ownership or delete those organisations first.`,
+          status: 409,
+        })
+      }
+
+      const result = await dbClient.query(
+        "DELETE FROM users WHERE user_uuid = $1 RETURNING user_uuid",
+        [user_uuid]
+      )
+      if ((result.rowCount ?? 0) === 0) {
+        throw new Rollback<Envelope>({
+          success: false,
+          message: "User not found.",
+          status: 404,
+        })
+      }
       return { success: true, status: 200 }
-    }
-    return { success: false, message: "User not found.", status: 404 }
+    })
   } catch (error) {
     console.error("Error in deleteUser:", error)
     return {
