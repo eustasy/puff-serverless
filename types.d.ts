@@ -108,6 +108,39 @@ declare global {
     created_at: Date
     updated_at: Date
   }
+
+  interface OrganisationRow {
+    org_uuid: string
+    org_name: string
+    org_slug: string
+    org_active: boolean
+    org_created_at: Date
+    org_created_by: string | null
+  }
+
+  interface TeamRow {
+    team_uuid: string
+    org_uuid: string
+    team_name: string
+    team_slug: string
+    team_created_at: Date
+  }
+
+  interface OrganisationMemberRow {
+    org_uuid: string
+    user_uuid: string
+    role: string
+    added_at: Date
+    added_by: string | null
+  }
+
+  interface TeamMemberRow {
+    team_uuid: string
+    user_uuid: string
+    role: string
+    added_at: Date
+    added_by: string | null
+  }
 }
 
 export {}

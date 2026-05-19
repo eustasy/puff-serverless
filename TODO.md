@@ -183,17 +183,17 @@ is an additive migration, not a rewrite.
 
 - [x] Role set as a `src/permissions.ts` constant — organisation roles `owner` / `admin` / `member` / `billing`, team roles `lead` / `member` (`ORG_ROLES` / `TEAM_ROLES`). A user may hold any combination. `OWNER_ROLE` / `DEFAULT_ORG_ROLE` / `DEFAULT_TEAM_ROLE` exported for the domain modules; `isOrgRole` / `isTeamRole` type guards validate role names from request input.
 - [x] `can(roles, action)` capability helper — resolves a role set to a boolean for a typed action (`OrgAction` / `TeamAction`, e.g. `org:update`, `org:teams:create`, `team:members:add`). The action prefix selects the scope. Endpoints check the capability, never a raw role string. Phase 6 backs it with a code-defined matrix; Phase 7's `role_permissions` table swaps in behind it with no call-site changes.
-- [ ] `owner` is privileged: an organisation must always retain at least one `owner` (guard lives in `src/` — see Lifecycle below).
-- [ ] Owners can grant any role to any user: `addOrgMember` and the team equivalents accept a `user_uuid` with no prior relationship to the org — this is how an external user becomes a guest or a member.
+- [x] `owner` is privileged: an organisation must always retain at least one `owner` — enforced by `removeOrgMember` / `setOrgMemberRoles` in `src/memberships.ts`.
+- [x] Owners can grant any role to any user: `addOrgMember` and the team equivalents accept a `user_uuid` with no prior relationship to the org — this is how an external user becomes a guest or a member.
 
 ### Domain modules (`src/`)
 
 Each new module follows the existing conventions: `dbClient` first, structured
 envelopes, no HTTP. Multi-step writes use `runInTransaction`.
 
-- [ ] `src/organisations.ts` — `createOrganisation` (transactional: insert org + add the creator as `owner`), `readOrganisation`, `updateOrganisation`, `disableOrganisation` / `enableOrganisation` (reversible, mirroring `disableUser`), `deleteOrganisation` (hard delete; cascade reaps teams + memberships), `listOrganisationsForUser`.
-- [ ] `src/teams.ts` — `createTeam`, `readTeam`, `updateTeam`, `deleteTeam`, `listTeams` (for an org).
-- [ ] `src/memberships.ts` — `addOrgMember` / `removeOrgMember` / `setOrgMemberRoles`, `listOrgMembers`, the team equivalents, and `getUserRoles(dbClient, user_uuid, scope)` returning every role a user holds in an org or team.
+- [x] `src/organisations.ts` — `createOrganisation` (transactional: insert org + add the creator as `owner`), `readOrganisation`, `updateOrganisation`, `disableOrganisation` / `enableOrganisation` (reversible, mirroring `disableUser`), `deleteOrganisation` (hard delete; cascade reaps teams + memberships), `listOrganisationsForUser`.
+- [x] `src/teams.ts` — `createTeam`, `readTeam`, `updateTeam`, `deleteTeam`, `listTeams` (for an org).
+- [x] `src/memberships.ts` — `addOrgMember` / `removeOrgMember` / `setOrgMemberRoles`, `listOrgMembers`, the team equivalents, and per-scope role lookups `getOrgRoles` / `getTeamRoles` (the planned single `getUserRoles` split into two scope-explicit functions; the `[org_uuid]` middleware composes them).
 
 ### Endpoints & routing (`functions/api/db/auth/`)
 
@@ -210,7 +210,7 @@ envelopes, no HTTP. Multi-step writes use `runInTransaction`.
 
 ### Lifecycle & integrity
 
-- [ ] Last-owner guard: `removeOrgMember` / `setOrgMemberRoles` reject any change that would leave an organisation with no `owner`.
+- [x] Last-owner guard: `removeOrgMember` / `setOrgMemberRoles` reject any change that would leave an organisation with no `owner` (transactional owner-count check in `src/memberships.ts`).
 - [ ] `deleteUser` interaction: cascades already drop a user's membership rows, but a user who is an org's sole `owner` would orphan it — `deleteUser` (or a pre-check) must reassign ownership or block. Decide and document.
 - [ ] `disableUser` keeps memberships intact — a disabled user is gated at login by `user_active`, as today; org access is not separately stripped.
 
@@ -221,7 +221,7 @@ envelopes, no HTTP. Multi-step writes use `runInTransaction`.
 
 ### Tests & docs
 
-- [ ] A `test/*.test.ts` file per new `src/` module (`organisations`, `teams`, `memberships`, `permissions`), following the `FakeDb` pattern.
+- [x] A `test/*.test.ts` file per new `src/` module (`organisations`, `teams`, `memberships`, `permissions`), following the `FakeDb` pattern.
 - [ ] `ARCHITECTURE.md` table-usage reference and `.github/instructions/database.instructions.md` updated for the four new tables and the import order.
 
 ### Key/value scoping (later)
