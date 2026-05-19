@@ -8,8 +8,8 @@ import {
 
 /**
  * Lists the organisations the authenticated user belongs to, with the roles
- * they hold in each. Each row carries a "Manage" button that loads the
- * organisation's panel (see `[org_uuid]/read.ts`) into `#organisation-detail`.
+ * they hold in each. Each row links to that organisation's dedicated
+ * management page (`/organisations/:org_uuid`).
  */
 export const onRequestGet: Handler = async (context) => {
   const result = await listOrganisationsForUser(
@@ -26,17 +26,11 @@ export const onRequestGet: Handler = async (context) => {
   let html = '<ul class="organisation-list">'
   for (const org of result.organisations) {
     const disabled = org.org_active ? "" : " (disabled)"
-    const orgPath = `/api/db/auth/organisations/${encodeURIComponent(org.org_uuid)}`
+    const pagePath = `/organisations/${encodeURIComponent(org.org_uuid)}`
     html += `<li>
       <strong>${escapeHtml(org.org_name)}</strong>${disabled}
       — ${escapeHtml(org.roles.join(", "))}
-      <button
-        class="btn-safe"
-        hx-get="${orgPath}/read"
-        hx-target="#organisation-detail"
-        hx-swap="innerHTML"
-        hx-disabled-elt="this"
-      >Manage</button>
+      <a class="btn-safe" href="${pagePath}">Manage</a>
     </li>`
   }
   html += "</ul>"
