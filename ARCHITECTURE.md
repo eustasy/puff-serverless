@@ -30,7 +30,7 @@ nvm use stable
 
 #### Postgres or CockroachDB
 
-_Note: SQL Schema can be found in the SQL folder, one file per table. `users.sql` should be imported first as it provides the foreign key for many other tables._
+_Note: SQL Schema can be found in the SQL folder, one file per table. Import in foreign-key order: `users.sql` first (it provides the foreign key for many other tables), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql`; every other table depends only on `users`._
 
 ##### for Local Development
 
@@ -44,7 +44,7 @@ WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://user:password
 
 Production uses [CockroachDB Cloud](https://www.cockroachlabs.com/) (or any Postgres-compatible database) reached through [Cloudflare Hyperdrive](https://developers.cloudflare.com/hyperdrive/), which pools connections at the edge.
 
-1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on).
+1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql`; every other table depends only on `users`.
 2. Create a Hyperdrive configuration pointing at it:
 
    ```sh

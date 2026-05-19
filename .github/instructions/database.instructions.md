@@ -11,7 +11,7 @@ applyTo: "sql/**,src/**,functions/api/db/**"
 
 ## Schema
 
-Schema files live in `sql/`, one file per table. `users.sql` must be imported first (foreign key dependency).
+Schema files live in `sql/`, one file per table. Import in foreign-key order: `users.sql` first, then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql`; every other table depends only on `users`.
 
 ### Tables
 

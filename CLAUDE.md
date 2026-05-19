@@ -51,7 +51,7 @@ Endpoints read `context.data.dbClient` / `context.data.user_uuid` directly — n
 
 ### Database
 
-Schema is in `sql/`, one file per table — `users.sql` must be imported first (foreign-key dependency). The `secrets` table stores both passwords and TOTP secrets, keyed by `secret_type`; the `tokens` table stores all temporary tokens, keyed by `token_type`. All queries are parameterized (`$1, $2`). Multi-step writes use explicit `BEGIN/COMMIT/ROLLBACK` transactions.
+Schema is in `sql/`, one file per table. Import in foreign-key order: `users.sql` first, then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql`; every other table depends only on `users`. The `secrets` table stores both passwords and TOTP secrets, keyed by `secret_type`; the `tokens` table stores all temporary tokens, keyed by `token_type`. All queries are parameterized (`$1, $2`). Multi-step writes use explicit `BEGIN/COMMIT/ROLLBACK` transactions.
 
 ## Detailed conventions
 
