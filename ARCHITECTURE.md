@@ -240,6 +240,18 @@ The `key_values` table is a per-user key/value store for arbitrary string metada
 - `created_at`, `updated_at`: Timestamps; `updated_at` is refreshed by `setKeyValue` on every upsert.
 - Managed by `src/keyvalues.ts` and the `functions/api/db/auth/keyvalues/` endpoints (`list`, `set`, `remove`). Rows are removed with the user via `ON DELETE CASCADE`.
 
+**Organisations, Teams & Memberships Table Usage:**
+
+Phase 6 multi-tenancy. A user account is global; their relationship to an organisation is the set of role grants they hold (see `src/permissions.ts` for the role and capability model).
+
+- **`organisations`** — top-level tenant. `org_uuid` (PK), `org_name`, `org_slug` (unique, URL-safe), `org_active` (reversible-disable flag, mirroring `user_active`), `org_created_at`, `org_created_by` (FK → `users`, `ON DELETE SET NULL`). Managed by `src/organisations.ts`.
+- **`teams`** — a subdivision of one organisation. `team_uuid` (PK), `org_uuid` (FK → `organisations`, `ON DELETE CASCADE`), `team_name`, `team_slug` (unique within the organisation), `team_created_at`. Managed by `src/teams.ts`.
+- **`organisation_members`** — organisation-scoped role grants. Composite PK `(org_uuid, user_uuid, role)`, so each (user, role) is one row and a user may hold several roles. FKs to `organisations` and `users` (`ON DELETE CASCADE`); `added_by` (FK → `users`, `ON DELETE SET NULL`).
+- **`team_members`** — team-scoped role grants, the same shape keyed on `team_uuid`. A user with team grants but no `organisation_members` row is a _guest_ of the organisation — team membership does not require organisation membership.
+- **`organisation_invitations`** — pending invitations. `invitation_token` (PK), `org_uuid` (FK → `organisations`, `ON DELETE CASCADE`), `email_address`, `roles` (the role set granted on acceptance), `invited_by` (FK → `users`, `ON DELETE SET NULL`), `expires_at`, `is_used`. Consumed atomically by `acceptInvitation` in `src/invitations.ts`.
+
+Membership and invitation management lives in `src/memberships.ts` / `src/invitations.ts` and the `functions/api/db/auth/organisations/` endpoints. `role` is plain text validated against `src/permissions.ts`; Phase 7 will move it to a `roles` table.
+
 ## Project Maintenance
 
 [Dependabot](https://github.com/eustasy/puff-serverless/blob/cf-pages/.github/dependabot.yml) should update NPM and GitHub Actions with automatic pull requests.

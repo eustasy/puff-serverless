@@ -222,7 +222,7 @@ envelopes, no HTTP. Multi-step writes use `runInTransaction`.
 ### Tests & docs
 
 - [x] A `test/*.test.ts` file per new `src/` module (`organisations`, `teams`, `memberships`, `permissions`), following the `FakeDb` pattern.
-- [ ] `ARCHITECTURE.md` table-usage reference and `.github/instructions/database.instructions.md` updated for the four new tables and the import order.
+- [x] `ARCHITECTURE.md` table-usage reference ("Organisations, Teams & Memberships Table Usage") and the `database.instructions.md` table list updated for the five new tables; import order updated across `CLAUDE.md` / `ARCHITECTURE.md` / `database.instructions.md`.
 
 ### Key/value scoping (later)
 
