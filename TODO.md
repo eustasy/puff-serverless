@@ -150,17 +150,142 @@ Non-blocking quality work; pick up alongside related changes.
 
 ## Phase 6 — Organisations
 
-- [ ] organisations
+Multi-tenancy: group users into **organisations**, subdivide them into **teams**,
+and let a user hold several **roles** independently in any organisation or team
+they belong to. Users stay global — one account, many memberships — which is the
+right model for an SSO product. Billing (Phase 8) will attach to the organisation.
 
-## Phase 7 — OAuth Server
+**Data model.** Role assignment is the primitive: each (user, scope, role) is one
+row, and a user may hold any combination. "Membership" is _derived_ from those
+rows — a **full member** holds an organisation-level membership role; a **guest**
+holds only team-level or individually-granted roles in that org. Org owners can
+grant a role to any user, member or not, so role grants are never gated on prior
+membership. Polymorphic "scope" columns are avoided — they would break the FK +
+`ON DELETE CASCADE` integrity the schema relies on — so organisation- and
+team-scoped grants are separate tables.
 
-Become an OAuth identity provider, and consume external logins (Microsoft,
-GitHub, Google) over OAuth. Deferred from Phase 4 — not suitable for now;
-OAuth-based external login is preferred over LDAP.
+**Roles.** Phase 6 ships a fixed, code-defined role set (text discriminators
+validated in `src/`, matching the `secret_type` / `token_type` idiom). Phase 7
+adds per-organisation **custom roles** and exposes them to linked OAuth apps as a
+permission system — the schema and the capability helper below are shaped so that
+is an additive migration, not a rewrite.
+
+### Schema (`sql/`)
+
+- [ ] `sql/organisations.sql` — `org_uuid` PK, `org_name`, `org_slug` (unique, URL-safe), `org_active` (reversible-disable flag, mirroring `user_active`), `org_created_at`, `org_created_by` (FK → `users`, `ON DELETE SET NULL`).
+- [ ] `sql/teams.sql` — `team_uuid` PK, `org_uuid` (FK → `organisations`, `ON DELETE CASCADE`), `team_name`, `team_slug`, `team_created_at`. Unique `(org_uuid, team_slug)` — slugs are unique within an org, not globally.
+- [ ] `sql/organisation_members.sql` — organisation-scoped role grants. Composite PK `(org_uuid, user_uuid, role)`; FKs to `organisations` and `users`, both `ON DELETE CASCADE`; `added_at`, `added_by` (FK → `users`, `ON DELETE SET NULL`).
+- [ ] `sql/team_members.sql` — team-scoped role grants. Composite PK `(team_uuid, user_uuid, role)`; FKs to `teams` and `users`, both `ON DELETE CASCADE`; `added_at`, `added_by`. A user with team grants but no `organisation_members` row is a **guest** of that org — there is deliberately no "team membership requires org membership" constraint.
+- [ ] The `role` columns are plain text in Phase 6; Phase 7 migrates them to FKs into a `roles` table (additive — see Phase 7).
+- [ ] Extend the schema import order to `users` → `organisations` → `teams` → `organisation_members` → `team_members`; update the `sql/` ordering note in `CLAUDE.md` and `ARCHITECTURE.md`.
+
+### Roles & authorisation
+
+- [ ] Role set as a `src/permissions.ts` constant — e.g. organisation roles `owner` / `admin` / `member` / `billing`, team roles `lead` / `member`. A user may hold any combination; `member` is the marker role that distinguishes a full member from a guest.
+- [ ] `can(roles, action)` capability helper — resolves a set of roles to a boolean for a named action (`org:rename`, `team:create`, `member:invite`, …). Endpoints check the capability, never a raw role string. Phase 6 backs it with the code constant; Phase 7's `role_permissions` table swaps in behind it with no call-site changes.
+- [ ] `owner` is privileged: an organisation must always retain at least one `owner` (guard lives in `src/` — see Lifecycle below).
+- [ ] Owners can grant any role to any user: `addOrgMember` and the team equivalents accept a `user_uuid` with no prior relationship to the org — this is how an external user becomes a guest or a member.
+
+### Domain modules (`src/`)
+
+Each new module follows the existing conventions: `dbClient` first, structured
+envelopes, no HTTP. Multi-step writes use `runInTransaction`.
+
+- [ ] `src/organisations.ts` — `createOrganisation` (transactional: insert org + add the creator as `owner`), `readOrganisation`, `updateOrganisation`, `disableOrganisation` / `enableOrganisation` (reversible, mirroring `disableUser`), `deleteOrganisation` (hard delete; cascade reaps teams + memberships), `listOrganisationsForUser`.
+- [ ] `src/teams.ts` — `createTeam`, `readTeam`, `updateTeam`, `deleteTeam`, `listTeams` (for an org).
+- [ ] `src/memberships.ts` — `addOrgMember` / `removeOrgMember` / `setOrgMemberRoles`, `listOrgMembers`, the team equivalents, and `getUserRoles(dbClient, user_uuid, scope)` returning every role a user holds in an org or team.
+
+### Endpoints & routing (`functions/api/db/auth/`)
+
+- [ ] `organisations/` — `list` (GET, the caller's orgs) and `create` (POST).
+- [ ] `organisations/[org_uuid]/_middleware.ts` — resolves the caller's full role set for the org (organisation-level grants **and** team-level grants within it, so guests are recognised) into `context.data`; returns `403` (HTML fragment) only when the caller holds no role at all. Per-action authorisation is then a `can(...)` check at each endpoint. Pages Functions dynamic segments supply the `org_uuid` param.
+- [ ] `organisations/[org_uuid]/` — `read` / `update` / `disable`; `members/` (list / invite / remove / set-roles); `teams/` (list / create).
+- [ ] `organisations/[org_uuid]/teams/[team_uuid]/` — `read` / `update` / `delete` and `members/` (list / add / remove / set-roles). A team-level `_middleware.ts` confirms the team belongs to `[org_uuid]`.
+- [ ] All responses are HTML fragments (`result-positive` / `result-negative`), consistent with the rest of the API.
+
+### Member invitations
+
+- [ ] Inviting by email must work whether or not the invitee already has an account. Add an `org_invitation` `token_type` on the existing `tokens` table (via the `createToken` / `consumeToken` pair); the token carries the org, the offered role(s), and the invited address.
+- [ ] `POST …/members/invite` issues the token and emails a link (new `src/email-templates.ts` builder + `src/mailer.ts` helper). Accepting consumes the token: an existing user is added directly; a new visitor is routed through registration first, then added.
+
+### Lifecycle & integrity
+
+- [ ] Last-owner guard: `removeOrgMember` / `setOrgMemberRoles` reject any change that would leave an organisation with no `owner`.
+- [ ] `deleteUser` interaction: cascades already drop a user's membership rows, but a user who is an org's sole `owner` would orphan it — `deleteUser` (or a pre-check) must reassign ownership or block. Decide and document.
+- [ ] `disableUser` keeps memberships intact — a disabled user is gated at login by `user_active`, as today; org access is not separately stripped.
+
+### Frontend (`public/`)
+
+- [ ] `public/account.html` — an "Organisations" section listing the user's orgs and roles (HTMX fragment, `hx-trigger` refresh pattern like the existing 2FA / Passkeys sections).
+- [ ] Organisation and team management pages — member lists, role editing, team CRUD — static HTML driven by HTMX, no client JS.
+
+### Tests & docs
+
+- [ ] A `test/*.test.ts` file per new `src/` module (`organisations`, `teams`, `memberships`, `permissions`), following the `FakeDb` pattern.
+- [ ] `ARCHITECTURE.md` table-usage reference and `.github/instructions/database.instructions.md` updated for the four new tables and the import order.
+
+### Key/value scoping (later)
+
+- [ ] `key_values` is per-user today. Generalise the scope to any of: per-user, per-role, per-team, per-organisation, or per-**app** — a value owned by a linked OAuth app itself, distinct from a per-client / per-user-of-that-app value. This makes the store the backing data layer for the linked-app permission system.
+- [ ] Design tension: a single polymorphic `(scope_type, scope_id)` pair loses the FK + `ON DELETE CASCADE` integrity the rest of the schema keeps. Options to weigh — one table per scope, one row with a nullable FK column per scope plus a `CHECK` that exactly one is set, or accepting the polymorphic pair with application-level cleanup. Decide alongside the Phase 7 app model.
+
+### Open decisions
+
+- [ ] **How "guest" is surfaced.** Derive it (a user with grants but no `member` org role) or store an explicit flag on `organisation_members`. Leaning derived — confirm.
+- [ ] **v2 permission granularity.** Whether custom roles select from a platform-defined catalogue of actions or carry free-form permission strings that linked apps interpret themselves. Affects how Phase 7 exposes them.
+- [ ] **Slug lifecycle.** Whether `org_slug` / `team_slug` are immutable after creation or renameable (and how to handle existing links/bookmarks if renameable).
+
+## Phase 7 — OAuth identity provider & federated login
+
+Two directions, plus the permission system that links them:
+
+- **Puff as identity provider** — an arbitrary number of apps log their users in
+  _with_ Puff-Serverless; Puff issues the tokens (OAuth 2.1 / OpenID Connect).
+- **Puff as OAuth client** — users log in to Puff-Serverless itself _with_
+  GitHub, Microsoft, or Google, federating those identities onto a Puff account.
+- **Custom roles** (moved here from Phase 6) become the access model Puff exposes
+  to the apps it logs users into.
+
+OAuth-based external login is preferred over LDAP, which is kept below as a
+separate, lower-priority track.
+
+### Puff as OAuth / OIDC provider
+
+- [ ] `sql/apps.sql` — registered OAuth clients ("linked apps"). `app_uuid` PK, `org_uuid` (FK → `organisations`, `ON DELETE CASCADE` — an app belongs to an org), `app_name`, `client_id` (unique), `client_secret` stored hashed (reuse `src/utilities/hashing.ts`), `redirect_uris` (exact-match allowlist), `app_active`, timestamps.
+- [ ] `sql/oauth_grants.sql` — authorization codes, access tokens, and refresh tokens issued to apps: short-lived codes, refresh-token rotation, and a remembered per-(user, app) scope grant so consent is not re-prompted every time.
+- [ ] Authorization Code flow with PKCE (OAuth 2.1 — no implicit flow). Endpoints under `functions/`: `/oauth/authorize` (consent screen; reuses the session cookie to identify the user), `/oauth/token` (code → tokens, refresh), `/oauth/userinfo`, `/.well-known/openid-configuration`, and a JWKS endpoint.
+- [ ] ID tokens are signed JWTs via Web Crypto (Workers-native, as with WebAuthn). Decide signing-key storage and rotation, published through JWKS.
+- [ ] Scopes & claims: standard OIDC (`openid`, `profile`, `email`) plus organisation/team membership and **role claims**, so an app receives the user's roles for _its_ org — this is where the custom roles below surface.
+- [ ] App-management UI — org admins register/edit apps, view and rotate `client_secret`, manage redirect URIs. Endpoints under `functions/api/db/auth/organisations/[org_uuid]/apps/`.
+
+### Custom roles & permission system (moved from Phase 6)
+
+- [ ] `sql/roles.sql` — per-organisation custom roles. `role_uuid` PK, `org_uuid` FK (`ON DELETE CASCADE`), `role_key`, `role_name`; the built-in Phase 6 roles become a reserved/seeded set.
+- [ ] `sql/role_permissions.sql` — maps a role to the permissions/actions it grants.
+- [ ] Migrate the `role` text columns on `organisation_members` / `team_members` to FKs into `roles` — additive, since Phase 6 ships them as plain text.
+- [ ] Switch `can(roles, action)` (Phase 6's capability helper) from the code constant to `role_permissions`, with no call-site changes.
+- [ ] Expose roles/permissions to linked apps as OIDC claims and a `userinfo` field, so an app runs its own access checks from Puff-issued roles.
+
+### Puff as OAuth client (federated / social login)
+
+- [ ] `sql/external_identities.sql` — links a third-party identity to a Puff user. `(provider, provider_user_id)` unique, `user_uuid` FK (`ON DELETE CASCADE`); a user may link several providers.
+- [ ] Provider configs for GitHub, Microsoft, and Google — client id/secret as Worker secrets; authorize/token/userinfo URLs.
+- [ ] `GET /login/{provider}` → redirect with `state` + PKCE; `GET /login/{provider}/callback` → exchange the code, fetch the provider profile, then either log in the already-linked user, link to the currently-logged-in user, or auto-provision a new account on first sight.
+- [ ] Linking safety: linking requires an authenticated session or a verified-email match; unlinking is allowed only while the account keeps another usable credential (password / passkey / another provider).
+- [ ] `public/login.html` — "Continue with GitHub / Microsoft / Google" buttons alongside the password and passkey forms.
+
+### Per-app key/value scope
+
+- [ ] With `apps` now defined, implement the per-**app** `key_values` scope flagged in Phase 6 — values owned by a linked app, distinct from per-user-of-that-app values — resolving the polymorphic-scope design tension against the concrete app model.
+
+### Hooks / extensibility system
 
 - [ ] **Hooks / extensibility system.** PHP had `_hooks/` + `puff_hook()` for pluggable behaviour (e.g. the `ldap-login` hook adding profile fields).
   - [ ] Design extension points suited to the Workers bundle.
   - [ ] Document the hooks (old-repo issue [#17](https://github.com/eustasy/puff-server/issues/17) notes the PHP hooks were never documented).
+
+### LDAP / Active Directory (lower priority)
+
 - [ ] **LDAP / Active Directory authentication.** PHP `ldap.authenticate.php` bound against an LDAP server, auto-created the member on first login, then issued a session.
   - [ ] **Blocker:** raw LDAP sockets are not available on Workers — pick an LDAP-over-HTTP gateway or directory-provider API first.
   - [ ] Implement the bind + auto-provision-on-first-login flow.
