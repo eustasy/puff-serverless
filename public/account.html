@@ -297,6 +297,82 @@
         >
           <p>Loading stored data...</p>
         </div>
+
+        <div id="organisation-controls" class="grid-container grid-header">
+          <div class="grid-item">
+            <h2>Organisations</h2>
+          </div>
+          <div class="grid-item">
+            <button
+              class="btn-safe"
+              hx-get="/api/db/auth/organisations/list"
+              hx-target="#organisation-list-container"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this"
+            >
+              Refresh
+              <img class="htmx-indicator" src="/assets/bars.svg" />
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="organisation-message-area"
+          class="result-area spacer-bottom"
+        ></div>
+
+        <form
+          id="organisation-create-form"
+          hx-post="/api/db/auth/organisations/create"
+          hx-target="#organisation-message-area"
+          hx-swap="innerHTML"
+          class="grid-container"
+        >
+          <div class="grid-item">
+            <label for="org-name">Name:</label>
+            <input
+              type="text"
+              id="org-name"
+              name="name"
+              placeholder="Organisation name"
+              maxlength="128"
+              required
+              class="form-input"
+            />
+          </div>
+          <div class="grid-item">
+            <label for="org-slug">URL slug:</label>
+            <input
+              type="text"
+              id="org-slug"
+              name="slug"
+              placeholder="organisation-slug"
+              maxlength="64"
+              pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+              title="Lowercase letters, numbers and hyphens"
+              required
+              class="form-input"
+            />
+          </div>
+          <div class="grid-item">
+            <button type="submit" class="btn-save">
+              Create Organisation
+              <img class="htmx-indicator" src="/assets/bars.svg" />
+            </button>
+          </div>
+        </form>
+
+        <div
+          id="organisation-list-container"
+          hx-get="/api/db/auth/organisations/list"
+          hx-trigger="load, organisationsChanged from:body"
+          hx-swap="innerHTML"
+        >
+          <p>Loading organisations...</p>
+        </div>
+
+        <!-- An organisation's "Manage" button loads its panel here. -->
+        <div id="organisation-detail" class="spacer-top"></div>
       </main>
     </div>
   </body>

@@ -7,17 +7,18 @@ import {
   methodNotAllowed,
 } from "../../../../../../../src/utilities/responses.js"
 
-/** Lists an organisation's teams as an HTML fragment. */
+/**
+ * Lists an organisation's teams. Each row's "Manage" button loads that team's
+ * panel (see the team `read.ts`) into `#team-detail`.
+ */
 export const onRequestGet: Handler<"org_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []
   if (!can(orgRoles, "org:view")) {
     return resultNegative("You do not have access to this organisation.", 403)
   }
 
-  const result = await listTeams(
-    context.data.dbClient!,
-    String(context.params.org_uuid)
-  )
+  const org_uuid = String(context.params.org_uuid)
+  const result = await listTeams(context.data.dbClient!, org_uuid)
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }
@@ -25,10 +26,18 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
     return htmlResponse("<p>This organisation has no teams yet.</p>")
   }
 
+  const base = `/api/db/auth/organisations/${encodeURIComponent(org_uuid)}/teams`
   let html = '<ul class="team-list">'
   for (const team of result.teams) {
-    html += `<li data-team-uuid="${escapeHtml(team.team_uuid)}">
+    html += `<li>
       <strong>${escapeHtml(team.team_name)}</strong>
+      <button
+        class="btn-safe"
+        hx-get="${base}/${encodeURIComponent(team.team_uuid)}/read"
+        hx-target="#team-detail"
+        hx-swap="innerHTML"
+        hx-disabled-elt="this"
+      >Manage</button>
     </li>`
   }
   html += "</ul>"

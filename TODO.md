@@ -216,8 +216,8 @@ envelopes, no HTTP. Multi-step writes use `runInTransaction`.
 
 ### Frontend (`public/`)
 
-- [ ] `public/account.html` — an "Organisations" section listing the user's orgs and roles (HTMX fragment, `hx-trigger` refresh pattern like the existing 2FA / Passkeys sections).
-- [ ] Organisation and team management pages — member lists, role editing, team CRUD — static HTML driven by HTMX, no client JS.
+- [x] `public/account.html` — an "Organisations" section: a create-organisation form and a list (`hx-trigger="load, organisationsChanged from:body"`, matching the 2FA / Passkeys sections), plus an `#organisation-detail` panel an organisation's "Manage" button loads into.
+- [x] Organisation and team management is fragment-driven — no client JS, no dynamic page routes. The API list/read fragments carry the interactive controls with the `[org_uuid]` / `[team_uuid]` baked into their `hx-*` URLs, so they nest inside the account page's detail panel: `[org_uuid]/read` is the org panel (edit, disable/enable/delete, and teams / members / invitations sub-sections with their forms), team `read` is the team panel, and the member-list fragments carry a collapsible role editor plus remove buttons. Every control is gated server-side by `can(...)`. `functions/invite.ts` renders the `/invite?token=…` accept page — a Pages Function, not a static file, because it needs the query-string token (the `sitemap.xml.ts` precedent).
 
 ### Tests & docs
 
