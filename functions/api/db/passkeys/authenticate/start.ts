@@ -1,21 +1,18 @@
 import { generateAuthenticationOptions } from "@simplewebauthn/server"
 import type { AuthenticatorTransportFuture } from "@simplewebauthn/server"
 import { generateChallenge, isoBase64URL } from "@simplewebauthn/server/helpers"
-import {
-  getUserByUsernameOrEmail,
-  listPasskeys,
-  getRpConfig,
-} from "../../../../../src/passkeys.js"
+import { listPasskeys, getRpConfig } from "../../../../../src/passkeys.js"
+import { getUserByEmail } from "../../../../../src/users.js"
 import { createWebAuthnToken } from "../../../../../src/tokens.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
 
-  let username: string | null = null
+  let email: string | null = null
   try {
     const formData = await context.request.formData()
-    const raw = formData.get("username")
-    if (typeof raw === "string") username = raw.trim()
+    const raw = formData.get("email")
+    if (typeof raw === "string") email = raw.trim()
   } catch {
     return new Response(JSON.stringify({ error: "Invalid request." }), {
       status: 400,
@@ -23,11 +20,14 @@ export const onRequestPost: Handler = async (context) => {
     })
   }
 
-  if (!username) {
-    return new Response(JSON.stringify({ error: "Username is required." }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    })
+  if (!email) {
+    return new Response(
+      JSON.stringify({ error: "An email address is required." }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }
+    )
   }
 
   const { rpID } = getRpConfig(context.env)
@@ -35,10 +35,10 @@ export const onRequestPost: Handler = async (context) => {
   const challengeBytes = await generateChallenge()
   const challenge = isoBase64URL.fromBuffer(challengeBytes)
 
-  // Look up user — enumeration-safe: generate a real challenge regardless, but
-  // return empty allowCredentials if the user doesn't exist. The browser will
-  // then present any resident credential it holds for this RP.
-  const userResult = await getUserByUsernameOrEmail(dbClient, username)
+  // Look up the user — enumeration-safe: generate a real challenge regardless,
+  // but return empty allowCredentials if the address matches no account. The
+  // browser then presents any resident credential it holds for this RP.
+  const userResult = await getUserByEmail(dbClient, email)
 
   let allowCredentials: {
     id: string
@@ -65,14 +65,16 @@ export const onRequestPost: Handler = async (context) => {
     )
     if (tokenResult.error) {
       return new Response(
-        JSON.stringify({ error: "Could not create authentication challenge." }),
+        JSON.stringify({
+          error: "Could not create authentication challenge.",
+        }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       )
     }
   } else {
-    // User not found — no token stored; complete step will reject the missing
-    // token. Still sets the challenge cookie and returns valid-looking options
-    // to avoid revealing that the username doesn't exist.
+    // No account for this address — no token stored; the complete step will
+    // reject the missing token. Still sets the challenge cookie and returns
+    // valid-looking options so the response does not reveal that.
   }
 
   const options = await generateAuthenticationOptions({

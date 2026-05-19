@@ -5,7 +5,6 @@ import {
   savePasskey,
   updatePasskeyCounter,
   deletePasskey,
-  getUserByUsernameOrEmail,
   getRpConfig,
 } from "../src/passkeys.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
@@ -108,28 +107,6 @@ describe("deletePasskey", () => {
     const db = new FakeDb()
     db.on(/DELETE FROM passkeys/, { rowCount: 0 })
     expect((await deletePasskey(db.client, "p1", "user-1")).status).toBe(404)
-  })
-})
-
-describe("getUserByUsernameOrEmail", () => {
-  it("resolves a user by username or email", async () => {
-    const db = new FakeDb()
-    db.on(/FROM users/, {
-      rows: [{ user_uuid: "user-1", user_name: "alice" }],
-    })
-    expect(await getUserByUsernameOrEmail(db.client, "alice")).toMatchObject({
-      success: true,
-      user_uuid: "user-1",
-      user_name: "alice",
-    })
-  })
-
-  it("returns 404 when the identifier matches nobody", async () => {
-    const db = new FakeDb()
-    db.on(/FROM users/, { rows: [] })
-    expect((await getUserByUsernameOrEmail(db.client, "ghost")).status).toBe(
-      404
-    )
   })
 })
 

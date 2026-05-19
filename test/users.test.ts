@@ -7,6 +7,7 @@ import {
   enableUser,
   deleteUser,
   updateLastLogin,
+  getUserByEmail,
 } from "../src/users.js"
 import { puff_hashing_password } from "../src/utilities/hashing.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
@@ -280,5 +281,36 @@ describe("updateLastLogin", () => {
     const db = new FakeDb()
     db.on(/UPDATE users SET user_last_login/, { rowCount: 0 })
     expect((await updateLastLogin(db.client, "user-1")).status).toBe(404)
+  })
+})
+
+describe("getUserByEmail", () => {
+  it("resolves an active user from one of their email addresses", async () => {
+    const db = new FakeDb()
+    db.on(/JOIN emails e/, {
+      rows: [{ user_uuid: "user-1", user_name: "Jane Smith" }],
+    })
+    expect(await getUserByEmail(db.client, "jane@example.com")).toEqual({
+      success: true,
+      user_uuid: "user-1",
+      user_name: "Jane Smith",
+      status: 200,
+    })
+  })
+
+  it("returns 404 when no active user owns the address", async () => {
+    const db = new FakeDb()
+    db.on(/JOIN emails e/, { rows: [] })
+    expect((await getUserByEmail(db.client, "ghost@example.com")).status).toBe(
+      404
+    )
+  })
+
+  it("returns 500 when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/JOIN emails e/, pgError("08006"))
+    expect((await getUserByEmail(db.client, "jane@example.com")).status).toBe(
+      500
+    )
   })
 })

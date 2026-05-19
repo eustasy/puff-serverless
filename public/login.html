@@ -76,13 +76,13 @@
 
       <hr />
       <div class="form-group">
-        <label for="passkey-username">Sign in with a passkey:</label>
+        <label for="passkey-email">Sign in with a passkey:</label>
         <input
-          type="text"
-          id="passkey-username"
-          name="username"
-          placeholder="Username or email"
-          autocomplete="username webauthn"
+          type="email"
+          id="passkey-email"
+          name="email"
+          placeholder="Email address"
+          autocomplete="email webauthn"
         />
       </div>
       <button id="passkey-login-btn" class="btn-safe">Use Passkey</button>

@@ -78,8 +78,8 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
   if (can(orgRoles, "org:members:invite")) {
     html += `
   <form hx-post="${base}/members/add" hx-target="#org-message-area" hx-swap="innerHTML" class="grid-container">
-    <div class="grid-item"><label>Username or email:
-      <input type="text" name="identifier" required class="form-input" /></label></div>
+    <div class="grid-item"><label>Email address:
+      <input type="email" name="email" required class="form-input" /></label></div>
     <div class="grid-item"><label>Role:
       <select name="role" class="form-input">${roleOptions}</select></label></div>
     <div class="grid-item"><button type="submit" class="btn-save">Add Member</button></div>

@@ -1,5 +1,5 @@
 import { addTeamMember } from "../../../../../../../../../src/memberships.js"
-import { getUserByUsernameOrEmail } from "../../../../../../../../../src/passkeys.js"
+import { getUserByEmail } from "../../../../../../../../../src/users.js"
 import {
   can,
   DEFAULT_TEAM_ROLE,
@@ -12,9 +12,9 @@ import {
 
 /**
  * Adds an existing user to a team with a role (defaulting to `member`). The
- * user is identified by username or email address. A team grant alone makes
- * the user a guest of the organisation — organisation membership is not
- * required.
+ * user is identified by **email address** (`user_name` is a display name, not
+ * a unique handle). A team grant alone makes the user a guest of the
+ * organisation — organisation membership is not required.
  */
 export const onRequestPost: Handler<"org_uuid" | "team_uuid"> = async (
   context
@@ -28,27 +28,27 @@ export const onRequestPost: Handler<"org_uuid" | "team_uuid"> = async (
     return resultNegative("You do not have permission to do this.", 403)
   }
 
-  let identifier = ""
+  let email = ""
   let role: string = DEFAULT_TEAM_ROLE
   try {
     const formData = await context.request.formData()
-    identifier = String(formData.get("identifier") ?? "").trim()
+    email = String(formData.get("email") ?? "").trim()
     role = String(formData.get("role") ?? DEFAULT_TEAM_ROLE)
   } catch {
     return resultNegative("Invalid request format. Expected form data.", 400)
   }
-  if (!identifier) {
-    return resultNegative("A username or email address is required.", 400)
+  if (!email) {
+    return resultNegative("An email address is required.", 400)
   }
 
   const dbClient = context.data.dbClient!
-  const user = await getUserByUsernameOrEmail(dbClient, identifier)
+  const user = await getUserByEmail(dbClient, email)
   if (user.error) {
     return resultNegative("Could not look up that user.", 500)
   }
   if (!user.success) {
     return resultNegative(
-      "No account found for that username or email address.",
+      "No account found for that email address — send an invitation instead.",
       404
     )
   }

@@ -529,3 +529,49 @@ export async function updateLastLogin(
     }
   }
 }
+
+/**
+ * Resolves an active user by one of their email addresses. This is how an
+ * existing account is identified when adding an organisation or team member:
+ * users are looked up by email, never by `user_name` — which is a display
+ * name (a person's forename and surname), not a unique handle.
+ * @param {Client} dbClient - An active pg.Client instance.
+ * @param {string} email_address - An email address belonging to the user.
+ * @returns {Promise<Envelope<{ user_uuid: string; user_name: string }>>} `{ success: true, user_uuid, user_name, status: 200 }`, `{ success: false, message, status: 404 }` if no active user owns the address, or an error envelope.
+ */
+export async function getUserByEmail(
+  dbClient: DbClient,
+  email_address: string
+): Promise<Envelope<{ user_uuid: string; user_name: string }>> {
+  try {
+    const result = await dbClient.query(
+      `SELECT u.user_uuid, u.user_name
+       FROM users u
+       JOIN emails e ON e.user_uuid = u.user_uuid
+       WHERE e.email_address = $1 AND u.user_active = TRUE
+       LIMIT 1`,
+      [email_address]
+    )
+    if (result.rows.length > 0) {
+      return {
+        success: true,
+        user_uuid: result.rows[0].user_uuid,
+        user_name: result.rows[0].user_name,
+        status: 200,
+      }
+    }
+    return {
+      success: false,
+      message: "No account found for that email address.",
+      status: 404,
+    }
+  } catch (error) {
+    console.error("Error in getUserByEmail:", error)
+    return {
+      error: true,
+      message: "Could not look up user.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}

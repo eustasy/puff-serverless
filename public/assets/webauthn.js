@@ -133,19 +133,19 @@ async function authenticateWithPasskey() {
   const resultArea = document.getElementById("passkey-result")
   if (resultArea) resultArea.innerHTML = ""
 
-  const usernameInput = document.getElementById("passkey-username")
-  const username = usernameInput ? usernameInput.value.trim() : ""
-  if (!username) {
+  const emailInput = document.getElementById("passkey-email")
+  const email = emailInput ? emailInput.value.trim() : ""
+  if (!email) {
     if (resultArea)
       resultArea.innerHTML =
-        '<p class="result-negative">Please enter your username.</p>'
+        '<p class="result-negative">Please enter your email address.</p>'
     return
   }
 
   let options
   try {
     const formData = new FormData()
-    formData.append("username", username)
+    formData.append("email", email)
     const startRes = await fetch("/api/db/passkeys/authenticate/start", {
       method: "POST",
       body: formData,

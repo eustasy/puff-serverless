@@ -57,8 +57,8 @@ export const onRequestGet: Handler<"org_uuid" | "team_uuid"> = async (
   if (can(teamRoles, "team:members:add") || manage) {
     html += `
   <form hx-post="${base}/members/add" hx-target="#team-message-area" hx-swap="innerHTML" class="grid-container">
-    <div class="grid-item"><label>Username or email:
-      <input type="text" name="identifier" required class="form-input" /></label></div>
+    <div class="grid-item"><label>Email address:
+      <input type="email" name="email" required class="form-input" /></label></div>
     <div class="grid-item"><label>Role:
       <select name="role" class="form-input">${roleOptions}</select></label></div>
     <div class="grid-item"><button type="submit" class="btn-save">Add</button></div>

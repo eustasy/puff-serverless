@@ -130,39 +130,6 @@ export async function deletePasskey(
   }
 }
 
-export async function getUserByUsernameOrEmail(
-  dbClient: DbClient,
-  identifier: string
-): Promise<Envelope<{ user_uuid: string; user_name: string }>> {
-  try {
-    const result = await dbClient.query(
-      `SELECT DISTINCT u.user_uuid, u.user_name
-       FROM users u
-       LEFT JOIN emails e ON u.user_uuid = e.user_uuid
-       WHERE (u.user_name = $1 OR e.email_address = $1) AND u.user_active = TRUE
-       LIMIT 1`,
-      [identifier]
-    )
-    if (result.rows.length > 0) {
-      return {
-        success: true,
-        user_uuid: result.rows[0].user_uuid,
-        user_name: result.rows[0].user_name,
-        status: 200,
-      }
-    }
-    return { success: false, message: "User not found.", status: 404 }
-  } catch (error) {
-    console.error("Error in getUserByUsernameOrEmail:", error)
-    return {
-      error: true,
-      message: "Could not look up user.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
-}
-
 export function getRpConfig(env: Env): { rpID: string; rpName: string } {
   let rpID: string
   if (env.WEBAUTHN_RP_ID) {
