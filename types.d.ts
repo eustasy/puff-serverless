@@ -4,6 +4,10 @@ declare global {
   interface RequestData extends Record<string, unknown> {
     dbClient?: DbClient
     user_uuid?: string
+    // Set by the organisation / team `_middleware.ts` for the matching route
+    // depth: the caller's roles in the `[org_uuid]` / `[team_uuid]` of the path.
+    orgRoles?: string[]
+    teamRoles?: string[]
   }
 
   type Handler<P extends string = string> = PagesFunction<Env, P, RequestData>

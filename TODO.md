@@ -197,11 +197,11 @@ envelopes, no HTTP. Multi-step writes use `runInTransaction`.
 
 ### Endpoints & routing (`functions/api/db/auth/`)
 
-- [ ] `organisations/` — `list` (GET, the caller's orgs) and `create` (POST).
-- [ ] `organisations/[org_uuid]/_middleware.ts` — resolves the caller's full role set for the org (organisation-level grants **and** team-level grants within it, so guests are recognised) into `context.data`; returns `403` (HTML fragment) only when the caller holds no role at all. Per-action authorisation is then a `can(...)` check at each endpoint. Pages Functions dynamic segments supply the `org_uuid` param.
-- [ ] `organisations/[org_uuid]/` — `read` / `update` / `disable`; `members/` (list / invite / remove / set-roles); `teams/` (list / create).
-- [ ] `organisations/[org_uuid]/teams/[team_uuid]/` — `read` / `update` / `delete` and `members/` (list / add / remove / set-roles). A team-level `_middleware.ts` confirms the team belongs to `[org_uuid]`.
-- [ ] All responses are HTML fragments (`result-positive` / `result-negative`), consistent with the rest of the API.
+- [x] `organisations/` — `list` (GET, the caller's orgs with roles) and `create` (POST; the creator becomes `owner`).
+- [x] `organisations/[org_uuid]/_middleware.ts` — resolves the caller's organisation roles into `context.data.orgRoles` (Pages Functions `[org_uuid]` segment). It does not 403 itself: each endpoint authorises with `can(...)`, which a caller holding no roles fails — so guests still reach the nested team routes, where the team `_middleware.ts` authorises them.
+- [x] `organisations/[org_uuid]/` — `read` / `update` / `disable` / `enable` / `delete`; `members/` (`list` / `add` / `remove` / `roles`); `teams/` (`list` / `create`). `members/add` adds an _existing_ user by username/email; adding someone without an account is the separate "Member invitations" flow below.
+- [x] `organisations/[org_uuid]/teams/[team_uuid]/` — `read` / `update` / `delete` and `members/` (`list` / `add` / `remove` / `roles`). The team `_middleware.ts` confirms the team belongs to `[org_uuid]` (404 otherwise) and resolves `context.data.teamRoles`; team endpoints authorise on `can(teamRoles, …) || can(orgRoles, "org:teams:manage")` so org admins manage any team.
+- [x] All responses are HTML fragments (`result-positive` / `result-negative`) via a new `src/utilities/responses.ts` helper (`htmlResponse` / `resultPositive` / `resultNegative` / `methodNotAllowed`).
 
 ### Member invitations
 
