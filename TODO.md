@@ -181,8 +181,8 @@ is an additive migration, not a rewrite.
 
 ### Roles & authorisation
 
-- [ ] Role set as a `src/permissions.ts` constant — e.g. organisation roles `owner` / `admin` / `member` / `billing`, team roles `lead` / `member`. A user may hold any combination; `member` is the marker role that distinguishes a full member from a guest.
-- [ ] `can(roles, action)` capability helper — resolves a set of roles to a boolean for a named action (`org:rename`, `team:create`, `member:invite`, …). Endpoints check the capability, never a raw role string. Phase 6 backs it with the code constant; Phase 7's `role_permissions` table swaps in behind it with no call-site changes.
+- [x] Role set as a `src/permissions.ts` constant — organisation roles `owner` / `admin` / `member` / `billing`, team roles `lead` / `member` (`ORG_ROLES` / `TEAM_ROLES`). A user may hold any combination. `OWNER_ROLE` / `DEFAULT_ORG_ROLE` / `DEFAULT_TEAM_ROLE` exported for the domain modules; `isOrgRole` / `isTeamRole` type guards validate role names from request input.
+- [x] `can(roles, action)` capability helper — resolves a role set to a boolean for a typed action (`OrgAction` / `TeamAction`, e.g. `org:update`, `org:teams:create`, `team:members:add`). The action prefix selects the scope. Endpoints check the capability, never a raw role string. Phase 6 backs it with a code-defined matrix; Phase 7's `role_permissions` table swaps in behind it with no call-site changes.
 - [ ] `owner` is privileged: an organisation must always retain at least one `owner` (guard lives in `src/` — see Lifecycle below).
 - [ ] Owners can grant any role to any user: `addOrgMember` and the team equivalents accept a `user_uuid` with no prior relationship to the org — this is how an external user becomes a guest or a member.
 
