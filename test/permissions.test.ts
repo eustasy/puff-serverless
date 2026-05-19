@@ -14,7 +14,7 @@ import {
 
 describe("role constants", () => {
   it("exposes the organisation and team role sets", () => {
-    expect(ORG_ROLES).toEqual(["owner", "admin", "member", "billing"])
+    expect(ORG_ROLES).toEqual(["owner", "admin", "member", "billing", "guest"])
     expect(TEAM_ROLES).toEqual(["lead", "member"])
   })
 
@@ -38,6 +38,8 @@ describe("can — organisation actions", () => {
     "org:members:roles",
     "org:teams:create",
     "org:teams:manage",
+    "org:keyvalues:read",
+    "org:keyvalues:write",
   ]
 
   it("grants an owner every organisation action", () => {
@@ -68,6 +70,14 @@ describe("can — organisation actions", () => {
     expect(can(["billing"], "org:update")).toBe(false)
   })
 
+  it("limits a guest to org:view — nothing else at the org scope", () => {
+    expect(can(["guest"], "org:view")).toBe(true)
+    expect(can(["guest"], "org:members:view")).toBe(false)
+    expect(can(["guest"], "org:keyvalues:read")).toBe(false)
+    expect(can(["guest"], "org:update")).toBe(false)
+    expect(can(["guest"], "org:teams:manage")).toBe(false)
+  })
+
   it("treats the role set as a union — any granting role suffices", () => {
     expect(can(["member", "billing"], "org:billing")).toBe(true)
   })
@@ -81,6 +91,8 @@ describe("can — team actions", () => {
     "team:members:add",
     "team:members:remove",
     "team:members:roles",
+    "team:keyvalues:read",
+    "team:keyvalues:write",
   ]
 
   it("grants a team lead every team action", () => {

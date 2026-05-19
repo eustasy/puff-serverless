@@ -12,8 +12,23 @@
 
 // --- Roles -----------------------------------------------------------------
 
-/** Organisation-scoped roles, stored in `organisation_members.role`. */
-export const ORG_ROLES = ["owner", "admin", "member", "billing"] as const
+/**
+ * Organisation-scoped roles, stored in `organisation_members.role`.
+ *
+ * `guest` is the explicit marker for users attached to the organisation only
+ * through team memberships — they hold an `organisation_members` row with this
+ * role and an otherwise-empty org capability set (only `org:view`, enough to
+ * render the org page they belong to). Their actual access to teams flows
+ * from `team_members` rows as usual; the org role itself grants nothing beyond
+ * visibility of the organisation's existence.
+ */
+export const ORG_ROLES = [
+  "owner",
+  "admin",
+  "member",
+  "billing",
+  "guest",
+] as const
 export type OrgRole = (typeof ORG_ROLES)[number]
 
 /** Team-scoped roles, stored in `team_members.role`. */
@@ -101,6 +116,7 @@ const ORG_ROLE_ACTIONS: Record<OrgRole, readonly OrgAction[]> = {
   ],
   member: ["org:view", "org:members:view", "org:keyvalues:read"],
   billing: ["org:view", "org:billing", "org:keyvalues:read"],
+  guest: ["org:view"],
 }
 
 const TEAM_ROLE_ACTIONS: Record<TeamRole, readonly TeamAction[]> = {

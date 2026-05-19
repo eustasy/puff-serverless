@@ -230,7 +230,7 @@ envelopes, no HTTP. Multi-step writes use `runInTransaction`.
 
 ### Open decisions
 
-- [ ] **How "guest" is surfaced.** Derive it (a user with grants but no `member` org role) or store an explicit flag on `organisation_members`. Leaning derived — confirm.
+- [x] **How "guest" is surfaced.** Decided 2026-05-20: explicit, not derived. Added `guest` to `ORG_ROLES` with a single org capability (`org:view`, enough to render the org page they belong to); their actual team-level access flows from `team_members` rows as usual. The role is a marker — it lets us list guests alongside members and avoids the "team_members without organisation_members" derivation. `addOrgMember` / invitations accept the role automatically via `isOrgRole`; the role-tier KV resolver picks them up as a normal org-role.
 
 ## Phase 7 — OAuth identity provider & federated login
 
