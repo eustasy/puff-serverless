@@ -122,6 +122,7 @@ declare global {
     kv_value: string
     owner_user_uuid: string | null
     owner_org_uuid: string | null
+    owner_app_uuid: string | null
     owner_id: string
     created_at: Date
     updated_at: Date
@@ -147,6 +148,10 @@ declare global {
   interface TeamRoleKeyValueRow extends KeyValueRowCommon {
     team_uuid: string
     role: string
+  }
+
+  interface AppKeyValueRow extends KeyValueRowCommon {
+    app_uuid: string
   }
 
   interface OrganisationRow {

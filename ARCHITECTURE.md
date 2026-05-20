@@ -31,7 +31,7 @@ nvm use stable
 
 #### Postgres or CockroachDB
 
-_Note: SQL Schema can be found in the SQL folder, one file per table. Import in foreign-key order: `users.sql` first (it provides the foreign key for many other tables), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`; `oauth_grants.sql` and `oauth_consents.sql` depend on both `users` and `apps`. Every other table depends only on `users`._
+_Note: SQL Schema can be found in the SQL folder, one file per table. Import in foreign-key order: `users.sql` first (it provides the foreign key for many other tables), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`; the six `*_key_values.sql` tables (including `app_key_values.sql`) depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on both `users` and `apps`. Every other table depends only on `users`._
 
 ##### for Local Development
 
@@ -45,7 +45,7 @@ WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://user:password
 
 Production uses [CockroachDB Cloud](https://www.cockroachlabs.com/) (or any Postgres-compatible database) reached through [Cloudflare Hyperdrive](https://developers.cloudflare.com/hyperdrive/), which pools connections at the edge.
 
-1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies and can be imported any time after `users.sql`; `oauth_grants.sql` and `oauth_consents.sql` depend on both `users` and `apps`. Every other table depends only on `users`.
+1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies and can be imported any time after `users.sql`; the six `*_key_values.sql` tables depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on both `users` and `apps`. Every other table depends only on `users`.
 2. Create a Hyperdrive configuration pointing at it:
 
    ```sh
@@ -266,19 +266,20 @@ It's crucial that `token_type` and `secret_type` are used consistently throughou
 
 **Key/Value Store Table Usage:**
 
-The KV store is the unified mechanism for both descriptive per-entity metadata and the data-driven permission/entitlement system (see Phase 7 in `TODO.md`). One table per **subject** type, each row carrying a first-class **owner** dimension — so app A's row about user U and org O's row about user U coexist as different rows. Phase 7 adds an `apps` subject + owner column.
+The KV store is the unified mechanism for both descriptive per-entity metadata and the data-driven permission/entitlement system (see Phase 7 in `TODO.md`). One table per **subject** type, each row carrying a first-class **owner** dimension — so app A's row about user U and org O's row about user U coexist as different rows.
 
 - **`user_key_values`** — subject `user_uuid → users`. Successor to the PHP `KeyValues` table; also stores app-owned and org-owned data attached to a user.
 - **`team_key_values`** — subject `team_uuid → teams`. Team-level defaults.
 - **`organisation_key_values`** — subject `org_uuid → organisations`. Org-level data (e.g. licensing).
 - **`org_role_key_values`** — subject `(org_uuid, role)`. Data scoped to a specific org role; perms applied to every user holding that role.
 - **`team_role_key_values`** — subject `(team_uuid, role)`. Same idea, scoped to a team role.
+- **`app_key_values`** — subject `app_uuid → apps`. The app's globally-applied defaults — the final fallback in the resolution chain when the owner is the app itself.
 
-Every table has the same shape: subject FK(s) (NOT NULL, CASCADE) + `kv_key`/`kv_value` + nullable `owner_user_uuid` / `owner_org_uuid` FKs (CASCADE) + computed STORED `owner_id = COALESCE(...)` + a CHECK that exactly one owner column is set. The primary key includes `owner_id`, so the unique tuple is (subject, owner, key). `created_at` / `updated_at` are managed in `src/utilities/keyvalues-shared.ts`'s shared upsert.
+Every table has the same shape: subject FK(s) (NOT NULL, CASCADE) + `kv_key`/`kv_value` + three nullable owner FKs (`owner_user_uuid` / `owner_org_uuid` / `owner_app_uuid`, all CASCADE) + computed STORED `owner_id = COALESCE(owner_user_uuid, owner_org_uuid, owner_app_uuid)` + a CHECK that exactly one owner column is set. The primary key includes `owner_id`, so the unique tuple is (subject, owner, key). `created_at` / `updated_at` are managed in `src/utilities/keyvalues-shared.ts`'s shared upsert.
 
-Managed by `src/{user,team,organisation,org-role,team-role}-keyvalues.ts` (each exports `readKeyValue` / `readKeyValues` / `searchKeyValues` / `setKeyValue` / `deleteKeyValue`), the shared `src/utilities/keyvalues-shared.ts`, the inheritance-resolver in `src/keyvalues-resolver.ts`, and endpoints under `functions/api/db/auth/keyvalues/` (self-owned user data) and `functions/api/db/auth/organisations/[org_uuid]/...keyvalues/...` (org-owned data against org / users / teams / roles).
+Managed by `src/{user,team,organisation,org-role,team-role,app}-keyvalues.ts` (each exports `readKeyValue` / `readKeyValues` / `searchKeyValues` / `setKeyValue` / `deleteKeyValue`), the shared `src/utilities/keyvalues-shared.ts`, the inheritance-resolver in `src/keyvalues-resolver.ts`, and endpoints under `functions/api/db/auth/keyvalues/` (self-owned user data) and `functions/api/db/auth/organisations/[org_uuid]/...keyvalues/...` (org-owned data against org / users / teams / roles).
 
-The resolver walks **user → team-role → org-role → team → org** (most-specific first), filtered by the `owner` namespace, returning `{ values: string[], source }`. The role tier merges + de-duplicates when a user holds multiple roles with values for the same key — by design, roles do not override each other within a tier.
+The resolver walks **user → team-role → org-role → team → org → app** (most-specific first), filtered by the `owner` namespace, returning `{ values: string[], source }`. The role tier merges + de-duplicates when a user holds multiple roles with values for the same key — by design, roles do not override each other within a tier. The `app` tier only fires when `owner.type === "app"` — it represents the app's own default for any user that touches it, the final fallback when every more-specific tier missed.
 
 **Organisations, Teams & Memberships Table Usage:**
 

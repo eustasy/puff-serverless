@@ -1,10 +1,11 @@
-// Shared primitives for the five per-subject KV modules
+// Shared primitives for the six per-subject KV modules
 // (`user-keyvalues`, `team-keyvalues`, `organisation-keyvalues`,
-// `org-role-keyvalues`, `team-role-keyvalues`).
+// `org-role-keyvalues`, `team-role-keyvalues`, `app-keyvalues`).
 //
 // Each subject table follows the same shape:
-//   (subject..., kv_key, kv_value, owner_user_uuid, owner_org_uuid,
-//    owner_id [STORED = COALESCE(owner_user_uuid, owner_org_uuid)],
+//   (subject..., kv_key, kv_value,
+//    owner_user_uuid, owner_org_uuid, owner_app_uuid,
+//    owner_id [STORED = COALESCE(owner_user_uuid, owner_org_uuid, owner_app_uuid)],
 //    created_at, updated_at)
 // with a CHECK that exactly one owner column is set, FKs from every column,
 // and CASCADE on both subject and owner deletion. The owner is first-class:
@@ -27,6 +28,7 @@ export const MAX_KEYS_PER_OWNER_SUBJECT = 256
 export type Owner =
   | { type: "user"; user_uuid: string }
   | { type: "org"; org_uuid: string }
+  | { type: "app"; app_uuid: string }
 
 /**
  * SQL fragment + parameter values for filtering a query to a specific owner.
@@ -46,20 +48,27 @@ export function ownerFilter(
       values: [owner.user_uuid],
     }
   }
-  return { sql: `owner_org_uuid = $${paramIndex}`, values: [owner.org_uuid] }
+  if (owner.type === "org") {
+    return { sql: `owner_org_uuid = $${paramIndex}`, values: [owner.org_uuid] }
+  }
+  return { sql: `owner_app_uuid = $${paramIndex}`, values: [owner.app_uuid] }
 }
 
 /**
- * Returns the (owner_user_uuid, owner_org_uuid) value pair for INSERT
- * statements. Exactly one is the owner's UUID; the other is `null`.
+ * Returns the (owner_user_uuid, owner_org_uuid, owner_app_uuid) value triple
+ * for INSERT statements. Exactly one is the owner's UUID; the others are
+ * `null`.
  */
 export function ownerInsertValues(
   owner: Owner
-): [string | null, string | null] {
+): [string | null, string | null, string | null] {
   if (owner.type === "user") {
-    return [owner.user_uuid, null]
+    return [owner.user_uuid, null, null]
   }
-  return [null, owner.org_uuid]
+  if (owner.type === "org") {
+    return [null, owner.org_uuid, null]
+  }
+  return [null, null, owner.app_uuid]
 }
 
 /**
@@ -107,15 +116,23 @@ function buildUpsertQuery(
   key: string,
   value: string
 ): { sql: string; values: unknown[] } {
-  const [ownerUser, ownerOrg] = ownerInsertValues(owner)
+  const [ownerUser, ownerOrg, ownerApp] = ownerInsertValues(owner)
   const columns = [
     ...subjectColumns,
     "kv_key",
     "kv_value",
     "owner_user_uuid",
     "owner_org_uuid",
+    "owner_app_uuid",
   ]
-  const values: unknown[] = [...subjectValues, key, value, ownerUser, ownerOrg]
+  const values: unknown[] = [
+    ...subjectValues,
+    key,
+    value,
+    ownerUser,
+    ownerOrg,
+    ownerApp,
+  ]
   const placeholders = values.map((_, i) => `$${i + 1}`).join(", ")
   // The conflict target uses `owner_id` (the generated COALESCE column), so a
   // row with the same subject + owner + key gets UPDATEd regardless of which

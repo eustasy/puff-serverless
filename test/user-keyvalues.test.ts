@@ -142,9 +142,16 @@ describe("user-keyvalues setKeyValue", () => {
       "dark"
     )
     expect(result).toMatchObject({ success: true, created: true, status: 201 })
-    // INSERT carries the user owner in the right slot and null in the org slot.
+    // INSERT carries the user owner in the right slot and null in the org/app slots.
     const insert = db.calls.find((c) => c.text.startsWith("INSERT"))!
-    expect(insert.values).toEqual(["u-target", "theme", "dark", "u-1", null])
+    expect(insert.values).toEqual([
+      "u-target",
+      "theme",
+      "dark",
+      "u-1",
+      null,
+      null,
+    ])
   })
 
   it("upserts an existing row (created=false, status 200)", async () => {

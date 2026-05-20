@@ -3,6 +3,7 @@ import { resolveKeyValue } from "../src/keyvalues-resolver.js"
 import { FakeDb } from "./helpers/fake-db.js"
 
 const orgOwner = { type: "org" as const, org_uuid: "org-1" }
+const appOwner = { type: "app" as const, app_uuid: "a-1" }
 
 describe("resolveKeyValue", () => {
   it("rejects an empty key with 400 before any query", async () => {
@@ -206,5 +207,44 @@ describe("resolveKeyValue", () => {
     for (const call of db.calls) {
       expect(call.values).toContain("org-1")
     }
+  })
+
+  it("falls through to the app tier when owner is an app and every earlier tier misses", async () => {
+    const db = new FakeDb()
+    db.on(/FROM user_key_values/, { rows: [] })
+    db.on(/FROM team_role_key_values/, { rows: [] })
+    db.on(/FROM org_role_key_values/, { rows: [] })
+    db.on(/FROM team_key_values/, { rows: [] })
+    db.on(/FROM organisation_key_values/, { rows: [] })
+    db.on(/FROM app_key_values/, { rows: [{ kv_value: "app-default" }] })
+    const result = await resolveKeyValue(db.client, {
+      owner: appOwner,
+      key: "perm:export",
+      user_uuid: "u-1",
+      team_uuid: "team-1",
+      org_uuid: "org-1",
+    })
+    expect(result).toMatchObject({ values: ["app-default"], source: "app" })
+    // The app tier filters by both subject = app_uuid AND owner_app_uuid = app_uuid.
+    const appCall = db.calls.find((c) => /FROM app_key_values/.test(c.text))!
+    expect(appCall.values).toEqual(["a-1", "a-1", "perm:export"])
+  })
+
+  it("does NOT query the app tier when owner is not an app", async () => {
+    const db = new FakeDb()
+    db.on(/FROM user_key_values/, { rows: [] })
+    db.on(/FROM team_role_key_values/, { rows: [] })
+    db.on(/FROM org_role_key_values/, { rows: [] })
+    db.on(/FROM team_key_values/, { rows: [] })
+    db.on(/FROM organisation_key_values/, { rows: [] })
+    const result = await resolveKeyValue(db.client, {
+      owner: orgOwner,
+      key: "k",
+      user_uuid: "u-1",
+      team_uuid: "team-1",
+      org_uuid: "org-1",
+    })
+    expect(result).toMatchObject({ success: true, values: [], source: null })
+    expect(db.calls.some((c) => /FROM app_key_values/.test(c.text))).toBe(false)
   })
 })

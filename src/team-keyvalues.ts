@@ -52,7 +52,7 @@ export async function readKeyValues(
   try {
     const ownerWhere = ownerFilter(owner, 2)
     const result = await dbClient.query(
-      `SELECT team_uuid, kv_key, kv_value, owner_user_uuid, owner_org_uuid, owner_id, created_at, updated_at FROM ${TABLE} WHERE team_uuid = $1 AND ${ownerWhere.sql} ORDER BY kv_key ASC`,
+      `SELECT team_uuid, kv_key, kv_value, owner_user_uuid, owner_org_uuid, owner_app_uuid, owner_id, created_at, updated_at FROM ${TABLE} WHERE team_uuid = $1 AND ${ownerWhere.sql} ORDER BY kv_key ASC`,
       [team_uuid, ...ownerWhere.values]
     )
     return { success: true, pairs: result.rows, status: 200 }
@@ -84,7 +84,7 @@ export async function searchKeyValues(
   try {
     const ownerWhere = ownerFilter(owner, 2)
     const result = await dbClient.query(
-      `SELECT team_uuid, kv_key, kv_value, owner_user_uuid, owner_org_uuid, owner_id, created_at, updated_at FROM ${TABLE} WHERE team_uuid = $1 AND ${ownerWhere.sql} AND kv_key LIKE $3 ESCAPE '\\' ORDER BY kv_key ASC`,
+      `SELECT team_uuid, kv_key, kv_value, owner_user_uuid, owner_org_uuid, owner_app_uuid, owner_id, created_at, updated_at FROM ${TABLE} WHERE team_uuid = $1 AND ${ownerWhere.sql} AND kv_key LIKE $3 ESCAPE '\\' ORDER BY kv_key ASC`,
       [team_uuid, ...ownerWhere.values, `%${escapeLikePattern(pattern)}%`]
     )
     return { success: true, pairs: result.rows, status: 200 }

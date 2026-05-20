@@ -8,7 +8,9 @@
 //   3. org-role        — `org_role_key_values` for user's roles in org_uuid
 //   4. team            — `team_key_values` for team_uuid
 //   5. org             — `organisation_key_values` for org_uuid
-//   (app tier added in Phase 7 once `apps` lands)
+//   6. app             — `app_key_values` for owner.app_uuid (only fires when
+//                        owner.type === "app"; this is the app's own
+//                        globally-applied default for all of its users)
 //
 // All tiers are filtered by the `owner` namespace, so an app/org never sees
 // another's data. When the user holds multiple roles in the same scope and
@@ -22,7 +24,13 @@ import {
   validatePair,
 } from "./utilities/keyvalues-shared.js"
 
-export type ResolveSource = "user" | "team-role" | "org-role" | "team" | "org"
+export type ResolveSource =
+  | "user"
+  | "team-role"
+  | "org-role"
+  | "team"
+  | "org"
+  | "app"
 
 export interface ResolveOptions {
   owner: Owner
@@ -122,6 +130,16 @@ export async function resolveKeyValue(
       }
     }
 
+    // Tier 6 — app (the app's own globally-applied default; only meaningful
+    // when the owner namespace is an app, since the subject of `app_key_values`
+    // is the app itself).
+    if (owner.type === "app") {
+      const appHit = await queryAppTier(dbClient, owner.app_uuid, owner, key)
+      if (appHit !== null) {
+        return { success: true, values: [appHit], source: "app", status: 200 }
+      }
+    }
+
     return { success: true, values: [], source: null, status: 200 }
   } catch (error) {
     console.error("Error in resolveKeyValue:", error)
@@ -172,6 +190,20 @@ async function queryOrgTier(
   const result = await dbClient.query(
     `SELECT kv_value FROM organisation_key_values WHERE org_uuid = $1 AND ${ownerWhere.sql} AND kv_key = $3 LIMIT 1`,
     [org_uuid, ...ownerWhere.values, key]
+  )
+  return result.rows.length === 0 ? null : result.rows[0].kv_value
+}
+
+async function queryAppTier(
+  dbClient: DbClient,
+  app_uuid: string,
+  owner: Owner,
+  key: string
+): Promise<string | null> {
+  const ownerWhere = ownerFilter(owner, 2)
+  const result = await dbClient.query(
+    `SELECT kv_value FROM app_key_values WHERE app_uuid = $1 AND ${ownerWhere.sql} AND kv_key = $3 LIMIT 1`,
+    [app_uuid, ...ownerWhere.values, key]
   )
   return result.rows.length === 0 ? null : result.rows[0].kv_value
 }
