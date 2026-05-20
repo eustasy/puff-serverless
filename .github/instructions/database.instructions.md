@@ -11,7 +11,7 @@ applyTo: "sql/**,src/**,functions/api/db/**"
 
 ## Schema
 
-Schema files live in `sql/`, one file per table. Import in foreign-key order: `users.sql` first, then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported at any time. Every other table depends only on `users`.
+Schema files live in `sql/`, one file per table. Import in foreign-key order: `users.sql` first, then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`; `oauth_grants.sql` and `oauth_consents.sql` depend on both `users` and `apps`. Every other table depends only on `users`.
 
 ### Tables
 
@@ -26,6 +26,8 @@ Schema files live in `sql/`, one file per table. Import in foreign-key order: `u
 - **`team_members`**: composite PK `(team_uuid, user_uuid, role)`, FKs to `teams` / `users` (cascade), `added_at`, `added_by`. Same shape as `organisation_members`.
 - **`organisation_invitations`**: `invitation_token` (PK), `org_uuid` (FK → `organisations`, cascade), `email_address`, `roles` (`STRING[]`), `invited_by` (FK → `users`, `SET NULL`), `created_at`, `expires_at`, `is_used`.
 - **`apps`**: `app_uuid` (PK), `app_name`, `client_id` (UNIQUE), `client_secret` (hashed), `redirect_uris` (`STRING[]`, exact-match allowlist), `app_active`, `app_created_at`. Globally registered OAuth clients — no organisation FK; operator-managed.
+- **`oauth_grants`**: `grant_value` (PK), `grant_type` (`'authorization_code'` | `'refresh_token'`), `user_uuid` (FK → `users`, cascade), `app_uuid` (FK → `apps`, cascade), `scopes` (`STRING[]`), `redirect_uri`, `code_challenge`, `code_challenge_method` (PKCE — populated on auth-code rows), `parent_grant_value` (refresh-token rotation chain; plain column), `expires_at`, `created_at`, `is_used`. Access tokens are JWTs and not stored here.
+- **`oauth_consents`**: composite PK `(user_uuid, app_uuid)`, FKs to both (cascade), `scopes` (`STRING[]`), `granted_at`. Remembered per-(user, app) scope grant so the consent screen is skipped on the next OAuth round-trip.
 
 ## Query Conventions
 

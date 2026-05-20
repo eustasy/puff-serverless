@@ -1,6 +1,17 @@
 declare global {
   type DbClient = import("pg").Client
 
+  // OAuth/OIDC signing-key bindings. The private key is a Wrangler secret
+  // (set via `wrangler secret put OAUTH_SIGNING_KEY_PRIVATE`); the optional
+  // previous-public is a non-secret string the operator sets via dashboard or
+  // `wrangler secret put` during a rotation overlap window. Declared here so
+  // the codebase typechecks regardless of whether the secret has been pushed
+  // to the current Wrangler deployment.
+  interface Env {
+    OAUTH_SIGNING_KEY_PRIVATE: string
+    OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC?: string
+  }
+
   interface RequestData extends Record<string, unknown> {
     dbClient?: DbClient
     user_uuid?: string

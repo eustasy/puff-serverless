@@ -7,6 +7,7 @@
   - [Continuous Development](#continuous-development)
   - [Deploying to Production](#deploying-to-production)
   - [Scheduled cleanup](#scheduled-cleanup)
+  - [OAuth signing-key rotation](#oauth-signing-key-rotation)
   - [Directories](#directories)
   - [Special Files](#special-files)
 - [Libraries](#libraries)
@@ -30,7 +31,7 @@ nvm use stable
 
 #### Postgres or CockroachDB
 
-_Note: SQL Schema can be found in the SQL folder, one file per table. Import in foreign-key order: `users.sql` first (it provides the foreign key for many other tables), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported at any time. Every other table depends only on `users`._
+_Note: SQL Schema can be found in the SQL folder, one file per table. Import in foreign-key order: `users.sql` first (it provides the foreign key for many other tables), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`; `oauth_grants.sql` and `oauth_consents.sql` depend on both `users` and `apps`. Every other table depends only on `users`._
 
 ##### for Local Development
 
@@ -44,7 +45,7 @@ WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://user:password
 
 Production uses [CockroachDB Cloud](https://www.cockroachlabs.com/) (or any Postgres-compatible database) reached through [Cloudflare Hyperdrive](https://developers.cloudflare.com/hyperdrive/), which pools connections at the edge.
 
-1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies and can be imported at any time. Every other table depends only on `users`.
+1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies and can be imported any time after `users.sql`; `oauth_grants.sql` and `oauth_consents.sql` depend on both `users` and `apps`. Every other table depends only on `users`.
 2. Create a Hyperdrive configuration pointing at it:
 
    ```sh
@@ -118,6 +119,22 @@ The schedules are declared as `triggers.crons` in `wrangler.jsonc`; the `schedul
 
 Sessions are purged only when also defunct (inactive or past expiry), so a still-valid session is never deleted even if `SESSION_MAX_AGE_SECONDS` is raised beyond a month.
 
+### OAuth signing-key rotation
+
+The OAuth/OIDC provider signs ID tokens and access tokens with an ES256 (ECDSA P-256) keypair. The private key lives in the `OAUTH_SIGNING_KEY_PRIVATE` secret; the matching public key is derived at runtime, exposed via `/.well-known/jwks.json`, and identified by an RFC 7638 thumbprint `kid` (so the kid is deterministic from the key — no separate binding).
+
+Rotation is **a manual operator action** — there is no cron job that rotates keys on its own. The overlap window during rotation is what keeps already-issued JWTs valid until they expire.
+
+**First-time setup** (or rotation):
+
+1. Generate a fresh keypair: `node scripts/generate-oauth-key.mjs`. The script prints the private JWK (a single-line JSON string), the public JWK with its `kid`, and the exact `wrangler secret put` command to run.
+2. _(Rotation only — skip on first setup.)_ Copy the previous **public** JWK (the `kty` / `crv` / `x` / `y` fields, without `kid` / `use` / `alg` / `d`) into the `OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC` binding via the dashboard or `wrangler secret put`. This keeps JWTs signed by the retired key validating in JWKS during the overlap window.
+3. Push the new private JWK: `echo '…' | npx wrangler secret put OAUTH_SIGNING_KEY_PRIVATE`.
+4. For local development, set the same JWK in `.env` as `OAUTH_SIGNING_KEY_PRIVATE`.
+5. After the longest-lived JWT has expired (the access-token / ID-token lifetime — order of an hour), clear `OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC`.
+
+`/.well-known/jwks.json` exposes the active public JWK and, if the previous-public binding is set, the retired one alongside it.
+
 ### Directories
 
 The project deploys as a single Cloudflare Worker bundle. The Worker serves static files from `public/` via [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/), and the dynamic endpoints under `functions/` are compiled into the same bundle using Pages Functions directory-routing conventions. The build step is `wrangler pages functions build` (the Pages Functions compiler) but the deploy command is `wrangler deploy` — the Workers path.
@@ -181,6 +198,8 @@ Operator-configurable runtime values, read from `context.env` (Cloudflare Pages 
 | `REQUIRE_NOT_COMPROMISED` | off                                     | `src/passwords.ts` (`passwordConfig`)                                                                     | Set to `"true"` to reject passwords found in HaveIBeenPwned breach data (k-anonymity prefix query — the password never leaves the server). Fail-open: a HIBP network error is treated as passing so an outage never blocks legitimate users.                                                                                                                                       |
 | `SHOW_ZXCVBN`             | off                                     | `src/passwords.ts` (`passwordConfig`)                                                                     | Set to `"true"` to display the zxcvbn strength estimate and feedback in the requirements UI without enforcing a minimum score. Automatically enabled when `REQUIRE_ZXCVBN` is set.                                                                                                                                                                                                 |
 | `REQUIRE_ZXCVBN`          | off                                     | `src/passwords.ts` (`passwordConfig`)                                                                     | Set to `"true"` to require a zxcvbn score ≥ 3 ("safely unguessable"). When set, `REQUIRE_NUMBER` / `REQUIRE_CAPITAL` / `REQUIRE_SPECIAL_CHAR` are shown as suggestions rather than hard requirements; `MIN_PASSWORD_LENGTH` still applies.                                                                                                                                         |
+| `OAUTH_SIGNING_KEY_PRIVATE` | _unset_                               | `src/oauth-keys.ts` (`loadSigningKey`, `currentPublicJwk`)                                                | Active ES256 (ECDSA P-256) private key as a JWK JSON string. **Secret** — set via `wrangler secret put OAUTH_SIGNING_KEY_PRIVATE`. The matching public key is derived from this binding at runtime and exposed via `/.well-known/jwks.json`; no separate public binding is needed. Generate a fresh keypair with `node scripts/generate-oauth-key.mjs`.                            |
+| `OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC` | _unset_                       | `src/oauth-keys.ts` (`previousPublicJwk`), `functions/.well-known/jwks.json.ts`                           | Optional retired public JWK held during a key-rotation overlap window so JWTs signed by the old key continue to verify. JSON string of the public JWK (`kty`, `crv`, `x`, `y` — no `kid`/`use`/`alg`/`d`). Set when rotating; clear once the longest-lived JWT has expired.                                                                                                          |
 
 ## Database Schema Changes
 
@@ -264,6 +283,8 @@ Membership and invitation management lives in `src/memberships.ts` / `src/invita
 Phase 7 OAuth provider work. Apps are **globally registered by the operator**, not owned by any organisation — any org can grant its users/teams entitlements for any registered app.
 
 - **`apps`** — registered OAuth clients. `app_uuid` (PK), `app_name`, `client_id` (UNIQUE — the public OAuth identifier), `client_secret` (hashed via `src/utilities/hashing.ts`), `redirect_uris STRING[]` (exact-match allowlist for the OAuth `redirect_uri` parameter), `app_active` (reversible disable), `app_created_at`. No FK to `organisations` and no `created_by` — registration is an operator action performed via direct DB access until the operator UI lands.
+- **`oauth_grants`** — DB-backed OAuth state: authorization codes and refresh tokens. PK `grant_value`, FKs to `users` + `apps` (both `ON DELETE CASCADE`), `grant_type` discriminator (`'authorization_code'` | `'refresh_token'`), `scopes STRING[]`, PKCE fields (`redirect_uri`, `code_challenge`, `code_challenge_method`) populated on auth-code rows, `parent_grant_value` linking each rotated refresh token back to its predecessor (plain column, not a self-FK — cleanup must not cascade through the chain), `expires_at`, `is_used`, `created_at`. Access tokens are JWTs and never appear here.
+- **`oauth_consents`** — remembered consent: skip the consent screen on the next round-trip if the user has already granted these scopes. Composite PK `(user_uuid, app_uuid)`, FKs to both (`ON DELETE CASCADE`), `scopes STRING[]`, `granted_at`. UPSERT on re-consent; revoke by DELETE.
 
 ## Project Maintenance
 
