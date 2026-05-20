@@ -190,6 +190,39 @@ declare global {
     expires_at: Date
     is_used: boolean
   }
+
+  interface AppRow {
+    app_uuid: string
+    app_name: string
+    client_id: string
+    client_secret: string
+    redirect_uris: string[]
+    app_active: boolean
+    app_created_at: Date
+  }
+
+  interface OAuthGrantRow {
+    grant_value: string
+    grant_type: "authorization_code" | "refresh_token"
+    user_uuid: string
+    app_uuid: string
+    scopes: string[]
+    redirect_uri: string | null
+    code_challenge: string | null
+    code_challenge_method: string | null
+    nonce: string | null
+    parent_grant_value: string | null
+    expires_at: Date
+    created_at: Date
+    is_used: boolean
+  }
+
+  interface OAuthConsentRow {
+    user_uuid: string
+    app_uuid: string
+    scopes: string[]
+    granted_at: Date
+  }
 }
 
 export {}

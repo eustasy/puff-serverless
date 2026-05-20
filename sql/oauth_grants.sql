@@ -7,6 +7,7 @@ CREATE TABLE public.oauth_grants (
   redirect_uri STRING NULL,
   code_challenge STRING NULL,
   code_challenge_method STRING NULL,
+  nonce STRING NULL,
   parent_grant_value STRING NULL,
   expires_at TIMESTAMP NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT current_timestamp():::TIMESTAMP,

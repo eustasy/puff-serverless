@@ -176,6 +176,20 @@ External APIs used:
 - https://haveibeenpwned.com/API/v2#SearchingPwnedPasswordsByRange
 - Cloudflare Turnstile (implicitly via Pages dashboard configuration)
 
+### OAuth 2.1 / OIDC endpoints
+
+Puff is itself an OAuth 2.1 / OpenID Connect provider. Registered apps log their users in with Puff via the Authorization Code flow with PKCE. **Confidential clients only** — every app has a `client_secret` and authenticates on `/oauth/token` via HTTP Basic (`client_secret_basic`) or body params (`client_secret_post`). PKCE is required on every code exchange regardless (OAuth 2.1, `S256` only).
+
+| Endpoint                            | Method   | Purpose                                                                                                                                                                                                                                                                          |
+| ----------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/oauth/authorize`                  | GET/POST | The user-facing entry point. Validates `client_id`/`redirect_uri`/`response_type`/`code_challenge`, redirects to `/login` when no session, server-renders a consent screen when `oauth_consents` does not already cover the requested scopes, then redirects back with `?code=`. |
+| `/oauth/token`                      | POST     | Exchanges `grant_type=authorization_code` (consumed atomically, PKCE verified) for `access_token` + `id_token` (when `openid` scope was granted) + `refresh_token` (when `offline_access` was granted). Also rotates `grant_type=refresh_token`.                                 |
+| `/oauth/userinfo`                   | GET      | Bearer-authenticated OIDC claim response: `{ sub, name?, email?, email_verified? }` depending on the scope claim baked into the access-token JWT.                                                                                                                                |
+| `/.well-known/openid-configuration` | GET      | OIDC Discovery document — issuer, all endpoint URLs, supported response/grant types, scopes, claims, and signing algorithm.                                                                                                                                                      |
+| `/.well-known/jwks.json`            | GET      | JWKS — the active public signing key plus, during a rotation overlap window, the retired one (see [OAuth signing-key rotation](#oauth-signing-key-rotation)).                                                                                                                    |
+
+Lifetimes: authorization code 5 min, access token + ID token 1 hour, refresh token 30 days. Access tokens are stateless JWTs (`ES256`); only authorization codes and refresh tokens persist in `oauth_grants`. Remembered consent is per-(user, app) in `oauth_consents`. Domain modules: `src/apps.ts`, `src/oauth-grants.ts`, `src/oauth-consents.ts`, `src/oauth.ts` (shared helpers), `src/oauth-jwt.ts` + `src/oauth-keys.ts` (signing).
+
 ## Environment Variables
 
 Operator-configurable runtime values, read from `context.env` (Cloudflare Pages Functions binding). Set these as plain `vars` in `wrangler.jsonc` for production, or in `.dev.vars` (or `.env`) for local development.
