@@ -30,7 +30,7 @@ nvm use stable
 
 #### Postgres or CockroachDB
 
-_Note: SQL Schema can be found in the SQL folder, one file per table. Import in foreign-key order: `users.sql` first (it provides the foreign key for many other tables), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`; every other table depends only on `users`._
+_Note: SQL Schema can be found in the SQL folder, one file per table. Import in foreign-key order: `users.sql` first (it provides the foreign key for many other tables), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported at any time. Every other table depends only on `users`._
 
 ##### for Local Development
 
@@ -44,7 +44,7 @@ WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://user:password
 
 Production uses [CockroachDB Cloud](https://www.cockroachlabs.com/) (or any Postgres-compatible database) reached through [Cloudflare Hyperdrive](https://developers.cloudflare.com/hyperdrive/), which pools connections at the edge.
 
-1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`; every other table depends only on `users`.
+1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies and can be imported at any time. Every other table depends only on `users`.
 2. Create a Hyperdrive configuration pointing at it:
 
    ```sh
@@ -258,6 +258,12 @@ Phase 6 multi-tenancy. A user account is global; their relationship to an organi
 - **`organisation_invitations`** — pending invitations. `invitation_token` (PK), `org_uuid` (FK → `organisations`, `ON DELETE CASCADE`), `email_address`, `roles` (the role set granted on acceptance), `invited_by` (FK → `users`, `ON DELETE SET NULL`), `expires_at`, `is_used`. Consumed atomically by `acceptInvitation` in `src/invitations.ts`.
 
 Membership and invitation management lives in `src/memberships.ts` / `src/invitations.ts` and the `functions/api/db/auth/organisations/` endpoints. `role` is plain text validated against `src/permissions.ts`; Phase 7 will move it to a `roles` table.
+
+**Linked Apps Table Usage:**
+
+Phase 7 OAuth provider work. Apps are **globally registered by the operator**, not owned by any organisation — any org can grant its users/teams entitlements for any registered app.
+
+- **`apps`** — registered OAuth clients. `app_uuid` (PK), `app_name`, `client_id` (UNIQUE — the public OAuth identifier), `client_secret` (hashed via `src/utilities/hashing.ts`), `redirect_uris STRING[]` (exact-match allowlist for the OAuth `redirect_uri` parameter), `app_active` (reversible disable), `app_created_at`. No FK to `organisations` and no `created_by` — registration is an operator action performed via direct DB access until the operator UI lands.
 
 ## Project Maintenance
 

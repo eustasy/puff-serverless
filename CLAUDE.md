@@ -51,7 +51,7 @@ Endpoints read `context.data.dbClient` / `context.data.user_uuid` directly — n
 
 ### Database
 
-Schema is in `sql/`, one file per table. Import in foreign-key order: `users.sql` first, then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`; then the KV tables (`user_key_values.sql` / `team_key_values.sql` / `organisation_key_values.sql` / `org_role_key_values.sql` / `team_role_key_values.sql`) which depend on the above; every other table depends only on `users`. The `secrets` table stores both passwords and TOTP secrets, keyed by `secret_type`; the `tokens` table stores all temporary tokens, keyed by `token_type`. All queries are parameterized (`$1, $2`). Multi-step writes use explicit `BEGIN/COMMIT/ROLLBACK` transactions.
+Schema is in `sql/`, one file per table. Import in foreign-key order: `users.sql` first, then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`; then the KV tables (`user_key_values.sql` / `team_key_values.sql` / `organisation_key_values.sql` / `org_role_key_values.sql` / `team_role_key_values.sql`) which depend on the above; `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported at any time — Phase 7 tables will depend on it; every other table depends only on `users`. The `secrets` table stores both passwords and TOTP secrets, keyed by `secret_type`; the `tokens` table stores all temporary tokens, keyed by `token_type`. All queries are parameterized (`$1, $2`). Multi-step writes use explicit `BEGIN/COMMIT/ROLLBACK` transactions.
 
 ## Detailed conventions
 

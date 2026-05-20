@@ -248,12 +248,12 @@ separate, lower-priority track.
 
 ### Puff as OAuth / OIDC provider
 
-- [ ] `sql/apps.sql` — registered OAuth clients ("linked apps"). `app_uuid` PK, `org_uuid` (FK → `organisations`, `ON DELETE CASCADE` — an app belongs to an org), `app_name`, `client_id` (unique), `client_secret` stored hashed (reuse `src/utilities/hashing.ts`), `redirect_uris` (exact-match allowlist), `app_active`, timestamps.
+- [x] `sql/apps.sql` — registered OAuth clients ("linked apps"). Apps are **globally registered** by the operator (not by orgs), so the table has no `org_uuid` and no organisational FK at all: `app_uuid` PK, `app_name`, `client_id` (unique), `client_secret` stored hashed (reuse `src/utilities/hashing.ts`), `redirect_uris STRING[]` (exact-match allowlist), `app_active`, `app_created_at`. Any organisation can grant its users/teams entitlements for any registered app — there is no notion of an "owning" org.
 - [ ] `sql/oauth_grants.sql` — authorization codes, access tokens, and refresh tokens issued to apps: short-lived codes, refresh-token rotation, and a remembered per-(user, app) scope grant so consent is not re-prompted every time.
 - [ ] Authorization Code flow with PKCE (OAuth 2.1 — no implicit flow). Endpoints under `functions/`: `/oauth/authorize` (consent screen; reuses the session cookie to identify the user), `/oauth/token` (code → tokens, refresh), `/oauth/userinfo`, `/.well-known/openid-configuration`, and a JWKS endpoint.
 - [ ] ID tokens are signed JWTs via Web Crypto (Workers-native, as with WebAuthn). Decide signing-key storage and rotation, published through JWKS.
 - [ ] Scopes & claims: standard OIDC (`openid`, `profile`, `email`) plus organisation/team membership and **role claims** (the user's fixed puff org/team roles), and the user's **app entitlements** for the requesting app — see App entitlements below.
-- [ ] App-management UI — org admins register/edit apps, view and rotate `client_secret`, manage redirect URIs. Endpoints under `functions/api/db/auth/organisations/[org_uuid]/apps/`.
+- [ ] Operator-only app-management UI — register/edit apps, view and rotate `client_secret`, manage redirect URIs. Endpoints under `functions/api/db/auth/admin/apps/`, gated by a global "operator" check (mechanism TBD — likely an env-var allowlist of `user_uuid`s, since the org/team RBAC in `src/permissions.ts` has no global tier). Until the UI exists, apps are registered via direct DB access.
 
 ### App entitlements & permissions
 
@@ -262,9 +262,9 @@ Decided 2026-05-19: **entitlements are KV rows under an app's owner namespace**,
 - [ ] Add the **app subject + app owner** to the KV layer: `sql/app_key_values.sql` (subject = `app_uuid → apps`) plus `ALTER` on every existing `*_key_values.sql` to add a nullable `owner_app_uuid` FK (CASCADE) and extend the `one_owner` CHECK to permit a third owner column.
 - [ ] Extend `src/utilities/keyvalues-shared.ts`'s `Owner` discriminated union with `{ type: "app", app_uuid }`; thread it through `ownerFilter` / `ownerInsertValues` / the upsert flow.
 - [ ] Add the **app tier** to `src/keyvalues-resolver.ts` — after `org` as the global fallback (the chain becomes user → team-role → org-role → team → org → app).
-- [ ] App-management UI endpoints register entitlements: e.g. an app grants permission `perm:export` to user U with `setKeyValue(user_uuid=U, owner={app}, key="perm:export", value="granted")`; or to a team with the `team_key_values` table. Resolution at request time uses `resolveKeyValue` with the app's owner.
-- [ ] Constrain entitlement grantees to the app's organisation at the application layer (FKs alone only prove the user/team exists).
-- [ ] "Licensed" = at least one KV row owned by the app exists for that user/team/org subject (the seat count for Phase 8 billing).
+- [ ] Org-scoped entitlement endpoints — an org admin grants their users/teams/the-org itself permissions for any globally-registered app. e.g. `setKeyValue(user_uuid=U, owner={app: X}, key="perm:export", value="granted")` from inside org A only succeeds if U is a member (or guest) of A and `can(orgRoles, "org:entitlements:write")`. Resolution at request time uses `resolveKeyValue` with the app's owner.
+- [ ] Constrain entitlement grantees at the application layer to subjects within the granting org (the org admin's scope — FKs alone only prove the user/team exists). Apps are global, so the constraint is "grantee belongs to the granting org", not "grantee belongs to the app's org".
+- [ ] "Licensed" = at least one KV row owned by the app exists for that user/team/org subject (the seat count for Phase 8 billing) — counted per-org, since an app may have entitlements granted independently by many orgs.
 
 ### Puff as OAuth client (federated / social login)
 
