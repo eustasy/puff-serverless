@@ -21,15 +21,14 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
     return resultNegative("You do not have permission to do this.", 403)
   }
 
-  let email = ""
-  let role: string = DEFAULT_ORG_ROLE
+  let formData: FormData
   try {
-    const formData = await context.request.formData()
-    email = String(formData.get("email") ?? "").trim()
-    role = String(formData.get("role") ?? DEFAULT_ORG_ROLE)
+    formData = await context.request.formData()
   } catch {
     return resultNegative("Invalid request format. Expected form data.", 400)
   }
+  const email = String(formData.get("email") ?? "").trim()
+  const role = String(formData.get("role") ?? DEFAULT_ORG_ROLE)
   if (!email) {
     return resultNegative("An email address is required.", 400)
   }
