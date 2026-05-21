@@ -1,13 +1,17 @@
-import { describe, it, expect, beforeAll } from "vitest"
+import { describe, it, expect, beforeAll, beforeEach } from "vitest"
 import {
   JWT_ALG,
+  _resetOAuthKeyCache,
   currentPublicJwk,
   importVerificationKey,
   jwkThumbprint,
   loadSigningKey,
   previousPublicJwk,
+  type StoredActiveKey,
+  type StoredRetiredKey,
 } from "../src/oauth-keys.js"
 import { fakeEnv } from "./helpers/fake-env.js"
+import { fakeKv } from "./helpers/fake-kv.js"
 
 async function generateEs256Jwk(): Promise<{
   privateJwkJson: string
@@ -51,6 +55,11 @@ beforeAll(async () => {
   const prev = await generateEs256Jwk()
   currentPriv = cur.privateJwkJson
   previousPub = prev.publicJwkJson
+})
+
+beforeEach(() => {
+  // Tests share a module-level KV cache; reset to keep them independent.
+  _resetOAuthKeyCache()
 })
 
 describe("jwkThumbprint", () => {
@@ -99,7 +108,7 @@ describe("jwkThumbprint", () => {
 })
 
 describe("loadSigningKey", () => {
-  it("imports the private JWK as a non-extractable sign-only CryptoKey", async () => {
+  it("imports the private JWK as a non-extractable sign-only CryptoKey (env-var fallback)", async () => {
     const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: currentPriv })
     const key = await loadSigningKey(env)
     expect(key.type).toBe("private")
@@ -107,12 +116,31 @@ describe("loadSigningKey", () => {
     expect(key.usages).toEqual(["sign"])
   })
 
-  it("throws when OAUTH_SIGNING_KEY_PRIVATE is missing", async () => {
-    const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: "" })
-    await expect(loadSigningKey(env)).rejects.toThrow(/not set/)
+  it("reads the active key from KV when present, preferring it over the env-var", async () => {
+    const jwk = JSON.parse(currentPriv)
+    const kid = await jwkThumbprint(jwk)
+    const stored: StoredActiveKey = {
+      jwk,
+      kid,
+      created_at: new Date().toISOString(),
+    }
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: fakeKv({ "oauth:keys:active": stored }),
+      // Set the fallback to a string the env-var path would reject so
+      // we know the KV path was taken.
+      OAUTH_SIGNING_KEY_PRIVATE: "not json",
+    })
+    const key = await loadSigningKey(env)
+    expect(key.type).toBe("private")
+    expect(key.usages).toEqual(["sign"])
   })
 
-  it("throws when the JWK is malformed", async () => {
+  it("throws when neither KV nor the env-var has a key", async () => {
+    const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: "" })
+    await expect(loadSigningKey(env)).rejects.toThrow(/No active signing key/)
+  })
+
+  it("throws when the env-var JWK is malformed", async () => {
     const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: "not json" })
     await expect(loadSigningKey(env)).rejects.toThrow(/not valid JSON/)
   })
@@ -126,7 +154,7 @@ describe("loadSigningKey", () => {
 })
 
 describe("currentPublicJwk", () => {
-  it("derives the public JWK from the private key, with kid+use+alg set", async () => {
+  it("derives the public JWK from the env-var private key, with kid+use+alg set", async () => {
     const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: currentPriv })
     const jwk = await currentPublicJwk(env)
     const priv = JSON.parse(currentPriv)
@@ -139,15 +167,31 @@ describe("currentPublicJwk", () => {
     expect(jwk.alg).toBe(JWT_ALG)
     expect(jwk.kid).toBe(await jwkThumbprint(priv))
   })
+
+  it("uses KV when set", async () => {
+    const priv = JSON.parse(currentPriv)
+    const kid = await jwkThumbprint(priv)
+    const stored: StoredActiveKey = {
+      jwk: priv,
+      kid,
+      created_at: new Date().toISOString(),
+    }
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: fakeKv({ "oauth:keys:active": stored }),
+    })
+    const jwk = await currentPublicJwk(env)
+    expect(jwk.kid).toBe(kid)
+    expect(jwk).not.toHaveProperty("d")
+  })
 })
 
 describe("previousPublicJwk", () => {
-  it("returns null when the binding is absent", async () => {
+  it("returns null when neither the env-var nor KV has it", async () => {
     const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: currentPriv })
     expect(await previousPublicJwk(env)).toBeNull()
   })
 
-  it("returns null when the binding is whitespace-only", async () => {
+  it("returns null when the env-var binding is whitespace-only and KV is empty", async () => {
     const env = fakeEnv({
       OAUTH_SIGNING_KEY_PRIVATE: currentPriv,
       OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC: "   ",
@@ -155,7 +199,7 @@ describe("previousPublicJwk", () => {
     expect(await previousPublicJwk(env)).toBeNull()
   })
 
-  it("returns a populated JWK when the binding is set", async () => {
+  it("returns a populated JWK when the env-var binding is set", async () => {
     const env = fakeEnv({
       OAUTH_SIGNING_KEY_PRIVATE: currentPriv,
       OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC: previousPub,
@@ -165,6 +209,22 @@ describe("previousPublicJwk", () => {
     expect(jwk!.kid).toBe(await jwkThumbprint(JSON.parse(previousPub)))
     expect(jwk!.use).toBe("sig")
     expect(jwk!.alg).toBe(JWT_ALG)
+  })
+
+  it("returns a populated JWK from KV when the retired entry is set", async () => {
+    const pub = JSON.parse(previousPub)
+    const kid = await jwkThumbprint(pub)
+    const stored: StoredRetiredKey = {
+      jwk: pub,
+      kid,
+      retired_at: new Date().toISOString(),
+    }
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: fakeKv({ "oauth:keys:retired": stored }),
+    })
+    const jwk = await previousPublicJwk(env)
+    expect(jwk).not.toBeNull()
+    expect(jwk!.kid).toBe(kid)
   })
 })
 

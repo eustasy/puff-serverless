@@ -7,11 +7,12 @@ Shipping Puff to production. Every step is intended to be runnable as-is — sub
 - [Prerequisites](#prerequisites)
 - [1. Provision the database](#1-provision-the-database)
 - [2. Create the Hyperdrive binding](#2-create-the-hyperdrive-binding)
-- [3. Authenticate Wrangler](#3-authenticate-wrangler)
-- [4. Push secrets](#4-push-secrets)
-- [5. Set non-secret variables](#5-set-non-secret-variables)
-- [6. Deploy](#6-deploy)
-- [7. Attach a custom domain](#7-attach-a-custom-domain)
+- [3. Create the KV namespace](#3-create-the-kv-namespace)
+- [4. Authenticate Wrangler](#4-authenticate-wrangler)
+- [5. Push secrets](#5-push-secrets)
+- [6. Set non-secret variables](#6-set-non-secret-variables)
+- [7. Deploy](#7-deploy)
+- [8. Attach a custom domain](#8-attach-a-custom-domain)
 - [Post-deploy checklist](#post-deploy-checklist)
 - [Re-deploys](#re-deploys)
 - [Rolling back](#rolling-back)
@@ -75,6 +76,10 @@ $PSQL < sql/passkeys.sql
 
 # 9. Audit log (no FK dependencies — actor/target uuids are plain strings by design)
 $PSQL < sql/audit_events.sql
+
+# 10. Scheduled SQL jobs (CockroachDB v23.1+). Replaces the bulk of what
+#     used to run in the Worker cron. Idempotent — re-applying is safe.
+$PSQL < sql/schedules.sql
 ```
 
 The audit-events table is deliberately FK-less so its rows outlive their referents — see [Operations.md → Audit events & hooks](Operations.md#audit-events--hooks).
@@ -101,7 +106,28 @@ Copy the printed Hyperdrive ID into `wrangler.jsonc` under `hyperdrive[].id` (th
 }
 ```
 
-## 3. Authenticate Wrangler
+## 3. Create the KV namespace
+
+`KV_OAUTH_KEYS` holds the active OAuth signing key (and the retired one during a rotation overlap). A daily cron rotates it automatically once a week — see [Operations.md → OAuth signing-key rotation](Operations.md#oauth-signing-key-rotation).
+
+```sh
+npx wrangler kv namespace create KV_OAUTH_KEYS
+```
+
+Paste the printed `id` into `wrangler.jsonc` under `kv_namespaces[].id` (the binding name `KV_OAUTH_KEYS` must stay):
+
+```jsonc
+{
+  "kv_namespaces": [
+    {
+      "binding": "KV_OAUTH_KEYS",
+      "id": "<the id wrangler just printed>",
+    },
+  ],
+}
+```
+
+## 4. Authenticate Wrangler
 
 Once per machine:
 
@@ -109,7 +135,7 @@ Once per machine:
 npx wrangler login
 ```
 
-## 4. Push secrets
+## 5. Push secrets
 
 Secrets are encrypted by Cloudflare and never committed to the repo. Push each one with `wrangler secret put` — Wrangler prompts for the value interactively, or you can pipe it in with `echo`.
 
@@ -119,10 +145,12 @@ Secrets are encrypted by Cloudflare and never committed to the repo. Push each o
 # Outbound email
 npx wrangler secret put MAILTRAP_TOKEN
 
-# OAuth signing key (see Operations.md → OAuth signing-key rotation
-# for how to generate one)
+# OAuth signing key — first-time seed for the KV oauth:keys:active entry.
+# The rotation cron (daily tick, weekly rotation) takes over from there.
 node scripts/generate-oauth-key.mjs
-# then follow the printed `wrangler secret put` command for the private JWK.
+# then follow the printed `wrangler kv key put` command. The fallback
+# secret path (OAUTH_SIGNING_KEY_PRIVATE) also works if you'd rather seed
+# via `wrangler secret put` and let the next rotation tick copy it to KV.
 ```
 
 **Optional — federated sign-in providers** (per provider you want to enable):
@@ -140,7 +168,7 @@ echo "<the client secret>" | npx wrangler secret put OAUTH_MICROSOFT_CLIENT_SECR
 
 The per-provider registration walkthrough (which form fields to fill in at GitHub / Google / Microsoft) is in [Operations.md → Adding a federated login provider](Operations.md#adding-a-federated-login-provider).
 
-## 5. Set non-secret variables
+## 6. Set non-secret variables
 
 Edit `wrangler.jsonc`'s `vars` block before deploying:
 
@@ -165,7 +193,7 @@ The full variable catalogue is in [Architecture.md → Environment variables](Ar
 - **`APP_URL`** must be the public origin (no trailing slash) — it builds email links and federated-login redirect URIs.
 - **Password policy** (`REQUIRE_*`, `REQUIRE_ZXCVBN`, etc.) — pick what matches your security posture; `REQUIRE_NOT_COMPROMISED` is recommended.
 
-## 6. Deploy
+## 7. Deploy
 
 ```sh
 npm run deploy
@@ -175,7 +203,7 @@ This runs `npm run build` (which calls `wrangler pages functions build` to emit 
 
 Without a custom domain (step 7), the Worker is reachable at `puff-serverless.<account>.workers.dev`.
 
-## 7. Attach a custom domain
+## 8. Attach a custom domain
 
 The Worker should be served at its public origin so OAuth redirect URIs, email links, and cookies all line up with `APP_URL`. Two routes to do this:
 
@@ -207,13 +235,14 @@ After the first deploy, verify each surface works end-to-end. The audit log (`au
 - **Enable 2FA** → QR code renders inline (SVG, not a `data:` URL); `account.2fa.setup.verified` row.
 - **`/.well-known/jwks.json`** returns the active public JWK.
 - **`/.well-known/openid-configuration`** advertises endpoints matching your `APP_URL`.
-- **Cron is registered** — `wrangler tail` and wait up to 5 minutes; you should see `Scheduled cleanup (*/5 * * * *): purged 0 TOTP codes, 0 floating seats.`
+- **DB schedules are installed** — `SHOW SCHEDULES;` lists `puff_purge_totp_used_codes`, `puff_purge_app_floating_sessions`, `puff_purge_sessions`, `puff_purge_tokens`, `puff_purge_audit_low_severity`. Recent runs: `SHOW JOBS WHERE schedule_id IS NOT NULL ORDER BY created DESC LIMIT 20;`
+- **Worker cron is registered** — `wrangler deploy` prints `Cron Triggers: 0 0 * * *`. The daily tick drives `maybeRotateSigningKey` (see [Operations.md → OAuth signing-key rotation](Operations.md#oauth-signing-key-rotation)); it rotates the key once it is older than `OAUTH_KEY_ROTATION_INTERVAL_DAYS` (default 7), so the first rotation after seeding KV lands a week later.
 - **HTTP response headers** — `curl -I https://auth.example.com/` shows the CSP, HSTS, and Reporting-Endpoints headers from `public/_headers`.
 - **Federated login** (if configured) — clicking each provider button lands at the provider, returns to `/login/<provider>/callback`, and either creates an account, logs in, or links the identity.
 
 ## Re-deploys
 
-A subsequent deploy is just step 6:
+A subsequent deploy is just step 7:
 
 ```sh
 npm run deploy

@@ -58,7 +58,7 @@ type Envelope<T> =
 
 They do not throw or return raw rows. The sole exception is `registerUser`, which throws (wrap calls in try/catch).
 
-`src/cron.ts` is a deliberate departure: it runs on a Cron Trigger with no `_middleware.ts` in front of it, so it opens and closes its own `pg` client rather than receiving one. See [Operations.md → Scheduled cleanup](Operations.md#scheduled-cleanup).
+`src/cron.ts` is a deliberate departure: it runs on a Cron Trigger with no `_middleware.ts` in front of it. It only handles work that has to stay in the Worker — currently OAuth signing-key rotation (`src/oauth-keys-rotation.ts`), on a daily cron that rotates the key weekly. Pure-SQL row reaping lives in the database itself via `sql/schedules.sql`. The retained `runScheduledCleanup` helper is for manual / fallback use and opens its own short-lived `pg` client. See [Operations.md → Scheduled cleanup](Operations.md#scheduled-cleanup).
 
 `src/hooks/` is the extensibility point — every account/org mutation emits a structured event through it. The default listener writes to the `audit_events` table; future listeners (webhooks, SIEM forwarding) plug into the same registry. See [Operations.md → Audit events & hooks](Operations.md#audit-events--hooks).
 
@@ -246,10 +246,19 @@ Operator-configurable runtime values, read from `context.env` (Cloudflare Pages 
 
 ### OAuth signing keys
 
-| Variable                            | Default | Purpose                                                                                                                                                                                             |
-| ----------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OAUTH_SIGNING_KEY_PRIVATE`         | unset   | Active ES256 (ECDSA P-256) private key as a JWK JSON string. **Secret**. The matching public key is derived at runtime and exposed via `/.well-known/jwks.json` — no separate public binding.       |
-| `OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC` | unset   | Retired public JWK held during a rotation overlap window. JSON string of the public JWK (`kty` / `crv` / `x` / `y` only — no `d`). Set when rotating; clear once the longest-lived JWT has expired. |
+Active key material lives in the `KV_OAUTH_KEYS` KV namespace (bound in `wrangler.jsonc`) under `oauth:keys:active` / `oauth:keys:retired`; the rotation cron writes to it. See [Operations.md → OAuth signing-key rotation](Operations.md#oauth-signing-key-rotation).
+
+| Variable                            | Default | Purpose                                                                                                                                                                                                    |
+| ----------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OAUTH_SIGNING_KEY_PRIVATE`         | unset   | **Migration fallback** for the KV `oauth:keys:active` entry. Read when KV is empty (local dev, post-provision seed). **Secret** when used. After ≥ one rotation in production this binding can be removed. |
+| `OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC` | unset   | **Migration fallback** for the KV `oauth:keys:retired` entry. Read when KV is empty. JSON string of the public JWK (`kty` / `crv` / `x` / `y` only — no `d`).                                              |
+| `OAUTH_KEY_ROTATION_INTERVAL_DAYS`  | `7`     | Minimum age (in days) of the active key before the daily cron rotates it again — so the default cadence is weekly. Set lower in staging to rehearse the rotation path, higher to slow the cadence.         |
+
+### Admin endpoints
+
+| Variable              | Default | Purpose                                                                                                                                                                                                                                                                                |
+| --------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPERATOR_USER_UUIDS` | unset   | Comma- or whitespace-separated list of user UUIDs allowed to call `/api/db/auth/admin/*` endpoints (manual key rotation, retired-key promotion). When unset, the whole admin section returns 503 — the safe default for a misconfigured deploy. The endpoint sits behind session auth. |
 
 ### Federated login providers
 
@@ -264,4 +273,4 @@ Each provider needs both vars set or its `/login/<provider>` route 404s.
 | `OAUTH_MICROSOFT_CLIENT_ID`     | Microsoft Entra ID Application (client) ID. Multi-tenant `common` endpoint. |
 | `OAUTH_MICROSOFT_CLIENT_SECRET` | Microsoft Entra ID client secret. **Secret**.                               |
 
-Bindings (`HYPERDRIVE`, `ASSETS`) and the cron trigger schedule live in `wrangler.jsonc`, not as env vars.
+Bindings (`HYPERDRIVE`, `ASSETS`, `KV_OAUTH_KEYS`) and the cron trigger schedule live in `wrangler.jsonc`, not as env vars.

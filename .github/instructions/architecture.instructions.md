@@ -35,7 +35,7 @@ Terse reference for AI tooling. Long-form prose lives in `docs/Architecture.md`,
   - **Key-value store** (six subject tables): `user-keyvalues.ts`, `team-keyvalues.ts`, `organisation-keyvalues.ts`, `org-role-keyvalues.ts`, `team-role-keyvalues.ts`, `app-keyvalues.ts`; the inheritance resolver in `keyvalues-resolver.ts`.
   - **App licensing & entitlements**: `entitlements.ts`, `app-floating-sessions.ts`.
   - **Outbound email**: `mailer.ts`, `email-templates.ts`.
-  - **Scheduled cleanup**: `cron.ts` (opens its own `pg` client — no middleware in front of it).
+  - **Scheduled work**: `cron.ts` runs Worker-side periodic tasks only (currently OAuth signing-key rotation via `oauth-keys-rotation.ts`, on a daily cron that rotates weekly). Pure-SQL row reaping (sessions, tokens, TOTP, floating-sessions, audit) lives in CockroachDB itself via `sql/schedules.sql`. `runScheduledCleanup` in `cron.ts` is retained as a manually-callable fallback.
   - **Hooks / audit**: `src/hooks/` — `dispatch.ts`, `events.ts`, `registry.ts`, `types.ts`, `listeners/audit.ts`. Account/org actions emit through `emitFromContext`; the default listener writes to `audit_events`.
 - `src/utilities/` — shared helpers:
   - `hashing.ts` (SHA-384 password hashing with salt, SHA-1 prefix for HIBP).

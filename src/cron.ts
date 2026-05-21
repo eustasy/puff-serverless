@@ -1,29 +1,32 @@
-// Scheduled cleanup.
+// Scheduled work that runs in the Worker.
 //
 // This is the one code path with no `_middleware.ts` in front of it, so —
 // unlike every other `src/` module, which receives `dbClient` as its first
-// parameter — this module opens and closes its own `pg` client.
+// parameter — this module opens and closes its own `pg` client when it needs
+// the database.
 //
 // It is driven by the Cloudflare Cron Triggers declared in `wrangler.jsonc`
-// and the `scheduled` handler wired into the Worker entry (`worker.ts`):
+// and the `scheduled` handler wired into the Worker entry (`worker.ts`).
 //
-//   "*/5 * * * *"  Purge `totp_used_codes`. This must run far more often than
-//                  the audit purge: a row only guards against replay while its
-//                  code is still inside the `verify()` acceptance window
-//                  (~90s). Left longer, a stale row can collide with a later,
-//                  legitimately-different code that happens to match the same
-//                  six digits — a false replay rejection. Frequent pruning
-//                  keeps that window short. Also reaps `app_floating_sessions`
-//                  past their `expires_at` so a floating-licence pool slot is
-//                  never permanently held by a session whose access token
-//                  expired without an explicit release.
-//   "0 * * * *"    Additionally purge `sessions` and `tokens`. These are kept
-//                  for a month first: a defunct session or token row is a
-//                  lightweight audit record of a login or a reset request.
-//                  Also drops low-severity `audit_events` past their tiered
-//                  retention (info/debug only; notice and above stay).
+// Two kinds of periodic work in the system, and they live in different
+// places by design:
+//
+//   * Pure-SQL row reaping (TOTP / floating-session / session / token /
+//     audit cleanup) runs in CockroachDB itself via `CREATE SCHEDULE … FOR
+//     SQL` — see `sql/schedules.sql`. No Worker invocation, no Hyperdrive
+//     handshake, no round-trip per DELETE. `runScheduledCleanup` below is
+//     kept as a manually-callable fallback (development, emergencies, or
+//     operators on a CockroachDB version that does not support the DDL).
+//   * Work that needs Web Crypto, or that calls an external API, runs here.
+//     Currently: OAuth signing-key rotation.
+//
+//   "0 0 * * *"  Daily tick. Calls `maybeRotateSigningKey`, which rotates
+//                only once the active key is older than
+//                `OAUTH_KEY_ROTATION_INTERVAL_DAYS` (default 7) — so the
+//                effective rotation cadence is weekly.
 
 import { Client } from "pg"
+import { maybeRotateSigningKey } from "./oauth-keys-rotation.js"
 
 // `totp_used_codes` rows matter only while the code is still inside its
 // `verify()` acceptance window; a small margin past that is plenty.
@@ -37,33 +40,39 @@ const AUDIT_RETENTION = "1 month"
 // stays intact regardless of how long ago an incident happened.
 const AUDIT_LOW_SEVERITY_RETENTION = "90 days"
 
-// The cron expression of the hourly trigger; the others only run the TOTP purge.
-const HOURLY_CRON = "0 * * * *"
-
 /**
  * Cron Trigger entry point. Re-exported as the Worker's `scheduled` handler
- * via `worker.ts`.
+ * via `worker.ts`. Dispatches by cron expression so adding a future trigger
+ * is just one more branch.
  */
 export async function scheduled(
   controller: ScheduledController,
   env: Env,
   ctx: ExecutionContext
 ): Promise<void> {
-  ctx.waitUntil(runScheduledCleanup(env, controller.cron))
+  ctx.waitUntil(runScheduledWork(env, controller.cron))
+}
+
+async function runScheduledWork(env: Env, cron: string): Promise<void> {
+  try {
+    await maybeRotateSigningKey(env, { cron })
+  } catch (error) {
+    console.error(`Scheduled work (${cron}) failed:`, error)
+  }
 }
 
 /**
  * Reaps rows the request path only ever soft-expires (sessions are marked
- * inactive, tokens marked used) but never deletes. The `cron` argument selects
- * how much runs — see the schedule table at the top of this file.
+ * inactive, tokens marked used) but never deletes. Each query mirrors a
+ * CockroachDB-side schedule from `sql/schedules.sql`; this function exists
+ * so operators can run the same purges manually (e.g. from a Node REPL
+ * during incident response, or on a CockroachDB version that does not
+ * support `CREATE SCHEDULE FOR SQL`).
  *
- * Never throws: a cron invocation has no caller to surface an error to, so a
- * failure is logged and the next run retries.
+ * Never throws: a cron invocation has no caller to surface an error to, so
+ * a failure is logged and the next run retries.
  */
-export async function runScheduledCleanup(
-  env: Env,
-  cron: string
-): Promise<void> {
+export async function runScheduledCleanup(env: Env): Promise<void> {
   if (!env.HYPERDRIVE?.connectionString) {
     console.error("Scheduled cleanup: HYPERDRIVE binding missing; skipping.")
     return
@@ -77,46 +86,34 @@ export async function runScheduledCleanup(
       "DELETE FROM totp_used_codes WHERE used_at < NOW() - $1::INTERVAL",
       [TOTP_RETENTION]
     )
-    // Floating-seat rows are reaped every tick: each row has its own
-    // `expires_at` (set when the access token was minted, ~1h ahead), so any
-    // row past that time has lost its license claim and must free the slot.
     const floating = await client.query(
       "DELETE FROM app_floating_sessions WHERE expires_at <= NOW()"
     )
-    let summary = `${totp.rowCount ?? 0} TOTP codes, ${floating.rowCount ?? 0} floating seats`
+    const sessions = await client.query(
+      `DELETE FROM sessions
+         WHERE created_at < NOW() - $1::INTERVAL
+           AND (is_active = FALSE OR (expires_at IS NOT NULL AND expires_at < NOW()))`,
+      [AUDIT_RETENTION]
+    )
+    const tokens = await client.query(
+      "DELETE FROM tokens WHERE created_at < NOW() - $1::INTERVAL",
+      [AUDIT_RETENTION]
+    )
+    const auditEvents = await client.query(
+      `DELETE FROM audit_events
+         WHERE event_severity IN ('debug', 'info')
+           AND created_at < NOW() - $1::INTERVAL`,
+      [AUDIT_LOW_SEVERITY_RETENTION]
+    )
 
-    if (cron === HOURLY_CRON) {
-      // The defunct guard (inactive / past expiry) means a still-valid session
-      // is never purged even if an operator has raised SESSION_MAX_AGE_SECONDS
-      // beyond the audit window. Tokens expire within 24h, so a month-old row
-      // is always long defunct — no guard needed.
-      const sessions = await client.query(
-        `DELETE FROM sessions
-           WHERE created_at < NOW() - $1::INTERVAL
-             AND (is_active = FALSE OR (expires_at IS NOT NULL AND expires_at < NOW()))`,
-        [AUDIT_RETENTION]
-      )
-      const tokens = await client.query(
-        "DELETE FROM tokens WHERE created_at < NOW() - $1::INTERVAL",
-        [AUDIT_RETENTION]
-      )
-      // Tier audit retention by severity: `info`/`debug` are routine
-      // observability rows safe to drop after a quarter; `notice` and
-      // above (member changes, password changes, deletions) are kept
-      // indefinitely so the security-relevant timeline never gaps.
-      const auditEvents = await client.query(
-        `DELETE FROM audit_events
-           WHERE event_severity IN ('debug', 'info')
-             AND created_at < NOW() - $1::INTERVAL`,
-        [AUDIT_LOW_SEVERITY_RETENTION]
-      )
-      summary +=
-        `, ${sessions.rowCount ?? 0} sessions` +
-        `, ${tokens.rowCount ?? 0} tokens` +
-        `, ${auditEvents.rowCount ?? 0} audit events`
-    }
-
-    console.log(`Scheduled cleanup (${cron}): purged ${summary}.`)
+    console.log(
+      `Scheduled cleanup: purged ` +
+        `${totp.rowCount ?? 0} TOTP codes, ` +
+        `${floating.rowCount ?? 0} floating seats, ` +
+        `${sessions.rowCount ?? 0} sessions, ` +
+        `${tokens.rowCount ?? 0} tokens, ` +
+        `${auditEvents.rowCount ?? 0} audit events.`
+    )
   } catch (error) {
     console.error("Scheduled cleanup failed:", error)
   } finally {

@@ -37,7 +37,7 @@ applyTo: "**"
 - 2FA secrets are stored in the `secrets` table with `secret_type = 'totp_secret'`.
 - Login with 2FA: initial password auth returns a short-lived `totp_verification_pending` token (15 min) set in a cookie, then the user submits the TOTP code with that token.
 - 2FA setup: secret is created with `is_enabled = FALSE`, enabled only after successful TOTP code verification.
-- **TOTP replay prevention**: `totp_used_codes` keyed on `(user_uuid, totp_code)` with `INSERT … ON CONFLICT DO NOTHING` — a code is accepted at most once within its acceptance window. Replays return failure. `verify()` uses `epochTolerance: 30` (±1 step for clock skew). Stale rows are reaped every 5 minutes by `src/cron.ts`.
+- **TOTP replay prevention**: `totp_used_codes` keyed on `(user_uuid, totp_code)` with `INSERT … ON CONFLICT DO NOTHING` — a code is accepted at most once within its acceptance window. Replays return failure. `verify()` uses `epochTolerance: 30` (±1 step for clock skew). Stale rows are reaped every 5 minutes by the `puff_purge_totp_used_codes` CockroachDB schedule (`sql/schedules.sql`).
 - **2FA QR code** is rendered inline as `<svg>` via `uqr` — the TOTP secret never leaves the origin (older versions sent it to a third-party QR-image service, which was a leak).
 - **2FA bypass** (`/api/db/2fa/bypass/{request,verify}`) emails a single-use link to a verified address (primary if verified, otherwise oldest-verified secondary) when the user has lost their authenticator. Refuses to send when a `password_reset` token was consumed in the last 24h, so email alone cannot reset the password (factor 1) AND bypass 2FA (factor 2) in the same window.
 
@@ -86,7 +86,7 @@ applyTo: "**"
 - Confidential clients only: every app has a hashed `client_secret`. Authenticated on `/oauth/token` via HTTP Basic or body params.
 - Access tokens are signed JWTs (`ES256`), not stored — verified by signature. Authorization codes and refresh tokens are stored in `oauth_grants` and consumed atomically.
 - Refresh-token rotation chains: each rotation links via `parent_grant_value`. Suspected reuse triggers `revokeRefreshTokenChain` on the whole chain (defence against stolen-refresh-token replay).
-- Signing key lives in `OAUTH_SIGNING_KEY_PRIVATE` (Wrangler secret). Rotation procedure in `docs/Operations.md → OAuth signing-key rotation` — `OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC` keeps in-flight tokens valid during the overlap window.
+- Signing key lives in the `KV_OAUTH_KEYS` namespace (`oauth:keys:active` / `oauth:keys:retired`); a daily cron rotates it automatically once a week via `src/oauth-keys-rotation.ts`. The Wrangler secrets `OAUTH_SIGNING_KEY_PRIVATE` / `OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC` remain as a migration fallback (`src/oauth-keys.ts` reads KV first). The retired key stays in JWKS for a two-hour overlap so in-flight tokens validate through the transition. Full procedure and operator endpoints in `docs/Operations.md → OAuth signing-key rotation`.
 
 ## Audit log
 

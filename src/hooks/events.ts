@@ -49,6 +49,10 @@ export const EVENTS = {
   ORG_TEAM_ENTITLEMENTS_REMOVED: "org.team.entitlements.removed",
   ORG_USER_ENTITLEMENTS_SET: "org.user.entitlements.set",
   ORG_USER_ENTITLEMENTS_REMOVED: "org.user.entitlements.removed",
+
+  OAUTH_SIGNING_KEY_ROTATED: "oauth.signing_key.rotated",
+  OAUTH_SIGNING_KEY_ROTATION_FAILED: "oauth.signing_key.rotation.failed",
+  OAUTH_SIGNING_KEY_RETIRED_PROMOTED: "oauth.signing_key.retired.promoted",
 } as const
 
 export type EventType = (typeof EVENTS)[keyof typeof EVENTS]
@@ -106,4 +110,8 @@ export const DEFAULT_SEVERITY: Record<EventType, HookSeverity> = {
   "org.team.entitlements.removed": "notice",
   "org.user.entitlements.set": "notice",
   "org.user.entitlements.removed": "notice",
+
+  "oauth.signing_key.rotated": "alert",
+  "oauth.signing_key.rotation.failed": "critical",
+  "oauth.signing_key.retired.promoted": "alert",
 }

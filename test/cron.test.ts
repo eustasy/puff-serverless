@@ -29,23 +29,19 @@ beforeEach(() => {
   endMock.mockReset().mockResolvedValue(undefined)
 })
 
+// `runScheduledCleanup` is kept as a manually-callable fallback after the
+// pure-SQL cleanup work moved to CockroachDB-side schedules
+// (`sql/schedules.sql`). It now always runs every purge in one pass; the
+// scheduled cron handler dispatches to the rotation path instead.
 describe("runScheduledCleanup", () => {
   it("skips entirely when no Hyperdrive binding is configured", async () => {
-    await runScheduledCleanup(fakeEnv(), "0 * * * *")
+    await runScheduledCleanup(fakeEnv())
     expect(connectMock).not.toHaveBeenCalled()
     expect(queryMock).not.toHaveBeenCalled()
   })
 
-  it("purges TOTP codes and floating sessions on every run", async () => {
-    await runScheduledCleanup(HYPERDRIVE, "*/5 * * * *")
-    expect(queryMock).toHaveBeenCalledTimes(2)
-    const statements = queryMock.mock.calls.map((c) => c[0] as string)
-    expect(statements[0]).toContain("totp_used_codes")
-    expect(statements[1]).toContain("app_floating_sessions")
-  })
-
-  it("also purges sessions, tokens and low-severity audit events on the hourly run", async () => {
-    await runScheduledCleanup(HYPERDRIVE, "0 * * * *")
+  it("runs all five purges in one pass", async () => {
+    await runScheduledCleanup(HYPERDRIVE)
     expect(queryMock).toHaveBeenCalledTimes(5)
     const statements = queryMock.mock.calls.map((c) => c[0] as string)
     expect(statements[0]).toContain("totp_used_codes")
@@ -57,15 +53,13 @@ describe("runScheduledCleanup", () => {
   })
 
   it("always closes the client", async () => {
-    await runScheduledCleanup(HYPERDRIVE, "0 * * * *")
+    await runScheduledCleanup(HYPERDRIVE)
     expect(endMock).toHaveBeenCalled()
   })
 
   it("never throws, even when a query fails", async () => {
     queryMock.mockRejectedValue(new Error("db down"))
-    await expect(
-      runScheduledCleanup(HYPERDRIVE, "0 * * * *")
-    ).resolves.toBeUndefined()
+    await expect(runScheduledCleanup(HYPERDRIVE)).resolves.toBeUndefined()
     // The client is still closed on the failure path.
     expect(endMock).toHaveBeenCalled()
   })

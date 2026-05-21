@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 // Generate an ES256 (ECDSA P-256) keypair for the OAuth/OIDC signing
-// infrastructure. Prints the private JWK to paste into
-// `wrangler secret put OAUTH_SIGNING_KEY_PRIVATE`, plus the matching public
-// JWK and kid for reference.
+// infrastructure. Prints the private JWK plus the matching public JWK and
+// kid for reference.
 //
-// The public key is NOT stored as a separate binding — `src/oauth-keys.ts`
-// derives it from the private JWK at runtime. The previous public JWK is only
-// needed during a rotation overlap window, in OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC.
+// The active key normally lives in the `KV_OAUTH_KEYS` namespace and is
+// rotated automatically (weekly) by the cron in `src/cron.ts`. This script
+// is for first-time seeding only — paste the printed JWK into either the
+// KV `oauth:keys:active` entry or the legacy `OAUTH_SIGNING_KEY_PRIVATE`
+// secret. See docs/Operations.md → OAuth signing-key rotation.
 //
 // Usage:  node scripts/generate-oauth-key.mjs
-//
-// Then:   echo '<paste private JWK>' | npx wrangler secret put OAUTH_SIGNING_KEY_PRIVATE
 
 const { publicKey, privateKey } = await crypto.subtle.generateKey(
   { name: "ECDSA", namedCurve: "P-256" },
@@ -65,7 +64,24 @@ console.log("")
 console.log("Public JWK (derived at runtime; shown for reference only):")
 console.log(JSON.stringify(publicJwkForReference, null, 2))
 console.log("")
-console.log("Private JWK — set as the OAUTH_SIGNING_KEY_PRIVATE secret:")
+console.log("Private JWK:")
+console.log("")
+console.log("  " + privateJwkCompact)
+console.log("")
+console.log("To seed KV (production):")
+console.log("")
+console.log(
+  '  NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ); echo "{\\"jwk\\": ' +
+    privateJwkCompact +
+    ', \\"kid\\": \\"' +
+    kid +
+    '\\", \\"created_at\\": \\"$NOW\\"}" | \\'
+)
+console.log(
+  "    npx wrangler kv key put --binding=KV_OAUTH_KEYS oauth:keys:active --pipe"
+)
+console.log("")
+console.log("To seed the legacy Wrangler secret (migration / fallback):")
 console.log("")
 console.log("  echo '" + privateJwkCompact + "' \\")
 console.log("    | npx wrangler secret put OAUTH_SIGNING_KEY_PRIVATE")
@@ -74,8 +90,7 @@ console.log(
   "For local development add the same JSON to `.env` as OAUTH_SIGNING_KEY_PRIVATE."
 )
 console.log("")
-console.log("Rotation: when rotating, run this script again and:")
-console.log("  1. copy the OLD public JWK (without `kid`/`use`/`alg`) into the")
-console.log("     OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC binding for the overlap")
-console.log("     window (delete it after the longest-lived JWT has expired);")
-console.log("  2. push the NEW private JWK as OAUTH_SIGNING_KEY_PRIVATE.")
+console.log(
+  "Rotation in production is automatic (weekly, via the cron in src/cron.ts). To"
+)
+console.log("rotate on demand, POST to /api/db/auth/admin/oauth-keys/rotate.")

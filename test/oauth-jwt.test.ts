@@ -1,6 +1,10 @@
-import { describe, it, expect, beforeAll } from "vitest"
+import { describe, it, expect, beforeAll, beforeEach } from "vitest"
 import { signJwt, verifyJwt } from "../src/oauth-jwt.js"
-import { JWT_ALG, currentPublicJwk } from "../src/oauth-keys.js"
+import {
+  JWT_ALG,
+  _resetOAuthKeyCache,
+  currentPublicJwk,
+} from "../src/oauth-keys.js"
 import { fakeEnv } from "./helpers/fake-env.js"
 
 async function generateEs256Jwk(): Promise<{
@@ -49,6 +53,12 @@ beforeAll(async () => {
   currentPubOnly = cur.publicJwkJson
   previousPriv = prev.privateJwkJson
   previousPubOnly = prev.publicJwkJson
+})
+
+beforeEach(() => {
+  // `oauth-keys.ts` caches KV / env-var reads at module scope; tests here
+  // swap envs between cases, so clear the cache before each.
+  _resetOAuthKeyCache()
 })
 
 describe("signJwt", () => {

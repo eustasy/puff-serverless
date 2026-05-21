@@ -1,15 +1,28 @@
 declare global {
   type DbClient = import("pg").Client
 
-  // OAuth/OIDC signing-key bindings. The private key is a Wrangler secret
-  // (set via `wrangler secret put OAUTH_SIGNING_KEY_PRIVATE`); the optional
-  // previous-public is a non-secret string the operator sets via dashboard or
-  // `wrangler secret put` during a rotation overlap window. Declared here so
-  // the codebase typechecks regardless of whether the secret has been pushed
-  // to the current Wrangler deployment.
+  // OAuth/OIDC signing-key bindings. Active material lives in the
+  // `KV_OAUTH_KEYS` KV namespace so the rotation cron can write a fresh
+  // keypair at runtime (Wrangler secrets are immutable to the running
+  // Worker). The Wrangler-secret pair (`OAUTH_SIGNING_KEY_PRIVATE` /
+  // `OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC`) is the migration fallback —
+  // `src/oauth-keys.ts` reads KV first and falls back to the env vars when
+  // KV is empty (local dev, post-provision seed). After ≥ one successful
+  // rotation in production the env-var path can be removed.
+  //
+  // `OPERATOR_USER_UUIDS` (comma- or whitespace-separated) gates the
+  // `/api/db/auth/admin/*` endpoints — see `functions/api/db/auth/admin/`.
+  // `OAUTH_KEY_ROTATION_INTERVAL_DAYS` (default 7) bounds the minimum age
+  // before the daily cron rotates again — see `src/oauth-keys-rotation.ts`.
+  //
+  // Declared here so the codebase typechecks regardless of whether the
+  // bindings exist in the current Wrangler deployment.
   interface Env {
-    OAUTH_SIGNING_KEY_PRIVATE: string
+    KV_OAUTH_KEYS?: KVNamespace
+    OAUTH_SIGNING_KEY_PRIVATE?: string
     OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC?: string
+    OAUTH_KEY_ROTATION_INTERVAL_DAYS?: string
+    OPERATOR_USER_UUIDS?: string
   }
 
   interface RequestData extends Record<string, unknown> {

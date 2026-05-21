@@ -20,18 +20,48 @@ Tasks that need doing intermittently — not on every deploy, but as part of run
 
 ## Scheduled cleanup
 
-The request path only ever _soft_-expires data: sessions are marked inactive, tokens marked used, TOTP codes recorded — nothing is deleted inline. A [Cloudflare Cron Trigger](https://developers.cloudflare.com/workers/configuration/cron-triggers/) reaps that data instead.
+The request path only ever _soft_-expires data: sessions are marked inactive, tokens marked used, TOTP codes recorded — nothing is deleted inline. The DB itself reaps that data on a schedule.
 
-The schedules are declared as `triggers.crons` in `wrangler.jsonc`; the `scheduled` handler is added by `worker.ts` and the job itself is `src/cron.ts`. That module is the one DB caller with no `_middleware.ts` in front of it, so it opens and closes its own `pg` client.
+Two different scheduling surfaces are in play, by design:
 
-| Schedule      | Action                                                                                                                                                                                                                       |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `*/5 * * * *` | Purge `totp_used_codes` rows past the TOTP acceptance window. Runs often so a stale row cannot collide with a later, legitimately-different code. Also reaps `app_floating_sessions` past their `expires_at`.                |
-| `0 * * * *`   | Additionally purge `sessions` and `tokens` older than one month (kept that long as a lightweight audit trail), and `audit_events` rows of severity `debug` / `info` older than 90 days. `notice` and above are kept forever. |
+| Where                                                                                                                 | Schedule            | Runs                                                                                                               |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| CockroachDB ([scheduled SQL](https://www.cockroachlabs.com/docs/stable/create-schedule-for-sql), `sql/schedules.sql`) | `*/5 * * * *`       | `DELETE FROM totp_used_codes …`, `DELETE FROM app_floating_sessions …`                                             |
+| CockroachDB (`sql/schedules.sql`)                                                                                     | `0 * * * *`         | `DELETE FROM sessions …`, `DELETE FROM tokens …`, `DELETE FROM audit_events …`                                     |
+| Cloudflare Cron Trigger (`wrangler.jsonc` `triggers.crons` → `src/cron.ts`)                                           | `0 0 * * *` (daily) | `maybeRotateSigningKey(env)` — rotates weekly; see [OAuth signing-key rotation](#oauth-signing-key-rotation) below |
 
-Sessions are purged only when also defunct (inactive or past expiry), so a still-valid session is never deleted even if `SESSION_MAX_AGE_SECONDS` is raised beyond a month.
+Pure-SQL row reaping (TOTP, floating-session, session, token, audit) runs **in CockroachDB itself** — no Worker invocation, no Hyperdrive handshake per tick, no round-trip per DELETE. Work that needs Web Crypto or an external API stays in the Worker.
 
-To watch the cron firing in production, `wrangler tail` will show the summary line each run prints (`Scheduled cleanup (*/5 * * * *): purged N TOTP codes, N floating seats.` and the hourly variant including sessions / tokens / audit-events counts).
+Sessions are purged only when also defunct (inactive or past expiry), so a still-valid session is never deleted even if `SESSION_MAX_AGE_SECONDS` is raised beyond a month. Audit events of severity `notice` and above are retained forever; only `debug` / `info` ages out after 90 days.
+
+### Installing and observing the DB schedules
+
+Install once per environment (idempotent — every statement is `CREATE SCHEDULE IF NOT EXISTS`):
+
+```sh
+$PSQL < sql/schedules.sql
+```
+
+Inspect at runtime:
+
+```sql
+-- Every Puff schedule currently registered.
+SHOW SCHEDULES;
+
+-- Recent runs across all schedules.
+SHOW JOBS WHERE schedule_id IS NOT NULL ORDER BY created DESC LIMIT 20;
+
+-- Drill into one specific schedule (look up the id from SHOW SCHEDULES).
+SHOW JOB <id>;
+```
+
+Alerting hook: any schedule with `next_run < now() - interval '15 minutes'` is overdue; that's the easiest signal that something has stuck.
+
+Requires CockroachDB v23.1+ (`CREATE SCHEDULE … FOR SQL`). On older versions, drop the DB schedules and run `runScheduledCleanup(env)` from a Worker cron instead — the function in `src/cron.ts` is preserved as the manual / fallback path.
+
+### Manual cleanup
+
+`runScheduledCleanup(env)` is kept as a callable fallback — for development, incident-response purges, or operators on a CockroachDB version that does not support `CREATE SCHEDULE FOR SQL`. It runs all five DELETEs in one pass and logs a single summary line.
 
 ## Audit events & hooks
 
@@ -113,37 +143,58 @@ Examples worth thinking about:
 
 ## OAuth signing-key rotation
 
-The OAuth provider signs ID tokens and access tokens with an ES256 (ECDSA P-256) keypair. The private key lives in the `OAUTH_SIGNING_KEY_PRIVATE` secret; the matching public key is derived at runtime, exposed via `/.well-known/jwks.json`, and identified by an RFC 7638 thumbprint `kid` (so the kid is deterministic from the key — no separate binding).
+The OAuth provider signs ID tokens and access tokens with an ES256 (ECDSA P-256) keypair. Active key material lives in the `KV_OAUTH_KEYS` KV namespace under two entries:
 
-Rotation is **a manual operator action** — there is no cron job that rotates keys on its own. The overlap window during rotation is what keeps already-issued JWTs valid until they expire.
+| KV key               | Contents                                           | Purpose                                                                  |
+| -------------------- | -------------------------------------------------- | ------------------------------------------------------------------------ |
+| `oauth:keys:active`  | `{ jwk: <private JWK>, kid, created_at }`          | The current signer. New JWTs are signed with this key.                   |
+| `oauth:keys:retired` | `{ jwk: <public JWK>, kid, retired_at }` (TTL 2 h) | Held during the overlap so JWTs signed by the previous key still verify. |
 
-**First-time setup** (or rotation):
+The matching public key is derived at runtime, exposed via `/.well-known/jwks.json`, and identified by an RFC 7638 thumbprint `kid` (deterministic from the key — no separate kid storage).
 
-1. Generate a fresh keypair:
+Rotation is **automatic**. A Cloudflare Cron Trigger (`0 0 * * *`) wakes the Worker once a day; `maybeRotateSigningKey(env)` (in `src/oauth-keys-rotation.ts`) checks the active key's age against `OAUTH_KEY_ROTATION_INTERVAL_DAYS` (default 7) and, if the key is older than that, mints a fresh ES256 keypair, validates it with a sign-and-verify probe, demotes the old active to retired (public half only, KV TTL = 2 hours), and writes the new active to KV. The effective cadence is therefore weekly — the daily tick just ensures rotation happens promptly without depending on exact clock timing. An audit event `oauth.signing_key.rotated` (severity `alert`) is written on success, `oauth.signing_key.rotation.failed` (severity `critical`) on failure.
 
-   ```sh
-   node scripts/generate-oauth-key.mjs
-   ```
+### Provisioning KV
 
-   The script prints the private JWK (a single-line JSON string), the public JWK with its `kid`, and the exact `wrangler secret put` command to run.
+Once per environment:
 
-2. _(Rotation only — skip on first setup.)_ Copy the **previous** public JWK (the `kty` / `crv` / `x` / `y` fields, without `kid` / `use` / `alg` / `d`) into the `OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC` binding via the dashboard or `wrangler secret put`. This keeps JWTs signed by the retired key validating in JWKS during the overlap window.
+```sh
+npx wrangler kv namespace create KV_OAUTH_KEYS
+# Paste the printed id into wrangler.jsonc → kv_namespaces[].id.
+```
 
-3. Push the new private JWK:
+### First-time seed
 
-   ```sh
-   echo '<the printed private JWK>' | npx wrangler secret put OAUTH_SIGNING_KEY_PRIVATE
-   ```
+For brand-new deployments, generate a starter keypair and seed `oauth:keys:active`:
 
-4. For local development, set the same JWK in `.env` as `OAUTH_SIGNING_KEY_PRIVATE`.
+```sh
+node scripts/generate-oauth-key.mjs
+# Copy the private JWK (the single-line JSON the script prints), then:
+KID=$(...)   # the printed kid
+JWK='<the printed private JWK>'
+NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+echo "{\"jwk\": $JWK, \"kid\": \"$KID\", \"created_at\": \"$NOW\"}" \
+  | npx wrangler kv key put --binding=KV_OAUTH_KEYS oauth:keys:active --pipe
+```
 
-5. After the longest-lived JWT has expired (the access-token / ID-token lifetime — order of an hour), clear `OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC`:
+Alternatively, push the same private JWK as the legacy `OAUTH_SIGNING_KEY_PRIVATE` secret — the runtime path falls back to it when KV is empty, and the next rotation tick copies it into KV automatically. This is the gentler path for migrating an existing deployment.
 
-   ```sh
-   npx wrangler secret delete OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC
-   ```
+For local development, set the JWK in `.env` as `OAUTH_SIGNING_KEY_PRIVATE` (no KV binding needed locally).
 
-`/.well-known/jwks.json` exposes the active public JWK and, while the previous-public binding is set, the retired one alongside it. Clients fetching JWKS will validate JWTs against both during the overlap.
+### Operator endpoints
+
+Both gated by the `OPERATOR_USER_UUIDS` env var (comma- or whitespace-separated list of UUIDs allowed to call admin endpoints). Both POST-only.
+
+| Endpoint                                             | Effect                                                                                                                                                                                                         |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/db/auth/admin/oauth-keys/rotate`          | Rotate now, ignoring the age check. Useful for staging rehearsals or responding to a suspected compromise.                                                                                                     |
+| `POST /api/db/auth/admin/oauth-keys/promote-retired` | Emergency rollback. Swaps `oauth:keys:retired` back into `oauth:keys:active`. Only works while the retired entry carries the private scalar `d` — the normal rotation strips it, so this is a last-ditch path. |
+
+Both write an audit event (`oauth.signing_key.rotated` / `oauth.signing_key.retired.promoted`).
+
+### What gets exposed
+
+`/.well-known/jwks.json` exposes the active public JWK and, while the retired KV entry is held, the retired one alongside it. Clients fetching JWKS will validate JWTs against both during the overlap window. Browsers and JWT libraries fetch JWKS lazily and cache the response; the `Cache-Control: public, max-age=60` on the endpoint matches the KV-read cache inside the Worker, so the overall propagation lag for a rotation is bounded by `max(KV propagation ~60s, JWKS Cache-Control 60s)`.
 
 ## Registering a new app
 
@@ -269,8 +320,8 @@ Operational guardrails worth keeping in mind:
 - **Cookie security** — `SECURE_COOKIE=true` and `COOKIE_SAMESITE=Lax` are the production defaults. The cross-origin write guard in `functions/api/db/_middleware.ts` rejects same-site CSRF from sibling subdomains independently of `SameSite`. If you serve Puff alongside other apps on the same parent domain, the guard is what closes the residual gap.
 - **Password policy** — at minimum, enforce `MIN_PASSWORD_LENGTH ≥ 12` and turn on `REQUIRE_NOT_COMPROMISED` (HIBP). `REQUIRE_ZXCVBN` is the strongest single setting — score ≥ 3 catches most weak passwords without requiring arbitrary character-class flags.
 - **2FA bypass** — the `/api/db/2fa/bypass/request` flow sends a single-use email link to a verified address on the account: the primary if it's verified, otherwise the oldest-verified secondary. Possession of that inbox is the second factor; if an attacker compromises a user's email and their password, 2FA does not save them. The endpoint also refuses to send if a password reset was completed in the last 24 hours — otherwise email alone could reset the password (factor 1) and then bypass 2FA (factor 2). Encourage passkeys (which bind to the device and aren't email-recoverable) for high-value accounts.
-- **TOTP replay** — handled by `totp_used_codes` and the 5-minute cron purge. A code is accepted at most once within its 30s validity window; replays within the same window are rejected.
-- **OAuth signing key** — the active key is a Wrangler secret. Rotate on a schedule (annually is reasonable) and after any suspected compromise; the overlap-window procedure above keeps in-flight tokens valid through the transition.
+- **TOTP replay** — handled by `totp_used_codes` and the 5-minute DB schedule. A code is accepted at most once within its 30s validity window; replays within the same window are rejected.
+- **OAuth signing key** — the active key lives in `KV_OAUTH_KEYS`; a daily cron rotates it automatically once a week (default `OAUTH_KEY_ROTATION_INTERVAL_DAYS=7`). The retired key is held in JWKS for a two-hour overlap so in-flight tokens validate through the transition. Trigger an on-demand rotation via `POST /api/db/auth/admin/oauth-keys/rotate` after any suspected compromise.
 - **Audit log** — `notice` and above are retained indefinitely. Use it for incident investigation; the `target_label` column snapshots referents that may later be deleted. Don't store sensitive payloads in `event_metadata` (passwords, full tokens) — it ends up in the audit table verbatim.
 - **CSP violation reporting** — `public/_headers` declares a `report-uri` and `Reporting-Endpoints`; violations land at `functions/api/csp-report.ts`, which logs them via `console.warn`. Check `wrangler tail` periodically (or pipe it to a log aggregator) to spot misconfigurations or attacks.
 - **Schema changes** — keep additive. The audit table outlives its referents because the FK constraints were deliberately omitted; any schema change that adds FKs to existing append-only data should be reviewed carefully.

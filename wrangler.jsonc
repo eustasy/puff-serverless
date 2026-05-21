@@ -4,7 +4,13 @@
 	"compatibility_date": "2026-03-22",
 	"compatibility_flags": ["nodejs_compat"],
 	"triggers": {
-		"crons": ["*/5 * * * *", "0 * * * *"]
+		// Daily tick driving OAuth signing-key rotation. The handler only
+		// rotates once the active key is older than OAUTH_KEY_ROTATION_INTERVAL_DAYS
+		// (default 7), so the effective cadence is weekly; a daily cron just
+		// guarantees a prompt rotation without depending on exact clock timing.
+		// Pure-SQL row reaping (TOTP, floating-session, session, token, audit)
+		// lives in CockroachDB itself via `sql/schedules.sql`.
+		"crons": ["0 0 * * *"]
 	},
 	"assets": {
 		"directory": "./public",
@@ -15,6 +21,19 @@
 		{
 			"binding": "HYPERDRIVE",
 			"id": "404f36162d5341429d55bde35de77b9f"
+		}
+	],
+	// Workers KV — mutable state the Worker writes at runtime. Used today for
+	// OAuth signing keys (`oauth:keys:active`, `oauth:keys:retired`) so the
+	// weekly rotation cron can promote a fresh keypair without an operator
+	// `wrangler secret put`. See docs/Operations.md → OAuth signing-key
+	// rotation. Provision per-deploy with:
+	//   npx wrangler kv namespace create KV_OAUTH_KEYS
+	// then paste the printed id below.
+	"kv_namespaces": [
+		{
+			"binding": "KV_OAUTH_KEYS",
+			"id": "<set-per-deployment>"
 		}
 	],
 	"ratelimits": [
