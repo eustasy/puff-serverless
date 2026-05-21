@@ -33,6 +33,10 @@ export const onRequestGet: Handler = async ({ env }) => {
       "name",
       "email",
       "email_verified",
+      "org_uuid",
+      "puff:memberships",
+      "puff:roles",
+      "puff:entitlements",
     ],
   }
   return new Response(JSON.stringify(doc), {

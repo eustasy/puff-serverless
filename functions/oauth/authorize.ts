@@ -23,6 +23,11 @@ import {
   validateScopes,
 } from "../../src/oauth.js"
 import { verifyTokenAndGetUser } from "../../src/sessions.js"
+import {
+  findEligibleOrgs,
+  isLicensed,
+  isUserInOrg,
+} from "../../src/entitlements.js"
 
 const SCOPE_DESCRIPTIONS: Record<string, string> = {
   openid: "Sign you in",
@@ -40,6 +45,8 @@ interface ParsedRequest {
   code_challenge: string
   code_challenge_method: string
   nonce: string | null
+  /** Optional org context — picks one of the user's eligible orgs. */
+  org_uuid: string | null
 }
 
 function readParams(source: URLSearchParams): ParsedRequest {
@@ -52,6 +59,7 @@ function readParams(source: URLSearchParams): ParsedRequest {
     code_challenge: source.get("code_challenge") || "",
     code_challenge_method: source.get("code_challenge_method") || "",
     nonce: source.get("nonce"),
+    org_uuid: source.get("org_uuid"),
   }
 }
 
@@ -97,8 +105,9 @@ function buildConsentPage(opts: {
   appName: string
   scopes: string[]
   params: ParsedRequest
+  orgs?: { org_uuid: string; org_name: string }[]
 }): Response {
-  const { appName, scopes, params } = opts
+  const { appName, scopes, params, orgs } = opts
   const scopeList = scopes
     .map(
       (s) =>
@@ -107,6 +116,20 @@ function buildConsentPage(opts: {
         )}</li>`
     )
     .join("\n")
+  const orgPicker =
+    orgs && orgs.length > 1
+      ? `<fieldset>
+          <legend>Use this app on behalf of:</legend>
+          ${orgs
+            .map(
+              (org, i) =>
+                `<label><input type="radio" name="org_uuid" value="${escapeHtml(
+                  org.org_uuid
+                )}"${i === 0 ? " required" : ""}> ${escapeHtml(org.org_name)}</label>`
+            )
+            .join("")}
+        </fieldset>`
+      : ""
 
   // All original parameters are echoed back as hidden inputs on the POST so
   // the consent submission re-validates against the same request shape — the
@@ -121,6 +144,7 @@ function buildConsentPage(opts: {
       ["code_challenge", params.code_challenge],
       ["code_challenge_method", params.code_challenge_method],
       ["nonce", params.nonce ?? ""],
+      ["org_uuid", params.org_uuid ?? ""],
     ] as const
   )
     .map(
@@ -131,6 +155,12 @@ function buildConsentPage(opts: {
     )
     .join("\n")
 
+  // When an org picker is rendered, the hidden `org_uuid` is omitted so the
+  // radio choice is the authoritative submission.
+  const filteredHidden =
+    orgs && orgs.length > 1
+      ? hidden.replace(/<input type="hidden" name="org_uuid"[^>]*>\n?/, "")
+      : hidden
   const body = `<!doctype html>
 <html lang="en">
   <head>
@@ -143,7 +173,8 @@ function buildConsentPage(opts: {
       <p><strong>${escapeHtml(appName)}</strong> is requesting permission to:</p>
       <ul>${scopeList}</ul>
       <form method="POST" action="/oauth/authorize">
-${hidden}
+${filteredHidden}
+        ${orgPicker}
         <button type="submit" name="consent" value="approve">Approve</button>
         <button type="submit" name="consent" value="deny">Deny</button>
       </form>
@@ -259,16 +290,123 @@ async function authenticatedUserId(
   return result.success ? result.user_uuid : null
 }
 
+type OrgResolution =
+  | { kind: "no_org_needed"; org_uuid: null }
+  | { kind: "bound"; org_uuid: string }
+  | {
+      kind: "pick"
+      orgs: { org_uuid: string; org_name: string }[]
+    }
+  | { kind: "error"; response: Response }
+
+/**
+ * Resolves the org context for this OAuth request.
+ *
+ *   - `none`-mode app  → no org context required; org_uuid stays null.
+ *   - explicit org_uuid in the request → verified to exist, the user must
+ *     belong to it, and (for licensed modes) `isLicensed` must pass.
+ *   - no explicit org → look at the user's eligible orgs:
+ *       0  → access_denied (no entitlements anywhere).
+ *       1  → bind that single org automatically.
+ *       2+ → show the consent page with an org picker; the POST will carry
+ *            an org_uuid form field.
+ *
+ * For `floating`-mode apps, allocation happens at /token time — the
+ * isLicensed gate here only requires that a pool is configured (so the
+ * caller might still be turned away then if the pool is full).
+ */
+async function resolveOrgContext(
+  dbClient: DbClient,
+  app: AppRow,
+  user_uuid: string,
+  params: ParsedRequest
+): Promise<OrgResolution> {
+  if (app.app_licensing_mode === "none") {
+    return { kind: "no_org_needed", org_uuid: null }
+  }
+
+  if (params.org_uuid) {
+    const member = await isUserInOrg(dbClient, params.org_uuid, user_uuid)
+    if (!member.success || !member.member) {
+      return {
+        kind: "error",
+        response: redirectToClient(
+          oauthRedirectErrorUrl(
+            params.redirect_uri,
+            "access_denied",
+            params.state,
+            "You are not a member of the requested organisation."
+          )
+        ),
+      }
+    }
+    // For floating apps, accept the binding without confirming a free seat —
+    // the pool check runs at /token time; allocating here would hold a seat
+    // for the entire consent screen.
+    if (app.app_licensing_mode !== "floating") {
+      const lic = await isLicensed(dbClient, app, user_uuid, params.org_uuid)
+      if (!lic.success || !lic.licensed) {
+        return {
+          kind: "error",
+          response: redirectToClient(
+            oauthRedirectErrorUrl(
+              params.redirect_uri,
+              "access_denied",
+              params.state,
+              "No entitlement for this application in that organisation."
+            )
+          ),
+        }
+      }
+    }
+    return { kind: "bound", org_uuid: params.org_uuid }
+  }
+
+  const eligible = await findEligibleOrgs(dbClient, app.app_uuid, user_uuid)
+  if (!eligible.success) {
+    return {
+      kind: "error",
+      response: redirectToClient(
+        oauthRedirectErrorUrl(
+          params.redirect_uri,
+          "server_error",
+          params.state,
+          "Could not resolve organisations."
+        )
+      ),
+    }
+  }
+  if (eligible.orgs.length === 0) {
+    return {
+      kind: "error",
+      response: redirectToClient(
+        oauthRedirectErrorUrl(
+          params.redirect_uri,
+          "access_denied",
+          params.state,
+          "You have no entitlement for this application."
+        )
+      ),
+    }
+  }
+  if (eligible.orgs.length === 1) {
+    return { kind: "bound", org_uuid: eligible.orgs[0]!.org_uuid }
+  }
+  return { kind: "pick", orgs: eligible.orgs }
+}
+
 async function issueCodeAndRedirect(opts: {
   dbClient: DbClient
   user_uuid: string
   app: AppRow
   scopes: string[]
   params: ParsedRequest
+  org_uuid: string | null
 }): Promise<Response> {
   const code = await createAuthorizationCode(opts.dbClient, {
     user_uuid: opts.user_uuid,
     app_uuid: opts.app.app_uuid,
+    org_uuid: opts.org_uuid,
     scopes: opts.scopes,
     redirect_uri: opts.params.redirect_uri,
     code_challenge: opts.params.code_challenge,
@@ -306,6 +444,14 @@ export const onRequestGet: Handler = async (context) => {
     return redirectToLogin(env, request.url)
   }
 
+  const orgResolution = await resolveOrgContext(
+    dbClient,
+    app,
+    user_uuid,
+    params
+  )
+  if (orgResolution.kind === "error") return orgResolution.response
+
   const consent = await hasConsentFor(dbClient, user_uuid, app.app_uuid, scopes)
   if (consent.error) {
     return redirectToClient(
@@ -317,17 +463,24 @@ export const onRequestGet: Handler = async (context) => {
       )
     )
   }
-  if (consent.success && consent.covered) {
+
+  if (consent.success && consent.covered && orgResolution.kind !== "pick") {
     return issueCodeAndRedirect({
       dbClient,
       user_uuid,
       app,
       scopes,
       params,
+      org_uuid: orgResolution.kind === "bound" ? orgResolution.org_uuid : null,
     })
   }
 
-  return buildConsentPage({ appName: app.app_name, scopes, params })
+  return buildConsentPage({
+    appName: app.app_name,
+    scopes,
+    params,
+    orgs: orgResolution.kind === "pick" ? orgResolution.orgs : undefined,
+  })
 }
 
 export const onRequestPost: Handler = async (context) => {
@@ -367,6 +520,25 @@ export const onRequestPost: Handler = async (context) => {
     )
   }
 
+  const orgResolution = await resolveOrgContext(
+    dbClient,
+    app,
+    user_uuid,
+    params
+  )
+  if (orgResolution.kind === "error") return orgResolution.response
+  if (orgResolution.kind === "pick") {
+    // The picker form failed to submit a choice — re-render it.
+    return buildConsentPage({
+      appName: app.app_name,
+      scopes,
+      params,
+      orgs: orgResolution.orgs,
+    })
+  }
+  const bound_org_uuid =
+    orgResolution.kind === "bound" ? orgResolution.org_uuid : null
+
   const consent = await upsertConsent(dbClient, user_uuid, app.app_uuid, scopes)
   if (consent.error) {
     return redirectToClient(
@@ -379,7 +551,14 @@ export const onRequestPost: Handler = async (context) => {
     )
   }
 
-  return issueCodeAndRedirect({ dbClient, user_uuid, app, scopes, params })
+  return issueCodeAndRedirect({
+    dbClient,
+    user_uuid,
+    app,
+    scopes,
+    params,
+    org_uuid: bound_org_uuid,
+  })
 }
 
 export const onRequest: Handler = async () =>

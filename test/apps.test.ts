@@ -15,6 +15,7 @@ const sampleApp: AppRow = {
   client_secret: "stored:salt",
   redirect_uris: ["https://app.example/cb"],
   app_active: true,
+  app_licensing_mode: "none",
   app_created_at: new Date("2026-05-01T00:00:00Z"),
 }
 

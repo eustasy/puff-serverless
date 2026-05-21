@@ -68,6 +68,8 @@ export type OrgAction =
   | "org:teams:manage"
   | "org:keyvalues:read"
   | "org:keyvalues:write"
+  | "org:entitlements:read"
+  | "org:entitlements:write"
 
 /** Team-scoped actions — authorised against a user's `TeamRole`s. */
 export type TeamAction =
@@ -101,6 +103,8 @@ const ORG_ROLE_ACTIONS: Record<OrgRole, readonly OrgAction[]> = {
     "org:teams:manage",
     "org:keyvalues:read",
     "org:keyvalues:write",
+    "org:entitlements:read",
+    "org:entitlements:write",
   ],
   admin: [
     "org:view",
@@ -113,9 +117,16 @@ const ORG_ROLE_ACTIONS: Record<OrgRole, readonly OrgAction[]> = {
     "org:teams:manage",
     "org:keyvalues:read",
     "org:keyvalues:write",
+    "org:entitlements:read",
+    "org:entitlements:write",
   ],
   member: ["org:view", "org:members:view", "org:keyvalues:read"],
-  billing: ["org:view", "org:billing", "org:keyvalues:read"],
+  billing: [
+    "org:view",
+    "org:billing",
+    "org:keyvalues:read",
+    "org:entitlements:read",
+  ],
   guest: ["org:view"],
 }
 

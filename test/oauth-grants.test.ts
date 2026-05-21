@@ -20,6 +20,7 @@ describe("createAuthorizationCode", () => {
     const result = await createAuthorizationCode(db.client, {
       user_uuid: "u-1",
       app_uuid: "a-1",
+      org_uuid: "o-1",
       scopes: ["openid", "profile"],
       redirect_uri: "https://app.example/cb",
       code_challenge: "ch",
@@ -32,12 +33,13 @@ describe("createAuthorizationCode", () => {
     // First positional is the code; subsequent ones are the inputs we passed.
     expect(call.values[1]).toBe("u-1")
     expect(call.values[2]).toBe("a-1")
-    expect(call.values[3]).toEqual(["openid", "profile"])
-    expect(call.values[4]).toBe("https://app.example/cb")
-    expect(call.values[5]).toBe("ch")
-    expect(call.values[6]).toBe("S256")
-    expect(call.values[7]).toBe("n-1")
-    expect(call.values[8]).toBe(AUTHORIZATION_CODE_TTL_SECONDS)
+    expect(call.values[3]).toBe("o-1")
+    expect(call.values[4]).toEqual(["openid", "profile"])
+    expect(call.values[5]).toBe("https://app.example/cb")
+    expect(call.values[6]).toBe("ch")
+    expect(call.values[7]).toBe("S256")
+    expect(call.values[8]).toBe("n-1")
+    expect(call.values[9]).toBe(AUTHORIZATION_CODE_TTL_SECONDS)
   })
 
   it("returns 500 when the DB throws", async () => {
@@ -46,6 +48,7 @@ describe("createAuthorizationCode", () => {
     const result = await createAuthorizationCode(db.client, {
       user_uuid: "u-1",
       app_uuid: "a-1",
+      org_uuid: null,
       scopes: [],
       redirect_uri: "x",
       code_challenge: "c",
@@ -109,14 +112,16 @@ describe("createRefreshToken", () => {
     const result = await createRefreshToken(db.client, {
       user_uuid: "u-1",
       app_uuid: "a-1",
+      org_uuid: "o-1",
       scopes: ["openid", "offline_access"],
       parent_grant_value: "rt-old",
     })
     expect(result.success).toBe(true)
     const call = db.calls[0]!
     expect(call.text).toMatch(/'refresh_token'/)
-    expect(call.values[4]).toBe("rt-old")
-    expect(call.values[5]).toBe(REFRESH_TOKEN_TTL_SECONDS)
+    expect(call.values[3]).toBe("o-1")
+    expect(call.values[5]).toBe("rt-old")
+    expect(call.values[6]).toBe(REFRESH_TOKEN_TTL_SECONDS)
   })
 })
 

@@ -123,22 +123,33 @@ describe("oauthRedirectErrorUrl", () => {
 })
 
 describe("claimsForScopes", () => {
-  it("toggles profile + email flags based on scope membership", () => {
+  it("toggles every flag based on scope membership", () => {
     expect(claimsForScopes(["openid"])).toEqual({
       includeProfile: false,
       includeEmail: false,
+      includeMemberships: false,
+      includeRoles: false,
+      includeEntitlements: false,
     })
-    expect(claimsForScopes(["openid", "profile"])).toEqual({
+    expect(claimsForScopes(["openid", "profile"])).toMatchObject({
       includeProfile: true,
       includeEmail: false,
     })
-    expect(claimsForScopes(["openid", "email"])).toEqual({
+    expect(claimsForScopes(["openid", "email"])).toMatchObject({
       includeProfile: false,
       includeEmail: true,
     })
-    expect(claimsForScopes(["openid", "profile", "email"])).toEqual({
-      includeProfile: true,
-      includeEmail: true,
+    expect(
+      claimsForScopes([
+        "openid",
+        "puff:memberships",
+        "puff:roles",
+        "puff:entitlements",
+      ])
+    ).toMatchObject({
+      includeMemberships: true,
+      includeRoles: true,
+      includeEntitlements: true,
     })
   })
 })

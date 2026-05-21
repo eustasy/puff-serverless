@@ -14,6 +14,39 @@ import {
 } from "./utilities/hashing.js"
 
 /**
+ * The four licensing modes an app can declare. `none` skips all license
+ * checks; `seat` requires each user/team/org to hold a `license:tier` KV
+ * entitlement; `usage` lets any org member through (the app meters usage out
+ * of band, the count of users with at least one entitlement row drives the
+ * bill); `floating` allocates from a per-org pool of concurrent seats tracked
+ * in `app_floating_sessions`.
+ */
+export const LICENSING_MODES = ["none", "seat", "usage", "floating"] as const
+export type AppLicensingMode = (typeof LICENSING_MODES)[number]
+
+/** Type guard for user-supplied licensing mode strings. */
+export function isAppLicensingMode(value: unknown): value is AppLicensingMode {
+  return (
+    typeof value === "string" &&
+    (LICENSING_MODES as readonly string[]).includes(value)
+  )
+}
+
+/**
+ * Reserved KV keys the licensing layer reads. Apps may use any other key
+ * freely; the namespace `license:*` and `perm:*` are conventions enforced by
+ * the entitlement layer, not the database.
+ */
+export const LICENSE_TIER_KEY = "license:tier"
+export const LICENSE_FLOATING_MAX_KEY = "license:floating:max"
+export const LICENSE_TIERS_PREFIX = "license:tiers:"
+export const LICENSE_PERMS_PREFIX = "license:perms:"
+export const PERM_PREFIX = "perm:"
+
+const APP_COLUMNS =
+  "app_uuid, app_name, client_id, client_secret, redirect_uris, app_active, app_licensing_mode, app_created_at"
+
+/**
  * Read a single app by its app_uuid. The app must be active (`app_active` is
  * TRUE); a disabled app is treated as not found from the OAuth layer's point
  * of view — its tokens are rejected without leaking that the registration
@@ -25,7 +58,7 @@ export async function readApp(
 ): Promise<Envelope<{ app: AppRow }>> {
   try {
     const query = `
-      SELECT app_uuid, app_name, client_id, client_secret, redirect_uris, app_active, app_created_at
+      SELECT ${APP_COLUMNS}
       FROM apps
       WHERE app_uuid = $1 AND app_active = TRUE
       LIMIT 1
@@ -57,7 +90,7 @@ export async function readAppByClientId(
 ): Promise<Envelope<{ app: AppRow }>> {
   try {
     const query = `
-      SELECT app_uuid, app_name, client_id, client_secret, redirect_uris, app_active, app_created_at
+      SELECT ${APP_COLUMNS}
       FROM apps
       WHERE client_id = $1 AND app_active = TRUE
       LIMIT 1
@@ -138,7 +171,7 @@ export async function listApps(
 ): Promise<Envelope<{ apps: AppRow[] }>> {
   try {
     const query = `
-      SELECT app_uuid, app_name, client_id, client_secret, redirect_uris, app_active, app_created_at
+      SELECT ${APP_COLUMNS}
       FROM apps
       ORDER BY app_created_at DESC
     `
@@ -165,4 +198,68 @@ export async function hashClientSecret(
 ): Promise<{ stored: string; algo: string }> {
   const { hash, salt, algo } = await puff_hashing_password(client_secret)
   return { stored: `${hash}:${salt}`, algo }
+}
+
+/**
+ * Reads the tiers an app declares for itself. Tiers live in `app_key_values`
+ * with the app as both subject and owner, under the `license:tiers:<name>` key
+ * convention — the key suffix is the tier identifier (the value users get
+ * granted in `license:tier`), the value is the human-readable label or
+ * description. Returns an empty list when the app has not declared any.
+ */
+export async function listAppTiers(
+  dbClient: DbClient,
+  app_uuid: string
+): Promise<Envelope<{ tiers: { name: string; label: string }[] }>> {
+  try {
+    const { rows } = await dbClient.query(
+      `SELECT kv_key, kv_value FROM app_key_values WHERE app_uuid = $1 AND owner_app_uuid = $1 AND kv_key LIKE $2 ESCAPE '\\' ORDER BY kv_key ASC`,
+      [app_uuid, `${LICENSE_TIERS_PREFIX}%`]
+    )
+    const tiers = rows.map((row) => ({
+      name: row.kv_key.slice(LICENSE_TIERS_PREFIX.length),
+      label: row.kv_value,
+    }))
+    return { success: true, tiers, status: 200 }
+  } catch (error) {
+    console.error("Error in listAppTiers:", error)
+    return {
+      error: true,
+      message: "Could not list app tiers.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
+/**
+ * Reads the permission keys an app declares for itself. Apps may publish the
+ * full set of `perm:*` keys they recognise so an operator UI can offer them as
+ * a checklist when an org grants entitlements. Stored in `app_key_values`
+ * (subject = owner = app) under `license:perms:<name>` keys; the key suffix
+ * is the permission identifier and the value is the display label.
+ */
+export async function listAppPermissions(
+  dbClient: DbClient,
+  app_uuid: string
+): Promise<Envelope<{ perms: { name: string; label: string }[] }>> {
+  try {
+    const { rows } = await dbClient.query(
+      `SELECT kv_key, kv_value FROM app_key_values WHERE app_uuid = $1 AND owner_app_uuid = $1 AND kv_key LIKE $2 ESCAPE '\\' ORDER BY kv_key ASC`,
+      [app_uuid, `${LICENSE_PERMS_PREFIX}%`]
+    )
+    const perms = rows.map((row) => ({
+      name: row.kv_key.slice(LICENSE_PERMS_PREFIX.length),
+      label: row.kv_value,
+    }))
+    return { success: true, perms, status: 200 }
+  } catch (error) {
+    console.error("Error in listAppPermissions:", error)
+    return {
+      error: true,
+      message: "Could not list app permissions.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
 }

@@ -13,6 +13,13 @@ export const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60 // 30 days
 interface CreateAuthorizationCodeInput {
   user_uuid: string
   app_uuid: string
+  /**
+   * Org context the user picked at /authorize time. Null when no licensed
+   * org applies (i.e. the app's licensing mode is `none` or the org context
+   * wasn't supplied). The token endpoint propagates this onto refresh tokens
+   * and the entitlements claim baked into the access token.
+   */
+  org_uuid: string | null
   scopes: string[]
   redirect_uri: string
   code_challenge: string
@@ -34,17 +41,18 @@ export async function createAuthorizationCode(
     const code = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, "")
     const query = `
       INSERT INTO oauth_grants (
-        grant_value, grant_type, user_uuid, app_uuid, scopes,
+        grant_value, grant_type, user_uuid, app_uuid, org_uuid, scopes,
         redirect_uri, code_challenge, code_challenge_method, nonce, expires_at
       )
-      VALUES ($1, 'authorization_code', $2, $3, $4, $5, $6, $7, $8,
-              now() + ($9::INT) * INTERVAL '1 second')
+      VALUES ($1, 'authorization_code', $2, $3, $4, $5, $6, $7, $8, $9,
+              now() + ($10::INT) * INTERVAL '1 second')
       RETURNING grant_value
     `
     const values = [
       code,
       input.user_uuid,
       input.app_uuid,
+      input.org_uuid,
       input.scopes,
       input.redirect_uri,
       input.code_challenge,
@@ -120,6 +128,8 @@ export async function consumeAuthorizationCode(
 interface CreateRefreshTokenInput {
   user_uuid: string
   app_uuid: string
+  /** Org context propagated from the original authorization code. */
+  org_uuid: string | null
   scopes: string[]
   parent_grant_value: string | null
 }
@@ -137,17 +147,18 @@ export async function createRefreshToken(
     const token = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, "")
     const query = `
       INSERT INTO oauth_grants (
-        grant_value, grant_type, user_uuid, app_uuid, scopes,
+        grant_value, grant_type, user_uuid, app_uuid, org_uuid, scopes,
         parent_grant_value, expires_at
       )
-      VALUES ($1, 'refresh_token', $2, $3, $4, $5,
-              now() + ($6::INT) * INTERVAL '1 second')
+      VALUES ($1, 'refresh_token', $2, $3, $4, $5, $6,
+              now() + ($7::INT) * INTERVAL '1 second')
       RETURNING grant_value
     `
     const values = [
       token,
       input.user_uuid,
       input.app_uuid,
+      input.org_uuid,
       input.scopes,
       input.parent_grant_value,
       REFRESH_TOKEN_TTL_SECONDS,

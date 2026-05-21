@@ -7,7 +7,11 @@
 //   200 + { access_token, token_type:"Bearer", expires_in, refresh_token?, id_token?, scope }
 //   400 / 401 + { error, error_description? }   per RFC 6749 §5.2
 
-import { oauthErrorResponse, verifyPkce } from "../../src/oauth.js"
+import {
+  claimsForScopes,
+  oauthErrorResponse,
+  verifyPkce,
+} from "../../src/oauth.js"
 import { verifyAppCredentials } from "../../src/apps.js"
 import {
   consumeAuthorizationCode,
@@ -18,6 +22,15 @@ import {
 import { signJwt } from "../../src/oauth-jwt.js"
 import { readEmails } from "../../src/emails.js"
 import { readUser } from "../../src/users.js"
+import {
+  checkoutFloatingSeat,
+  releaseFloatingSeat,
+} from "../../src/app-floating-sessions.js"
+import {
+  buildEntitlementsClaim,
+  buildMembershipsClaim,
+  buildRolesClaim,
+} from "../../src/oauth-claims.js"
 
 const ACCESS_TOKEN_TTL_SECONDS = 60 * 60 // 1 hour
 
@@ -47,6 +60,8 @@ interface IdTokenContext {
   issuer: string
   scopes: string[]
   nonce: string | null
+  app: { app_uuid: string; app_licensing_mode: AppRow["app_licensing_mode"] }
+  org_uuid: string | null
 }
 
 async function buildIdToken(
@@ -64,14 +79,17 @@ async function buildIdToken(
     exp: now + ACCESS_TOKEN_TTL_SECONDS,
   }
   if (ctx.nonce) payload.nonce = ctx.nonce
+  if (ctx.org_uuid) payload.org_uuid = ctx.org_uuid
 
-  if (ctx.scopes.includes("profile") || ctx.scopes.includes("email")) {
+  const flags = claimsForScopes(ctx.scopes)
+
+  if (flags.includeProfile || flags.includeEmail) {
     const userResult = await readUser(dbClient, ctx.user_uuid)
     if (userResult.success) {
-      if (ctx.scopes.includes("profile")) {
+      if (flags.includeProfile) {
         payload.name = userResult.user.user_name
       }
-      if (ctx.scopes.includes("email")) {
+      if (flags.includeEmail) {
         try {
           const emails = await readEmails(dbClient, ctx.user_uuid)
           const primary =
@@ -87,6 +105,27 @@ async function buildIdToken(
       }
     }
   }
+
+  if (flags.includeMemberships) {
+    const m = await buildMembershipsClaim(dbClient, ctx.user_uuid)
+    if (m.success) payload["puff:memberships"] = m.memberships
+  }
+  if (flags.includeRoles) {
+    const r = await buildRolesClaim(dbClient, ctx.user_uuid)
+    if (r.success) payload["puff:roles"] = r.roles
+  }
+  if (flags.includeEntitlements) {
+    const e = await buildEntitlementsClaim(
+      dbClient,
+      ctx.app,
+      ctx.user_uuid,
+      ctx.org_uuid
+    )
+    if (e.success && e.entitlements) {
+      payload["puff:entitlements"] = e.entitlements
+    }
+  }
+
   return signJwt(env, payload)
 }
 
@@ -97,10 +136,11 @@ async function buildAccessToken(
     client_id: string
     issuer: string
     scopes: string[]
+    org_uuid: string | null
   }
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000)
-  return signJwt(env, {
+  const payload: Record<string, unknown> = {
     iss: ctx.issuer,
     sub: ctx.user_uuid,
     aud: ctx.client_id,
@@ -109,7 +149,11 @@ async function buildAccessToken(
     iat: now,
     exp: now + ACCESS_TOKEN_TTL_SECONDS,
     jti: crypto.randomUUID(),
-  })
+  }
+  if (ctx.org_uuid) {
+    payload.org_uuid = ctx.org_uuid
+  }
+  return signJwt(env, payload)
 }
 
 interface TokenResponse {
@@ -221,11 +265,39 @@ export const onRequestPost: Handler = async (context) => {
     }
 
     const scopes = grant.scopes
+    const grant_org_uuid = grant.org_uuid
+
+    // Floating apps allocate a seat at token-issue time. If the org's pool is
+    // already full, the OAuth contract says we deny — the user might retry
+    // later when a seat frees up.
+    if (app.app_licensing_mode === "floating") {
+      if (!grant_org_uuid) {
+        return oauthErrorResponse(
+          "invalid_grant",
+          "Floating-licence app requires an organisation context."
+        )
+      }
+      const seat = await checkoutFloatingSeat(
+        dbClient,
+        app.app_uuid,
+        grant_org_uuid,
+        grant.user_uuid,
+        ACCESS_TOKEN_TTL_SECONDS
+      )
+      if (!seat.success) {
+        return oauthErrorResponse(
+          "access_denied",
+          seat.message ?? "No floating seat available."
+        )
+      }
+    }
+
     const access_token = await buildAccessToken(env, {
       user_uuid: grant.user_uuid,
       client_id: app.client_id,
       issuer,
       scopes,
+      org_uuid: grant_org_uuid,
     })
     const id_token = await buildIdToken(env, dbClient, {
       user_uuid: grant.user_uuid,
@@ -233,6 +305,8 @@ export const onRequestPost: Handler = async (context) => {
       issuer,
       scopes,
       nonce: grant.nonce,
+      app,
+      org_uuid: grant_org_uuid,
     })
 
     let refresh_token: string | undefined
@@ -240,6 +314,7 @@ export const onRequestPost: Handler = async (context) => {
       const refresh = await createRefreshToken(dbClient, {
         user_uuid: grant.user_uuid,
         app_uuid: app.app_uuid,
+        org_uuid: grant_org_uuid,
         scopes,
         parent_grant_value: null,
       })
@@ -276,18 +351,55 @@ export const onRequestPost: Handler = async (context) => {
     }
     if (!consumed.success) {
       // Could be: expired, wrong app, already used. The last case is suspected
-      // reuse — invalidate the chain on a best-effort basis.
+      // reuse — invalidate the chain AND, on a best-effort basis, release any
+      // floating seat the chain was holding so an attacker doesn't get to
+      // pin a slot.
       await revokeRefreshTokenChain(dbClient, presented)
       return oauthErrorResponse("invalid_grant", consumed.message)
     }
     const grant = consumed.grant
-
     const scopes = grant.scopes
+    const grant_org_uuid = grant.org_uuid
+
+    if (app.app_licensing_mode === "floating") {
+      if (!grant_org_uuid) {
+        return oauthErrorResponse(
+          "invalid_grant",
+          "Floating-licence app requires an organisation context."
+        )
+      }
+      // Heartbeat-or-allocate: the existing seat is bumped, or a new one is
+      // claimed if the previous expired. Pool-exhausted at refresh time is
+      // the same denial path as at code exchange.
+      const seat = await checkoutFloatingSeat(
+        dbClient,
+        app.app_uuid,
+        grant_org_uuid,
+        grant.user_uuid,
+        ACCESS_TOKEN_TTL_SECONDS
+      )
+      if (!seat.success) {
+        // Best-effort: free anything we have for this user so the pool isn't
+        // stuck.
+        await releaseFloatingSeat(
+          dbClient,
+          app.app_uuid,
+          grant_org_uuid,
+          grant.user_uuid
+        )
+        return oauthErrorResponse(
+          "access_denied",
+          seat.message ?? "No floating seat available."
+        )
+      }
+    }
+
     const access_token = await buildAccessToken(env, {
       user_uuid: grant.user_uuid,
       client_id: app.client_id,
       issuer,
       scopes,
+      org_uuid: grant_org_uuid,
     })
     const id_token = await buildIdToken(env, dbClient, {
       user_uuid: grant.user_uuid,
@@ -295,10 +407,13 @@ export const onRequestPost: Handler = async (context) => {
       issuer,
       scopes,
       nonce: null, // OIDC §12.1 — nonce is not re-issued during refresh.
+      app,
+      org_uuid: grant_org_uuid,
     })
     const rotated = await createRefreshToken(dbClient, {
       user_uuid: grant.user_uuid,
       app_uuid: app.app_uuid,
+      org_uuid: grant_org_uuid,
       scopes,
       parent_grant_value: grant.grant_value,
     })

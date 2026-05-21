@@ -36,19 +36,22 @@ describe("runScheduledCleanup", () => {
     expect(queryMock).not.toHaveBeenCalled()
   })
 
-  it("purges only TOTP codes on a non-hourly run", async () => {
+  it("purges TOTP codes and floating sessions on every run", async () => {
     await runScheduledCleanup(HYPERDRIVE, "*/5 * * * *")
-    expect(queryMock).toHaveBeenCalledTimes(1)
-    expect(queryMock.mock.calls[0][0]).toContain("totp_used_codes")
+    expect(queryMock).toHaveBeenCalledTimes(2)
+    const statements = queryMock.mock.calls.map((c) => c[0] as string)
+    expect(statements[0]).toContain("totp_used_codes")
+    expect(statements[1]).toContain("app_floating_sessions")
   })
 
   it("also purges sessions and tokens on the hourly run", async () => {
     await runScheduledCleanup(HYPERDRIVE, "0 * * * *")
-    expect(queryMock).toHaveBeenCalledTimes(3)
+    expect(queryMock).toHaveBeenCalledTimes(4)
     const statements = queryMock.mock.calls.map((c) => c[0] as string)
     expect(statements[0]).toContain("totp_used_codes")
-    expect(statements[1]).toContain("sessions")
-    expect(statements[2]).toContain("tokens")
+    expect(statements[1]).toContain("app_floating_sessions")
+    expect(statements[2]).toContain("sessions")
+    expect(statements[3]).toContain("tokens")
   })
 
   it("always closes the client", async () => {

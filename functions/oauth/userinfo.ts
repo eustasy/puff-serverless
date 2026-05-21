@@ -9,6 +9,12 @@ import { verifyJwt } from "../../src/oauth-jwt.js"
 import { readUser } from "../../src/users.js"
 import { readEmails } from "../../src/emails.js"
 import { claimsForScopes, parseScope } from "../../src/oauth.js"
+import { readAppByClientId } from "../../src/apps.js"
+import {
+  buildEntitlementsClaim,
+  buildMembershipsClaim,
+  buildRolesClaim,
+} from "../../src/oauth-claims.js"
 
 function bearerError(
   code: "invalid_token" | "insufficient_scope",
@@ -67,13 +73,13 @@ export const onRequestGet: Handler = async (context) => {
   const scopes = parseScope(
     typeof payload.scope === "string" ? payload.scope : null
   )
-  const { includeProfile, includeEmail } = claimsForScopes(scopes)
+  const flags = claimsForScopes(scopes)
 
   const claims: Record<string, unknown> = { sub: user.user_uuid }
-  if (includeProfile) {
+  if (flags.includeProfile) {
     claims.name = user.user_name
   }
-  if (includeEmail) {
+  if (flags.includeEmail) {
     try {
       const emails = await readEmails(dbClient, user.user_uuid)
       // Prefer the primary verified address; fall back to any verified one.
@@ -87,6 +93,38 @@ export const onRequestGet: Handler = async (context) => {
     } catch (error) {
       console.error("userinfo: failed to read emails:", error)
       // Don't fail the whole response — email claims are optional.
+    }
+  }
+
+  if (flags.includeMemberships) {
+    const m = await buildMembershipsClaim(dbClient, user.user_uuid)
+    if (m.success) claims["puff:memberships"] = m.memberships
+  }
+  if (flags.includeRoles) {
+    const r = await buildRolesClaim(dbClient, user.user_uuid)
+    if (r.success) claims["puff:roles"] = r.roles
+  }
+  if (flags.includeEntitlements) {
+    // The access token's `client_id` + `org_uuid` claims tell us which app
+    // and org this entitlements claim should be resolved against. Without
+    // both, there's nothing meaningful to emit.
+    const tokenClientId =
+      typeof payload.client_id === "string" ? payload.client_id : null
+    const tokenOrgUuid =
+      typeof payload.org_uuid === "string" ? payload.org_uuid : null
+    if (tokenClientId && tokenOrgUuid) {
+      const appLookup = await readAppByClientId(dbClient, tokenClientId)
+      if (appLookup.success) {
+        const e = await buildEntitlementsClaim(
+          dbClient,
+          appLookup.app,
+          user.user_uuid,
+          tokenOrgUuid
+        )
+        if (e.success && e.entitlements) {
+          claims["puff:entitlements"] = e.entitlements
+        }
+      }
     }
   }
 

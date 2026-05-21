@@ -13,7 +13,10 @@
 //                  (~90s). Left longer, a stale row can collide with a later,
 //                  legitimately-different code that happens to match the same
 //                  six digits — a false replay rejection. Frequent pruning
-//                  keeps that window short.
+//                  keeps that window short. Also reaps `app_floating_sessions`
+//                  past their `expires_at` so a floating-licence pool slot is
+//                  never permanently held by a session whose access token
+//                  expired without an explicit release.
 //   "0 * * * *"    Additionally purge `sessions` and `tokens`. These are kept
 //                  for a month first: a defunct session or token row is a
 //                  lightweight audit record of a login or a reset request.
@@ -67,7 +70,13 @@ export async function runScheduledCleanup(
       "DELETE FROM totp_used_codes WHERE used_at < NOW() - $1::INTERVAL",
       [TOTP_RETENTION]
     )
-    let summary = `${totp.rowCount ?? 0} TOTP codes`
+    // Floating-seat rows are reaped every tick: each row has its own
+    // `expires_at` (set when the access token was minted, ~1h ahead), so any
+    // row past that time has lost its license claim and must free the slot.
+    const floating = await client.query(
+      "DELETE FROM app_floating_sessions WHERE expires_at <= NOW()"
+    )
+    let summary = `${totp.rowCount ?? 0} TOTP codes, ${floating.rowCount ?? 0} floating seats`
 
     if (cron === HOURLY_CRON) {
       // The defunct guard (inactive / past expiry) means a still-valid session

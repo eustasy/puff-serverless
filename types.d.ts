@@ -19,6 +19,9 @@ declare global {
     // depth: the caller's roles in the `[org_uuid]` / `[team_uuid]` of the path.
     orgRoles?: string[]
     teamRoles?: string[]
+    // Set by `apps/[app_uuid]/_middleware.ts`: the resolved app row for the
+    // entitlement endpoints under that tree.
+    app?: AppRow
   }
 
   type Handler<P extends string = string> = PagesFunction<Env, P, RequestData>
@@ -203,6 +206,7 @@ declare global {
     client_secret: string
     redirect_uris: string[]
     app_active: boolean
+    app_licensing_mode: "none" | "seat" | "usage" | "floating"
     app_created_at: Date
   }
 
@@ -211,6 +215,7 @@ declare global {
     grant_type: "authorization_code" | "refresh_token"
     user_uuid: string
     app_uuid: string
+    org_uuid: string | null
     scopes: string[]
     redirect_uri: string | null
     code_challenge: string | null
@@ -220,6 +225,15 @@ declare global {
     expires_at: Date
     created_at: Date
     is_used: boolean
+  }
+
+  interface AppFloatingSessionRow {
+    app_uuid: string
+    org_uuid: string
+    user_uuid: string
+    heartbeat_at: Date
+    expires_at: Date
+    created_at: Date
   }
 
   interface OAuthConsentRow {

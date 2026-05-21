@@ -31,7 +31,7 @@ nvm use stable
 
 #### Postgres or CockroachDB
 
-_Note: SQL Schema can be found in the SQL folder, one file per table. Import in foreign-key order: `users.sql` first (it provides the foreign key for many other tables), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`; the six `*_key_values.sql` tables (including `app_key_values.sql`) depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on both `users` and `apps`. Every other table depends only on `users`._
+_Note: SQL Schema can be found in the SQL folder, one file per table. Import in foreign-key order: `users.sql` first (it provides the foreign key for many other tables), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`; the six `*_key_values.sql` tables (including `app_key_values.sql`) depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on `users` and `apps` (and `oauth_grants` also FKs `organisations` for the org-context binding); `app_floating_sessions.sql` depends on `apps` + `organisations` + `users`. Every other table depends only on `users`._
 
 ##### for Local Development
 
@@ -45,7 +45,7 @@ WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://user:password
 
 Production uses [CockroachDB Cloud](https://www.cockroachlabs.com/) (or any Postgres-compatible database) reached through [Cloudflare Hyperdrive](https://developers.cloudflare.com/hyperdrive/), which pools connections at the edge.
 
-1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies and can be imported any time after `users.sql`; the six `*_key_values.sql` tables depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on both `users` and `apps`. Every other table depends only on `users`.
+1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies and can be imported any time after `users.sql`; the six `*_key_values.sql` tables depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on `users` and `apps` (and `oauth_grants` also FKs `organisations`); `app_floating_sessions.sql` depends on `apps` + `organisations` + `users`. Every other table depends only on `users`.
 2. Create a Hyperdrive configuration pointing at it:
 
    ```sh
@@ -188,7 +188,36 @@ Puff is itself an OAuth 2.1 / OpenID Connect provider. Registered apps log their
 | `/.well-known/openid-configuration` | GET      | OIDC Discovery document — issuer, all endpoint URLs, supported response/grant types, scopes, claims, and signing algorithm.                                                                                                                                                      |
 | `/.well-known/jwks.json`            | GET      | JWKS — the active public signing key plus, during a rotation overlap window, the retired one (see [OAuth signing-key rotation](#oauth-signing-key-rotation)).                                                                                                                    |
 
-Lifetimes: authorization code 5 min, access token + ID token 1 hour, refresh token 30 days. Access tokens are stateless JWTs (`ES256`); only authorization codes and refresh tokens persist in `oauth_grants`. Remembered consent is per-(user, app) in `oauth_consents`. Domain modules: `src/apps.ts`, `src/oauth-grants.ts`, `src/oauth-consents.ts`, `src/oauth.ts` (shared helpers), `src/oauth-jwt.ts` + `src/oauth-keys.ts` (signing).
+Lifetimes: authorization code 5 min, access token + ID token 1 hour, refresh token 30 days. Access tokens are stateless JWTs (`ES256`); only authorization codes and refresh tokens persist in `oauth_grants`. Remembered consent is per-(user, app) in `oauth_consents`. Domain modules: `src/apps.ts`, `src/oauth-grants.ts`, `src/oauth-consents.ts`, `src/oauth.ts` (shared helpers), `src/oauth-jwt.ts` + `src/oauth-keys.ts` (signing), `src/oauth-claims.ts` (membership / role / entitlement claim builders).
+
+#### Scopes
+
+- `openid` / `profile` / `email` — standard OIDC.
+- `offline_access` — triggers refresh-token issuance.
+- `puff:memberships` — adds the list of organisations the user belongs to.
+- `puff:roles` — adds the user's organisation-level and team-level role assignments (the fixed puff role set; see `src/permissions.ts`).
+- `puff:entitlements` — adds the entitlement claim resolved for the org context the OAuth grant was bound to: `{ app_uuid, org_uuid, licensing_mode, tier?, perms }`.
+
+#### Org context
+
+OAuth requests can carry an optional `org_uuid` query param on `/authorize` to pick which organisation the user is acting through (a user may be a member of several orgs that each license the same app). Resolution:
+
+- `app_licensing_mode = 'none'` → no org context needed; `org_uuid` stays null on the grant.
+- Explicit `org_uuid` in the request → verified against `organisation_members` and (for `seat` / `usage`) `isLicensed`; mismatched binding redirects with `access_denied`.
+- No explicit `org_uuid` → `findEligibleOrgs(app, user)` returns every org the user is a member of where the app has at least one entitlement row. Zero hits → `access_denied`; one hit → auto-bound; multiple → the consent screen renders an org picker.
+
+The chosen `org_uuid` is persisted on `oauth_grants`, propagates onto rotated refresh tokens, and is baked into the access-token JWT as the `org_uuid` claim so `/userinfo` and downstream services know which entitlements apply.
+
+#### App entitlements & licensing modes
+
+Apps declare a licensing mode at registration (`apps.app_licensing_mode`, CHECK-constrained: `'none'` | `'seat'` | `'usage'` | `'floating'`). The mode picks the gating semantics; the entitlement _values_ are KV rows under the app's owner namespace (see [Key/Value Store](#keyvalue-store-table-usage)):
+
+- **`none`** — no licensing checks; everyone with consent can use the app.
+- **`seat`** — a user is licensed iff `license:tier` resolves to a value via the standard KV resolver chain (so a tier set on the user, or inherited from a role / team / org). The resolved value is the tier name.
+- **`usage`** — any org member is licensed; metering happens out of band (the app reports usage back to the operator for Phase 8 billing). The "licensed user count" is the distinct number of users in the org with at least one entitlement row owned by the app.
+- **`floating`** — a per-org pool of N concurrent seats. Pool size is `license:floating:max` on the org subject under the app owner (with a fallback to the app's self-owned default). `app_floating_sessions` tracks current allocations; OAuth `/token` allocates on every code or refresh exchange and the scheduled cleanup reaps stale rows.
+
+Reserved KV keys: `license:tier` (user/team/org subject under app owner), `license:floating:max` (org subject under app owner, or app self-owned), `license:tiers:<name>` and `license:perms:<name>` (operator declares; app self-owned, surfaced for UI), `perm:<name>` (the actual permission grants under app owner). Org admins manage grants via `functions/api/db/auth/organisations/[org_uuid]/apps/[app_uuid]/...` endpoints, gated by `org:entitlements:read` / `org:entitlements:write`. Apps are global, so the grantee constraint is "grantee belongs to the granting org", enforced by `assertGranteeInOrg`. Domain modules: `src/entitlements.ts`, `src/app-floating-sessions.ts`.
 
 ## Environment Variables
 
@@ -297,9 +326,10 @@ Membership and invitation management lives in `src/memberships.ts` / `src/invita
 
 Phase 7 OAuth provider work. Apps are **globally registered by the operator**, not owned by any organisation — any org can grant its users/teams entitlements for any registered app.
 
-- **`apps`** — registered OAuth clients. `app_uuid` (PK), `app_name`, `client_id` (UNIQUE — the public OAuth identifier), `client_secret` (hashed via `src/utilities/hashing.ts`), `redirect_uris STRING[]` (exact-match allowlist for the OAuth `redirect_uri` parameter), `app_active` (reversible disable), `app_created_at`. No FK to `organisations` and no `created_by` — registration is an operator action performed via direct DB access until the operator UI lands.
-- **`oauth_grants`** — DB-backed OAuth state: authorization codes and refresh tokens. PK `grant_value`, FKs to `users` + `apps` (both `ON DELETE CASCADE`), `grant_type` discriminator (`'authorization_code'` | `'refresh_token'`), `scopes STRING[]`, PKCE fields (`redirect_uri`, `code_challenge`, `code_challenge_method`) populated on auth-code rows, `parent_grant_value` linking each rotated refresh token back to its predecessor (plain column, not a self-FK — cleanup must not cascade through the chain), `expires_at`, `is_used`, `created_at`. Access tokens are JWTs and never appear here.
+- **`apps`** — registered OAuth clients. `app_uuid` (PK), `app_name`, `client_id` (UNIQUE — the public OAuth identifier), `client_secret` (hashed via `src/utilities/hashing.ts`), `redirect_uris STRING[]` (exact-match allowlist for the OAuth `redirect_uri` parameter), `app_active` (reversible disable), `app_licensing_mode` (CHECK-constrained: `'none'` | `'seat'` | `'usage'` | `'floating'`; default `'none'`), `app_created_at`. No FK to `organisations` and no `created_by` — registration is an operator action performed via direct DB access until the operator UI lands.
+- **`oauth_grants`** — DB-backed OAuth state: authorization codes and refresh tokens. PK `grant_value`, FKs to `users` + `apps` (both `ON DELETE CASCADE`) and an optional `org_uuid` FK to `organisations` (`ON DELETE SET NULL` — binds a grant to the org context the user picked at `/authorize` time, used to resolve entitlements and floating-seat pools), `grant_type` discriminator (`'authorization_code'` | `'refresh_token'`), `scopes STRING[]`, PKCE fields (`redirect_uri`, `code_challenge`, `code_challenge_method`) populated on auth-code rows, `parent_grant_value` linking each rotated refresh token back to its predecessor (plain column, not a self-FK — cleanup must not cascade through the chain), `nonce`, `expires_at`, `is_used`, `created_at`. Access tokens are JWTs and never appear here.
 - **`oauth_consents`** — remembered consent: skip the consent screen on the next round-trip if the user has already granted these scopes. Composite PK `(user_uuid, app_uuid)`, FKs to both (`ON DELETE CASCADE`), `scopes STRING[]`, `granted_at`. UPSERT on re-consent; revoke by DELETE.
+- **`app_floating_sessions`** — active concurrent-user seat allocations for `app_licensing_mode = 'floating'` apps. Composite PK `(app_uuid, org_uuid, user_uuid)`: one row per user holding a seat from a given org's pool. FKs to `apps` / `organisations` / `users` (all `ON DELETE CASCADE`). `heartbeat_at` is bumped on every token issuance / refresh; `expires_at` lets the scheduled cleanup reap orphans. Pool size is read at allocation time from `organisation_key_values` (subject = org, owner = app, key `license:floating:max`) — the org's purchased seat count — falling back to `app_key_values` (subject = app, owner = app, same key) as the app's global default when an org has not been individually sized.
 
 ## Project Maintenance
 

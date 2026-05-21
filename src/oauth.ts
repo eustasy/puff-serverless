@@ -14,6 +14,15 @@ export const SUPPORTED_SCOPES = [
   "profile",
   "email",
   "offline_access",
+  // Puff-specific scopes. `puff:memberships` adds the list of orgs the user
+  // belongs to; `puff:roles` adds the user's org-level and team-level role
+  // assignments (fixed puff roles, code-defined in src/permissions.ts);
+  // `puff:entitlements` adds the entitlement claim for the org context the
+  // OAuth grant was bound to (tier + permission flags resolved from the
+  // KV layer under the requesting app's owner namespace).
+  "puff:memberships",
+  "puff:roles",
+  "puff:entitlements",
 ] as const
 export type SupportedScope = (typeof SUPPORTED_SCOPES)[number]
 
@@ -158,9 +167,15 @@ export function oauthRedirectErrorUrl(
 export function claimsForScopes(scopes: string[]): {
   includeProfile: boolean
   includeEmail: boolean
+  includeMemberships: boolean
+  includeRoles: boolean
+  includeEntitlements: boolean
 } {
   return {
     includeProfile: scopes.includes("profile"),
     includeEmail: scopes.includes("email"),
+    includeMemberships: scopes.includes("puff:memberships"),
+    includeRoles: scopes.includes("puff:roles"),
+    includeEntitlements: scopes.includes("puff:entitlements"),
   }
 }
