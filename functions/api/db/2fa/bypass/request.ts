@@ -98,15 +98,19 @@ export const onRequestPost: Handler = async (context) => {
     }
 
     // Delivery failures are logged but not surfaced — the response stays
-    // generic so it never reveals whether an address is on file.
-    const mailResult = await sendTwoFactorBypassEmail(
-      context.env,
-      target.email_address,
-      bypassToken.token_value
+    // generic so it never reveals whether an address is on file. Fire-and-
+    // forget via waitUntil so the response doesn't block on Mailtrap.
+    context.waitUntil(
+      sendTwoFactorBypassEmail(
+        context.env,
+        target.email_address,
+        bypassToken.token_value
+      ).then((mailResult) => {
+        if (mailResult.error) {
+          console.error("Failed to send 2FA bypass email:", mailResult.message)
+        }
+      })
     )
-    if (mailResult.error) {
-      console.error("Failed to send 2FA bypass email:", mailResult.message)
-    }
 
     return new Response(GENERIC_OK, {
       status: 200,

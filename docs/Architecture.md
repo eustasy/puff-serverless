@@ -11,6 +11,10 @@ How the codebase is laid out, how a request flows through it, and the runtime pi
 - [Special files](#special-files)
 - [Libraries](#libraries)
 - [External APIs](#external-apis)
+  - [Cached lookups](#cached-lookups)
+  - [Outbound email](#outbound-email)
+  - [Synchronous external calls](#synchronous-external-calls)
+  - [Don't use queues](#dont-use-queues)
 - [OAuth 2.1 / OIDC endpoints (Puff as provider)](#oauth-21--oidc-endpoints-puff-as-provider)
 - [Federated login (Puff as client)](#federated-login-puff-as-client)
 - [Environment variables](#environment-variables)
@@ -108,11 +112,64 @@ Versions are pinned in `package.json` and updated by Dependabot.
 
 ## External APIs
 
-| API                                                         | Purpose                                                                                                                               |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Have I Been Pwned — Pwned Passwords (k-anonymity range API) | Reject breached passwords when `REQUIRE_NOT_COMPROMISED` is on. The password never leaves the server (only the SHA-1 prefix is sent). |
-| Mailtrap Send API                                           | Outbound email (verification, password reset, invitations, 2FA bypass).                                                               |
-| GitHub / Google / Microsoft OAuth + userinfo endpoints      | Federated sign-in. Per-provider config in `src/oauth-providers.ts`.                                                                   |
+| API                                                         | Purpose                                                                                                                               | Calling pattern                                                                       |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Have I Been Pwned — Pwned Passwords (k-anonymity range API) | Reject breached passwords when `REQUIRE_NOT_COMPROMISED` is on. The password never leaves the server (only the SHA-1 prefix is sent). | Cached (`cf.cacheTtl`, 24h). See [Cached lookups](#cached-lookups).                   |
+| Mailtrap Send API                                           | Outbound email (verification, password reset, invitations, 2FA bypass, federated-signup verify).                                      | Mixed — see [Outbound email](#outbound-email).                                        |
+| GitHub / Google / Microsoft OAuth + userinfo endpoints      | Federated sign-in. Per-provider config in `src/oauth-providers.ts`.                                                                   | Synchronous (`await`). See [Synchronous external calls](#synchronous-external-calls). |
+
+Outbound `fetch()` from the Worker follows one of three patterns. The choice is determined by whether the response shapes the user-facing reply.
+
+### Cached lookups
+
+Pass `cf.cacheTtl` so Cloudflare's per-colo HTTP cache memoises the response. Cache key is the URL; pick a TTL based on how fresh the data needs to be:
+
+```ts
+const response = await fetch(externalUrl, {
+  cf: { cacheTtl: 86400, cacheEverything: true },
+})
+```
+
+**Canonical example.** `hibpBreachCount` in `src/passwords.ts` uses a 24-hour TTL. The HIBP k-anonymity dataset only updates when new breaches are processed, so 24h is comfortably under the data's effective freshness. The cache key is the SHA-1 prefix (the URL path); multiple users testing passwords that share the same 5-char prefix all benefit from one upstream fetch per colo per day. The same caching also retroactively makes the `passwordRequirements` / `passwordRequirementsHtml` pair's repeated HIBP check on the failure path near-free.
+
+### Outbound email
+
+`src/mailer.ts` wraps the Mailtrap Send API. Most call sites use **fire-and-forget via `context.waitUntil`** so the response is sent immediately and the email continues delivering in the background. The Worker isolate stays alive until the promise settles; without `waitUntil` the runtime may kill the isolate the moment the response is committed:
+
+```ts
+context.waitUntil(
+  sendVerificationEmail(context.env, email, token).then((mailResult) => {
+    if (mailResult.error) {
+      console.error("Failed to send verification email:", mailResult.message)
+    }
+  })
+)
+
+return resultPositive("Done.", 200)
+```
+
+| Email                                                                           | Pattern     | Why                                                                                                                                       |
+| ------------------------------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Password-reset (`functions/api/db/password/request.ts`)                         | `waitUntil` | Response is intentionally generic ("if an account exists, a link has been sent") regardless of delivery outcome — enumeration prevention. |
+| 2FA-bypass (`functions/api/db/2fa/bypass/request.ts`)                           | `waitUntil` | Same generic-response pattern.                                                                                                            |
+| Federated-signup verify (`functions/api/db/federated-signup/confirm.ts`)        | `waitUntil` | Best-effort; the user is being redirected into their session regardless.                                                                  |
+| Verification-resend (`functions/api/db/auth/email/resend.ts`)                   | `await`     | The user explicitly asked to resend, so a delivery failure is reported back inline (502).                                                 |
+| Invitation (`functions/api/db/auth/organisations/[org_uuid]/members/invite.ts`) | `await`     | The handler intentionally returns 502 on send failure so the operator who issued the invitation knows.                                    |
+
+Failures in `waitUntil` paths are logged via `console.error`; there is no automatic retry. Users can resend (verification) or re-request (password reset) via the same flows. This is deliberately simpler than introducing a retry queue — the user-driven resend flows are the retry mechanism.
+
+### Synchronous external calls
+
+Plain `await` for fetches whose result shapes the response. The handler can branch on success/failure and return a tailored response.
+
+| Site                                                                   | API                                                                                       |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `functions/login/[provider]/callback.ts` (via `src/oauth-outbound.ts`) | Provider `/token` and userinfo endpoints — must complete before issuing the Puff session. |
+| Verification-resend and invitation emails (see above)                  | Mailtrap — failures surface inline.                                                       |
+
+### Don't use queues
+
+Cloudflare Queues are for asynchronous **work delivery**, not for caching or fire-and-forget. For Puff's current volume, `context.waitUntil` + `cf.cacheTtl` cover every case. Re-evaluate only if a real volume, rate-limit, or retry requirement emerges (e.g. bulk announcement emails, or Mailtrap rate-limiting hits).
 
 ## OAuth 2.1 / OIDC endpoints (Puff as provider)
 

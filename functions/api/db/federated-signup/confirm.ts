@@ -122,17 +122,21 @@ export const onRequestPost: Handler = async (context) => {
     return resultNegative("Could not save your email.", 500)
   }
   if (!row.email_verified && emailResult.token_value) {
-    const mail = await sendVerificationEmail(
-      env,
-      row.email,
-      emailResult.token_value
-    )
-    if (mail.error) {
-      console.error(
-        "federated-signup confirm: verify email send failed:",
-        mail.message
+    // Fire-and-forget — the user is being redirected into their session
+    // regardless of whether the verification email lands; failures are
+    // already non-fatal here and surface only in logs.
+    context.waitUntil(
+      sendVerificationEmail(env, row.email, emailResult.token_value).then(
+        (mail) => {
+          if (mail.error) {
+            console.error(
+              "federated-signup confirm: verify email send failed:",
+              mail.message
+            )
+          }
+        }
       )
-    }
+    )
   }
 
   const link = await linkExternalIdentity(dbClient, {

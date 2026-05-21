@@ -259,6 +259,40 @@ await emitFromContext(context, {
 
 Event type strings are constants in `src/hooks/events.ts` — never bare strings. Default severity is looked up from `DEFAULT_SEVERITY` in the same file; override only when context warrants escalation. See `docs/Operations.md → Audit events & hooks`.
 
+### External API calls
+
+Outbound `fetch()` from the Worker has two patterns depending on whether the response shapes the user-facing reply.
+
+**Cacheable lookups** — pass `cf.cacheTtl` so Cloudflare's per-colo HTTP cache memoises the response. Cache key is the URL; pick a TTL based on how fresh the data needs to be:
+
+```ts
+const response = await fetch(externalUrl, {
+  cf: { cacheTtl: 86400, cacheEverything: true },
+})
+```
+
+Canonical example: `hibpBreachCount` in `src/passwords.ts` (24h TTL — the HIBP k-anonymity dataset only changes when new breaches are processed).
+
+**Fire-and-forget calls whose result doesn't affect the response** — use `context.waitUntil` so the response is sent immediately and the call continues in the background. The Worker isolate stays alive until the promise settles; without `waitUntil` the runtime may kill the isolate the moment the response is committed:
+
+```ts
+context.waitUntil(
+  sendVerificationEmail(context.env, email, token).then((mailResult) => {
+    if (mailResult.error) {
+      console.error("Failed to send verification email:", mailResult.message)
+    }
+  })
+)
+
+return resultPositive("Done.", 200)
+```
+
+Canonical examples: password-reset email (`functions/api/db/password/request.ts`), 2FA-bypass email (`functions/api/db/2fa/bypass/request.ts`), federated-signup verify email (`functions/api/db/federated-signup/confirm.ts`). All three intentionally stay generic regardless of delivery outcome (enumeration prevention / best-effort delivery), so `waitUntil` is the right primitive.
+
+**Synchronous external calls whose result shapes the response** — keep `await`. Examples: OAuth-provider userinfo fetch on the federated-login callback (must complete before issuing the session), invitation email on `organisations/[org_uuid]/members/invite.ts` (handler returns 502 on delivery failure so the operator knows), `email/resend.ts` (user explicitly asked, so failure is surfaced inline).
+
+**Don't use queues.** Cloudflare Queues are for async work delivery, not caching or fire-and-forget. For Puff's volume `waitUntil` + `cf.cacheTtl` cover every current case. Re-evaluate only if a real volume / rate-limit / retry requirement emerges.
+
 ### Session Cookie
 
 Auth cookies are assembled from an options array, with `Secure` and `SameSite` driven by `context.env`. See `docs/Architecture.md` for the env var defaults (`SECURE_COOKIE`, `COOKIE_SAMESITE`, `SESSION_MAX_AGE_SECONDS`).

@@ -76,6 +76,7 @@ This repo has detailed, scoped instruction docs — consult them before non-triv
 - Use `HX-Redirect` for HTMX navigation, plain `Location` for direct browser navigation (branch on the `HX-Request` header); use `HX-Trigger` to refresh other page sections.
 - Reflecting user input into HTML must go through `escapeHtml` from `src/utilities/escape.ts`.
 - Auth-cookie `Secure` / `SameSite` are driven by env vars (`SECURE_COOKIE`, `COOKIE_SAMESITE`) — never hardcode them.
+- Outbound `fetch()` to third-party APIs follows the patterns in `.github/instructions/backend.instructions.md → External API calls`: `cf.cacheTtl` for cacheable lookups (HIBP), `context.waitUntil` for fire-and-forget where the response is generic (most email sends), plain `await` only when the result shapes the user-facing reply.
 
 ## Production blocker
 

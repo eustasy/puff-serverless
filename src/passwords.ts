@@ -406,10 +406,18 @@ export function passwordConfig(env: Env): PasswordConfig {
 
 // Shared HIBP k-anonymity lookup. Returns the breach count (0 = clean).
 // Throws on network error so callers can decide how to handle unavailability.
+//
+// The response is cached per-colo for 24h via Cloudflare's HTTP cache. The
+// cache key is the URL, which is the SHA-1 prefix — so multiple validations
+// of passwords sharing the same 5-char prefix (or a single user testing a
+// few passwords) hit the cache instead of HIBP. The k-anonymity dataset
+// updates only when new breaches are processed (rare), so a 24h TTL is
+// comfortably under the data's effective freshness.
 async function hibpBreachCount(pw: string): Promise<number> {
   const pwSha1 = await puff_hashing_sha1_hibp(pw)
   const response = await fetch(
-    "https://api.pwnedpasswords.com/range/" + pwSha1.f5
+    "https://api.pwnedpasswords.com/range/" + pwSha1.f5,
+    { cf: { cacheTtl: 86400, cacheEverything: true } }
   )
   const text = await response.text()
   for (const line of text.split("\n")) {

@@ -68,17 +68,22 @@ export const onRequestPost: Handler = async (context) => {
       target_label: email,
     })
 
-    // Step 5: Send the password-reset email. Delivery failures are logged but
-    // not surfaced — the response stays generic either way to avoid revealing
-    // whether the email exists.
-    const mailResult = await sendPasswordResetEmail(
-      context.env,
-      email,
-      token_value
+    // Step 5: Send the password-reset email. Delivery failures are logged
+    // but not surfaced — the response stays generic either way to avoid
+    // revealing whether the email exists. Fire-and-forget via waitUntil so
+    // the user gets the generic response without waiting on Mailtrap.
+    context.waitUntil(
+      sendPasswordResetEmail(context.env, email, token_value).then(
+        (mailResult) => {
+          if (mailResult.error) {
+            console.error(
+              "Failed to send password reset email:",
+              mailResult.message
+            )
+          }
+        }
+      )
     )
-    if (mailResult.error) {
-      console.error("Failed to send password reset email:", mailResult.message)
-    }
 
     // Step 6: Response (Always generic)
     return genericSuccessResponse
