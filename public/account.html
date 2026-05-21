@@ -170,6 +170,39 @@
           <p>Loading passkeys...</p>
         </div>
 
+        <div
+          class="grid-container grid-header"
+          id="external-identities-controls"
+        >
+          <div class="grid-item">
+            <h2>Linked accounts</h2>
+          </div>
+          <div class="grid-item">
+            <details>
+              <summary>Add another provider</summary>
+              <div
+                hx-get="/api/db/auth/external-identities/available"
+                hx-trigger="load, externalIdentitiesChanged from:body"
+                hx-swap="innerHTML"
+              ></div>
+            </details>
+          </div>
+        </div>
+
+        <div
+          id="external-identities-message-area"
+          class="result-area spacer-bottom"
+        ></div>
+
+        <div
+          id="external-identities-list-container"
+          hx-get="/api/db/auth/external-identities/list"
+          hx-trigger="load, externalIdentitiesChanged from:body"
+          hx-swap="innerHTML"
+        >
+          <p>Loading linked accounts...</p>
+        </div>
+
         <p><a href="/logout">Log Out</a></p>
 
         <div class="grid-container grid-header" id="session-controls">

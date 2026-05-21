@@ -286,11 +286,11 @@ Updated 2026-05-21: apps declare a **licensing mode** at registration — one of
 
 ### Puff as OAuth client (federated / social login)
 
-- [ ] `sql/external_identities.sql` — links a third-party identity to a Puff user. `(provider, provider_user_id)` unique, `user_uuid` FK (`ON DELETE CASCADE`); a user may link several providers.
-- [ ] Provider configs for GitHub, Microsoft, and Google — client id/secret as Worker secrets; authorize/token/userinfo URLs.
-- [ ] `GET /login/{provider}` → redirect with `state` + PKCE; `GET /login/{provider}/callback` → exchange the code, fetch the provider profile, then either log in the already-linked user, link to the currently-logged-in user, or auto-provision a new account on first sight.
-- [ ] Linking safety: linking requires an authenticated session or a verified-email match; unlinking is allowed only while the account keeps another usable credential (password / passkey / another provider).
-- [ ] `public/login.html` — "Continue with GitHub / Microsoft / Google" buttons alongside the password and passkey forms.
+- [x] `sql/external_identities.sql` — links a third-party identity to a Puff user. `(provider, provider_user_id)` is the primary key, `user_uuid` FK (`ON DELETE CASCADE`); a user may link several providers. Companion `sql/federated_signup_tokens.sql` carries the verified provider data between the callback and the signup-confirmation POST (pre-user, so it cannot live in the generic `tokens` table).
+- [x] Provider configs for GitHub, Google, and Microsoft — client id/secret pulled from `OAUTH_<PROVIDER>_CLIENT_ID` / `OAUTH_<PROVIDER>_CLIENT_SECRET` env vars; authorize/token/userinfo URLs + per-provider userinfo extractors in `src/oauth-providers.ts`. A provider with missing credentials is reported as "not configured" and its `/login/<provider>` endpoint 404s.
+- [x] `GET /login/[provider]` redirects with `state` + S256 PKCE (stashed in a SameSite=Lax cookie); `GET /login/[provider]/callback` verifies state, exchanges the code via `src/oauth-outbound.ts`, fetches the userinfo (plus `/user/emails` for GitHub), and lands the user in one of three places: an existing link logs them in (bypassing 2FA, matching passkey behaviour); an authenticated caller gets the identity linked to their current account; anyone else gets a 15-minute `federated_signup_token` and is redirected to `/federated-signup?token=…` to confirm account creation.
+- [x] Linking safety: per the 2026-05-21 decision, email-match auto-linking is _disabled_ — users with an existing Puff account must sign in first and link the provider from `/account`. `unlinkExternalIdentity` refuses to remove the last credential (must keep a password, a passkey, or another linked identity).
+- [x] `public/login.html` — "Continue with GitHub / Google / Microsoft" buttons alongside the password and passkey forms. `public/account.html` gains a Linked accounts section (`/api/db/auth/external-identities/list` + `unlink`).
 
 ### Per-app key/value scope
 

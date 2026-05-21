@@ -88,6 +88,13 @@
       <button id="passkey-login-btn" class="btn-safe">Use Passkey</button>
       <div id="passkey-result" class="result-area"></div>
 
+      <div
+        id="federated-providers"
+        hx-get="/api/providers"
+        hx-trigger="load"
+        hx-swap="innerHTML"
+      ></div>
+
       <p class="centered-link">
         Don't have an account? <a href="/register">Register</a>
       </p>

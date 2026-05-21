@@ -11,7 +11,7 @@ applyTo: "sql/**,src/**,functions/api/db/**"
 
 ## Schema
 
-Schema files live in `sql/`, one file per table. Import in foreign-key order: `users.sql` first, then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`. The six `*_key_values.sql` tables (`user`, `team`, `organisation`, `org_role`, `team_role`, `app`) depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on `users` and `apps` (and `oauth_grants` also FKs `organisations` for the org-context binding); `app_floating_sessions.sql` depends on `apps` + `organisations` + `users`. Every other table depends only on `users`.
+Schema files live in `sql/`, one file per table. Import in foreign-key order: `users.sql` first, then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`. The six `*_key_values.sql` tables (`user`, `team`, `organisation`, `org_role`, `team_role`, `app`) depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on `users` and `apps` (and `oauth_grants` also FKs `organisations` for the org-context binding); `app_floating_sessions.sql` depends on `apps` + `organisations` + `users`; `external_identities.sql` (federated login) depends on `users`; `federated_signup_tokens.sql` has no FK dependencies. Every other table depends only on `users`.
 
 ### Tables
 

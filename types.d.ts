@@ -236,6 +236,28 @@ declare global {
     created_at: Date
   }
 
+  interface ExternalIdentityRow {
+    user_uuid: string
+    provider: string
+    provider_user_id: string
+    email: string | null
+    display_name: string | null
+    linked_at: Date
+    last_used_at: Date | null
+  }
+
+  interface FederatedSignupTokenRow {
+    token_value: string
+    provider: string
+    provider_user_id: string
+    email: string | null
+    email_verified: boolean
+    display_name: string | null
+    expires_at: Date
+    created_at: Date
+    is_used: boolean
+  }
+
   interface OAuthConsentRow {
     user_uuid: string
     app_uuid: string

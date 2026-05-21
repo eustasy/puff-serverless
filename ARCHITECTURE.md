@@ -31,7 +31,7 @@ nvm use stable
 
 #### Postgres or CockroachDB
 
-_Note: SQL Schema can be found in the SQL folder, one file per table. Import in foreign-key order: `users.sql` first (it provides the foreign key for many other tables), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`; the six `*_key_values.sql` tables (including `app_key_values.sql`) depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on `users` and `apps` (and `oauth_grants` also FKs `organisations` for the org-context binding); `app_floating_sessions.sql` depends on `apps` + `organisations` + `users`. Every other table depends only on `users`._
+_Note: SQL Schema can be found in the SQL folder, one file per table. Import in foreign-key order: `users.sql` first (it provides the foreign key for many other tables), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`; the six `*_key_values.sql` tables (including `app_key_values.sql`) depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on `users` and `apps` (and `oauth_grants` also FKs `organisations` for the org-context binding); `app_floating_sessions.sql` depends on `apps` + `organisations` + `users`; `external_identities.sql` (federated login) depends on `users`; `federated_signup_tokens.sql` has no FK dependencies. Every other table depends only on `users`._
 
 ##### for Local Development
 
@@ -45,7 +45,7 @@ WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://user:password
 
 Production uses [CockroachDB Cloud](https://www.cockroachlabs.com/) (or any Postgres-compatible database) reached through [Cloudflare Hyperdrive](https://developers.cloudflare.com/hyperdrive/), which pools connections at the edge.
 
-1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies and can be imported any time after `users.sql`; the six `*_key_values.sql` tables depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on `users` and `apps` (and `oauth_grants` also FKs `organisations`); `app_floating_sessions.sql` depends on `apps` + `organisations` + `users`. Every other table depends only on `users`.
+1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies and can be imported any time after `users.sql`; the six `*_key_values.sql` tables depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on `users` and `apps` (and `oauth_grants` also FKs `organisations`); `app_floating_sessions.sql` depends on `apps` + `organisations` + `users`; `external_identities.sql` depends on `users`; `federated_signup_tokens.sql` has no FK dependencies. Every other table depends only on `users`.
 2. Create a Hyperdrive configuration pointing at it:
 
    ```sh
@@ -92,7 +92,7 @@ Deployment uses `wrangler deploy` — the Workers path (see [Directories](#direc
    npx wrangler secret put MAILTRAP_TOKEN
    ```
 
-3. **Set variables.** Confirm the `vars` block in `wrangler.jsonc` (`MAILTRAP_SENDER`, `MAILTRAP_SENDER_NAME`, `APP_URL`) holds production values, and set the operational variables from the [Environment Variables](#environment-variables) table. In particular, `SECURE_COOKIE` should be truthy in production so auth cookies are restricted to HTTPS, and `APP_URL` must be the public origin so email links resolve.
+3. **Set variables.** Confirm the `vars` block in `wrangler.jsonc` (`MAILTRAP_SENDER`, `MAILTRAP_SENDER_NAME`, `APP_URL`) holds production values, and set the operational variables from the [Environment Variables](#environment-variables) table. In particular, `SECURE_COOKIE` should be truthy in production so auth cookies are restricted to HTTPS, and `APP_URL` must be the public origin so email links resolve. To enable federated sign-in, follow the per-provider setup at [Setting up a provider](#setting-up-a-provider) and push the corresponding `OAUTH_<PROVIDER>_CLIENT_ID` / `OAUTH_<PROVIDER>_CLIENT_SECRET` pair via `wrangler secret put`.
 
 4. **Deploy:**
 
@@ -219,6 +219,87 @@ Apps declare a licensing mode at registration (`apps.app_licensing_mode`, CHECK-
 
 Reserved KV keys: `license:tier` (user/team/org subject under app owner), `license:floating:max` (org subject under app owner, or app self-owned), `license:tiers:<name>` and `license:perms:<name>` (operator declares; app self-owned, surfaced for UI), `perm:<name>` (the actual permission grants under app owner). Org admins manage grants via `functions/api/db/auth/organisations/[org_uuid]/apps/[app_uuid]/...` endpoints, gated by `org:entitlements:read` / `org:entitlements:write`. Apps are global, so the grantee constraint is "grantee belongs to the granting org", enforced by `assertGranteeInOrg`. Domain modules: `src/entitlements.ts`, `src/app-floating-sessions.ts`.
 
+### Federated / social login (Puff as OAuth client)
+
+Puff can also be the **client** to GitHub / Google / Microsoft so users sign in with an external identity. The flow is a standard OAuth 2.1 Authorization Code with S256 PKCE; provider configs are static (`src/oauth-providers.ts`), credentials come from `OAUTH_<PROVIDER>_CLIENT_ID` + `OAUTH_<PROVIDER>_CLIENT_SECRET` env vars. The provider buttons on `/login` and `/account` are HTMX-loaded from `/api/providers`, which filters by `listConfiguredProviders(env)` — a provider with no credentials configured is omitted from the UI and 404s its `/login/<provider>` route if visited directly.
+
+Two endpoints under `functions/login/[provider]/`: the start (`index.ts`) generates a state nonce + PKCE pair, stashes them in a short-lived `oauth_state` cookie (HttpOnly, SameSite=Lax — the cookie must survive the cross-site redirect back), and 302s the user to the provider's authorize URL. The callback (`callback.ts`) verifies the state, exchanges the code, calls the provider's userinfo endpoint (plus `/user/emails` for GitHub), and lands the user in one of three places:
+
+1. **Existing link** — `(provider, provider_user_id)` already in `external_identities`: issue a session immediately. Bypasses the 2FA gate the same way passkey login does — the federated provider's auth is the second factor.
+2. **Authenticated caller** — a valid `session_token` cookie is present: `linkExternalIdentity` adds the row, the user lands on `/account` with the new linked account visible.
+3. **Anyone else** — `createFederatedSignupToken` mints a 15-minute single-use token carrying `(provider, provider_user_id, email, email_verified, display_name)`, and the user is redirected to `/federated-signup?token=…`. That page previews the proposed username + email; the POST to `/api/db/federated-signup/confirm` consumes the token, creates the user, links the identity, and issues a session. Email-match auto-linking is deliberately not offered — users with an existing Puff account must sign in first and link the provider from `/account` (the linked-accounts section there).
+
+Unlinking is gated by `unlinkExternalIdentity`'s "another usable credential exists" check — a user must keep at least one of: an active password, an active passkey, or another linked identity. Otherwise they would lose all access.
+
+Domain modules: `src/oauth-providers.ts` (registry + per-provider userinfo extractors), `src/oauth-outbound.ts` (build authorize URL / exchange code / fetch userinfo), `src/external-identities.ts` (link / unlink / lookup), `src/federated-signup-tokens.ts` (pre-user signup tokens), `src/utilities/oauth-state-cookie.ts` (state + PKCE cookie).
+
+#### Setting up a provider
+
+The provider buttons on `public/login.html` and `public/account.html` are HTMX-loaded from `/api/providers` — a no-DB, no-auth endpoint that calls `listConfiguredProviders(env)` and returns buttons only for providers with both `OAUTH_<PROVIDER>_CLIENT_ID` and `OAUTH_<PROVIDER>_CLIENT_SECRET` set. An unconfigured provider does not appear; an empty response (zero providers) collapses the section entirely. To enable one, three things have to line up: an app registration at the provider, a pair of secrets pushed to Cloudflare, and the schema imported into the database.
+
+**Redirect URI** — every provider needs the exact callback URL Puff will return to, derived from `APP_URL`:
+
+```
+${APP_URL}/login/<provider>/callback
+```
+
+Localhost and production are separate registrations (the URI must match exactly), so register a "dev" app pointing at `http://localhost:8788/login/<provider>/callback` and a separate "prod" app pointing at your deployed URL.
+
+##### GitHub
+
+1. **Register the OAuth App** — [Settings → Developer settings → OAuth Apps → New OAuth App](https://github.com/settings/developers).
+   - **Application name**: anything (shown to users on the consent screen).
+   - **Homepage URL**: your `APP_URL`.
+   - **Authorization callback URL**: `${APP_URL}/login/github/callback`.
+2. **Generate a client secret** — on the app's page, _Generate a new client secret_. Copy it once; GitHub never shows it again.
+3. **Note the Client ID** — shown on the same page.
+4. Scopes are requested at authorize-time (`read:user user:email`) — no per-app scope configuration on GitHub's side.
+
+##### Google
+
+1. **Configure the OAuth consent screen** first — Google requires it before any credential will work. [Cloud Console → APIs & Services → OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent). Set User Type to External (or Internal for a Workspace tenant), fill in the app name + support email, and add the `openid`, `email`, and `profile` scopes.
+2. **Create an OAuth 2.0 Client ID** — [Credentials → Create Credentials → OAuth client ID](https://console.cloud.google.com/apis/credentials). Application type: **Web application**.
+   - **Authorised redirect URIs**: `${APP_URL}/login/google/callback`.
+3. **Copy the Client ID + Client Secret** from the credential's details page.
+4. While the consent screen is in Testing mode, only the test users you list can sign in; submit it for verification before going public.
+
+##### Microsoft
+
+1. **Register the application** — [Azure Portal → App registrations → New registration](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBlade).
+   - **Supported account types**: _Accounts in any organizational directory (Any Microsoft Entra ID tenant — Multitenant) and personal Microsoft accounts (e.g. Skype, Xbox)_ — this is what matches the `https://login.microsoftonline.com/common/...` endpoints Puff uses.
+   - **Redirect URI**: platform **Web**, URI `${APP_URL}/login/microsoft/callback`.
+2. **Generate a client secret** — _Certificates & secrets → Client secrets → New client secret_. Copy the **Value** (not the Secret ID) immediately; Azure hides it on the next page load.
+3. **Copy the Application (client) ID** — shown on the Overview page.
+4. **API permissions** — Microsoft Graph → Delegated → add `openid`, `email`, `profile` (already present by default for a fresh registration; verify they are there).
+
+Microsoft's `/oidc/userinfo` endpoint deliberately omits the OIDC `email_verified` claim, so Puff reads the `tid` (tenant ID) out of the ID token returned by `/token` instead. A `tid` other than the special personal-MSA tenant (`9188040d-6c67-4c5b-b112-36a304b66dad`) means a work/school tenant where the email is the verified UPN — trusted as `email_verified: true`. Personal MSA accounts (Outlook / Hotmail / Xbox), and any unparseable or missing ID token, stay unverified and land in Puff's standard verification flow. The ID-token body is decoded but not signature-verified — it came back over TLS in the immediate response to our own token-endpoint POST, so trusting the body is sufficient for this flag.
+
+##### Pushing credentials to Cloudflare
+
+For each provider you registered, push the two values as Worker secrets:
+
+```sh
+echo "<the client id>"     | npx wrangler secret put OAUTH_GITHUB_CLIENT_ID
+echo "<the client secret>" | npx wrangler secret put OAUTH_GITHUB_CLIENT_SECRET
+
+echo "<the client id>"     | npx wrangler secret put OAUTH_GOOGLE_CLIENT_ID
+echo "<the client secret>" | npx wrangler secret put OAUTH_GOOGLE_CLIENT_SECRET
+
+echo "<the client id>"     | npx wrangler secret put OAUTH_MICROSOFT_CLIENT_ID
+echo "<the client secret>" | npx wrangler secret put OAUTH_MICROSOFT_CLIENT_SECRET
+```
+
+For local development, put the same six in `.env` (git-ignored). A provider where **either** of its env vars is missing is treated as not configured and its `/login/<provider>` route 404s.
+
+##### Database schema
+
+Federated login adds two tables. Import them in either order — neither has dependencies beyond `users`:
+
+```sh
+cockroach sql ... < sql/external_identities.sql
+cockroach sql ... < sql/federated_signup_tokens.sql
+```
+
 ## Environment Variables
 
 Operator-configurable runtime values, read from `context.env` (Cloudflare Pages Functions binding). Set these as plain `vars` in `wrangler.jsonc` for production, or in `.dev.vars` (or `.env`) for local development.
@@ -243,6 +324,12 @@ Operator-configurable runtime values, read from `context.env` (Cloudflare Pages 
 | `REQUIRE_ZXCVBN`                    | off                                     | `src/passwords.ts` (`passwordConfig`)                                                                     | Set to `"true"` to require a zxcvbn score ≥ 3 ("safely unguessable"). When set, `REQUIRE_NUMBER` / `REQUIRE_CAPITAL` / `REQUIRE_SPECIAL_CHAR` are shown as suggestions rather than hard requirements; `MIN_PASSWORD_LENGTH` still applies.                                                                                                                                         |
 | `OAUTH_SIGNING_KEY_PRIVATE`         | _unset_                                 | `src/oauth-keys.ts` (`loadSigningKey`, `currentPublicJwk`)                                                | Active ES256 (ECDSA P-256) private key as a JWK JSON string. **Secret** — set via `wrangler secret put OAUTH_SIGNING_KEY_PRIVATE`. The matching public key is derived from this binding at runtime and exposed via `/.well-known/jwks.json`; no separate public binding is needed. Generate a fresh keypair with `node scripts/generate-oauth-key.mjs`.                            |
 | `OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC` | _unset_                                 | `src/oauth-keys.ts` (`previousPublicJwk`), `functions/.well-known/jwks.json.ts`                           | Optional retired public JWK held during a key-rotation overlap window so JWTs signed by the old key continue to verify. JSON string of the public JWK (`kty`, `crv`, `x`, `y` — no `kid`/`use`/`alg`/`d`). Set when rotating; clear once the longest-lived JWT has expired.                                                                                                        |
+| `OAUTH_GITHUB_CLIENT_ID`            | _unset_                                 | `src/oauth-providers.ts` (`getProviderCredentials`)                                                       | OAuth client_id for the GitHub federated-login app. `/login/github` 404s when either this or the matching secret is unset.                                                                                                                                                                                                                                                         |
+| `OAUTH_GITHUB_CLIENT_SECRET`        | _unset_                                 | `src/oauth-providers.ts` (`getProviderCredentials`)                                                       | OAuth client_secret for GitHub. **Secret** — set via `wrangler secret put OAUTH_GITHUB_CLIENT_SECRET`.                                                                                                                                                                                                                                                                             |
+| `OAUTH_GOOGLE_CLIENT_ID`            | _unset_                                 | `src/oauth-providers.ts` (`getProviderCredentials`)                                                       | OAuth client_id for Google federated-login. `/login/google` 404s when either this or the matching secret is unset.                                                                                                                                                                                                                                                                 |
+| `OAUTH_GOOGLE_CLIENT_SECRET`        | _unset_                                 | `src/oauth-providers.ts` (`getProviderCredentials`)                                                       | OAuth client_secret for Google. **Secret**.                                                                                                                                                                                                                                                                                                                                        |
+| `OAUTH_MICROSOFT_CLIENT_ID`         | _unset_                                 | `src/oauth-providers.ts` (`getProviderCredentials`)                                                       | OAuth client_id for Microsoft federated-login (multi-tenant `common` endpoint). `/login/microsoft` 404s when either this or the matching secret is unset.                                                                                                                                                                                                                          |
+| `OAUTH_MICROSOFT_CLIENT_SECRET`     | _unset_                                 | `src/oauth-providers.ts` (`getProviderCredentials`)                                                       | OAuth client_secret for Microsoft. **Secret**.                                                                                                                                                                                                                                                                                                                                     |
 
 ## Database Schema Changes
 
