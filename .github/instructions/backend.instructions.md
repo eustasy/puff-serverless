@@ -188,7 +188,7 @@ return new Response('<p class="result-negative">Server error.</p>', {
 
 ### Session Cookie
 
-Auth cookies are assembled from an options array, with `Secure` and `SameSite` driven by `context.env`. See `ARCHITECTURE.md` for the env var defaults (`SECURE_COOKIE`, `COOKIE_SAMESITE`, `SESSION_MAX_AGE_SECONDS`).
+Auth cookies are assembled from an options array, with `Secure` and `SameSite` driven by `context.env`. See `docs/ARCHITECTURE.md` for the env var defaults (`SECURE_COOKIE`, `COOKIE_SAMESITE`, `SESSION_MAX_AGE_SECONDS`).
 
 Login endpoints set the session cookie:
 

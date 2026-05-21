@@ -6,7 +6,7 @@ applyTo: "**"
 
 ## Authentication & Sessions
 
-- Sessions are cookie-based: `session_token` cookie, always `HttpOnly`, with `SameSite` and `Secure` set from `COOKIE_SAMESITE` and `SECURE_COOKIE` env vars (defaults: `Lax` and unset — see `ARCHITECTURE.md`).
+- Sessions are cookie-based: `session_token` cookie, always `HttpOnly`, with `SameSite` and `Secure` set from `COOKIE_SAMESITE` and `SECURE_COOKIE` env vars (defaults: `Lax` and unset — see `docs/ARCHITECTURE.md`).
 - Session tokens are 32-byte random hex strings (`randomBytes(32).toString("hex")`).
 - The server-side session row expires after 7 days (hardcoded in `src/sessions.js#createSession`); the cookie expiry is independently configured via `SESSION_MAX_AGE_SECONDS` (default 30 days). The effective session lifetime is whichever fires first — usually the DB row.
 - Sessions are also invalidated if the user's IP country changes.

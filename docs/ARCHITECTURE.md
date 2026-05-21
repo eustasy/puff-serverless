@@ -7,6 +7,7 @@
   - [Continuous Development](#continuous-development)
   - [Deploying to Production](#deploying-to-production)
   - [Scheduled cleanup](#scheduled-cleanup)
+  - [Audit Events & Hooks](#audit-events--hooks)
   - [OAuth signing-key rotation](#oauth-signing-key-rotation)
   - [Directories](#directories)
   - [Special Files](#special-files)
@@ -31,7 +32,7 @@ nvm use stable
 
 #### Postgres or CockroachDB
 
-_Note: SQL Schema can be found in the SQL folder, one file per table. Import in foreign-key order: `users.sql` first (it provides the foreign key for many other tables), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`; the six `*_key_values.sql` tables (including `app_key_values.sql`) depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on `users` and `apps` (and `oauth_grants` also FKs `organisations` for the org-context binding); `app_floating_sessions.sql` depends on `apps` + `organisations` + `users`; `external_identities.sql` (federated login) depends on `users`; `federated_signup_tokens.sql` has no FK dependencies. Every other table depends only on `users`._
+_Note: SQL Schema can be found in the SQL folder, one file per table. Import in foreign-key order: `users.sql` first (it provides the foreign key for many other tables), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`; the six `*_key_values.sql` tables (including `app_key_values.sql`) depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on `users` and `apps` (and `oauth_grants` also FKs `organisations` for the org-context binding); `app_floating_sessions.sql` depends on `apps` + `organisations` + `users`; `external_identities.sql` (federated login) depends on `users`; `federated_signup_tokens.sql` and `audit_events.sql` have no FK dependencies and can be imported any time (`audit_events` deliberately stores actor/target uuids as plain strings so audit rows outlive their referents). Every other table depends only on `users`._
 
 ##### for Local Development
 
@@ -45,7 +46,7 @@ WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://user:password
 
 Production uses [CockroachDB Cloud](https://www.cockroachlabs.com/) (or any Postgres-compatible database) reached through [Cloudflare Hyperdrive](https://developers.cloudflare.com/hyperdrive/), which pools connections at the edge.
 
-1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies and can be imported any time after `users.sql`; the six `*_key_values.sql` tables depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on `users` and `apps` (and `oauth_grants` also FKs `organisations`); `app_floating_sessions.sql` depends on `apps` + `organisations` + `users`; `external_identities.sql` depends on `users`; `federated_signup_tokens.sql` has no FK dependencies. Every other table depends only on `users`.
+1. Provision the database and import the schema from `sql/` — **`users.sql` first** (it provides the foreign key the other tables depend on), then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`. `apps.sql` has no FK dependencies and can be imported any time after `users.sql`; the six `*_key_values.sql` tables depend on `users`, `organisations`, and `apps`; `oauth_grants.sql` and `oauth_consents.sql` depend on `users` and `apps` (and `oauth_grants` also FKs `organisations`); `app_floating_sessions.sql` depends on `apps` + `organisations` + `users`; `external_identities.sql` depends on `users`; `federated_signup_tokens.sql` and `audit_events.sql` have no FK dependencies. Every other table depends only on `users`.
 2. Create a Hyperdrive configuration pointing at it:
 
    ```sh
@@ -112,12 +113,41 @@ The request path only ever _soft_-expires data: sessions are marked inactive, to
 
 The schedules are declared as `triggers.crons` in `wrangler.jsonc`; the `scheduled` handler is added by `worker.ts` and the job itself is `src/cron.ts`. That module is the one DB caller with no `_middleware.ts` in front of it, so it opens and closes its own `pg` client.
 
-| Schedule      | Action                                                                                                                                            |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `*/5 * * * *` | Purge `totp_used_codes` rows past the TOTP acceptance window. Runs often so a stale row cannot collide with a later, legitimately-different code. |
-| `0 * * * *`   | Additionally purge `sessions` and `tokens` older than one month. They are kept that long first — a defunct row is a lightweight audit record.     |
+| Schedule      | Action                                                                                                                                                                                                                       |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `*/5 * * * *` | Purge `totp_used_codes` rows past the TOTP acceptance window. Runs often so a stale row cannot collide with a later, legitimately-different code. Also reaps `app_floating_sessions` past their `expires_at`.                |
+| `0 * * * *`   | Additionally purge `sessions` and `tokens` older than one month (kept that long as a lightweight audit trail), and `audit_events` rows of severity `debug` / `info` older than 90 days. `notice` and above are kept forever. |
 
-Sessions are purged only when also defunct (inactive or past expiry), so a still-valid session is never deleted even if `SESSION_MAX_AGE_SECONDS` is raised beyond a month.
+Sessions are purged only when also defunct (inactive or past expiry), so a still-valid session is never deleted even if `SESSION_MAX_AGE_SECONDS` is raised beyond a month. The audit purge is tiered by severity on purpose — see [Audit Events & Hooks](#audit-events--hooks).
+
+### Audit Events & Hooks
+
+Account and organisation actions emit structured events through `src/hooks/`. The default (and only initial) listener appends a row to `audit_events`; the same dispatcher is the extension point for future listeners — webhook delivery, SIEM forwarding, real-time UI fanout — without touching the call sites.
+
+**Dispatcher.** `emit(dbClient, ctx, event)` (or the handler-friendly `emitFromContext(context, event)`) walks the listener registry. Each listener declares a `kind`:
+
+| `kind`  | When                                                                                               | Failure                                                               |
+| ------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `sync`  | Awaited before the dispatcher returns. The audit listener is `sync` so the row exists on response. | Propagates — the handler's `try/catch` surfaces it (typically a 500). |
+| `async` | Queued via `ctx.waitUntil`; runs after the response is sent. Best-effort.                          | Logged via `console.error`, never affects the response.               |
+
+`emitFromContext` auto-fills `actor_user_uuid` (from `context.data.user_uuid`), `actor_ip` (from `CF-Connecting-IP`), and `actor_user_agent` (from `User-Agent`). Pass `actor_user_uuid: null` explicitly for pre-auth events (e.g. failed login by unknown email).
+
+**Event vocabulary.** Defined as constants in `src/hooks/events.ts` — handlers import them, never bare strings. Every event has a default severity in the `DEFAULT_SEVERITY` table (`Record<EventType, HookSeverity>`), so adding a new event to `EVENTS` is a typecheck error until its severity is assigned. Six severities, mirroring syslog: `debug` < `info` < `notice` < `warning` < `alert` < `critical`. Three outcomes: `success` | `failure` | `attempt`.
+
+**Storage.** `sql/audit_events.sql` is append-only — no `updated_at`, no application-side UPDATE or DELETE paths. **The uuid columns are deliberately FK-less**: an audit row's whole purpose is to remember an action against a specific user / org / team / app, so the link must outlive the referent. Reporting code joins with `LEFT JOIN` and treats unresolved uuids as deleted. The `target_label` column snapshots a human-readable handle (email, role name, team name) at write time for the common case where reports don't need the join at all.
+
+**Retention.** Tiered by severity, applied by the hourly cron (`src/cron.ts`):
+
+- `debug` / `info` — purged after 90 days. Routine, high-volume observability rows (successful logins, verification resends).
+- `notice` and above — retained indefinitely. Member changes, password changes, 2FA changes, deletions — the security-relevant timeline must never gap.
+
+**Adding a new listener.** Two lines of work:
+
+1. Create `src/hooks/listeners/<name>.ts` exporting an object that satisfies `HookListener` (a `name`, a `kind`, an optional `filter`, and a `handle(dbClient, event)` async function).
+2. Import it and append to the array in `src/hooks/registry.ts`.
+
+The listener is now invoked for every emit — or, when a `filter` is supplied, only for events for which `filter(event)` returns true. A webhook listener that only cares about org membership changes might filter to `event.event_type.startsWith("org.member.")`.
 
 ### OAuth signing-key rotation
 

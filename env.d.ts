@@ -18,7 +18,7 @@
 // MAILTRAP_SENDER, MAILTRAP_SENDER_NAME, APP_URL) are generated automatically —
 // do not redeclare them here.
 //
-// See ARCHITECTURE.md "Environment Variables" for defaults and behaviour.
+// See docs/ARCHITECTURE.md "Environment Variables" for defaults and behaviour.
 
 interface Env {
   MAILTRAP_TOKEN: string

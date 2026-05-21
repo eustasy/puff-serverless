@@ -358,7 +358,7 @@ export function minPasswordLength(env: Env): number {
 /**
  * All operator-configurable password-policy settings resolved from env vars.
  * Pass this to `passwordRequirements` and `passwordRequirementsHtml` so they
- * apply the same policy. See ARCHITECTURE.md "Environment Variables".
+ * apply the same policy. See docs/ARCHITECTURE.md "Environment Variables".
  */
 export interface PasswordConfig {
   minLength: number
