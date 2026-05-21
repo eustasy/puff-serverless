@@ -1,4 +1,4 @@
-# Phase 8 — Billing
+# Phase 9 — Billing
 
 Phase 7 wired up app **licensing modes** (`none` / `seat` / `usage` / `floating`) and pushed entitlements into the KV store, but no money flows yet. Phase 8 turns those modes into actual billable subscriptions: orgs pay for the apps they license, the operator receives revenue, entitlements track payment state, and apps that depend on Puff for licensing get a single source of truth.
 
