@@ -4,6 +4,8 @@ import {
   resultNegative,
   methodNotAllowed,
 } from "../../../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../../src/hooks/events.js"
 
 /**
  * Accepts an organisation invitation for the authenticated user. The session
@@ -37,6 +39,11 @@ export const onRequestPost: Handler = async (context) => {
       result.status
     )
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ORG_INVITATION_ACCEPTED,
+    target_org_uuid: result.org_uuid,
+    target_user_uuid: context.data.user_uuid!,
+  })
   return resultPositive("You have joined the organisation.", result.status, {
     "HX-Trigger": "organisationsChanged",
   })

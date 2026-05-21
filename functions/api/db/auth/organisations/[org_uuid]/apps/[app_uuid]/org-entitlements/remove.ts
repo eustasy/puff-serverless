@@ -6,6 +6,8 @@ import {
   resultNegative,
   resultPositive,
 } from "../../../../../../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../../../../../src/hooks/events.js"
 
 /** Removes an org-subject entitlement under the app's owner namespace. */
 export const onRequestPost: Handler<"app_uuid" | "org_uuid"> = async (
@@ -29,6 +31,12 @@ export const onRequestPost: Handler<"app_uuid" | "org_uuid"> = async (
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ORG_ENTITLEMENTS_REMOVED,
+    target_org_uuid: org_uuid,
+    target_app_uuid: app.app_uuid,
+    target_label: parsed.key,
+  })
   return resultPositive(`Entitlement "${parsed.key}" revoked.`, result.status, {
     "HX-Trigger": "appEntitlementsChanged",
   })

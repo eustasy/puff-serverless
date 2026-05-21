@@ -2,6 +2,8 @@ import { createEmailToken } from "../../../../../src/tokens.js"
 import { readEmail } from "../../../../../src/emails.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
 import { sendVerificationEmail } from "../../../../../src/mailer.js"
+import { emitFromContext } from "../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -123,6 +125,12 @@ export const onRequestPost: Handler = async (context) => {
         }
       )
     }
+
+    await emitFromContext(context, {
+      event_type: EVENTS.ACCOUNT_EMAIL_VERIFICATION_RESENT,
+      target_user_uuid: user_uuid,
+      target_label: email_address,
+    })
 
     return new Response(
       `<p class="result-positive">A new verification link has been sent to ${escapeHtml(email_address)}.</p>`,

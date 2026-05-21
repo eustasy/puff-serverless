@@ -1,5 +1,7 @@
 import { verify } from "otplib"
 import { enable2fa, read2fa, used2fa } from "../../../../../../src/2fa.js"
+import { emitFromContext } from "../../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -147,6 +149,11 @@ export const onRequestPost: Handler = async (context) => {
           }
         )
       }
+
+      await emitFromContext(context, {
+        event_type: EVENTS.ACCOUNT_2FA_SETUP_VERIFIED,
+        target_user_uuid: user_uuid,
+      })
 
       return new Response(
         '<p class="result-positive">2FA setup successful and enabled.</p>',

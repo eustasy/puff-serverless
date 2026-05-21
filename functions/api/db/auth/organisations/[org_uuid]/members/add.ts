@@ -6,6 +6,8 @@ import {
   resultNegative,
   methodNotAllowed,
 } from "../../../../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../../../src/hooks/events.js"
 
 /**
  * Adds an existing user to an organisation with a role (defaulting to
@@ -54,6 +56,12 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ORG_MEMBER_ADDED,
+    target_org_uuid: String(context.params.org_uuid),
+    target_user_uuid: user.user_uuid,
+    target_label: role,
+  })
   return resultPositive(
     `${user.user_name} added to the organisation.`,
     result.status,

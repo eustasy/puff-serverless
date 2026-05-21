@@ -1,6 +1,8 @@
 import { readEmail } from "../../../../src/emails.js"
 import { createPasswordToken } from "../../../../src/tokens.js"
 import { sendPasswordResetEmail } from "../../../../src/mailer.js"
+import { emitFromContext } from "../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -58,6 +60,13 @@ export const onRequestPost: Handler = async (context) => {
       return genericSuccessResponse
     }
     const token_value = tokenResult.token_value
+
+    await emitFromContext(context, {
+      event_type: EVENTS.ACCOUNT_PASSWORD_RESET_REQUESTED,
+      actor_user_uuid: user.email.user_uuid,
+      target_user_uuid: user.email.user_uuid,
+      target_label: email,
+    })
 
     // Step 5: Send the password-reset email. Delivery failures are logged but
     // not surfaced — the response stays generic either way to avoid revealing

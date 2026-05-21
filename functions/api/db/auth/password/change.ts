@@ -7,6 +7,8 @@ import {
   updatePassword,
 } from "../../../../../src/passwords.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
+import { emitFromContext } from "../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -116,6 +118,11 @@ export const onRequestPost: Handler = async (context) => {
         }
       )
     }
+
+    await emitFromContext(context, {
+      event_type: EVENTS.ACCOUNT_PASSWORD_CHANGED,
+      target_user_uuid: user_uuid,
+    })
 
     // Step 8: Response
     return new Response(

@@ -1,5 +1,7 @@
 import { terminateSession } from "../../../../../src/sessions.js"
 import { getCookie } from "../../../../../src/utilities/headers.js"
+import { emitFromContext } from "../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -28,6 +30,11 @@ export const onRequestPost: Handler = async (context) => {
         headers: { "Content-Type": "text/html" },
       })
     }
+
+    await emitFromContext(context, {
+      event_type: EVENTS.ACCOUNT_LOGOUT,
+      target_user_uuid: user_uuid,
+    })
 
     const cookieOptions = [
       "session_token=;",

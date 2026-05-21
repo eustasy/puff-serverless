@@ -5,6 +5,8 @@ import {
   resultNegative,
   methodNotAllowed,
 } from "../../../../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../../../src/hooks/events.js"
 
 /**
  * Replaces a member's organisation role set. Roles are submitted as repeated
@@ -44,6 +46,12 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
       result.status
     )
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ORG_MEMBER_ROLES_CHANGED,
+    target_org_uuid: String(context.params.org_uuid),
+    target_user_uuid: user_uuid,
+    event_metadata: { roles },
+  })
   return resultPositive("Member roles updated.", result.status, {
     "HX-Trigger": "organisationMembersChanged",
   })

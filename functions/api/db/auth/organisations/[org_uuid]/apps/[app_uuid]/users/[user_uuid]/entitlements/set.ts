@@ -10,6 +10,8 @@ import {
   resultNegative,
   resultPositive,
 } from "../../../../../../../../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../../../../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../../../../../../../src/hooks/events.js"
 
 /** Upserts a user-subject entitlement under the app's owner namespace. */
 export const onRequestPost: Handler<
@@ -49,6 +51,14 @@ export const onRequestPost: Handler<
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ORG_USER_ENTITLEMENTS_SET,
+    target_org_uuid: org_uuid,
+    target_user_uuid: user_uuid,
+    target_app_uuid: app.app_uuid,
+    target_label: parsed.key,
+    event_metadata: { value: parsed.value, created: result.created },
+  })
   return resultPositive(
     `Entitlement "${parsed.key}" ${result.created ? "granted" : "updated"}.`,
     result.status,

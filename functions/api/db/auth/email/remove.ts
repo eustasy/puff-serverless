@@ -1,5 +1,7 @@
 import { deleteEmail } from "../../../../../src/emails.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
+import { emitFromContext } from "../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -37,6 +39,12 @@ export const onRequestPost: Handler = async (context) => {
         }
       )
     }
+
+    await emitFromContext(context, {
+      event_type: EVENTS.ACCOUNT_EMAIL_REMOVED,
+      target_user_uuid: user_uuid,
+      target_label: email_address_to_remove,
+    })
 
     return new Response(`<p class=\"result-positive\">${result.message}</p>`, {
       status: result.status || 200,

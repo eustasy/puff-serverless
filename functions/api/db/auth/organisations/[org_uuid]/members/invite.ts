@@ -7,6 +7,8 @@ import {
   resultNegative,
   methodNotAllowed,
 } from "../../../../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../../../src/hooks/events.js"
 
 /**
  * Invites a person to the organisation by email. Works whether or not they
@@ -47,6 +49,13 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
   if (!invitation.success) {
     return resultNegative(invitation.message, invitation.status)
   }
+
+  await emitFromContext(context, {
+    event_type: EVENTS.ORG_MEMBER_INVITED,
+    target_org_uuid: org_uuid,
+    target_label: email,
+    event_metadata: { roles },
+  })
 
   // The organisation name personalises the email.
   const org = await readOrganisation(dbClient, org_uuid)

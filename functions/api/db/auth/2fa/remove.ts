@@ -1,5 +1,7 @@
 import { verify } from "otplib"
 import { read2fa, delete2fa } from "../../../../../src/2fa.js"
+import { emitFromContext } from "../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -131,6 +133,11 @@ export const onRequestPost: Handler = async (context) => {
         }
       )
     }
+
+    await emitFromContext(context, {
+      event_type: EVENTS.ACCOUNT_2FA_DISABLED,
+      target_user_uuid: user_uuid,
+    })
 
     // Success
     return new Response(

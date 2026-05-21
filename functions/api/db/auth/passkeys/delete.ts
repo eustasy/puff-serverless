@@ -1,4 +1,6 @@
 import { deletePasskey } from "../../../../../src/passkeys.js"
+import { emitFromContext } from "../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -36,6 +38,12 @@ export const onRequestPost: Handler = async (context) => {
       headers: { "Content-Type": "text/html" },
     })
   }
+
+  await emitFromContext(context, {
+    event_type: EVENTS.ACCOUNT_PASSKEY_DELETED,
+    target_user_uuid: user_uuid,
+    target_label: passkey_uuid,
+  })
 
   return new Response('<p class="result-positive">Passkey removed.</p>', {
     status: 200,

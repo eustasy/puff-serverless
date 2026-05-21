@@ -1,6 +1,8 @@
 import { registerUser, loginUser } from "../../../../src/users.js"
 import { minPasswordLength } from "../../../../src/passwords.js"
 import { loginOutcomeResponse } from "../../../../src/utilities/login-response.js"
+import { emitFromContext } from "../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -31,6 +33,12 @@ export const onRequestPost: Handler = async (context) => {
   try {
     const results = await registerUser(dbClient, context.env, name, email, pw)
     if (results && results.success) {
+      await emitFromContext(context, {
+        event_type: EVENTS.ACCOUNT_REGISTERED,
+        actor_user_uuid: results.user_uuid,
+        target_user_uuid: results.user_uuid,
+        target_label: results.email,
+      })
       // Redirect to login page on successful registration
       return new Response(null, {
         status: 303, // See Other, to redirect after POST

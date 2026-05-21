@@ -4,6 +4,8 @@ import {
   resultNegative,
   methodNotAllowed,
 } from "../../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../src/hooks/events.js"
 
 /**
  * Creates an organisation for the authenticated user, who becomes its first
@@ -26,6 +28,11 @@ export const onRequestPost: Handler = async (context) => {
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ORG_CREATED,
+    target_org_uuid: result.organisation.org_uuid,
+    target_label: result.organisation.org_name,
+  })
   return resultPositive(
     `Organisation "${result.organisation.org_name}" created.`,
     result.status,

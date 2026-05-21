@@ -31,6 +31,8 @@ import { createFederatedSignupToken } from "../../../src/federated-signup-tokens
 import { createSession, verifyTokenAndGetUser } from "../../../src/sessions.js"
 import { getCookie } from "../../../src/utilities/headers.js"
 import { clearNextCookie, readNext } from "../../../src/utilities/next.js"
+import { emitFromContext } from "../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../src/hooks/events.js"
 
 function errorPage(message: string, status = 400): Response {
   const body = `<!doctype html>
@@ -155,6 +157,12 @@ export const onRequestGet: Handler<"provider"> = async (context) => {
       return errorPage("Could not start your session.", 500)
     }
     await updateLastUsed(dbClient, provider_name, identity.provider_user_id)
+    await emitFromContext(context, {
+      event_type: EVENTS.ACCOUNT_LOGIN_SUCCESS,
+      actor_user_uuid: linked.identity.user_uuid,
+      target_user_uuid: linked.identity.user_uuid,
+      event_metadata: { provider: provider_name },
+    })
 
     const next = await readNext(request)
     const setCookies = [
@@ -191,6 +199,12 @@ export const onRequestGet: Handler<"provider"> = async (context) => {
       if (!link.success) {
         return errorPage(link.message, link.status)
       }
+      await emitFromContext(context, {
+        event_type: EVENTS.ACCOUNT_EXTERNAL_IDENTITY_LINKED,
+        actor_user_uuid: verified.user_uuid,
+        target_user_uuid: verified.user_uuid,
+        target_label: `${provider_name}:${identity.provider_user_id}`,
+      })
       return redirectTo("/account", [clearOAuthStateCookie(env)])
     }
   }

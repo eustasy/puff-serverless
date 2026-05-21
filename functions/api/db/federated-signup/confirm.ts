@@ -16,6 +16,8 @@ import { createSession } from "../../../../src/sessions.js"
 import { sendVerificationEmail } from "../../../../src/mailer.js"
 import { clearNextCookie, readNext } from "../../../../src/utilities/next.js"
 import { resultNegative } from "../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../src/hooks/events.js"
 
 function deriveUsername(
   display_name: string | null,
@@ -93,6 +95,13 @@ export const onRequestPost: Handler = async (context) => {
     console.error("federated-signup confirm: user insert failed:", error)
     return resultNegative("Could not create your account.", 500)
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ACCOUNT_REGISTERED,
+    actor_user_uuid: user_uuid,
+    target_user_uuid: user_uuid,
+    target_label: row.email,
+    event_metadata: { provider: row.provider },
+  })
 
   // Primary email, pre-verified iff the provider confirmed it. createEmail
   // generates a verification token when `is_verified` is false; we send the
@@ -143,6 +152,12 @@ export const onRequestPost: Handler = async (context) => {
     // Should not happen — we just created the user — but surface clearly.
     return resultNegative(link.message, link.status)
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ACCOUNT_EXTERNAL_IDENTITY_LINKED,
+    actor_user_uuid: user_uuid,
+    target_user_uuid: user_uuid,
+    target_label: `${row.provider}:${row.provider_user_id}`,
+  })
 
   const sessionResult = await createSession(
     dbClient,
@@ -154,6 +169,12 @@ export const onRequestPost: Handler = async (context) => {
   if (!sessionResult.success) {
     return resultNegative("Could not start your session.", 500)
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ACCOUNT_LOGIN_SUCCESS,
+    actor_user_uuid: user_uuid,
+    target_user_uuid: user_uuid,
+    event_metadata: { provider: row.provider },
+  })
 
   const next = await readNext(request)
   const headers = new Headers({

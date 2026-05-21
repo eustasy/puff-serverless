@@ -5,6 +5,8 @@ import {
   resultNegative,
   methodNotAllowed,
 } from "../../../../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../../../src/hooks/events.js"
 
 /** Revokes a pending invitation. */
 export const onRequestPost: Handler<"org_uuid"> = async (context) => {
@@ -37,6 +39,11 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
       result.status
     )
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ORG_INVITATION_REVOKED,
+    target_org_uuid: String(context.params.org_uuid),
+    target_label: token,
+  })
   return resultPositive("Invitation revoked.", result.status, {
     "HX-Trigger": "organisationInvitationsChanged",
   })

@@ -4,6 +4,8 @@ import {
   resultNegative,
   resultPositive,
 } from "../../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../src/hooks/events.js"
 
 /**
  * Removes a linked identity. The safety check in `unlinkExternalIdentity`
@@ -36,6 +38,11 @@ export const onRequestPost: Handler = async (context) => {
   if (!result.success) {
     return resultNegative(result.message ?? "Could not unlink.", result.status)
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ACCOUNT_EXTERNAL_IDENTITY_UNLINKED,
+    target_user_uuid: user_uuid,
+    target_label: `${provider}:${provider_user_id}`,
+  })
   return resultPositive("Sign-in provider unlinked.", 200, {
     "HX-Trigger": "externalIdentitiesChanged",
   })

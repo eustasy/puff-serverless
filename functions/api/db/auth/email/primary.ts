@@ -1,5 +1,7 @@
 import { setPrimaryEmail } from "../../../../../src/emails.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
+import { emitFromContext } from "../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -37,6 +39,12 @@ export const onRequestPost: Handler = async (context) => {
         }
       )
     }
+
+    await emitFromContext(context, {
+      event_type: EVENTS.ACCOUNT_EMAIL_SET_PRIMARY,
+      target_user_uuid: user_uuid,
+      target_label: new_primary_email_address,
+    })
 
     // On success, return a success message and trigger an event for HTMX to refresh the list
     return new Response(`<p class=\"result-positive\">${result.message}</p>`, {

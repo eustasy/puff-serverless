@@ -20,6 +20,8 @@
 //   "0 * * * *"    Additionally purge `sessions` and `tokens`. These are kept
 //                  for a month first: a defunct session or token row is a
 //                  lightweight audit record of a login or a reset request.
+//                  Also drops low-severity `audit_events` past their tiered
+//                  retention (info/debug only; notice and above stay).
 
 import { Client } from "pg"
 
@@ -29,6 +31,11 @@ const TOTP_RETENTION = "2 minutes"
 
 // `sessions` / `tokens` are retained as a month-long audit trail before purge.
 const AUDIT_RETENTION = "1 month"
+
+// Low-severity audit events (info/debug) age out after this; higher
+// severities are retained indefinitely so the security-relevant timeline
+// stays intact regardless of how long ago an incident happened.
+const AUDIT_LOW_SEVERITY_RETENTION = "90 days"
 
 // The cron expression of the hourly trigger; the others only run the TOTP purge.
 const HOURLY_CRON = "0 * * * *"
@@ -93,7 +100,20 @@ export async function runScheduledCleanup(
         "DELETE FROM tokens WHERE created_at < NOW() - $1::INTERVAL",
         [AUDIT_RETENTION]
       )
-      summary += `, ${sessions.rowCount ?? 0} sessions, ${tokens.rowCount ?? 0} tokens`
+      // Tier audit retention by severity: `info`/`debug` are routine
+      // observability rows safe to drop after a quarter; `notice` and
+      // above (member changes, password changes, deletions) are kept
+      // indefinitely so the security-relevant timeline never gaps.
+      const auditEvents = await client.query(
+        `DELETE FROM audit_events
+           WHERE event_severity IN ('debug', 'info')
+             AND created_at < NOW() - $1::INTERVAL`,
+        [AUDIT_LOW_SEVERITY_RETENTION]
+      )
+      summary +=
+        `, ${sessions.rowCount ?? 0} sessions` +
+        `, ${tokens.rowCount ?? 0} tokens` +
+        `, ${auditEvents.rowCount ?? 0} audit events`
     }
 
     console.log(`Scheduled cleanup (${cron}): purged ${summary}.`)

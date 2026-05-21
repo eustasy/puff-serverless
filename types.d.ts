@@ -264,6 +264,29 @@ declare global {
     scopes: string[]
     granted_at: Date
   }
+
+  interface AuditEventRow {
+    event_uuid: string
+    event_type: string
+    event_severity:
+      | "debug"
+      | "info"
+      | "notice"
+      | "warning"
+      | "alert"
+      | "critical"
+    event_outcome: "success" | "failure" | "attempt"
+    actor_user_uuid: string | null
+    actor_ip: string | null
+    actor_user_agent: string | null
+    target_user_uuid: string | null
+    target_org_uuid: string | null
+    target_team_uuid: string | null
+    target_app_uuid: string | null
+    target_label: string | null
+    event_metadata: string | null
+    created_at: Date
+  }
 }
 
 export {}

@@ -5,6 +5,8 @@ import {
   resultNegative,
   methodNotAllowed,
 } from "../../../../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../../../src/hooks/events.js"
 
 /** Creates a team within the organisation. */
 export const onRequestPost: Handler<"org_uuid"> = async (context) => {
@@ -29,6 +31,12 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ORG_TEAM_CREATED,
+    target_org_uuid: String(context.params.org_uuid),
+    target_team_uuid: result.team.team_uuid,
+    target_label: result.team.team_name,
+  })
   return resultPositive(
     `Team "${result.team.team_name}" created.`,
     result.status,

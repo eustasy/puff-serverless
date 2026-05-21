@@ -5,6 +5,8 @@ import {
   updatePassword,
 } from "../../../../src/passwords.js"
 import { consumeToken, readToken } from "../../../../src/tokens.js"
+import { emitFromContext } from "../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -136,6 +138,12 @@ export const onRequestPost: Handler = async (context) => {
         }
       )
     }
+
+    await emitFromContext(context, {
+      event_type: EVENTS.ACCOUNT_PASSWORD_RESET_COMPLETED,
+      actor_user_uuid: user_uuid,
+      target_user_uuid: user_uuid,
+    })
 
     // The token was already consumed atomically above — no separate
     // mark-used step. A failure here burns the token (the user requests a

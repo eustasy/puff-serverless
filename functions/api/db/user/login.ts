@@ -1,6 +1,8 @@
 import { loginUser } from "../../../../src/users.js"
 import { minPasswordLength } from "../../../../src/passwords.js"
 import { loginOutcomeResponse } from "../../../../src/utilities/login-response.js"
+import { emitFromContext } from "../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -34,6 +36,13 @@ export const onRequestPost: Handler = async (context) => {
     )
 
     if (loginResult.error) {
+      await emitFromContext(context, {
+        event_type: EVENTS.ACCOUNT_LOGIN_FAILED,
+        event_outcome: "failure",
+        actor_user_uuid: null,
+        target_label: email,
+        event_metadata: { status: loginResult.status ?? 500 },
+      })
       return new Response(
         `<p class="result-negative">${loginResult.message || "Login failed"}</p>`,
         {
@@ -41,6 +50,20 @@ export const onRequestPost: Handler = async (context) => {
           headers: { "Content-Type": "text/html" },
         }
       )
+    }
+
+    // Only emit `account.login.success` once a session is actually granted;
+    // 2FA-required / password-upgrade-required are intermediate states whose
+    // own completion handlers will emit success themselves.
+    if (
+      "session_id" in loginResult &&
+      typeof loginResult.session_id === "string"
+    ) {
+      await emitFromContext(context, {
+        event_type: EVENTS.ACCOUNT_LOGIN_SUCCESS,
+        actor_user_uuid: loginResult.user_uuid,
+        target_user_uuid: loginResult.user_uuid,
+      })
     }
 
     // Session cookie, or redirect into the 2FA / password-upgrade step.

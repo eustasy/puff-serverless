@@ -5,6 +5,8 @@ import {
   resultNegative,
   methodNotAllowed,
 } from "../../../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../../src/hooks/events.js"
 
 /** Re-enables a disabled organisation. Gated by the same role as `disable`. */
 export const onRequestPost: Handler<"org_uuid"> = async (context) => {
@@ -25,6 +27,10 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
       result.status
     )
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ORG_ENABLED,
+    target_org_uuid: String(context.params.org_uuid),
+  })
   return resultPositive("Organisation enabled.", result.status, {
     "HX-Trigger": "organisationChanged",
   })

@@ -9,6 +9,8 @@ import {
   resultNegative,
   methodNotAllowed,
 } from "../../../../../../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../../../../../src/hooks/events.js"
 
 /**
  * Adds an existing user to a team with a role (defaulting to `member`). The
@@ -63,6 +65,13 @@ export const onRequestPost: Handler<"org_uuid" | "team_uuid"> = async (
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ORG_TEAM_MEMBER_ADDED,
+    target_org_uuid: String(context.params.org_uuid),
+    target_team_uuid: String(context.params.team_uuid),
+    target_user_uuid: user.user_uuid,
+    target_label: role,
+  })
   return resultPositive(`${user.user_name} added to the team.`, result.status, {
     "HX-Trigger": "teamMembersChanged",
   })

@@ -2,6 +2,8 @@ import { generateSecret, generateURI } from "otplib"
 import { renderSVG } from "uqr"
 import { read2fa, create2fa } from "../../../../../../src/2fa.js"
 import { readUser } from "../../../../../../src/users.js"
+import { emitFromContext } from "../../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -96,6 +98,10 @@ export const onRequestPost: Handler = async (context) => {
           }
         )
       }
+      await emitFromContext(context, {
+        event_type: EVENTS.ACCOUNT_2FA_SETUP_STARTED,
+        target_user_uuid: user_uuid,
+      })
     }
 
     // Step 5: The secret is one of the following:

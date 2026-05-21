@@ -4,6 +4,8 @@ import { getCookie } from "../../../../src/utilities/headers.js"
 import { readNext, clearNextCookie } from "../../../../src/utilities/next.js"
 import { read2fa, used2fa } from "../../../../src/2fa.js"
 import { createSession } from "../../../../src/sessions.js"
+import { emitFromContext } from "../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../src/hooks/events.js"
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -269,6 +271,12 @@ export const onRequestPost: Handler = async (context) => {
         }
       )
     }
+    await emitFromContext(context, {
+      event_type: EVENTS.ACCOUNT_LOGIN_SUCCESS,
+      actor_user_uuid: user_uuid,
+      target_user_uuid: user_uuid,
+      event_metadata: { factor: "totp" },
+    })
 
     // Step 11: Return success response with session cookie and redirect.
     // Honour the `login_next` cookie (set by the root middleware when the

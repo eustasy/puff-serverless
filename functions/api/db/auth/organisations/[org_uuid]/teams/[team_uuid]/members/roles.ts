@@ -5,6 +5,8 @@ import {
   resultNegative,
   methodNotAllowed,
 } from "../../../../../../../../../src/utilities/responses.js"
+import { emitFromContext } from "../../../../../../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../../../../../../src/hooks/events.js"
 
 /**
  * Replaces a member's team role set. Roles are submitted as repeated `roles`
@@ -50,6 +52,13 @@ export const onRequestPost: Handler<"org_uuid" | "team_uuid"> = async (
       result.status
     )
   }
+  await emitFromContext(context, {
+    event_type: EVENTS.ORG_TEAM_MEMBER_ROLES_CHANGED,
+    target_org_uuid: String(context.params.org_uuid),
+    target_team_uuid: String(context.params.team_uuid),
+    target_user_uuid: user_uuid,
+    event_metadata: { roles },
+  })
   return resultPositive("Member roles updated.", result.status, {
     "HX-Trigger": "teamMembersChanged",
   })
