@@ -53,11 +53,11 @@ unchecked items are production-deploy operations, not code.
 
 **Docs**
 
-- [x] Email env vars added to the `docs/ARCHITECTURE.md` env-vars table.
+- [x] Email env vars added to the `docs/Architecture.md` env-vars table.
 
 ### Production deployment docs — _done_
 
-- [x] **Document production deployment.** `docs/ARCHITECTURE.md` "for Production Deployment" and a new "Deploying to Production" section now cover the full flow.
+- [x] **Document production deployment.** `docs/Deployment.md` covers the full flow end-to-end with copy-paste commands; `docs/Architecture.md` is the env-vars reference.
   - [x] Hyperdrive / production database setup (`wrangler hyperdrive create`, schema import order).
   - [x] Auth, secrets, vars, `npm run deploy`, and custom-domain steps; production env vars cross-referenced to the Environment Variables table.
 
@@ -175,7 +175,7 @@ permission model is exclusively for linked apps (Phase 7).
 - [x] `sql/organisation_members.sql` — organisation-scoped role grants. Composite PK `(org_uuid, user_uuid, role)`; FKs to `organisations` and `users`, both `ON DELETE CASCADE`; `added_at`, `added_by` (FK → `users`, `ON DELETE SET NULL`). `idx_organisation_members_user_uuid` serves the `user_uuid` FK and "orgs for a user" lookups.
 - [x] `sql/team_members.sql` — team-scoped role grants. Composite PK `(team_uuid, user_uuid, role)`; FKs to `teams` and `users`, both `ON DELETE CASCADE`; `added_at`, `added_by`. `idx_team_members_user_uuid` serves the `user_uuid` FK and guest detection (team grants with no `organisation_members` row). There is deliberately no "team membership requires org membership" constraint.
 - [x] The `role` columns are plain text, validated in `src/` against the fixed `src/permissions.ts` role set. They stay plain text — Puff's org/team roles are code-defined, not a database `roles` table.
-- [x] Schema import order extended to `users` → `organisations` → `teams` → `organisation_members` / `team_members`; ordering note updated in `CLAUDE.md`, `docs/ARCHITECTURE.md`, and `database.instructions.md`.
+- [x] Schema import order extended to `users` → `organisations` → `teams` → `organisation_members` / `team_members`; ordering note updated in `CLAUDE.md`, `docs/Deployment.md`, and `database.instructions.md`.
 
 ### Roles & authorisation
 
@@ -220,7 +220,7 @@ envelopes, no HTTP. Multi-step writes use `runInTransaction`.
 ### Tests & docs
 
 - [x] A `test/*.test.ts` file per new `src/` module (`organisations`, `teams`, `memberships`, `permissions`), following the `FakeDb` pattern.
-- [x] `docs/ARCHITECTURE.md` table-usage reference ("Organisations, Teams & Memberships Table Usage") and the `database.instructions.md` table list updated for the five new tables; import order updated across `CLAUDE.md` / `docs/ARCHITECTURE.md` / `database.instructions.md`.
+- [x] `docs/Hierarchy.md` covers the Organisations / Teams / Memberships data model; the `database.instructions.md` table list has per-table column reference for the five new tables. Import order is in `CLAUDE.md` and `docs/Deployment.md`.
 
 ### Key/value scoping
 
@@ -263,7 +263,7 @@ separate, lower-priority track.
 - [x] ID tokens (and access tokens) are signed JWTs via Web Crypto.
   - Algorithm: **ES256** (ECDSA P-256). Header `kid` is the RFC 7638 thumbprint of the public JWK, so it is deterministic from the key material.
   - Storage: env-var bindings, not a DB table. `OAUTH_SIGNING_KEY_PRIVATE` (secret) holds the active private JWK; the matching public key is derived from it at runtime, so no separate active-public binding is needed. `OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC` (optional, non-secret) holds the retired public JWK during a rotation overlap window.
-  - Rotation: **manual operator action**, not a cron job. Generator + step-by-step in `scripts/generate-oauth-key.mjs`; full procedure in `docs/ARCHITECTURE.md → OAuth signing-key rotation`. Overlap window keeps in-flight JWTs valid until they expire (~1h); the operator clears the previous-public binding after that.
+  - Rotation: **manual operator action**, not a cron job. Generator + step-by-step in `scripts/generate-oauth-key.mjs`; full procedure in `docs/Operations.md → OAuth signing-key rotation`. Overlap window keeps in-flight JWTs valid until they expire (~1h); the operator clears the previous-public binding after that.
   - Modules: `src/oauth-keys.ts` (key loading + public derivation + RFC 7638 thumbprint), `src/oauth-jwt.ts` (`signJwt` / `verifyJwt` — checks current AND previous keys, no `exp`/`nbf` enforcement so the caller picks the policy).
   - Published via `functions/.well-known/jwks.json.ts` (advertised as `application/jwk-set+json`, 60-second cache). Discovery doc (`/.well-known/openid-configuration`) lands with the OAuth endpoints below.
 - [x] Scopes & claims: three new puff-specific OIDC scopes — `puff:memberships` (the user's orgs), `puff:roles` (their org + team role assignments), and `puff:entitlements` (tier + perms resolved against the requesting app's owner namespace for the org context the grant was bound to). `claimsForScopes` widened to drive every flag; ID-token (`buildIdToken`) and `userinfo` both emit the same payload via `src/oauth-claims.ts`. Org context arrives on `/authorize` via a new optional `org_uuid` query param (auto-resolved when the user has exactly one eligible org, prompted via the consent screen when there are several); `oauth_grants.org_uuid` propagates onto refresh tokens and into the access token's `org_uuid` claim. Discovery doc lists the new scopes / claims.
@@ -300,7 +300,7 @@ Updated 2026-05-21: apps declare a **licensing mode** at registration — one of
 
 - [x] **Hooks / extensibility system.** PHP had `_hooks/` + `puff_hook()` for pluggable behaviour (e.g. the `ldap-login` hook adding profile fields). Landed as `src/hooks/` — a dispatcher with a static listener registry, two listener `kind`s (`sync` blocks the response, `async` runs via `ctx.waitUntil`), an optional per-listener `filter`, and a single source-of-truth event vocabulary in `src/hooks/events.ts` with default-severity tiers. The default `audit` listener appends to `sql/audit_events.sql` (no FKs on the uuid columns — see the header comment in that file; an audit row outlives its referents by design). ~30 emit sites wired into account and org handlers; `src/cron.ts` tiers retention by severity (`debug` / `info` reaped after 90 days, `notice` and above kept indefinitely).
   - [x] Design extension points suited to the Workers bundle. The `HookListener` interface is the contract; new listeners are added by appending one line to `src/hooks/registry.ts`.
-  - [x] Document the hooks (old-repo issue [#17](https://github.com/eustasy/puff-server/issues/17) notes the PHP hooks were never documented). See `docs/ARCHITECTURE.md → Audit Events & Hooks` for the listener model, event vocabulary, severity tiers, and the retention rule.
+  - [x] Document the hooks (old-repo issue [#17](https://github.com/eustasy/puff-server/issues/17) notes the PHP hooks were never documented). See `docs/Operations.md → Audit events & hooks` for the listener model, event vocabulary, severity tiers, and the retention rule.
 
 ---
 

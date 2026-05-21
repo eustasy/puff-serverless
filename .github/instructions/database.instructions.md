@@ -105,12 +105,12 @@ if (result.rowCount === 0) {
 }
 ```
 
-This is cleaner than matching on `error.constraint` in a catch block (constraint names drift when the schema changes) and atomically handles concurrent-insert races. Example: `createEmail` (`src/emails.js`) uses this for the cross-user-collision case.
+This is cleaner than matching on `error.constraint` in a catch block (constraint names drift when the schema changes) and atomically handles concurrent-insert races. Example: `createEmail` (`src/emails.ts`) uses this for the cross-user-collision case.
 
 ## Soft Deletion
 
-- Users can be reversibly **disabled** (`disableUser`, `src/users.js`): `user_active = FALSE` plus termination of every session, in one transaction. Re-enable with `enableUser`. Queries for active users filter on `user_active = TRUE`.
-- `deleteUser` (`src/users.js`) is a **permanent hard delete** — a single `DELETE FROM users`; every child row (sessions, secrets, emails, tokens, TOTP replay-guard rows) is removed by the `ON DELETE CASCADE` on each child table's `user_uuid` foreign key. Use `disableUser` for anything reversible.
+- Users can be reversibly **disabled** (`disableUser`, `src/users.ts`): `user_active = FALSE` plus termination of every session, in one transaction. Re-enable with `enableUser`. Queries for active users filter on `user_active = TRUE`.
+- `deleteUser` (`src/users.ts`) is a **permanent hard delete** — a single `DELETE FROM users`; every child row (sessions, secrets, emails, tokens, TOTP replay-guard rows) is removed by the `ON DELETE CASCADE` on each child table's `user_uuid` foreign key. Use `disableUser` for anything reversible.
 - Sessions are soft-terminated by setting `is_active = FALSE`. They are never hard-deleted (except as a child row of `deleteUser`).
 - Tokens are marked as used via `is_used = TRUE`. They may also be hard-deleted in some flows.
 

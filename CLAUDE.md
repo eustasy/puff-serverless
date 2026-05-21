@@ -51,20 +51,22 @@ Endpoints read `context.data.dbClient` / `context.data.user_uuid` directly — n
 
 ### Database
 
-Schema is in `sql/`, one file per table. Import in foreign-key order: `users.sql` first, then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`; `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`; then the KV tables (`user_key_values.sql` / `team_key_values.sql` / `organisation_key_values.sql` / `org_role_key_values.sql` / `team_role_key_values.sql` / `app_key_values.sql`) which depend on `users` + `organisations` + (where the subject or owner is an app) `apps`; then `oauth_grants.sql` / `oauth_consents.sql`, both depending on `users` and `apps` (and `oauth_grants` also FKs `organisations` for the org-context binding); `app_floating_sessions.sql`, which depends on `apps` + `organisations` + `users`; `external_identities.sql` (federated/social login), which depends on `users`; `federated_signup_tokens.sql` and `audit_events.sql` have no FK dependencies (audit rows are deliberately FK-less so they outlive their referents — see `docs/ARCHITECTURE.md → Audit Events & Hooks`); every other table depends only on `users`. The `secrets` table stores both passwords and TOTP secrets, keyed by `secret_type`; the `tokens` table stores all temporary tokens, keyed by `token_type`. All queries are parameterized (`$1, $2`). Multi-step writes use explicit `BEGIN/COMMIT/ROLLBACK` transactions.
+Schema is in `sql/`, one file per table. Import in foreign-key order: `users.sql` first, then `organisations.sql` → `teams.sql` → `organisation_members.sql` / `team_members.sql` / `organisation_invitations.sql`; `apps.sql` has no FK dependencies (linked apps are globally registered by the operator, not org-owned) and can be imported any time after `users.sql`; then the KV tables (`user_key_values.sql` / `team_key_values.sql` / `organisation_key_values.sql` / `org_role_key_values.sql` / `team_role_key_values.sql` / `app_key_values.sql`) which depend on `users` + `organisations` + (where the subject or owner is an app) `apps`; then `oauth_grants.sql` / `oauth_consents.sql`, both depending on `users` and `apps` (and `oauth_grants` also FKs `organisations` for the org-context binding); `app_floating_sessions.sql`, which depends on `apps` + `organisations` + `users`; `external_identities.sql` (federated/social login), which depends on `users`; `federated_signup_tokens.sql` and `audit_events.sql` have no FK dependencies (audit rows are deliberately FK-less so they outlive their referents — see `docs/Operations.md → Audit events & hooks`); every other table depends only on `users`. The `secrets` table stores both passwords and TOTP secrets, keyed by `secret_type`; the `tokens` table stores all temporary tokens, keyed by `token_type`. All queries are parameterized (`$1, $2`). Multi-step writes use explicit `BEGIN/COMMIT/ROLLBACK` transactions.
 
 ## Detailed conventions
 
 This repo has detailed, scoped instruction docs — consult them before non-trivial work:
 
-- `docs/ARCHITECTURE.md` — deployment, env vars, table-usage reference.
+- `docs/Architecture.md` — codebase shape, request layering, libraries, OAuth endpoints, environment variables.
+- `docs/Hierarchy.md` — data model: Apps, Organisations, Teams, Roles, Users; KV resolver chain; entitlements.
+- `docs/Development.md` — local-machine setup, tests, linting.
+- `docs/Deployment.md` — production deploy, step-by-step.
+- `docs/Operations.md` — cron, audit log, OAuth key rotation, registering apps and providers, security concerns.
 - `.github/instructions/architecture.instructions.md` — routing, middleware, HTMX response headers.
 - `.github/instructions/backend.instructions.md` — `src/` envelope shapes, endpoint handler patterns, cookie assembly.
 - `.github/instructions/database.instructions.md` — query/transaction/conflict-handling conventions.
 - `.github/instructions/frontend.instructions.md` — HTMX form patterns, CSS classes, page list.
 - `.github/instructions/security.instructions.md` — sessions, password hashing, 2FA, token expiries, enumeration prevention.
-
-Note: those instruction docs were written against an earlier `.js` codebase; the actual source files are now `.ts`. The patterns still apply — only the extensions differ.
 
 ## Endpoint conventions (quick reference)
 

@@ -18,7 +18,7 @@
 // MAILTRAP_SENDER, MAILTRAP_SENDER_NAME, APP_URL) are generated automatically —
 // do not redeclare them here.
 //
-// See docs/ARCHITECTURE.md "Environment Variables" for defaults and behaviour.
+// See docs/Architecture.md "Environment variables" for defaults and behaviour.
 
 interface Env {
   MAILTRAP_TOKEN: string
@@ -31,7 +31,7 @@ interface Env {
   // Can only raise the minimum above the built-in floor — see minPasswordLength.
   MIN_PASSWORD_LENGTH?: string
   // Password-policy toggles. Set to "true" to enable; absent/any other value = disabled.
-  // See ARCHITECTURE.md "Environment Variables" and src/passwords.ts passwordConfig().
+  // See docs/Architecture.md "Environment variables" and src/passwords.ts passwordConfig().
   REQUIRE_NUMBER?: string
   REQUIRE_CAPITAL?: string
   REQUIRE_SPECIAL_CHAR?: string

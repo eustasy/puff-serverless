@@ -134,7 +134,7 @@ Single-property helpers used on `.result-area` containers and standalone control
 
 ### 2FA Setup
 
-Used by server-rendered HTML for the TOTP setup flow (`functions/api/db/auth/2fa/setup/start.js`):
+Used by server-rendered HTML for the TOTP setup flow (`functions/api/db/auth/2fa/setup/start.ts`):
 
 - `.tfa-qr-layout` — Flex container holding the QR image + manual-entry secret side-by-side; wraps on narrow screens.
 - `.tfa-qr-code` — Sizing constraint for the embedded QR image (`max-width: 200px; height: auto`).

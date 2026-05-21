@@ -1,4 +1,4 @@
-// /api/messages.js — Returns a trusted HTML fragment for a given code
+// /api/messages.ts — Returns a trusted HTML fragment for a given code
 
 const MESSAGE_MAP = {
   registration_success:
