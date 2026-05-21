@@ -2,7 +2,9 @@
 	"name": "puff-serverless",
 	"main": "./worker.ts",
 	"compatibility_date": "2026-03-22",
-	"compatibility_flags": ["nodejs_compat"],
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	"triggers": {
 		// Daily tick driving OAuth signing-key rotation. The handler only
 		// rotates once the active key is older than OAUTH_KEY_ROTATION_INTERVAL_DAYS
@@ -10,12 +12,21 @@
 		// guarantees a prompt rotation without depending on exact clock timing.
 		// Pure-SQL row reaping (TOTP, floating-session, session, token, audit)
 		// lives in CockroachDB itself via `sql/schedules.sql`.
-		"crons": ["0 0 * * *"]
+		"crons": [
+			"0 0 * * *"
+		]
 	},
 	"assets": {
 		"directory": "./public",
 		"binding": "ASSETS",
-		"run_worker_first": ["/account", "/logout", "/2fa", "/password-upgrade", "/login", "/register"]
+		"run_worker_first": [
+			"/account",
+			"/logout",
+			"/2fa",
+			"/password-upgrade",
+			"/login",
+			"/register"
+		]
 	},
 	"hyperdrive": [
 		{
@@ -33,7 +44,8 @@
 	"kv_namespaces": [
 		{
 			"binding": "KV_OAUTH_KEYS",
-			"id": "<set-per-deployment>"
+			"id": "ca56704db52447d6ae5665baa538f5fa",
+			"remote": true
 		}
 	],
 	"ratelimits": [
