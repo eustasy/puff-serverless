@@ -163,7 +163,7 @@ describe("getProviderCredentials + listConfiguredProviders", () => {
 
 describe("providerRedirectUri", () => {
   it("strips trailing slash from APP_URL and appends /login/{name}/callback", () => {
-    const env = fakeEnv({ APP_URL: "https://puff.example/" } as Partial<Env>)
+    const env = fakeEnv({ APP_URL: "https://puff.example/" })
     expect(providerRedirectUri(env, "github")).toBe(
       "https://puff.example/login/github/callback"
     )
