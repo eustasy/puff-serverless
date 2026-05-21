@@ -294,7 +294,7 @@ Updated 2026-05-21: apps declare a **licensing mode** at registration — one of
 
 ### Per-app key/value scope
 
-- [ ] With `apps` now defined, implement the per-**app** `key_values` scope flagged in Phase 6 — values owned by a linked app, distinct from per-user-of-that-app values — resolving the polymorphic-scope design tension against the concrete app model.
+- [x] With `apps` now defined, implement the per-**app** `key_values` scope flagged in Phase 6 — values owned by a linked app, distinct from per-user-of-that-app values — resolving the polymorphic-scope design tension against the concrete app model. Landed as `sql/app_key_values.sql` (subject = app), `src/app-keyvalues.ts`, the `owner_app_uuid` column on every KV table (any subject can carry app-owned rows), and the "app" tier in `src/keyvalues-resolver.ts`. The Phase 7 entitlement endpoints are the first real consumer — every entitlement row is `(subject = user/team/org, owner = app)`, and the app's own globally-applied defaults (declared tiers, declared perms, floating-pool default) are `(subject = app, owner = app)`. Polymorphic scope was rejected in favour of concrete typed tables so the schema can keep its `ON DELETE CASCADE` integrity.
 
 ### Hooks / extensibility system
 
