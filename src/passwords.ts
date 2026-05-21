@@ -517,19 +517,26 @@ export async function passwordRequirementsHtml(
     }
   }
 
-  // HaveIBeenPwned k-anonymity check — always shown.
-  const hibpLabel = cfg.requireNotCompromised
-    ? "<strong>Must</strong> not be in known data breaches"
-    : "Not found in known data breaches"
-  try {
-    const count = await hibpBreachCount(pw)
-    if (count > 0) {
-      html += `<li class="result-negative">Found in ${Intl.NumberFormat().format(count)} known data breach${count === 1 ? "" : "es"}</li>`
-    } else {
-      html += `<li class="result-positive">${hibpLabel}</li>`
+  // HaveIBeenPwned k-anonymity check — shown only when enforced, so the UI
+  // mirrors the policy. Same gate as in `passwordRequirements`, which also
+  // means a single submission round-trip makes at most two HIBP calls
+  // (one from each function on the failure path) instead of three.
+  if (cfg.requireNotCompromised) {
+    try {
+      const count = await hibpBreachCount(pw)
+      if (count > 0) {
+        html += `<li class="result-negative">Found in ${Intl.NumberFormat().format(count)} known data breach${count === 1 ? "" : "es"}</li>`
+      } else {
+        html += `<li class="result-positive"><strong>Must</strong> not be in known data breaches</li>`
+      }
+    } catch (err) {
+      // Fail-open at the boolean gate too — log the real cause, show a
+      // user-friendly placeholder. `escapeHtml` is defence-in-depth; the
+      // throw site is in-house so the message is currently safe, but a
+      // future refactor must not be able to inject HTML.
+      console.error("HIBP breach lookup failed:", err)
+      html += `<li class="result-info">${escapeHtml("Unable to check breach status right now — your password will be accepted if it meets the other requirements.")}</li>`
     }
-  } catch (err) {
-    html += `<li>${err}</li>`
   }
 
   html += "</ul>"
