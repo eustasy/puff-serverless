@@ -80,12 +80,17 @@ export async function readEmails(
   user_uuid: string
 ): Promise<EmailRow[]> {
   try {
-    // Sort: primary first; within each group, oldest-verified first
-    // (NULLS LAST puts unverified at the very end), then alphabetical.
-    // Oldest-verified-first is load-bearing: the 2FA-bypass flow picks
-    // the first verified row, so callers get the user's most-established
-    // inbox (the primary when verified; otherwise the longest-held
-    // secondary) rather than a freshly-added address.
+    // Sort: primary first (regardless of verification — a freshly registered
+    // user has an unverified primary until they click the verification link);
+    // within each is_primary group, oldest-verified first, then unverified
+    // last (NULLS LAST), then alphabetical. So the list reads:
+    //   1. primary (verified OR unverified — display-first)
+    //   2. verified secondaries, oldest first
+    //   3. unverified secondaries
+    // Oldest-verified-first is load-bearing: the 2FA-bypass flow picks the
+    // first verified row, giving the primary when verified, otherwise the
+    // user's longest-held verified secondary. The unverified primary is
+    // correctly skipped by that `.find(is_verified)` filter.
     const query = {
       text: "SELECT user_uuid, email_address, is_primary, is_verified, verified_at FROM emails WHERE user_uuid = $1 ORDER BY is_primary DESC, verified_at ASC NULLS LAST, email_address ASC",
       values: [user_uuid],
