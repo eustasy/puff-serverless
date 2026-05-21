@@ -317,7 +317,7 @@ export async function verifyEmailByToken(
       success: true,
       message: "Email verified successfully.",
       user_uuid: user_uuid,
-      email_address: email_address ?? undefined,
+      email_address: email_address,
     }
   } catch (error) {
     console.error("Error in verifyEmailByToken:", error)
