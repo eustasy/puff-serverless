@@ -302,12 +302,6 @@ Updated 2026-05-21: apps declare a **licensing mode** at registration — one of
   - [ ] Design extension points suited to the Workers bundle.
   - [ ] Document the hooks (old-repo issue [#17](https://github.com/eustasy/puff-server/issues/17) notes the PHP hooks were never documented).
 
-### LDAP / Active Directory (lower priority)
-
-- [ ] **LDAP / Active Directory authentication.** PHP `ldap.authenticate.php` bound against an LDAP server, auto-created the member on first login, then issued a session.
-  - [ ] **Blocker:** raw LDAP sockets are not available on Workers — pick an LDAP-over-HTTP gateway or directory-provider API first.
-  - [ ] Implement the bind + auto-provision-on-first-login flow.
-
 ## Phase 8 — Billing
 
 - [ ] Maybe: optional second database. Old-repo issue [#19](https://github.com/eustasy/puff-server/issues/19) wanted multiple DB connections "by default" to separate domains (it names auth vs. billing). Deferred, no priority — single-DB is the right default, there is no second domain today, and splitting one would lose the cross-table FK / `ON DELETE CASCADE` integrity the schema relies on. Revisit only if a domain with its own scaling, regioning, or compliance boundary actually appears.
