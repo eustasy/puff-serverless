@@ -19,7 +19,11 @@ Schema files live in `sql/`, one file per table. Import in foreign-key order: `u
 - **`sessions`**: `session_id` (PK), `user_uuid` (FK), `created_at`, `expires_at`, `is_active`, `last_accessed_at`, `last_accessed_ip`, `user_agent`, `ip_address`, `ip_country`.
 - **`emails`**: `email_address` (PK), `user_uuid` (FK), `is_primary`, `is_verified`, `verified_at`.
 - **`secrets`**: `secret_uuid` (PK), `user_uuid` (FK), `secret_type`, `secret_value`, `secret_name`, `is_enabled`, `secret_created_at`, `secret_last_used`. Used for both passwords (`secret_type = 'puff_password_SHA-384'`) and TOTP (`secret_type = 'totp_secret'`).
-- **`tokens`**: `token_value` (PK), `user_uuid` (FK), `token_type`, `expires_at`, `created_at`, `is_used`, `email_address`. Types: `'email_verification'`, `'password_reset'`, `'totp_verification_pending'`, `'sudo_elevation'`.
+- **`tokens`**: `token_value` (PK), `user_uuid` (FK), `token_type`, `expires_at`, `created_at`, `is_used`, `email_address`. Types: `'email_verification'`, `'password_reset'`, `'totp_verification_pending'`, `'password_upgrade'`, `'totp_bypass'`, `'webauthn_registration_challenge'`, `'webauthn_authentication_challenge'`, `'sudo_elevation'`. Consume atomically with `consumeToken` (single `UPDATE … RETURNING`) rather than separate read + mark-used calls — see `src/tokens.ts`.
+- **`totp_used_codes`**: composite PK `(user_uuid, totp_code)`, FK to `users` (cascade), `used_at`. TOTP replay guard: `INSERT … ON CONFLICT DO NOTHING` rejects re-use of a code within its acceptance window. Reaped every 5 minutes by `src/cron.ts`.
+- **`passkeys`**: `passkey_uuid` (PK), `user_uuid` (FK, cascade), `credential_id` (UNIQUE — keyed for O(1) authentication lookup), `public_key`, `counter`, `transports` (`STRING[]`), `passkey_name`, `created_at`, `last_used_at`, `is_enabled`. WebAuthn credentials.
+- **`external_identities`**: composite PK `(provider, provider_user_id)`, `user_uuid` (FK, cascade), `email`, `display_name`, `linked_at`, `last_used_at`. Federated-login linkage — a user may have several.
+- **`federated_signup_tokens`**: `token_value` (PK), `provider`, `provider_user_id`, `email`, `email_verified`, `display_name`, `expires_at`, `created_at`, `is_used`. Pre-user — carries verified provider data from the OAuth callback to the signup-confirmation POST; lives outside `tokens` because it has no `user_uuid` yet.
 - **`organisations`**: `org_uuid` (PK), `org_name`, `org_active`, `org_created_at`, `org_created_by` (FK → `users`, `ON DELETE SET NULL`).
 - **`teams`**: `team_uuid` (PK), `org_uuid` (FK → `organisations`, cascade), `team_name`, `team_created_at`.
 - **`organisation_members`**: composite PK `(org_uuid, user_uuid, role)`, FKs to `organisations` / `users` (cascade), `added_at`, `added_by` (FK → `users`, `SET NULL`). One row per (user, role).
@@ -95,7 +99,7 @@ Examples in the codebase:
 
 For inserts on tables with unique constraints, prefer `ON CONFLICT ... DO NOTHING RETURNING ...` over try/catch around the unique-violation error code:
 
-```javascript
+```typescript
 const result = await dbClient.query({
   text: "INSERT INTO emails (...) VALUES (...) ON CONFLICT (email_address) DO NOTHING RETURNING email_address",
   values: [...],
@@ -111,8 +115,10 @@ This is cleaner than matching on `error.constraint` in a catch block (constraint
 
 - Users can be reversibly **disabled** (`disableUser`, `src/users.ts`): `user_active = FALSE` plus termination of every session, in one transaction. Re-enable with `enableUser`. Queries for active users filter on `user_active = TRUE`.
 - `deleteUser` (`src/users.ts`) is a **permanent hard delete** — a single `DELETE FROM users`; every child row (sessions, secrets, emails, tokens, TOTP replay-guard rows) is removed by the `ON DELETE CASCADE` on each child table's `user_uuid` foreign key. Use `disableUser` for anything reversible.
-- Sessions are soft-terminated by setting `is_active = FALSE`. They are never hard-deleted (except as a child row of `deleteUser`).
-- Tokens are marked as used via `is_used = TRUE`. They may also be hard-deleted in some flows.
+- Sessions are soft-terminated by setting `is_active = FALSE`. The hourly cron reaps inactive/expired rows older than one month (kept that long as a lightweight audit trail).
+- Tokens are consumed atomically via `consumeToken` — a single `UPDATE … WHERE token_value = $1 AND token_type = $2 AND is_used = FALSE AND expires_at > NOW() RETURNING …`. `rowCount === 0` collapses used / expired / wrong-type / missing into one "invalid token" outcome. **Always prefer `createToken` + `consumeToken`** for new single-use-token flows. The hourly cron reaps consumed/expired rows older than one month.
+- Organisations and teams support reversible disable (`disableOrganisation` / `enableOrganisation`) and permanent hard-delete (`deleteOrganisation` / `deleteTeam`); cascades clean up members, invitations, and team rows.
+- `audit_events` is append-only and FK-less — never hand-delete from it. Severity-tiered purge happens in `src/cron.ts` (`debug`/`info` after 90 days, `notice` and above kept indefinitely).
 
 ## Secrets Table Usage
 

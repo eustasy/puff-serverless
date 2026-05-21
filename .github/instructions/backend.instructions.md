@@ -10,43 +10,82 @@ Each `src/` module is a domain-scoped library of async functions. They contain n
 
 ### Function Signatures
 
-All `src/` functions accept `dbClient` as their first parameter:
+All `src/` functions accept `dbClient: DbClient` as their first parameter:
 
-```javascript
-export async function readUser(dbClient, user_uuid) { ... }
-export async function createSession(dbClient, user_uuid, user_agent, ip_address, ip_country) { ... }
-export async function createToken(dbClient, user_uuid, token_type, expires_at, email_address) { ... }
+```ts
+export async function readUser(
+  dbClient: DbClient,
+  user_uuid: string
+): Promise<Envelope<{ user: UserRow }>> { ... }
+
+export async function createSession(
+  dbClient: DbClient,
+  user_uuid: string,
+  user_agent: string,
+  ip_address: string,
+  ip_country: string
+): Promise<...>
+
+export async function createToken(
+  dbClient: DbClient,
+  user_uuid: string,
+  token_type: string,
+  expires_at: Date,
+  email_address?: string
+): Promise<...>
 ```
+
+`DbClient` is the ambient global alias for `pg.Client` (see `types.d.ts`). `Envelope<T>` is the canonical envelope union, also ambient.
 
 ### Return Value Conventions
 
-Functions return structured objects — not raw query results. Two patterns are used:
+The canonical envelope is a three-variant discriminated union (`types.d.ts`):
 
-**Success with data:**
-
-```javascript
-return { success: true, token_value: "..." }
-return { success: true, email: result.rows[0] }
-return { sessions: result.rows, status: 200 }
-return { session_id: "...", status: 200, expires_at: date }
+```ts
+type Envelope<T = {}> =
+  | ({ success: true; error?: never; status: number } & T) // ran successfully
+  | { success: false; error?: never; message: string; status: number } // validation / business-rule failure
+  | {
+      success?: never
+      error: true
+      message: string
+      details?: unknown
+      status: number
+    } // DB / system error
 ```
 
-**Error objects:**
+Narrow with `if (result.error)` / `if (result.success)` / `if (!result.success)`. Examples:
 
-```javascript
-return { error: true, message: "Descriptive message.", status: 400 }
-return { error: true, message: "Server error.", details: error.message }
+```ts
+return { success: true, token_value: "...", status: 201 }
+return { success: true, email: row, status: 200 }
+return { success: true, sessions: result.rows, status: 200 }
+
+return { success: false, message: "User not found.", status: 404 }
+
+return {
+  error: true,
+  message: "Server error.",
+  details: err,
+  status: 500,
+}
 ```
 
-All `src/` functions return the envelope shape — none throw, none return raw rows or bare booleans. Predicates (`has2fa`, `password_verify`) expose their answer as a data field (`enabled`, `verified`) inside the success envelope.
+All `src/` functions return the envelope shape — none throw, none return raw rows or bare booleans. Predicates (`has2fa`, `verifyPassword`) expose their answer as a data field inside the success envelope (`enabled`, `verified`).
 
-`user_register` is the one exception that still throws (registration is a multi-step compound operation; throwing aborts the whole flow cleanly). Wrap calls to it in `try/catch`.
+`registerUser` is the one exception that still throws — registration is a multi-step compound operation; throwing aborts the whole flow cleanly. Wrap calls in `try/catch`.
+
+`src/tokens.ts` uses a slightly older `TokenEnvelope` variant (no `status` field). Aligning it with `Envelope` is a tracked follow-up; keep that shape when extending `tokens.ts` until then.
 
 ### Error Handling
 
 - Wrap database calls in `try/catch`.
-- Log errors with `console.error("Error in functionName:", error)`.
-- Either return an error object or rethrow — don't swallow errors silently.
+- Log errors with `console.error("Error in functionName:", error)`. Never log secrets or PII payloads.
+- Either return an error envelope or rethrow — don't swallow errors silently.
+
+### Transactions
+
+Multi-step writes that must be atomic use `runInTransaction` from `src/utilities/transaction.ts` — never hand-rolled `BEGIN`/`COMMIT`/`ROLLBACK`. See `database.instructions.md → Transactions` for the full pattern (SERIALIZABLE retry handling is built in).
 
 ## `functions/api/` Endpoint Conventions
 
@@ -54,47 +93,50 @@ All `src/` functions return the envelope shape — none throw, none return raw r
 
 Export named handlers for supported methods, plus a catch-all `onRequest` returning 405:
 
-```javascript
-export async function onRequestPost(context) {
+```ts
+export const onRequestPost: Handler = async (context) => {
   // Handler logic
 }
 
-export async function onRequest(context) {
-  return new Response("Method Not Allowed", {
-    status: 405,
-    headers: { Allow: "POST" },
-  })
-}
+export const onRequest: Handler = async () => methodNotAllowed("POST")
 ```
 
-Common method exports: `onRequestGet`, `onRequestPost`. The `Allow` header must list the actually supported methods.
+`Handler<P>` is the ambient alias for `PagesFunction<Env, P, RequestData>`. `methodNotAllowed(...)` is from `src/utilities/responses.ts` and emits the 405 + `Allow` header. The `Allow` header must list the actually supported methods.
+
+Common method exports: `onRequestGet`, `onRequestPost`. Catch-all goes through `onRequest`.
 
 ### Accessing Context
 
-```javascript
-const dbClient = context.data.dbClient // From db middleware
-const user_uuid = context.data.user_uuid // From auth middleware
+```ts
+const dbClient = context.data.dbClient! // From db middleware
+const user_uuid = context.data.user_uuid! // From auth middleware (under db/auth/)
+const orgRoles = context.data.orgRoles ?? [] // Under organisations/[org_uuid]/
+const teamRoles = context.data.teamRoles ?? [] // Under teams/[team_uuid]/
+const app = context.data.app! // Under apps/[app_uuid]/
 ```
 
 ### Extracting Input
 
 **Form data (POST):**
 
-```javascript
+```ts
 const formdata = await context.request.formData()
 const email = formdata.get("email")
+if (typeof email !== "string" || !email) {
+  return resultNegative("Email is required.", 400)
+}
 ```
 
 **Query parameters (GET):**
 
-```javascript
+```ts
 const { searchParams } = new URL(context.request.url)
 const token = searchParams.get("token")
 ```
 
 **Request headers:**
 
-```javascript
+```ts
 const userAgent = context.request.headers.get("User-Agent")
 const ipAddress = context.request.headers.get("CF-Connecting-IP")
 const ipCountry = context.request.headers.get("CF-IPCountry")
@@ -102,20 +144,40 @@ const cookieHeader = context.request.headers.get("Cookie")
 const promptValue = context.request.headers.get("HX-Prompt") // From hx-prompt
 ```
 
+### Authorisation
+
+For endpoints under `functions/api/db/auth/organisations/[org_uuid]/...`, authorise via the typed capability matrix in `src/permissions.ts`:
+
+```ts
+import { can } from "../../../../../src/permissions.js"
+
+const orgRoles = context.data.orgRoles ?? []
+if (!can(orgRoles, "org:members:invite")) {
+  return resultNegative("You do not have permission to do this.", 403)
+}
+```
+
+Team endpoints typically allow either the team role or the org-level override:
+
+```ts
+if (!can(teamRoles, "team:update") && !can(orgRoles, "org:teams:manage")) {
+  return resultNegative("You do not have permission to do this.", 403)
+}
+```
+
+Never authorise on raw role strings.
+
 ### Validation Pattern
 
 Validate all input at the top of the handler, before any database or business logic calls:
 
-```javascript
-export async function onRequestPost(context) {
+```ts
+export const onRequestPost: Handler = async (context) => {
   const formdata = await context.request.formData()
   const email = formdata.get("email")
 
-  if (!email) {
-    return new Response('<p class="result-negative">Email is required.</p>', {
-      status: 400,
-      headers: { "Content-Type": "text/html" },
-    })
+  if (typeof email !== "string" || !email) {
+    return resultNegative("Email is required.", 400)
   }
 
   // Proceed with business logic...
@@ -126,7 +188,9 @@ export async function onRequestPost(context) {
 
 **Success (HTML fragment):**
 
-```javascript
+```ts
+return resultPositive("Operation succeeded.", 200)
+// or, when you need to fine-tune headers:
 return new Response('<p class="result-positive">Operation succeeded.</p>', {
   headers: { "Content-Type": "text/html" },
 })
@@ -134,27 +198,22 @@ return new Response('<p class="result-positive">Operation succeeded.</p>', {
 
 **Success with event trigger:**
 
-```javascript
-return new Response('<p class="result-positive">Email added.</p>', {
-  headers: {
-    "Content-Type": "text/html",
-    "HX-Trigger": "emailListChanged",
-  },
-})
+```ts
+return resultPositive("Email added.", 200, { "HX-Trigger": "emailListChanged" })
 ```
 
 **Redirect (HTMX-driven):**
 
-```javascript
+```ts
 return new Response(null, {
   status: 303,
   headers: { "HX-Redirect": "/login?message=Registration successful." },
 })
 ```
 
-**Redirect (direct browser navigation):** Use a standard `Location` header — `HX-Redirect` is ignored outside HTMX. For endpoints that might receive either kind of caller (e.g., an email-link verification endpoint that could also be invoked via HTMX), branch on `HX-Request`:
+**Redirect (direct browser navigation):** use a standard `Location` header — `HX-Redirect` is ignored outside HTMX. For endpoints that might receive either kind of caller (e.g., an email-link verification endpoint that could also be invoked via HTMX), branch on `HX-Request`:
 
-```javascript
+```ts
 const target = "/login?code=email_verification_success"
 const isHtmx = context.request.headers.get("HX-Request") === "true"
 return new Response(null, {
@@ -167,16 +226,13 @@ See `functions/api/db/email/verify.ts` for the canonical example.
 
 **Error:**
 
-```javascript
-return new Response('<p class="result-negative">Invalid email address.</p>', {
-  status: 400,
-  headers: { "Content-Type": "text/html" },
-})
+```ts
+return resultNegative("Invalid email address.", 400)
 ```
 
 **Error with retarget:**
 
-```javascript
+```ts
 return new Response('<p class="result-negative">Server error.</p>', {
   status: 500,
   headers: {
@@ -186,13 +242,30 @@ return new Response('<p class="result-negative">Server error.</p>', {
 })
 ```
 
+### Audit emit
+
+Account and organisation mutations emit a structured event via `emitFromContext` after the mutation succeeds:
+
+```ts
+import { emitFromContext } from "../../../../src/hooks/dispatch.js"
+import { EVENTS } from "../../../../src/hooks/events.js"
+
+// ...mutation succeeded...
+await emitFromContext(context, {
+  event_type: EVENTS.ACCOUNT_PASSWORD_CHANGED,
+  target_user_uuid: user_uuid,
+})
+```
+
+Event type strings are constants in `src/hooks/events.ts` — never bare strings. Default severity is looked up from `DEFAULT_SEVERITY` in the same file; override only when context warrants escalation. See `docs/Operations.md → Audit events & hooks`.
+
 ### Session Cookie
 
 Auth cookies are assembled from an options array, with `Secure` and `SameSite` driven by `context.env`. See `docs/Architecture.md` for the env var defaults (`SECURE_COOKIE`, `COOKIE_SAMESITE`, `SESSION_MAX_AGE_SECONDS`).
 
 Login endpoints set the session cookie:
 
-```javascript
+```ts
 const cookieOptions = [
   `session_token=${session_id};`,
   "Path=/",
@@ -207,3 +280,5 @@ headers["Set-Cookie"] = cookieOptions.join("; ")
 ```
 
 Logout endpoints clear it with the same pattern, substituting an expired `Expires` or `Max-Age=0`. Never hardcode `Secure` or `SameSite=Strict` — that bypasses the env-var configuration.
+
+The login-flow plumbing (decide between session vs. 2FA step-up vs. password-upgrade) is encapsulated in `loginOutcomeResponse` from `src/utilities/login-response.ts`. Reuse it for any endpoint that completes a login.

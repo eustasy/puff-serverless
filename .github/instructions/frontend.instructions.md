@@ -70,7 +70,11 @@ Sections that load content on page load and refresh on server-triggered events:
 </div>
 ```
 
-Key event names used with `HX-Trigger`: `emailListChanged`, `sessionListChanged`, `tfaStatusChanged`.
+Key event names used with `HX-Trigger`:
+
+- Account: `emailListChanged`, `sessionListChanged`, `tfaStatusChanged`, `passkeysChanged`, `externalIdentitiesChanged`.
+- Organisations & teams: `organisationsChanged`, `organisationChanged`, `organisationMembersChanged`, `teamsChanged`, `teamMembersChanged`, `organisationInvitationsChanged`.
+- App entitlements: `appEntitlementsChanged`.
 
 ### Real-Time Validation
 
@@ -166,13 +170,34 @@ Every HTML page follows this structure:
 
 ## Pages
 
-| Page                 | Purpose                                                              |
-| -------------------- | -------------------------------------------------------------------- |
-| `index.html`         | Navigation index of all workflows                                    |
-| `login.html`         | Email/password login form                                            |
-| `register.html`      | Registration with live email-exists and password-requirements checks |
-| `account.html`       | Dashboard: email management, sessions, password change, 2FA status   |
-| `2fa.html`           | TOTP code entry during 2FA-gated login                               |
-| `logout.html`        | Logout confirmation                                                  |
-| `reset/request.html` | Password reset request (email input)                                 |
-| `reset/set.html`     | Password reset completion (token + new password)                     |
+### Static (`public/`)
+
+| Page                    | Purpose                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `index.html`            | Navigation index of all workflows                                                                                  |
+| `login.html`            | Email/password login form, passkey login form, and federated-provider buttons (HTMX-loaded from `/api/providers`). |
+| `register.html`         | Registration with live email-exists and password-requirements checks                                               |
+| `account.html`          | Dashboard: emails, sessions, password change, 2FA status, passkeys, linked accounts, organisations, stored data    |
+| `2fa.html`              | TOTP code entry during 2FA-gated login. Includes a `<details>` "lost authenticator?" section for the bypass flow.  |
+| `password-upgrade.html` | Forced password upgrade — shown when `MIN_PASSWORD_LENGTH` was raised above the user's current length              |
+| `logout.html`           | Logout confirmation                                                                                                |
+| `reset/request.html`    | Password reset request (email input)                                                                               |
+| `reset/set.html`        | Password reset completion (token + new password)                                                                   |
+
+### Server-rendered (`functions/`)
+
+| Route                       | Renderer                                | Purpose                                                                                                                               |
+| --------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `/organisations/:org_uuid`  | `functions/organisations/[org_uuid].ts` | Org management shell; HTMX-loads the `[org_uuid]/read` fragment for the management panel (teams, members, invitations, entitlements). |
+| `/invite?token=…`           | `functions/invite.ts`                   | Invitation accept page (unauthenticated preview + signed-in accept).                                                                  |
+| `/federated-signup?token=…` | `functions/federated-signup.ts`         | Confirmation page after a federated provider sent an unknown identity; previews the proposed account before creation.                 |
+| `/sitemap.xml`              | `functions/sitemap.xml.ts`              | Dynamic sitemap from `APP_URL`.                                                                                                       |
+
+Pages-Function-rendered HTML follows the same head/CSS conventions as the static pages; the renderer just composes the markup inside the handler.
+
+### Assets
+
+- `assets/main.css` — global styles for every page.
+- `assets/htmx_2.0.4.min.js` — bundled HTMX client.
+- `assets/webauthn.js` — small ES module wrapping `navigator.credentials` for passkey registration and login. Imported only on pages that need it (`login.html`, `account.html`).
+- `assets/bars.svg` — HTMX loading-indicator graphic.
