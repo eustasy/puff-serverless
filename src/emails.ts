@@ -80,6 +80,12 @@ export async function readEmails(
   user_uuid: string
 ): Promise<EmailRow[]> {
   try {
+    // Sort: primary first; within each group, oldest-verified first
+    // (NULLS LAST puts unverified at the very end), then alphabetical.
+    // Oldest-verified-first is load-bearing: the 2FA-bypass flow picks
+    // the first verified row, so callers get the user's most-established
+    // inbox (the primary when verified; otherwise the longest-held
+    // secondary) rather than a freshly-added address.
     const query = {
       text: "SELECT user_uuid, email_address, is_primary, is_verified, verified_at FROM emails WHERE user_uuid = $1 ORDER BY is_primary DESC, verified_at ASC NULLS LAST, email_address ASC",
       values: [user_uuid],
@@ -162,7 +168,7 @@ export async function createEmail(
     }
     const insertResult = await dbClient.query(insertEmailQuery)
 
-    if (insertResult.rowCount === 0) {
+    if ((insertResult.rowCount ?? 0) === 0) {
       return {
         success: true,
         email_address,
@@ -304,7 +310,7 @@ export async function verifyEmailByToken(
     }
     const updateEmailResult = await dbClient.query(updateEmailQuery)
 
-    if (updateEmailResult.rowCount === 0) {
+    if ((updateEmailResult.rowCount ?? 0) === 0) {
       // This case should be rare if emailRecord was found earlier.
       return {
         error: true,
@@ -470,7 +476,7 @@ export async function deleteEmail(
       [user_uuid, email_to_remove]
     )
 
-    if (deleteResult.rowCount === 0) {
+    if ((deleteResult.rowCount ?? 0) === 0) {
       // Should not happen if previous checks passed, unless race condition or already deleted
       return {
         error: true,
