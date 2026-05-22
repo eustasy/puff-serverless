@@ -12,11 +12,11 @@
 // places by design:
 //
 //   * Pure-SQL row reaping (TOTP / floating-session / session / token /
-//     audit cleanup) runs in CockroachDB itself via `CREATE SCHEDULE … FOR
-//     SQL` — see `sql/schedules.sql`. No Worker invocation, no Hyperdrive
-//     handshake, no round-trip per DELETE. `runScheduledCleanup` below is
-//     kept as a manually-callable fallback (development, emergencies, or
-//     operators on a CockroachDB version that does not support the DDL).
+//     audit cleanup) runs in CockroachDB itself via Row-Level TTL — see
+//     `sql/schedules.sql`. No Worker invocation, no Hyperdrive handshake,
+//     no round-trip per DELETE. `runScheduledCleanup` below is kept as a
+//     manually-callable fallback (development, emergencies, or operators
+//     on a CockroachDB version too old for `ttl_expiration_expression`).
 //   * Work that needs Web Crypto, or that calls an external API, runs here.
 //     Currently: OAuth signing-key rotation.
 //
@@ -64,10 +64,10 @@ async function runScheduledWork(env: Env, cron: string): Promise<void> {
 /**
  * Reaps rows the request path only ever soft-expires (sessions are marked
  * inactive, tokens marked used) but never deletes. Each query mirrors a
- * CockroachDB-side schedule from `sql/schedules.sql`; this function exists
- * so operators can run the same purges manually (e.g. from a Node REPL
- * during incident response, or on a CockroachDB version that does not
- * support `CREATE SCHEDULE FOR SQL`).
+ * Row-Level TTL rule from `sql/schedules.sql`; this function exists so
+ * operators can run the same purges manually (e.g. from a Node REPL during
+ * incident response, or on a CockroachDB version too old for Row-Level
+ * TTL `ttl_expiration_expression`).
  *
  * Never throws: a cron invocation has no caller to surface an error to, so
  * a failure is logged and the next run retries.

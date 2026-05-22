@@ -77,8 +77,9 @@ $PSQL < sql/passkeys.sql
 # 9. Audit log (no FK dependencies — actor/target uuids are plain strings by design)
 $PSQL < sql/audit_events.sql
 
-# 10. Scheduled SQL jobs (CockroachDB v23.1+). Replaces the bulk of what
-#     used to run in the Worker cron. Idempotent — re-applying is safe.
+# 10. Row-Level TTL cleanup rules (CockroachDB v23.1+). Replaces the bulk
+#     of what used to run in the Worker cron. Idempotent — re-applying is
+#     safe (ALTER TABLE … SET just re-applies the same parameters).
 $PSQL < sql/schedules.sql
 ```
 
@@ -235,7 +236,7 @@ After the first deploy, verify each surface works end-to-end. The audit log (`au
 - **Enable 2FA** → QR code renders inline (SVG, not a `data:` URL); `account.2fa.setup.verified` row.
 - **`/.well-known/jwks.json`** returns the active public JWK.
 - **`/.well-known/openid-configuration`** advertises endpoints matching your `APP_URL`.
-- **DB schedules are installed** — `SHOW SCHEDULES;` lists `puff_purge_totp_used_codes`, `puff_purge_app_floating_sessions`, `puff_purge_sessions`, `puff_purge_tokens`, `puff_purge_audit_low_severity`. Recent runs: `SHOW JOBS WHERE schedule_id IS NOT NULL ORDER BY created DESC LIMIT 20;`
+- **Row-Level TTL is installed** — `SHOW SCHEDULES;` lists one `row-level-ttl` schedule for each of `totp_used_codes`, `app_floating_sessions`, `sessions`, `tokens`, `audit_events`. Recent runs: `WITH x AS (SHOW JOBS) SELECT * FROM x WHERE job_type = 'ROW LEVEL TTL' ORDER BY created DESC LIMIT 20;`
 - **Worker cron is registered** — `wrangler deploy` prints `Cron Triggers: 0 0 * * *`. The daily tick drives `maybeRotateSigningKey` (see [Operations.md → OAuth signing-key rotation](Operations.md#oauth-signing-key-rotation)); it rotates the key once it is older than `OAUTH_KEY_ROTATION_INTERVAL_DAYS` (default 7), so the first rotation after seeding KV lands a week later.
 - **HTTP response headers** — `curl -I https://auth.example.com/` shows the CSP, HSTS, and Reporting-Endpoints headers from `public/_headers`.
 - **Federated login** (if configured) — clicking each provider button lands at the provider, returns to `/login/<provider>/callback`, and either creates an account, logs in, or links the identity.

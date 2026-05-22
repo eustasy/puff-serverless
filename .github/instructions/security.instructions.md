@@ -37,7 +37,7 @@ applyTo: "**"
 - 2FA secrets are stored in the `secrets` table with `secret_type = 'totp_secret'`.
 - Login with 2FA: initial password auth returns a short-lived `totp_verification_pending` token (15 min) set in a cookie, then the user submits the TOTP code with that token.
 - 2FA setup: secret is created with `is_enabled = FALSE`, enabled only after successful TOTP code verification.
-- **TOTP replay prevention**: `totp_used_codes` keyed on `(user_uuid, totp_code)` with `INSERT … ON CONFLICT DO NOTHING` — a code is accepted at most once within its acceptance window. Replays return failure. `verify()` uses `epochTolerance: 30` (±1 step for clock skew). Stale rows are reaped every 5 minutes by the `puff_purge_totp_used_codes` CockroachDB schedule (`sql/schedules.sql`).
+- **TOTP replay prevention**: `totp_used_codes` keyed on `(user_uuid, totp_code)` with `INSERT … ON CONFLICT DO NOTHING` — a code is accepted at most once within its acceptance window. Replays return failure. `verify()` uses `epochTolerance: 30` (±1 step for clock skew). Stale rows are reaped by a CockroachDB Row-Level TTL rule (`sql/schedules.sql`), scanned every 5 minutes.
 - **2FA QR code** is rendered inline as `<svg>` via `uqr` — the TOTP secret never leaves the origin (older versions sent it to a third-party QR-image service, which was a leak).
 - **2FA bypass** (`/api/db/2fa/bypass/{request,verify}`) emails a single-use link to a verified address (primary if verified, otherwise oldest-verified secondary) when the user has lost their authenticator. Refuses to send when a `password_reset` token was consumed in the last 24h, so email alone cannot reset the password (factor 1) AND bypass 2FA (factor 2) in the same window.
 

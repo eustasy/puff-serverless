@@ -4,7 +4,8 @@ Two parallel tracks of work on the periodic-task layer. Plan A pushes the existi
 
 > **Status: implemented.** Both plans have landed in code. Checkboxes below are ticked for code-complete items; the deploy-time steps in [Migration from the env-var scheme](#migration-from-the-env-var-scheme) remain unticked because they run against a live environment, not the repo. Deltas from the plan as written:
 >
-> - The audit tier-1 reap runs **hourly**, not nightly — folded into the existing hourly schedule rather than given its own cadence.
+> - **Plan A mechanism corrected.** The plan called for `CREATE SCHEDULE … FOR SQL` — that statement does not exist in CockroachDB (only `FOR BACKUP` / `FOR CHANGEFEED` do). Plan A instead uses **Row-Level TTL**: `sql/schedules.sql` runs `ALTER TABLE … SET (ttl_expiration_expression = …, ttl_job_cron = …)` per table, and CockroachDB's built-in TTL job does the reaping. Each table's `ttl_expiration_expression` is pure column arithmetic returning a `TIMESTAMPTZ` (or `NULL` to never expire); the "purge only when defunct" guard for `sessions` and the severity tiering for `audit_events` are encoded as `CASE` expressions. Still v23.1+ (`ttl_expiration_expression`). Sections below describing `CREATE SCHEDULE` reflect the original plan, not the shipped code.
+> - The audit tier-1 reap runs **hourly**, not nightly — its `ttl_job_cron` is `0 * * * *`.
 > - The optional `GET /api/db/auth/admin/schedules` observability endpoint was **not** built; `SHOW SCHEDULES` / `SHOW JOBS` is documented in `docs/Operations.md` instead.
 > - `functions/.well-known/jwks.json.ts` needed **no direct change** — it calls `currentPublicJwk` / `previousPublicJwk`, and the KV read moved entirely inside `src/oauth-keys.ts`.
 > - Rollback ships as **two** operator endpoints: `POST /api/db/auth/admin/oauth-keys/rotate` (force-rotate) and `POST /api/db/auth/admin/oauth-keys/promote-retired` (swap retired back to active). Both gated by a new `OPERATOR_USER_UUIDS` env var via `functions/api/db/auth/admin/_middleware.ts`.
@@ -13,7 +14,7 @@ Two parallel tracks of work on the periodic-task layer. Plan A pushes the existi
 ## Table of Contents
 
 - [Context](#context)
-- [Plan A — SQL cleanup → CockroachDB scheduled jobs](#plan-a--sql-cleanup--cockroachdb-scheduled-jobs)
+- [Plan A — SQL cleanup → CockroachDB Row-Level TTL](#plan-a--sql-cleanup--cockroachdb-row-level-ttl)
 - [Plan B — Automated OAuth signing-key rotation](#plan-b--automated-oauth-signing-key-rotation)
 - [Combined cron landscape after both plans](#combined-cron-landscape-after-both-plans)
 - [Migration order](#migration-order)
@@ -31,25 +32,27 @@ Today `src/cron.ts` runs every periodic task in the system. Two Cloudflare Cron 
 
 Meanwhile, the OAuth signing-key rotation procedure (`docs/Operations.md → OAuth signing-key rotation`) is **manual**. The operator must remember to do it, get the three-step sequence right, and time the overlap-window cleanup. Easy to forget, no audit trail, single-person dependency. Rotating keys is exactly the kind of work a cron should do.
 
-## Plan A — SQL cleanup → CockroachDB scheduled jobs
+## Plan A — SQL cleanup → CockroachDB Row-Level TTL
 
-CockroachDB has supported [`CREATE SCHEDULE … FOR SQL`](https://www.cockroachlabs.com/docs/stable/create-schedule-for-sql) since v23.1, letting the database run an arbitrary SQL statement on a cron schedule. The Worker no longer needs to be the orchestrator for pure-data-cleanup work.
+> The original plan proposed `CREATE SCHEDULE … FOR SQL`. **That statement does not exist** in CockroachDB — only `CREATE SCHEDULE FOR BACKUP` / `FOR CHANGEFEED`. The shipped implementation uses [Row-Level TTL](https://www.cockroachlabs.com/docs/stable/row-level-ttl) instead, which achieves the same "the database reaps its own rows, no Worker tick" goal. The subsections below keep the original `CREATE SCHEDULE` wording for history; the corrected design is in the indented notes.
+
+CockroachDB lets a table declare a per-row expiry via the `ttl_expiration_expression` storage parameter (v23.1+); its built-in TTL job deletes expired rows on a `ttl_job_cron` schedule. The Worker no longer needs to be the orchestrator for pure-data-cleanup work.
 
 ### What moves
 
-Every current `src/cron.ts` query is in scope. Each becomes one DB-side schedule:
+Every current `src/cron.ts` query is in scope. Each becomes one table's Row-Level TTL rule — the `ttl_expiration_expression` encodes the same predicate as the original `DELETE … WHERE`:
 
-- [x] **TOTP replay cleanup** — `DELETE FROM totp_used_codes WHERE used_at < NOW() - INTERVAL '2 minutes'`. Every 5 minutes.
-- [x] **Floating-seat reap** — `DELETE FROM app_floating_sessions WHERE expires_at <= NOW()`. Every 5 minutes.
-- [x] **Session purge** — `DELETE FROM sessions WHERE created_at < NOW() - INTERVAL '1 month' AND (is_active = FALSE OR (expires_at IS NOT NULL AND expires_at < NOW()))`. Hourly.
-- [x] **Token purge** — `DELETE FROM tokens WHERE created_at < NOW() - INTERVAL '1 month'`. Hourly.
-- [x] **Audit log tier-1 reap** — `DELETE FROM audit_events WHERE event_severity IN ('debug', 'info') AND created_at < NOW() - INTERVAL '90 days'`. Hourly.
+- [x] **TOTP replay cleanup** — was `DELETE FROM totp_used_codes WHERE used_at < NOW() - INTERVAL '2 minutes'`. TTL: `used_at + INTERVAL '2 minutes'`, scanned every 5 minutes.
+- [x] **Floating-seat reap** — was `DELETE FROM app_floating_sessions WHERE expires_at <= NOW()`. TTL: `expires_at`, scanned every 5 minutes.
+- [x] **Session purge** — was `DELETE FROM sessions WHERE created_at < NOW() - INTERVAL '1 month' AND (is_active = FALSE OR (expires_at IS NOT NULL AND expires_at < NOW()))`. TTL: a `CASE` that returns `created_at + 1 month` (inactive), `greatest(expires_at, created_at + 1 month)` (past expiry), or `NULL` (still valid → never expire); scanned hourly.
+- [x] **Token purge** — was `DELETE FROM tokens WHERE created_at < NOW() - INTERVAL '1 month'`. TTL: `created_at + INTERVAL '1 month'`, scanned hourly.
+- [x] **Audit log tier-1 reap** — was `DELETE FROM audit_events WHERE event_severity IN ('debug', 'info') AND created_at < NOW() - INTERVAL '90 days'`. TTL: a `CASE` returning `created_at + 90 days` for `debug`/`info` and `NULL` (kept forever) otherwise; scanned hourly.
 
 ### Schema (`sql/schedules.sql`)
 
-- [x] Add `sql/schedules.sql` as the version-controlled source of truth. Each schedule is a `CREATE SCHEDULE IF NOT EXISTS` so re-applying is idempotent.
-- [x] Name schedules consistently: `puff_purge_totp_used_codes`, `puff_purge_app_floating_sessions`, `puff_purge_sessions`, `puff_purge_tokens`, `puff_purge_audit_low_severity`.
-- [x] Set the per-schedule options: `ON_EXECUTION_FAILURE = RETRY` (CockroachDB default behaviour for `FOR SQL`); `IGNORE_EXISTING_BACKUPS` doesn't apply. Document the version assumption (CockroachDB ≥ v23.1) in the file header.
+- [x] Add `sql/schedules.sql` as the version-controlled source of truth. It is a set of `ALTER TABLE IF EXISTS … SET (ttl_expiration_expression = …, ttl_job_cron = …)` statements — idempotent, since `SET` just re-applies the same parameters.
+- [x] ~~Name schedules consistently~~ — N/A for Row-Level TTL: CockroachDB names the per-table schedules itself (`row-level-ttl-<id>`, visible in `SHOW SCHEDULES`).
+- [x] Document the version assumption (CockroachDB ≥ v23.1, for `ttl_expiration_expression`) in the file header. `ON_EXECUTION_FAILURE` / `IGNORE_EXISTING_BACKUPS` were `FOR SQL` concepts and do not apply.
 
 ### Worker changes
 
@@ -59,23 +62,23 @@ Every current `src/cron.ts` query is in scope. Each becomes one DB-side schedule
 
 ### Observability changes
 
-| Now                                                                                  | After                                                                                                                                                    |
-| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cloudflare worker tail shows `Scheduled cleanup (0 * * * *): purged …` summary line. | `SHOW SCHEDULES` lists the registered jobs; `SHOW JOBS WHERE schedule_id IS NOT NULL` shows history; `SHOW JOB <id>` shows per-run rowcounts and errors. |
-| Errors surface in Cloudflare logs.                                                   | Errors surface in CockroachDB jobs and the schedule's status.                                                                                            |
+| Now                                                                                  | After                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cloudflare worker tail shows `Scheduled cleanup (0 * * * *): purged …` summary line. | `SHOW SCHEDULES` lists one `row-level-ttl` schedule per table; `WITH x AS (SHOW JOBS) SELECT * FROM x WHERE job_type = 'ROW LEVEL TTL'` shows per-run rowcounts and errors. |
+| Errors surface in Cloudflare logs.                                                   | Errors surface in the CockroachDB TTL job status.                                                                                                                           |
 
 - [x] Document the new observability surface in `docs/Operations.md → Scheduled cleanup`.
 - [ ] Optional: add an operator endpoint `GET /api/db/auth/admin/schedules` that runs `SHOW SCHEDULES` + the recent `SHOW JOBS` and renders the result. **Not built** — the `SHOW SCHEDULES` / `SHOW JOBS` queries are documented in `docs/Operations.md` for operators to run directly. Could still be added later.
 
 ### Risks and mitigations
 
-| Risk                                       | Mitigation                                                                                                                                                                                                                   |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CockroachDB version too old for `FOR SQL`. | Deployment doc lists v23.1+ as a prerequisite for Plan A. Existing operators on older versions can either upgrade or keep `src/cron.ts` as-is for those tasks.                                                               |
-| Schedule fails silently.                   | `SHOW SCHEDULES` reveals last run + last status; the operator endpoint surfaces it. Set up an alert on any schedule with `next_run < now() - interval '15 minutes'`.                                                         |
-| Schedule DDL is privileged.                | Document in `docs/Deployment.md` that schedule installation needs an admin role; provide the exact `GRANT` if needed.                                                                                                        |
-| Need to roll back to Worker cron.          | `src/cron.ts` retains all the queries until both Plan A and Plan B are stable in production. Removing them is the final step, not the first.                                                                                 |
-| Cross-engine portability.                  | Schedules are CockroachDB-specific. If you ever move to a different Postgres-compatible DB without `CREATE SCHEDULE FOR SQL`, the Worker cron is the fallback — which is why we don't delete `runScheduledCleanup` outright. |
+| Risk                                                         | Mitigation                                                                                                                                                                                              |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CockroachDB version too old for `ttl_expiration_expression`. | Deployment doc lists v23.1+ as a prerequisite for Plan A. Operators on older versions skip `sql/schedules.sql` and keep `runScheduledCleanup` on a Worker cron instead.                                 |
+| TTL job fails silently.                                      | `SHOW SCHEDULES` reveals last run + last status per table; the `SHOW JOBS … 'ROW LEVEL TTL'` query shows history. Alert on any TTL schedule whose last run is well in the past.                         |
+| `ALTER TABLE` DDL is privileged.                             | `sql/schedules.sql` is imported by the same admin role that imports the rest of `sql/`; no extra grant needed beyond schema-creation rights.                                                            |
+| Need to roll back.                                           | `runScheduledCleanup` is retained in `src/cron.ts`; `ALTER TABLE … RESET (ttl)` removes a table's TTL rule. The fallback path stays available indefinitely.                                             |
+| Cross-engine portability.                                    | Row-Level TTL is CockroachDB-specific. On a different Postgres-compatible DB without it, the Worker cron (`runScheduledCleanup`) is the fallback — which is why we don't delete that function outright. |
 
 ## Plan B — Automated OAuth signing-key rotation
 
@@ -132,23 +135,23 @@ One-off operator step at deploy:
 
 ## Combined cron landscape after both plans
 
-| Where                    | Schedule            | Runs                                                                           |
-| ------------------------ | ------------------- | ------------------------------------------------------------------------------ |
-| CockroachDB              | `*/5 * * * *`       | `DELETE FROM totp_used_codes …`, `DELETE FROM app_floating_sessions …`         |
-| CockroachDB              | `0 * * * *`         | `DELETE FROM sessions …`, `DELETE FROM tokens …`, `DELETE FROM audit_events …` |
-| Worker (CF Cron Trigger) | `0 0 * * *` (daily) | `maybeRotateSigningKey(env)` — rotates weekly (7-day age gate)                 |
+| Where                     | Cadence                      | Runs                                                           |
+| ------------------------- | ---------------------------- | -------------------------------------------------------------- |
+| CockroachDB Row-Level TTL | `ttl_job_cron` `*/5 * * * *` | reaps expired `totp_used_codes`, `app_floating_sessions`       |
+| CockroachDB Row-Level TTL | `ttl_job_cron` `0 * * * *`   | reaps expired `sessions`, `tokens`, `audit_events`             |
+| Worker (CF Cron Trigger)  | `0 0 * * *` (daily)          | `maybeRotateSigningKey(env)` — rotates weekly (7-day age gate) |
 
-Three triggers across two systems, each running exactly what it's best at:
+Two systems, each running exactly what it's best at:
 
-- DB-resident DELETEs run **in** the database — no network round-trip, no Worker invocation.
+- Row reaping runs **in** the database via Row-Level TTL — no network round-trip, no Worker invocation.
 - Web-Crypto key generation runs **in** the Worker — where Web Crypto is available.
 
 ## Migration order
 
 Land Plan A and Plan B independently; either order works, but Plan A first is gentler because nothing about Plan A changes the live behaviour visible to users.
 
-1. **Plan A, phase 1 — co-existence.** Install `sql/schedules.sql` on the live DB. The schedules and the Worker cron both run the same DELETEs; the rows that satisfy the WHERE clause get deleted once (either by whichever ran first) and the other is a no-op. Verify in `SHOW SCHEDULES` and `wrangler tail` for one full cycle (≥ a week).
-2. **Plan A, phase 2 — cutover.** Remove the SQL DELETEs from `src/cron.ts`; the Worker cron now does nothing except prepare for Plan B. Watch DB-side `SHOW JOBS` for the next cycle.
+1. **Plan A, phase 1 — co-existence.** Install `sql/schedules.sql` on the live DB. The Row-Level TTL jobs and the Worker cron both reap the same rows; whichever runs first deletes a given row and the other no-ops. Verify in `SHOW SCHEDULES` and `wrangler tail` for one full cycle (≥ a week).
+2. **Plan A, phase 2 — cutover.** Remove the SQL DELETEs from `src/cron.ts`'s `scheduled` path; the Worker cron now does nothing except prepare for Plan B. Watch the TTL job history for the next cycle.
 3. **Plan B, phase 1 — KV seed + dual-read.** Provision the KV namespace, seed `oauth:keys:active` from the existing env var, deploy a `src/oauth-keys.ts` that **prefers KV but falls back to the env var** if KV is empty. Production traffic now reads from KV; the env var is a safety net.
 4. **Plan B, phase 2 — enable rotation.** Add the daily cron-trigger entry. Watch the first rotation cycle end-to-end (`audit_events` for the `oauth.signing_key.rotated` event; JWKS for both keys present; old key disappearing from KV after `expirationTtl`).
 5. **Plan B, phase 3 — clean up the env-var fallback.** After ≥ one successful rotation, drop the env-var read path and remove the `OAUTH_SIGNING_KEY_PRIVATE` / `OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC` bindings.

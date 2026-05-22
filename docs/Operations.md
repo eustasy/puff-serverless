@@ -22,21 +22,21 @@ Tasks that need doing intermittently — not on every deploy, but as part of run
 
 The request path only ever _soft_-expires data: sessions are marked inactive, tokens marked used, TOTP codes recorded — nothing is deleted inline. The DB itself reaps that data on a schedule.
 
-Two different scheduling surfaces are in play, by design:
+Two different cleanup surfaces are in play, by design:
 
-| Where                                                                                                                 | Schedule            | Runs                                                                                                               |
-| --------------------------------------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| CockroachDB ([scheduled SQL](https://www.cockroachlabs.com/docs/stable/create-schedule-for-sql), `sql/schedules.sql`) | `*/5 * * * *`       | `DELETE FROM totp_used_codes …`, `DELETE FROM app_floating_sessions …`                                             |
-| CockroachDB (`sql/schedules.sql`)                                                                                     | `0 * * * *`         | `DELETE FROM sessions …`, `DELETE FROM tokens …`, `DELETE FROM audit_events …`                                     |
-| Cloudflare Cron Trigger (`wrangler.jsonc` `triggers.crons` → `src/cron.ts`)                                           | `0 0 * * *` (daily) | `maybeRotateSigningKey(env)` — rotates weekly; see [OAuth signing-key rotation](#oauth-signing-key-rotation) below |
+| Where                                                                                                      | Cadence             | Reaps                                                                                                              |
+| ---------------------------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| CockroachDB [Row-Level TTL](https://www.cockroachlabs.com/docs/stable/row-level-ttl) (`sql/schedules.sql`) | every 5 min         | `totp_used_codes` (2 min after `used_at`), `app_floating_sessions` (at `expires_at`)                               |
+| CockroachDB Row-Level TTL (`sql/schedules.sql`)                                                            | hourly              | `sessions` (1 month, defunct only), `tokens` (1 month), `audit_events` (`debug`/`info` after 90 days)              |
+| Cloudflare Cron Trigger (`wrangler.jsonc` `triggers.crons` → `src/cron.ts`)                                | `0 0 * * *` (daily) | `maybeRotateSigningKey(env)` — rotates weekly; see [OAuth signing-key rotation](#oauth-signing-key-rotation) below |
 
-Pure-SQL row reaping (TOTP, floating-session, session, token, audit) runs **in CockroachDB itself** — no Worker invocation, no Hyperdrive handshake per tick, no round-trip per DELETE. Work that needs Web Crypto or an external API stays in the Worker.
+Row reaping (TOTP, floating-session, session, token, audit) runs **in CockroachDB itself** via Row-Level TTL — no Worker invocation, no Hyperdrive handshake per tick, no round-trip per DELETE. Work that needs Web Crypto or an external API stays in the Worker.
 
-Sessions are purged only when also defunct (inactive or past expiry), so a still-valid session is never deleted even if `SESSION_MAX_AGE_SECONDS` is raised beyond a month. Audit events of severity `notice` and above are retained forever; only `debug` / `info` ages out after 90 days.
+Each table carries a `ttl_expiration_expression` storage parameter — a per-row SQL expression yielding the row's expiry `TIMESTAMPTZ` (or `NULL` for "never") — plus a `ttl_job_cron` controlling how often CockroachDB's built-in TTL job scans it. Sessions are purged only when also defunct (inactive or past expiry): the session expression returns `NULL` for a still-valid row, so it is never deleted even if `SESSION_MAX_AGE_SECONDS` is raised beyond a month. Audit events of severity `notice` and above likewise map to `NULL` and are retained forever; only `debug` / `info` ages out after 90 days.
 
-### Installing and observing the DB schedules
+### Installing and observing the TTL rules
 
-Install once per environment (idempotent — every statement is `CREATE SCHEDULE IF NOT EXISTS`):
+Install once per environment (idempotent — `ALTER TABLE … SET` just re-applies the same parameters):
 
 ```sh
 $PSQL < sql/schedules.sql
@@ -45,23 +45,24 @@ $PSQL < sql/schedules.sql
 Inspect at runtime:
 
 ```sql
--- Every Puff schedule currently registered.
+-- One row-level-TTL schedule per TTL-enabled table.
 SHOW SCHEDULES;
 
--- Recent runs across all schedules.
-SHOW JOBS WHERE schedule_id IS NOT NULL ORDER BY created DESC LIMIT 20;
+-- Recent TTL job runs (rowcounts, errors, timings).
+WITH x AS (SHOW JOBS) SELECT * FROM x WHERE job_type = 'ROW LEVEL TTL'
+ORDER BY created DESC LIMIT 20;
 
--- Drill into one specific schedule (look up the id from SHOW SCHEDULES).
-SHOW JOB <id>;
+-- The TTL parameters currently set on a table.
+SHOW CREATE TABLE sessions;
 ```
 
-Alerting hook: any schedule with `next_run < now() - interval '15 minutes'` is overdue; that's the easiest signal that something has stuck.
+To pause a table's TTL job: `ALTER TABLE <table> SET (ttl_pause = true)`. To remove TTL entirely: `ALTER TABLE <table> RESET (ttl)`.
 
-Requires CockroachDB v23.1+ (`CREATE SCHEDULE … FOR SQL`). On older versions, drop the DB schedules and run `runScheduledCleanup(env)` from a Worker cron instead — the function in `src/cron.ts` is preserved as the manual / fallback path.
+Requires CockroachDB v23.1+ (`ttl_expiration_expression`). On older versions, skip `sql/schedules.sql` and run `runScheduledCleanup(env)` from a Worker cron instead — the function in `src/cron.ts` is preserved as the manual / fallback path.
 
 ### Manual cleanup
 
-`runScheduledCleanup(env)` is kept as a callable fallback — for development, incident-response purges, or operators on a CockroachDB version that does not support `CREATE SCHEDULE FOR SQL`. It runs all five DELETEs in one pass and logs a single summary line.
+`runScheduledCleanup(env)` is kept as a callable fallback — for development, incident-response purges, or operators on a CockroachDB version too old for Row-Level TTL. It runs all five DELETEs in one pass and logs a single summary line.
 
 ## Audit events & hooks
 
