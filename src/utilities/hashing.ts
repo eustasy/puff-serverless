@@ -11,7 +11,8 @@ function Uint8toHex(bytes: Uint8Array) {
   )
 }
 
-export async function hashing_wrapper(pw: string, algo: string) {
+/** Hashes pw with the given Web Crypto algorithm name (e.g. "SHA-256", "SHA-384", "SHA-1") and returns the hex digest. */
+export async function hashWithAlgo(pw: string, algo: string) {
   const myText = new TextEncoder().encode(pw)
   const myDigest = await crypto.subtle.digest({ name: algo }, myText)
   const bitsBack = new Uint8Array(myDigest)
@@ -48,7 +49,7 @@ export async function puff_hashing_password(
   }
 
   const toHash = pw + salt
-  const hash = await hashing_wrapper(toHash, algo)
+  const hash = await hashWithAlgo(toHash, algo)
 
   const hashes = {
     hash: hash,
@@ -58,8 +59,9 @@ export async function puff_hashing_password(
   return hashes
 }
 
-export async function puff_hashing_sha1_hibp(pw: string) {
-  const pw_sha1 = await hashing_wrapper(pw, "SHA-1")
+/** SHA-1 hashes pw and returns the first 5 hex chars (f5) and the remaining 35 (l35) for a HIBP k-anonymity lookup. */
+export async function puffHashSha1Hibp(pw: string) {
+  const pw_sha1 = await hashWithAlgo(pw, "SHA-1")
 
   const pw_sha1_f5 = pw_sha1.slice(0, 5)
   const pw_sha1_l35 = pw_sha1.slice(5, 40)

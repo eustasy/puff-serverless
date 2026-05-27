@@ -1,5 +1,6 @@
 import { isoBase64URL } from "@simplewebauthn/server/helpers"
 
+/** Returns all enabled passkeys for the user, ordered by creation date. */
 export async function listPasskeys(
   dbClient: DbClient,
   user_uuid: string
@@ -21,6 +22,7 @@ export async function listPasskeys(
   }
 }
 
+/** Looks up an enabled passkey by its WebAuthn credential_id; used during authentication to find the public key. */
 export async function getPasskeyByCredentialId(
   dbClient: DbClient,
   credentialId: string
@@ -45,6 +47,7 @@ export async function getPasskeyByCredentialId(
   }
 }
 
+/** Inserts a new passkey row after a successful WebAuthn registration; stores the public key as base64url. */
 export async function savePasskey(
   dbClient: DbClient,
   user_uuid: string,
@@ -83,6 +86,7 @@ export async function savePasskey(
   }
 }
 
+/** Updates the signature counter and last_used_at after a successful WebAuthn assertion; guards against cloned authenticators. */
 export async function updatePasskeyCounter(
   dbClient: DbClient,
   passkey_uuid: string,
@@ -105,6 +109,7 @@ export async function updatePasskeyCounter(
   }
 }
 
+/** Hard-deletes a passkey row; scoped by user_uuid so users cannot delete each other's passkeys. */
 export async function deletePasskey(
   dbClient: DbClient,
   passkey_uuid: string,
@@ -130,6 +135,7 @@ export async function deletePasskey(
   }
 }
 
+/** Derives the WebAuthn RP ID and name from env vars, falling back to hostname from APP_URL then "localhost". */
 export function getRpConfig(env: Env): { rpID: string; rpName: string } {
   let rpID: string
   if (env.WEBAUTHN_RP_ID) {

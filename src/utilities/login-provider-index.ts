@@ -1,3 +1,4 @@
+/** Full-page error response for the /login/[provider] flow; callers must pass already-trusted strings. */
 export function errorPage(message: string, status = 400): Response {
   const body = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Sign-in error</title></head>

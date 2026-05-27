@@ -13,6 +13,7 @@ import { auditListener } from "./listeners/audit.js"
 
 const listeners: HookListener[] = [auditListener]
 
+/** Returns the static listener list for the hook dispatcher. */
 export function getListeners(): readonly HookListener[] {
   return listeners
 }

@@ -1,5 +1,5 @@
 import {
-  puff_hashing_sha1_hibp,
+  puffHashSha1Hibp,
   puff_hashing_password,
   passwordNeedsUpgrade,
 } from "./utilities/hashing.js"
@@ -414,7 +414,7 @@ export function passwordConfig(env: Env): PasswordConfig {
 // updates only when new breaches are processed (rare), so a 24h TTL is
 // comfortably under the data's effective freshness.
 async function hibpBreachCount(pw: string): Promise<number> {
-  const pwSha1 = await puff_hashing_sha1_hibp(pw)
+  const pwSha1 = await puffHashSha1Hibp(pw)
   const response = await fetch(
     "https://api.pwnedpasswords.com/range/" + pwSha1.f5,
     { cf: { cacheTtl: 86400, cacheEverything: true } }

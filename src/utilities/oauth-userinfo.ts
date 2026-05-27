@@ -1,3 +1,4 @@
+/** OIDC-compliant error response: includes a WWW-Authenticate Bearer challenge header as required by §5.3.2. */
 export function bearerError(
   code: "invalid_token" | "insufficient_scope",
   description: string,

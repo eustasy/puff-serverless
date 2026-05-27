@@ -12,6 +12,7 @@
 export const PROVIDERS = ["github", "google", "microsoft"] as const
 export type ProviderName = (typeof PROVIDERS)[number]
 
+/** Type guard: returns true when value is one of the known provider name strings. */
 export function isProviderName(value: unknown): value is ProviderName {
   return (
     typeof value === "string" &&

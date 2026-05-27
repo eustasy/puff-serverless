@@ -164,6 +164,14 @@ export type UserLoginResult =
 
 export type UserLoginSuccess = Extract<UserLoginResult, { success: true }>
 
+/**
+ * Authenticates a user by email + password. Returns one of three success
+ * shapes: `{ logged_in: true }` (session ready), `{ needs_2fa: true }` (TOTP
+ * pending — caller must redirect to /login/2fa), or `{ needs_upgrade: true }`
+ * (password is shorter than min_password_length — caller must redirect to
+ * /account/password/upgrade). Error responses are generic to prevent
+ * enumeration; detailed failures are logged server-side only.
+ */
 export async function loginUser(
   dbClient: DbClient,
   email: string,

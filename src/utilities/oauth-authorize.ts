@@ -27,6 +27,7 @@ export interface ParsedRequest {
   org_uuid: string | null
 }
 
+/** Extracts OAuth request parameters from URLSearchParams, defaulting missing fields to "". */
 export function readParams(source: URLSearchParams): ParsedRequest {
   return {
     response_type: source.get("response_type") || "",
@@ -41,6 +42,11 @@ export function readParams(source: URLSearchParams): ParsedRequest {
   }
 }
 
+/**
+ * Error page rendered directly to the browser (not redirected to the client).
+ * Used before redirect_uri is validated — once validated, errors go via
+ * redirectToClient so the client app can handle them.
+ */
 export function staticErrorPage(message: string, status = 400): Response {
   const body = `<!doctype html>
 <html lang="en">
@@ -59,6 +65,7 @@ export function staticErrorPage(message: string, status = 400): Response {
   })
 }
 
+/** Redirects to the OAuth client's redirect_uri (or any validated URL) with Cache-Control: no-store. */
 export function redirectToClient(target: string, status = 302): Response {
   return new Response(null, {
     status,
@@ -66,6 +73,7 @@ export function redirectToClient(target: string, status = 302): Response {
   })
 }
 
+/** Sends the user to /login, setting the next-cookie so they return to the authorize URL after authenticating. */
 export function redirectToLogin(env: Env, originalUrl: string): Response {
   const url = new URL(originalUrl)
   const path = sanitizeNext(url.pathname + url.search) || "/account"
@@ -79,6 +87,7 @@ export function redirectToLogin(env: Env, originalUrl: string): Response {
   })
 }
 
+/** Renders the consent screen; echoes original parameters as hidden inputs so the POST re-validates against the same request shape. */
 export function buildConsentPage(opts: {
   appName: string
   scopes: string[]
@@ -249,6 +258,7 @@ export async function validateRequest(
   return { app, scopes: supported }
 }
 
+/** Returns the user_uuid from the session cookie, or null if the session is absent or invalid. */
 export async function authenticatedUserId(
   context: Parameters<Handler>[0]
 ): Promise<string | null> {
@@ -373,6 +383,7 @@ export async function resolveOrgContext(
   return { kind: "pick", orgs: eligible.orgs }
 }
 
+/** Creates an authorization code and redirects the client to redirect_uri with code + state; redirects to server_error on failure. */
 export async function issueCodeAndRedirect(opts: {
   dbClient: DbClient
   user_uuid: string

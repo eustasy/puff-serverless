@@ -1,3 +1,4 @@
+/** Full-page error response for the federated callback flow; callers must pass already-trusted strings. */
 export function errorPage(message: string, status = 400): Response {
   const body = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Sign-in error</title></head>
@@ -12,18 +13,7 @@ export function errorPage(message: string, status = 400): Response {
   })
 }
 
-export function buildSessionCookie(env: Env, session_id: string): string {
-  const parts = [
-    `session_token=${session_id}`,
-    "HttpOnly",
-    "Path=/",
-    `SameSite=${env.COOKIE_SAMESITE || "Lax"}`,
-    `Max-Age=${env.SESSION_MAX_AGE_SECONDS || 2592000}`,
-  ]
-  if (env.SECURE_COOKIE) parts.push("Secure")
-  return parts.join("; ")
-}
-
+/** Redirects to target with one or more Set-Cookie headers appended (used to issue the session cookie on login). */
 export function redirectTo(target: string, setCookies: string[]): Response {
   const headers = new Headers({
     "Location": target,

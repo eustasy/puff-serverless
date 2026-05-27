@@ -1,24 +1,24 @@
 import { describe, it, expect } from "vitest"
 import {
-  hashing_wrapper,
+  hashWithAlgo,
   puff_hashing_password,
-  puff_hashing_sha1_hibp,
+  puffHashSha1Hibp,
   passwordNeedsUpgrade,
   PREFERRED_PASSWORD_ALGO,
 } from "../../src/utilities/hashing.js"
 
-describe("hashing_wrapper", () => {
+describe("hashWithAlgo", () => {
   it('produces the known SHA-1 digest of "password"', async () => {
     // 5baa61e4... is the canonical SHA-1 of the string "password".
-    expect(await hashing_wrapper("password", "SHA-1")).toBe(
+    expect(await hashWithAlgo("password", "SHA-1")).toBe(
       "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8"
     )
   })
 
   it("returns a lower-case hex digest of the algorithm's width", async () => {
-    const sha256 = await hashing_wrapper("anything", "SHA-256")
+    const sha256 = await hashWithAlgo("anything", "SHA-256")
     expect(sha256).toMatch(/^[0-9a-f]{64}$/)
-    const sha384 = await hashing_wrapper("anything", "SHA-384")
+    const sha384 = await hashWithAlgo("anything", "SHA-384")
     expect(sha384).toMatch(/^[0-9a-f]{96}$/)
   })
 })
@@ -63,9 +63,9 @@ describe("puff_hashing_password", () => {
   })
 })
 
-describe("puff_hashing_sha1_hibp", () => {
+describe("puffHashSha1Hibp", () => {
   it("splits the SHA-1 digest into a 5-char prefix and 35-char suffix", async () => {
-    const { f5, l35 } = await puff_hashing_sha1_hibp("password")
+    const { f5, l35 } = await puffHashSha1Hibp("password")
     expect(f5).toBe("5baa6")
     expect(l35).toBe("1e4c9b93f3f0682250b6cf8331b7ee68fd8")
     expect(f5 + l35).toBe("5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8")

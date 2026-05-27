@@ -13,10 +13,8 @@ import { Client } from "pg"
 import { escapeHtml } from "../src/utilities/escape.js"
 import { readFederatedSignupToken } from "../src/federated-signup-tokens.js"
 import { getProviderConfig } from "../src/oauth-providers.js"
-import {
-  deriveUsername,
-  errorPage,
-} from "../src/utilities/federated-signup-page.js"
+import { errorPage } from "../src/utilities/federated-signup-page.js"
+import { deriveUsername } from "../src/utilities/federated-signup.js"
 
 export const onRequestGet: Handler = async (context) => {
   const url = new URL(context.request.url)

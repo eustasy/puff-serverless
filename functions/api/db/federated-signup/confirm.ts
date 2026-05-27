@@ -18,10 +18,8 @@ import { clearNextCookie, readNext } from "../../../../src/utilities/next.js"
 import { resultNegative } from "../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../src/hooks/events.js"
-import {
-  buildSessionCookie,
-  deriveUsername,
-} from "../../../../src/utilities/federated-signup-confirm.js"
+import { buildSessionCookie } from "../../../../src/utilities/session-cookie.js"
+import { deriveUsername } from "../../../../src/utilities/federated-signup.js"
 
 export const onRequestPost: Handler = async (context) => {
   const { request, env, data } = context

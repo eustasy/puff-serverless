@@ -15,6 +15,7 @@ export interface ClientCreds {
   client_secret: string
 }
 
+/** Parses an HTTP Basic Authorization header into client_id / client_secret, returning null on any malformation. */
 export function parseBasicAuth(header: string | null): ClientCreds | null {
   if (!header || !header.startsWith("Basic ")) return null
   try {
@@ -40,6 +41,7 @@ export interface IdTokenContext {
   org_uuid: string | null
 }
 
+/** Signs and returns a JWT ID token with OIDC claims for the requested scopes, or null if openid is not requested. */
 export async function buildIdToken(
   env: Env,
   dbClient: DbClient,
@@ -105,6 +107,7 @@ export async function buildIdToken(
   return signJwt(env, payload)
 }
 
+/** Signs and returns a JWT access token carrying the scope claim and a unique jti. */
 export async function buildAccessToken(
   env: Env,
   ctx: {
@@ -141,6 +144,7 @@ export interface TokenResponse {
   id_token?: string
 }
 
+/** Serialises a successful token response to JSON with the required no-store cache headers. */
 export function jsonOk(body: TokenResponse): Response {
   return new Response(JSON.stringify(body), {
     status: 200,

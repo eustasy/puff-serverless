@@ -33,8 +33,8 @@ import { getCookie } from "../../../src/utilities/headers.js"
 import { clearNextCookie, readNext } from "../../../src/utilities/next.js"
 import { emitFromContext } from "../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../src/hooks/events.js"
+import { buildSessionCookie } from "../../../src/utilities/session-cookie.js"
 import {
-  buildSessionCookie,
   errorPage,
   redirectTo,
 } from "../../../src/utilities/login-provider-callback.js"

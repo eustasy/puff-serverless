@@ -1,5 +1,6 @@
 import { escapeHtml } from "./escape.js"
 
+/** Full-page error response for the /federated-signup flow; escapes message before rendering. */
 export function errorPage(message: string, status = 400): Response {
   const body = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Sign-up</title></head>
@@ -12,16 +13,4 @@ export function errorPage(message: string, status = 400): Response {
     status,
     headers: { "Content-Type": "text/html; charset=utf-8" },
   })
-}
-
-export function deriveUsername(
-  display_name: string | null,
-  email: string | null
-): string {
-  if (display_name && display_name.trim() !== "") return display_name.trim()
-  if (email) {
-    const local = email.split("@")[0]
-    if (local && local.trim() !== "") return local.trim()
-  }
-  return "user"
 }
