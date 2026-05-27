@@ -21,14 +21,14 @@ import {
   redirectToClient,
   redirectToLogin,
   resolveOrgContext,
-  staticErrorPage,
+  renderAuthorizeErrorPage,
   validateRequest,
 } from "../../src/utilities/oauth-authorize.js"
 
 export const onRequestGet: Handler = async (context) => {
   const { request, env, data } = context
   const dbClient = data.dbClient
-  if (!dbClient) return staticErrorPage("Database unavailable.", 503)
+  if (!dbClient) return renderAuthorizeErrorPage("Database unavailable.", 503)
 
   const params = readParams(new URL(request.url).searchParams)
   const validation = await validateRequest(dbClient, params)
@@ -82,13 +82,13 @@ export const onRequestGet: Handler = async (context) => {
 export const onRequestPost: Handler = async (context) => {
   const { request, data } = context
   const dbClient = data.dbClient
-  if (!dbClient) return staticErrorPage("Database unavailable.", 503)
+  if (!dbClient) return renderAuthorizeErrorPage("Database unavailable.", 503)
 
   let form: URLSearchParams
   try {
     form = new URLSearchParams(await request.text())
   } catch {
-    return staticErrorPage("Could not parse form submission.")
+    return renderAuthorizeErrorPage("Could not parse form submission.")
   }
   const params = readParams(form)
   const decision = form.get("consent") || ""

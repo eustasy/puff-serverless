@@ -8,6 +8,7 @@
 
 import { runInTransaction } from "./utilities/transaction.js"
 import { OWNER_ROLE } from "./permissions.js"
+import { validateDisplayName } from "./utilities/validation.js"
 
 /** Longest accepted organisation display name. */
 export const MAX_NAME_LENGTH = 128
@@ -15,16 +16,12 @@ export const MAX_NAME_LENGTH = 128
 const ORG_COLUMNS =
   "org_uuid, org_name, org_active, org_created_at, org_created_by"
 
-/** Validates an organisation name. Returns an error message, or null. */
-function validateName(name: string): string | null {
-  if (typeof name !== "string" || name.trim() === "") {
-    return "An organisation name is required."
-  }
-  if (name.trim().length > MAX_NAME_LENGTH) {
-    return `Names cannot be longer than ${MAX_NAME_LENGTH} characters.`
-  }
-  return null
-}
+const validateName = (name: string): string | null =>
+  validateDisplayName(
+    name,
+    "An organisation name is required.",
+    MAX_NAME_LENGTH
+  )
 
 /**
  * Creates an organisation and makes the creator its first `owner`, in one

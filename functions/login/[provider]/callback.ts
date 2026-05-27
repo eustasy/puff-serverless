@@ -34,10 +34,11 @@ import { clearNextCookie, readNext } from "../../../src/utilities/next.js"
 import { emitFromContext } from "../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../src/hooks/events.js"
 import { buildSessionCookie } from "../../../src/utilities/session-cookie.js"
-import {
-  errorPage,
-  redirectTo,
-} from "../../../src/utilities/login-provider-callback.js"
+import { redirectWithCookies } from "../../../src/utilities/login-provider-callback.js"
+import { renderErrorPage } from "../../../src/utilities/error-page.js"
+
+const errorPage = (message: string, status = 400) =>
+  renderErrorPage({ title: "Sign-in error", message, status })
 
 export const onRequestGet: Handler<"provider"> = async (context) => {
   const { request, env, data } = context
@@ -138,7 +139,7 @@ export const onRequestGet: Handler<"provider"> = async (context) => {
       buildSessionCookie(env, sessionResult.session_id),
     ]
     if (next) setCookies.push(clearNextCookie(env))
-    return redirectTo(next || "/account", setCookies)
+    return redirectWithCookies(next || "/account", setCookies)
   }
 
   // 2) Authenticated caller → link the identity.
@@ -173,7 +174,7 @@ export const onRequestGet: Handler<"provider"> = async (context) => {
         target_user_uuid: verified.user_uuid,
         target_label: `${provider_name}:${identity.provider_user_id}`,
       })
-      return redirectTo("/account", [clearOAuthStateCookie(env)])
+      return redirectWithCookies("/account", [clearOAuthStateCookie(env)])
     }
   }
 
@@ -188,7 +189,7 @@ export const onRequestGet: Handler<"provider"> = async (context) => {
   if (!signupToken.success) {
     return errorPage("Could not start your signup.", 500)
   }
-  return redirectTo(
+  return redirectWithCookies(
     `/federated-signup?token=${encodeURIComponent(signupToken.token)}`,
     [clearOAuthStateCookie(env)]
   )

@@ -103,6 +103,169 @@ export function escapeLikePattern(input: string): string {
 }
 
 /**
+ * Per-table configuration for the generic CRUD helpers. The six KV modules
+ * are identical apart from this triple; binding it once per file removes the
+ * per-call repetition without losing type safety on the row shape.
+ */
+export interface KeyValueSpec {
+  /** SQL table name (e.g. `user_key_values`). */
+  table: string
+  /** Subject columns in the same order the caller passes their values. */
+  subjectColumns: readonly string[]
+  /** Column list for SELECTs that return full rows (list / search). */
+  selectColumns: string
+  /** Short label used in error logs (e.g. `user-keyvalues`). */
+  label: string
+}
+
+/** Reads a single value by (subject..., owner, key). */
+export async function readKeyValueGeneric(
+  dbClient: DbClient,
+  spec: KeyValueSpec,
+  subjectValues: readonly unknown[],
+  owner: Owner,
+  key: string
+): Promise<Envelope<{ value: string }>> {
+  const invalid = validatePair(key)
+  if (invalid) {
+    return { success: false, message: invalid, status: 400 }
+  }
+  try {
+    const subjectWhere = spec.subjectColumns
+      .map((col, i) => `${col} = $${i + 1}`)
+      .join(" AND ")
+    const ownerParamIndex = spec.subjectColumns.length + 1
+    const ownerWhere = ownerFilter(owner, ownerParamIndex)
+    const keyParamIndex = ownerParamIndex + 1
+    const result = await dbClient.query(
+      `SELECT kv_value FROM ${spec.table} WHERE ${subjectWhere} AND ${ownerWhere.sql} AND kv_key = $${keyParamIndex} LIMIT 1`,
+      [...subjectValues, ...ownerWhere.values, key]
+    )
+    if (result.rows.length === 0) {
+      return { success: false, message: "Key not found.", status: 404 }
+    }
+    return { success: true, value: result.rows[0].kv_value, status: 200 }
+  } catch (error) {
+    console.error(`Error in ${spec.label} readKeyValue:`, error)
+    return {
+      error: true,
+      message: "Server error while reading key/value.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
+/** Reads every row a single owner has stored against the subject. */
+export async function readKeyValuesGeneric<RowT>(
+  dbClient: DbClient,
+  spec: KeyValueSpec,
+  subjectValues: readonly unknown[],
+  owner: Owner
+): Promise<Envelope<{ pairs: RowT[] }>> {
+  try {
+    const subjectWhere = spec.subjectColumns
+      .map((col, i) => `${col} = $${i + 1}`)
+      .join(" AND ")
+    const ownerParamIndex = spec.subjectColumns.length + 1
+    const ownerWhere = ownerFilter(owner, ownerParamIndex)
+    const result = await dbClient.query(
+      `SELECT ${spec.selectColumns} FROM ${spec.table} WHERE ${subjectWhere} AND ${ownerWhere.sql} ORDER BY kv_key ASC`,
+      [...subjectValues, ...ownerWhere.values]
+    )
+    return { success: true, pairs: result.rows, status: 200 }
+  } catch (error) {
+    console.error(`Error in ${spec.label} readKeyValues:`, error)
+    return {
+      error: true,
+      message: "Server error while reading key/values.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
+/** Substring-matches keys (LIKE wildcards in `pattern` are escaped). */
+export async function searchKeyValuesGeneric<RowT>(
+  dbClient: DbClient,
+  spec: KeyValueSpec,
+  subjectValues: readonly unknown[],
+  owner: Owner,
+  pattern: string
+): Promise<Envelope<{ pairs: RowT[] }>> {
+  if (typeof pattern !== "string" || pattern.trim() === "") {
+    return {
+      success: false,
+      message: "A search term is required.",
+      status: 400,
+    }
+  }
+  try {
+    const subjectWhere = spec.subjectColumns
+      .map((col, i) => `${col} = $${i + 1}`)
+      .join(" AND ")
+    const ownerParamIndex = spec.subjectColumns.length + 1
+    const ownerWhere = ownerFilter(owner, ownerParamIndex)
+    const patternParamIndex = ownerParamIndex + 1
+    const result = await dbClient.query(
+      `SELECT ${spec.selectColumns} FROM ${spec.table} WHERE ${subjectWhere} AND ${ownerWhere.sql} AND kv_key LIKE $${patternParamIndex} ESCAPE '\\' ORDER BY kv_key ASC`,
+      [
+        ...subjectValues,
+        ...ownerWhere.values,
+        `%${escapeLikePattern(pattern)}%`,
+      ]
+    )
+    return { success: true, pairs: result.rows, status: 200 }
+  } catch (error) {
+    console.error(`Error in ${spec.label} searchKeyValues:`, error)
+    return {
+      error: true,
+      message: "Server error while searching key/values.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
+/** Removes (subject..., owner, key); 404 if no such row. */
+export async function deleteKeyValueGeneric(
+  dbClient: DbClient,
+  spec: KeyValueSpec,
+  subjectValues: readonly unknown[],
+  owner: Owner,
+  key: string
+): Promise<Envelope<{}>> {
+  const invalid = validatePair(key)
+  if (invalid) {
+    return { success: false, message: invalid, status: 400 }
+  }
+  try {
+    const subjectWhere = spec.subjectColumns
+      .map((col, i) => `${col} = $${i + 1}`)
+      .join(" AND ")
+    const ownerParamIndex = spec.subjectColumns.length + 1
+    const ownerWhere = ownerFilter(owner, ownerParamIndex)
+    const keyParamIndex = ownerParamIndex + 1
+    const result = await dbClient.query(
+      `DELETE FROM ${spec.table} WHERE ${subjectWhere} AND ${ownerWhere.sql} AND kv_key = $${keyParamIndex}`,
+      [...subjectValues, ...ownerWhere.values, key]
+    )
+    if ((result.rowCount ?? 0) === 0) {
+      return { success: false, message: "Key not found.", status: 404 }
+    }
+    return { success: true, status: 200 }
+  } catch (error) {
+    console.error(`Error in ${spec.label} deleteKeyValue:`, error)
+    return {
+      error: true,
+      message: "Server error while deleting key/value.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
+/**
  * Builds the upsert query that all five subject modules use. `table` is the
  * SQL table name; `subjectColumns` and `subjectValues` describe the subject
  * portion of the row (e.g. `["user_uuid"]` / `[user_uuid]` for the user table,

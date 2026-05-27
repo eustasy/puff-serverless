@@ -23,7 +23,7 @@ import {
   ACCESS_TOKEN_TTL_SECONDS,
   buildAccessToken,
   buildIdToken,
-  jsonOk,
+  tokenResponse,
   parseBasicAuth,
   type TokenResponse,
 } from "../../src/utilities/oauth-token.js"
@@ -185,7 +185,7 @@ export const onRequestPost: Handler = async (context) => {
     }
     if (refresh_token) body.refresh_token = refresh_token
     if (id_token) body.id_token = id_token
-    return jsonOk(body)
+    return tokenResponse(body)
   }
 
   if (grant_type === "refresh_token") {
@@ -281,7 +281,7 @@ export const onRequestPost: Handler = async (context) => {
       refresh_token: rotated.token,
     }
     if (id_token) body.id_token = id_token
-    return jsonOk(body)
+    return tokenResponse(body)
   }
 
   return oauthErrorResponse(

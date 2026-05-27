@@ -10,6 +10,8 @@
 // SameSite=Lax is mandatory: the cookie has to survive the provider's
 // top-level GET redirect back to Puff. Strict would drop it.
 
+import { decodeString, encodeBytes, encodeString } from "./base64url.js"
+
 const COOKIE_NAME = "oauth_state"
 
 // 10 minutes — long enough for the user to complete a consent screen at the
@@ -25,28 +27,13 @@ export interface OAuthStateCookie {
   code_verifier: string
 }
 
-function base64UrlEncode(input: string): string {
-  return btoa(input).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-}
-
-function base64UrlDecode(input: string): string | null {
-  try {
-    const padded =
-      input.replace(/-/g, "+").replace(/_/g, "/") +
-      "===".slice((input.length + 3) % 4)
-    return atob(padded)
-  } catch {
-    return null
-  }
-}
-
 /**
  * Builds the Set-Cookie header value carrying the OAuth client state. Body
  * is base64url-encoded JSON so cookie characters are safe and the format is
  * trivially parseable.
  */
 export function setOAuthStateCookie(env: Env, value: OAuthStateCookie): string {
-  const encoded = base64UrlEncode(JSON.stringify(value))
+  const encoded = encodeString(JSON.stringify(value))
   const parts = [
     `${COOKIE_NAME}=${encoded}`,
     "HttpOnly",
@@ -68,10 +55,8 @@ export async function readOAuthStateCookie(
   const { getCookie } = await import("./headers.js")
   const raw = await getCookie(cookieHeader, COOKIE_NAME)
   if (!raw) return null
-  const json = base64UrlDecode(raw)
-  if (!json) return null
   try {
-    const parsed = JSON.parse(json) as Partial<OAuthStateCookie>
+    const parsed = JSON.parse(decodeString(raw)) as Partial<OAuthStateCookie>
     if (
       typeof parsed.provider === "string" &&
       typeof parsed.state === "string" &&
@@ -101,10 +86,7 @@ export function clearOAuthStateCookie(env: Env): string {
 // --- PKCE helpers ---------------------------------------------------------
 
 function randomBase64Url(bytes: number): string {
-  const buf = crypto.getRandomValues(new Uint8Array(bytes))
-  let binary = ""
-  for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i]!)
-  return base64UrlEncode(binary)
+  return encodeBytes(crypto.getRandomValues(new Uint8Array(bytes)))
 }
 
 /** Generates a fresh state nonce (32 bytes of base64url-encoded entropy). */
@@ -125,11 +107,6 @@ export async function generatePkcePair(): Promise<{
     "SHA-256",
     new TextEncoder().encode(verifier)
   )
-  const bytes = new Uint8Array(hash)
-  let binary = ""
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]!)
-  }
-  const challenge = base64UrlEncode(binary)
+  const challenge = encodeBytes(new Uint8Array(hash))
   return { verifier, challenge }
 }

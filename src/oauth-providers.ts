@@ -109,7 +109,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
 
-function asString(value: unknown): string | null {
+function coerceProviderField(value: unknown): string | null {
   if (typeof value === "string" && value.trim() !== "") return value
   if (typeof value === "number" && Number.isFinite(value)) return String(value)
   return null
@@ -121,10 +121,10 @@ function extractGitHub(
 ): NormalisedIdentity | null {
   if (!isObject(userinfo)) return null
   const u = userinfo as unknown as GitHubUser
-  const id = asString(u.id)
+  const id = coerceProviderField(u.id)
   if (!id) return null
 
-  let email = asString(u.email)
+  let email = coerceProviderField(u.email)
   let email_verified = false
   // /user.email is often null for users who hide it. The /user/emails fetch
   // gives us the authoritative list — pick the primary verified one.
@@ -147,7 +147,7 @@ function extractGitHub(
     provider_user_id: id,
     email,
     email_verified,
-    display_name: asString(u.name) ?? asString(u.login),
+    display_name: coerceProviderField(u.name) ?? coerceProviderField(u.login),
   }
 }
 
@@ -164,9 +164,9 @@ function extractGoogle(userinfo: unknown): NormalisedIdentity | null {
   if (typeof u.sub !== "string" || u.sub === "") return null
   return {
     provider_user_id: u.sub,
-    email: asString(u.email),
+    email: coerceProviderField(u.email),
     email_verified: u.email_verified === true,
-    display_name: asString(u.name),
+    display_name: coerceProviderField(u.name),
   }
 }
 
@@ -184,7 +184,7 @@ function extractMicrosoft(
   if (!isObject(userinfo)) return null
   const u = userinfo as MicrosoftUser
   if (typeof u.sub !== "string" || u.sub === "") return null
-  const email = asString(u.email)
+  const email = coerceProviderField(u.email)
   // Microsoft's `/oidc/userinfo` does not carry an `email_verified` claim, so
   // we read the ID token's `tid` (tenant ID) to decide: a `tid` other than
   // the personal-MSA tenant means a work/school tenant where the email is
@@ -202,7 +202,7 @@ function extractMicrosoft(
     provider_user_id: u.sub,
     email,
     email_verified,
-    display_name: asString(u.name),
+    display_name: coerceProviderField(u.name),
   }
 }
 

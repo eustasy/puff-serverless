@@ -15,7 +15,10 @@ import {
   generateState,
   setOAuthStateCookie,
 } from "../../../src/utilities/oauth-state-cookie.js"
-import { errorPage } from "../../../src/utilities/login-provider-index.js"
+import { renderErrorPage } from "../../../src/utilities/error-page.js"
+
+const errorPage = (message: string, status = 400) =>
+  renderErrorPage({ title: "Sign-in error", message, status })
 
 export const onRequestGet: Handler<"provider"> = async (context) => {
   const provider_name = String(context.params.provider)

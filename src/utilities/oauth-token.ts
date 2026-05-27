@@ -145,7 +145,7 @@ export interface TokenResponse {
 }
 
 /** Serialises a successful token response to JSON with the required no-store cache headers. */
-export function jsonOk(body: TokenResponse): Response {
+export function tokenResponse(body: TokenResponse): Response {
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: {

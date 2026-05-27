@@ -40,6 +40,23 @@ export async function readUser(
   }
 }
 
+/**
+ * Registers a new user, their primary email, password hash, and sends a
+ * verification email — all within an implicit best-effort sequence (this
+ * function does NOT wrap the steps in a transaction; partial state is
+ * possible if a later step fails after the user row is inserted).
+ *
+ * **Contract: this function throws rather than returning an error envelope**,
+ * which makes it the lone exception in `src/` (see CLAUDE.md). Callers MUST
+ * wrap invocations in try/catch and translate thrown messages into their own
+ * response shape. Throw sites are: email already registered, `createEmail`
+ * failure, `createPassword` failure, or any pg error from the user INSERT.
+ * The verification-email send is non-fatal and is logged but not rethrown —
+ * the user can request a fresh link from the resend flow.
+ *
+ * @returns On success only: `{ success: true, user_uuid, email }`. Failure
+ *   modes are signalled by a thrown Error.
+ */
 export async function registerUser(
   dbClient: DbClient,
   env: Env,

@@ -21,6 +21,8 @@
 // kid (key id) is the RFC 7638 thumbprint of the public JWK, so it is
 // deterministic from the key material — no separate kid storage is needed.
 
+import { encodeBytes } from "./utilities/base64url.js"
+
 export const JWT_ALG = "ES256" as const
 
 const ECDSA_PARAMS = { name: "ECDSA", namedCurve: "P-256" } as const
@@ -82,14 +84,6 @@ export function _resetOAuthKeyCache(): void {
   retiredCache = null
 }
 
-function base64UrlEncode(bytes: Uint8Array): string {
-  let binary = ""
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]!)
-  }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-}
-
 function parseSigningJwk(raw: unknown, field: string): SigningJwk {
   let jwk: unknown = raw
   if (typeof raw === "string") {
@@ -136,7 +130,7 @@ export async function jwkThumbprint(jwk: SigningJwk): Promise<string> {
     "SHA-256",
     new TextEncoder().encode(canonical)
   )
-  return base64UrlEncode(new Uint8Array(hash))
+  return encodeBytes(new Uint8Array(hash))
 }
 
 async function readActiveStored(env: Env): Promise<StoredActiveKey | null> {

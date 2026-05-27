@@ -4,7 +4,7 @@ import {
   methodNotAllowed,
 } from "../../../../../src/utilities/responses.js"
 import { showSchedules } from "../../../../../src/schedules.js"
-import { cell } from "../../../../../src/utilities/admin-schedules.js"
+import { renderScheduleCell } from "../../../../../src/utilities/admin-schedules.js"
 
 // Operator-only read-out of CockroachDB's scheduled jobs — chiefly the
 // Row-Level TTL cleanup schedules declared in `sql/schedules.sql`. Lets an
@@ -32,13 +32,13 @@ export const onRequestGet: Handler = async (context) => {
   if (result.schedules.length > 0) {
     for (const schedule of result.schedules) {
       html += `<tr>
-        <td>${cell(schedule.label)}</td>
-        <td>${cell(schedule.status)}</td>
-        <td>${cell(schedule.recurrence)}</td>
-        <td>${cell(schedule.next_run)}</td>
-        <td>${cell(schedule.state)}</td>
-        <td>${cell(schedule.owner)}</td>
-        <td>${cell(schedule.created)}</td>
+        <td>${renderScheduleCell(schedule.label)}</td>
+        <td>${renderScheduleCell(schedule.status)}</td>
+        <td>${renderScheduleCell(schedule.recurrence)}</td>
+        <td>${renderScheduleCell(schedule.next_run)}</td>
+        <td>${renderScheduleCell(schedule.state)}</td>
+        <td>${renderScheduleCell(schedule.owner)}</td>
+        <td>${renderScheduleCell(schedule.created)}</td>
       </tr>`
     }
   } else {

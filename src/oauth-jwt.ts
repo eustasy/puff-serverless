@@ -13,6 +13,12 @@ import {
   previousPublicJwk,
   type PublicJwkWithKid,
 } from "./oauth-keys.js"
+import {
+  decodeBytes,
+  decodeJson,
+  encodeBytes,
+  encodeJson,
+} from "./utilities/base64url.js"
 
 const ECDSA_SIGN = { name: "ECDSA", hash: "SHA-256" } as const
 
@@ -37,36 +43,6 @@ export type VerifyResult =
   | { success: true; payload: JwtPayload; kid: string }
   | { success: false; message: string }
 
-function base64UrlEncodeBytes(bytes: Uint8Array): string {
-  let binary = ""
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]!)
-  }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-}
-
-function base64UrlDecodeToBytes(input: string): Uint8Array {
-  const padded = input
-    .replace(/-/g, "+")
-    .replace(/_/g, "/")
-    .padEnd(input.length + ((4 - (input.length % 4)) % 4), "=")
-  const binary = atob(padded)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
-  }
-  return bytes
-}
-
-function base64UrlEncodeJson(obj: object): string {
-  return base64UrlEncodeBytes(new TextEncoder().encode(JSON.stringify(obj)))
-}
-
-function base64UrlDecodeJson<T = unknown>(input: string): T {
-  const bytes = base64UrlDecodeToBytes(input)
-  return JSON.parse(new TextDecoder().decode(bytes)) as T
-}
-
 /**
  * Sign a JWT payload with the active signing key. The header `kid` is set to
  * the RFC 7638 thumbprint of the current public JWK so JWKS consumers can
@@ -78,13 +54,13 @@ export async function signJwt(env: Env, payload: JwtPayload): Promise<string> {
     currentPublicJwk(env),
   ])
   const header: JwtHeader = { alg: JWT_ALG, typ: "JWT", kid: publicJwk.kid }
-  const signingInput = `${base64UrlEncodeJson(header)}.${base64UrlEncodeJson(payload)}`
+  const signingInput = `${encodeJson(header)}.${encodeJson(payload)}`
   const signature = await crypto.subtle.sign(
     ECDSA_SIGN,
     key,
     new TextEncoder().encode(signingInput)
   )
-  return `${signingInput}.${base64UrlEncodeBytes(new Uint8Array(signature))}`
+  return `${signingInput}.${encodeBytes(new Uint8Array(signature))}`
 }
 
 async function findVerificationKey(
@@ -122,7 +98,7 @@ export async function verifyJwt(
 
   let header: JwtHeader
   try {
-    header = base64UrlDecodeJson<JwtHeader>(encodedHeader)
+    header = decodeJson<JwtHeader>(encodedHeader)
   } catch {
     return { success: false, message: "JWT header is not valid JSON" }
   }
@@ -139,7 +115,7 @@ export async function verifyJwt(
   }
 
   const key = await importVerificationKey(matched)
-  const signature = base64UrlDecodeToBytes(encodedSignature)
+  const signature = decodeBytes(encodedSignature)
   const signingInput = `${encodedHeader}.${encodedPayload}`
   const ok = await crypto.subtle.verify(
     ECDSA_SIGN,
@@ -153,7 +129,7 @@ export async function verifyJwt(
 
   let payload: JwtPayload
   try {
-    payload = base64UrlDecodeJson<JwtPayload>(encodedPayload)
+    payload = decodeJson<JwtPayload>(encodedPayload)
   } catch {
     return { success: false, message: "JWT payload is not valid JSON" }
   }

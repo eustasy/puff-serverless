@@ -6,21 +6,15 @@
 // guest of the organisation. Teams are identified solely by `team_uuid` —
 // there is no slug, and names need not be unique within an organisation.
 
+import { validateDisplayName } from "./utilities/validation.js"
+
 /** Longest accepted team display name. */
 export const MAX_NAME_LENGTH = 128
 
 const TEAM_COLUMNS = "team_uuid, org_uuid, team_name, team_created_at"
 
-/** Validates a team name. Returns an error message, or null. */
-function validateName(name: string): string | null {
-  if (typeof name !== "string" || name.trim() === "") {
-    return "A team name is required."
-  }
-  if (name.trim().length > MAX_NAME_LENGTH) {
-    return `Names cannot be longer than ${MAX_NAME_LENGTH} characters.`
-  }
-  return null
-}
+const validateName = (name: string): string | null =>
+  validateDisplayName(name, "A team name is required.", MAX_NAME_LENGTH)
 
 /**
  * Creates a team within an organisation. The caller is responsible for the
