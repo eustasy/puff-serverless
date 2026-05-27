@@ -1,6 +1,45 @@
 import { getCookie } from "../../../../src/utilities/headers.js"
 import { verifyTokenAndGetUser } from "../../../../src/sessions.js"
 
+function buildClearSessionCookie(env: Env): string {
+  const parts = [
+    "session_token=;",
+    "Path=/",
+    "HttpOnly",
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    `SameSite=${env.COOKIE_SAMESITE || "Lax"}`,
+  ]
+  if (env.SECURE_COOKIE) {
+    parts.push("Secure")
+  }
+  return parts.join("; ")
+}
+
+function unauthorizedResponse(
+  env: Env,
+  isHtmx: boolean,
+  heading: string,
+  message: string
+): Response {
+  const headers: Record<string, string> = {
+    "Content-Type": "text/html",
+    "Set-Cookie": buildClearSessionCookie(env),
+  }
+  // HTMX honors HX-Redirect from any status code and navigates the whole
+  // browser to /login, so a stale /account that fans out 10 parallel API
+  // calls all redirects once rather than swapping 10 error fragments.
+  if (isHtmx) {
+    headers["HX-Redirect"] = "/login"
+    return new Response("", { status: 401, headers })
+  }
+  return new Response(
+    `<h1 class="result-negative">${heading}</h1>
+      <p>${message}</p>
+      <p>Please <a href="/login">log in</a> again.</p>`,
+    { status: 401, headers }
+  )
+}
+
 /**
  * Cloudflare Pages middleware to authenticate a user based on a session token from cookies.
  * It expects `context.data.dbClient` to be populated by a preceding middleware (e.g., databaseConnectionMiddleware).
@@ -23,7 +62,8 @@ import { verifyTokenAndGetUser } from "../../../../src/sessions.js"
  * @returns {Promise<Response>} A `Response` object or the result of `await context.next()`.
  */
 const sessionAuthWithCookie: Handler = async (context) => {
-  const { request, data, next } = context
+  const { request, data, env, next } = context
+  const isHtmx = request.headers.get("HX-Request") === "true"
 
   if (!data || !data.dbClient) {
     console.error(
@@ -45,13 +85,11 @@ const sessionAuthWithCookie: Handler = async (context) => {
     const sessionToken = await getCookie(cookieHeader, "session_token")
 
     if (!sessionToken) {
-      return new Response(
-        `<h1 class="result-negative">Authentication Required</h1>
-        <p>No session token provided. Please log in.</p>`,
-        {
-          status: 401,
-          headers: { "Content-Type": "text/html" },
-        }
+      return unauthorizedResponse(
+        env,
+        isHtmx,
+        "Authentication Required",
+        "No session token provided."
       )
     }
 
@@ -65,17 +103,27 @@ const sessionAuthWithCookie: Handler = async (context) => {
     )
 
     if (!authResult.success) {
-      console.warn(
-        `sessionAuthWithCookie: Authentication failed. Internal error: ${authResult.error}, Status: ${authResult.status}`
-      )
-      return new Response(
-        `<h1 class="result-negative">Authentication Failed</h1>
-        <p>${authResult.error}.</p>
-        <p>Please log in again.</p>`,
-        {
-          status: authResult.status,
-          headers: { "Content-Type": "text/html" },
-        }
+      // 401s here are normal user state (expired/invalid/geo-changed cookie)
+      // and are surfaced to the client — no need to spam server logs. Only
+      // log truly unexpected statuses (e.g. 500 from token verification).
+      if (authResult.status >= 500) {
+        console.error(
+          `sessionAuthWithCookie: ${authResult.error}, Status: ${authResult.status}`
+        )
+        return new Response(
+          `<h1 class="result-negative">Server Error</h1>
+          <p>${authResult.error}</p>`,
+          {
+            status: authResult.status,
+            headers: { "Content-Type": "text/html" },
+          }
+        )
+      }
+      return unauthorizedResponse(
+        env,
+        isHtmx,
+        "Authentication Failed",
+        authResult.error
       )
     }
 
