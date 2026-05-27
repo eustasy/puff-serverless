@@ -31,15 +31,15 @@ What's missing is everything money-related: payment methods, subscriptions, invo
 
 ## Architecture decisions
 
-These have to be settled before any code lands. Each is currently **open**.
+All settled.
 
-- [ ] **Payment provider.** Stripe (direct merchant; full flexibility; you handle tax registration) vs. Paddle (merchant-of-record; Paddle handles VAT/sales-tax for a markup; less control). Lemon Squeezy is a similar MoR alternative. Recommended default: **Stripe**, with the abstraction layer thin enough to swap.
-- [ ] **Source of truth for subscriptions.** Provider-as-SOR (mirror state to Puff via webhooks; cheaper to build) vs. Puff-as-SOR (Stripe is the payment rail, Puff owns the model). Recommended default: **provider-as-SOR for billing fields; Puff-as-SOR for entitlements**. The webhook handler is the synchronising layer.
-- [ ] **Subscription granularity.** One subscription per org-and-app, or one subscription per org bundling every app the org licenses. Recommended default: **per (org, app)** — apps are independent products, can be added or removed independently, and have different licensing modes with different pricing shapes.
-- [ ] **Tax model.** Operator-handled (Stripe Tax + per-region registrations) vs. delegated (Paddle MoR). Tied to the provider choice.
-- [ ] **Trial policy.** Per-app default trial length set on `apps`, or set in the pricing schema. Recommended default: **per-app, in `apps.app_default_trial_days NULL`** so apps can be self-serve or no-trial individually.
-- [ ] **Currencies.** Single currency (USD/GBP) vs. multi-currency. Multi-currency requires per-region prices on each tier. Recommended default: **single-currency at launch**; multi-currency is a follow-up once one customer asks for it.
-- [ ] **Self-serve vs. operator-only signup.** Whether an org owner can subscribe to an app directly via the billing UI, or whether the operator must grant the entitlement and the subscription is bookkeeping. Recommended default: **self-serve for `seat` and `usage`; operator-only for `floating`** (floating pools are sold by negotiation).
+- [x] **Payment provider:** Stripe, with the adapter thin enough to swap to a merchant-of-record (Paddle / Lemon Squeezy) later.
+- [x] **Source of truth for subscriptions:** provider-as-SOR for billing fields; Puff-as-SOR for entitlements. Webhook handler is the synchronising layer.
+- [x] **Subscription granularity:** per `(org, app)`. Apps are independent products with independent licensing modes.
+- [x] **Tax model:** operator-handled via Stripe Tax + per-region registrations (follows from Stripe).
+- [x] **Trial policy:** per-app, on `apps.app_default_trial_days NULL`.
+- [x] **Currencies:** single-currency at launch. Multi-currency revisited on first customer ask.
+- [x] **Self-serve vs. operator-only signup:** self-serve for all licensing modes including `floating`. Bundle pricing (e.g. selling a floating pool plus a couple of seat apps under one negotiated deal) is deferred — when it lands it will be modelled as separate `(org, app)` subscriptions sharing a discount/coupon, not as a new "bundle subscription" type.
 
 ## Schema (`sql/`)
 
@@ -50,9 +50,13 @@ New tables. Mirror existing conventions: snake_case columns, UUID PKs, explicit 
 - [ ] `sql/invoices.sql` — record of each issued invoice. PK `invoice_uuid`. FKs to `organisations` and `subscriptions` (`SET NULL` on subscription cascade so historical invoices survive cancellation). `provider`, `provider_invoice_id`, `status` (`'draft' | 'open' | 'paid' | 'void' | 'uncollectible'`), `amount_cents`, `currency`, `period_start`, `period_end`, `due_at`, `paid_at`, `hosted_invoice_url` (provider-hosted PDF/HTML), `created_at`. Append-only after issuance.
 - [ ] `sql/usage_events.sql` — for `usage` mode apps. Raw events as apps report them. PK `event_uuid`. FKs to `apps` / `organisations` / `users` (the user the event is attributed to; nullable so org-level events are also representable). `metric` (string — what's being metered), `quantity` (number), `occurred_at`, `received_at`, `idempotency_key` (UNIQUE per `(app_uuid, idempotency_key)` so apps can safely retry). Append-only.
 - [ ] `sql/usage_rollups.sql` — aggregated daily counters per `(app, org, metric, day)` for fast invoice computation. Recomputed nightly from `usage_events`; serves both the operator dashboard and the provider's usage-record sync. Composite PK; the rollup job is idempotent on re-run.
-- [ ] `sql/billing_pricing.sql` (optional — open decision) — per-app pricing catalog if not entirely delegated to Stripe products. Holds tier names, prices, currencies, intervals. Alternative: store provider price IDs in `app_key_values` (subject = app, owner = app, key `license:price:<tier>`) and let the provider be the price catalog.
+- [ ] `sql/billing_pricing.sql` — per-app pricing catalog. Holds tier names, prices, currencies, intervals, and the provider's `price_id` for each row. Puff owns the catalog; Stripe price IDs are stored alongside as the link to the payment rail. Lets `summariseLicensing` and the org billing UI render prices without a round-trip to the provider.
 
 Schema-import order: append after the existing tables; FK dependencies are `organisations` → `billing_customers`, `apps` + `organisations` → `subscriptions`, `subscriptions` + `organisations` → `invoices`, `apps` + `organisations` (+ optionally `users`) → `usage_events` + `usage_rollups`. All have no impact on existing tables.
+
+One additive migration on an existing table:
+
+- [ ] `sql/organisations.sql` — add `org_locale TEXT` (NULL = fall back to `'en'`). Used as the locale on Stripe customer records and invoices.
 
 ## Domain modules (`src/`)
 
@@ -60,18 +64,19 @@ Schema-import order: append after the existing tables; FK dependencies are `orga
 - [ ] `src/billing-stripe.ts` (or `src/billing-paddle.ts`) — concrete provider adapter. Pulled behind an interface so the provider choice is swappable. Exposes the raw provider API calls (`stripe.customers.create`, `stripe.subscriptions.update`, etc.) and the webhook signature verifier.
 - [ ] `src/billing-webhook.ts` — processes inbound webhook events. Verifies signature; idempotency-keyed against `provider_event_id`; updates `subscriptions` / `invoices` rows; emits audit hooks. Must handle replays gracefully (Stripe retries up to 3 days).
 - [ ] `src/usage.ts` — `recordUsageEvent(dbClient, app_uuid, org_uuid, user_uuid, metric, quantity, occurred_at, idempotency_key)`; rollup-recompute job called by `src/cron.ts`; helper to push the daily rollup to the provider as `usage_records` (Stripe metered-billing API).
-- [ ] Extend `src/entitlements.ts → isLicensed` so subscription state participates in the licensing decision. Past-due subscriptions enter a configurable grace window before licensing is revoked. The licensing chain becomes: subscription gate first; if licensed, fall through to the existing tier/floating-pool checks.
+- [ ] Extend `src/entitlements.ts → isLicensed` so subscription state participates in the licensing decision. The licensing chain becomes: if the app's `app_licensing_mode = 'none'`, licensed; otherwise an active or trialing subscription is required, with no grace for `past_due` / `canceled` / `paused`. Then fall through to the existing tier/floating-pool checks. A missing subscription row for a billed app means unlicensed — there is no implicit free tier.
 
 ## Endpoints (`functions/`)
 
-- [ ] `functions/api/db/auth/organisations/[org_uuid]/billing/` — the org-facing billing tree, gated on a new `org:billing:read` / `org:billing:write` action set in `src/permissions.ts`. Roles `owner` and `billing` get write; `admin` gets read.
+- [ ] `functions/api/db/auth/organisations/[org_uuid]/billing/` — the org-facing billing tree. The current `org:billing` action in `src/permissions.ts` (held by `owner` and `billing`) splits into `org:billing:read` and `org:billing:write`. Roles `owner` and `billing` keep write; `admin` gains read so support-y admins can see invoices without having signing authority on payment methods.
   - `summary.ts` (GET) — current subscriptions, next billing date, outstanding balance.
   - `subscriptions/[subscription_uuid]/{update,cancel}.ts` (POST) — change tier, cancel.
   - `payment-methods/{list,add,remove,set-default}.ts` — payment-method management (or a redirect to the provider-hosted portal, depending on the provider).
   - `invoices/{list,one}.ts` — list invoices, fetch hosted-invoice URL.
 - [ ] `functions/api/db/auth/organisations/[org_uuid]/apps/[app_uuid]/subscribe.ts` (POST) — self-serve subscribe. Validates the app is purchasable in the org's region, creates the customer if needed, creates the subscription (handing the user off to the provider-hosted checkout for payment-method capture).
-- [ ] `functions/api/billing/webhook.ts` — provider webhook receiver. POST-only. Verifies signature (no DB middleware in front of it — opens its own `pg` client like `cron.ts`, since the cross-origin write guard would otherwise reject Stripe's call). Exempt from the same-origin guard the way `/api/csp-report` and `/api/db/email/verify` already are.
-- [ ] `functions/api/billing/usage/[app_uuid].ts` (POST) — apps push usage events here. **Authenticated by app credentials** (the same `client_id` + `client_secret` they use for OAuth — reuse `verifyAppCredentials`); not by user session. Validates the org_uuid belongs to the app's subscription set; idempotency-keyed.
+- [ ] `functions/api/billing/_middleware.ts` — DB-connection middleware modelled on `functions/oauth/_middleware.ts`: opens a Hyperdrive `pg` client, no cross-origin guard, no session auth. The `/api/db/` cross-origin write guard does not apply to `/api/billing/*` because the guard lives in `functions/api/db/_middleware.ts` and only runs for routes under that subtree (the same reason `/oauth/*` and `/api/csp-report` are unaffected). Stripe webhooks send neither `Sec-Fetch-Site` nor `Origin`, so even if they were placed under `/api/db/` the guard would let them through (non-browser clients are explicitly allowed), but keeping billing siblings to `/oauth/` is the cleaner pattern.
+- [ ] `functions/api/billing/webhook.ts` — provider webhook receiver. POST-only. Verifies the provider's signature header before doing any DB work; idempotency-keyed against `provider_event_id`. Authenticated entirely by the signature — no user session, no app credentials.
+- [ ] `functions/api/billing/usage/[app_uuid].ts` (POST) — apps push usage events here. **Authenticated by app credentials** (the same `client_id` + `client_secret` they use for OAuth — reuse `verifyAppCredentials` from `src/apps.ts`); not by user session. Validates the org_uuid belongs to the app's subscription set; idempotency-keyed.
 - [ ] **Operator endpoints** (gated by the operator allowlist that Phase 7 noted is still TBD): list subscriptions across all orgs, issue manual invoices, comp seats, refund / void invoices. Likely lives under `functions/api/db/auth/admin/billing/`.
 
 ## Frontend (`public/`)
@@ -90,7 +95,7 @@ trialing → active → past_due → canceled
 
 - [ ] **Trial start.** `trial_end` is set from `apps.app_default_trial_days` (or zero). During trial, `isLicensed` returns true; entitlements resolve normally.
 - [ ] **Active.** Provider charges on the cycle (monthly/annual). Webhook `invoice.payment_succeeded` → mark invoice paid.
-- [ ] **Past due.** A failed charge moves the subscription into `past_due`. Configurable grace window (`BILLING_GRACE_PERIOD_DAYS` env var, default 7) before `isLicensed` flips to false. UI banners on the org page; emails to the `billing`-role members at 1d / 3d / day-of-cutoff.
+- [ ] **Past due.** Billing is **payment-up-front**: each period is charged before access is granted, and there is no grace window. A failed renewal charge moves the subscription to `past_due` and `isLicensed` flips to false the same moment. Warning emails go to `billing`-role members in the days leading up to the renewal attempt and immediately on failure; there is no day-of-cutoff email because the cutoff is the failure itself.
 - [ ] **Canceled.** Provider-initiated (failed payment exhausted retries) or user-initiated (`cancel_at_period_end`). At `cancel_at`, `isLicensed` returns false. Entitlement rows stay in place — the operator can choose to keep "remembered" tiers / perms for a re-subscription, since they're already inert without an active subscription.
 - [ ] **Paused.** Optional. Mirrors Stripe's pause-collection feature. Subscription stays open; no invoices issued; `isLicensed` returns false until resumed.
 - [ ] **Resume / upgrade / downgrade.** All routed through the provider's API; webhook brings state back. Proration semantics inherit the provider's defaults; expose the "always charge immediately on upgrade" option in the org UI.
@@ -119,7 +124,7 @@ Webhook handlers emit these as part of the synchronisation; org-UI actions emit 
 
 ## Operations
 
-- [ ] **`docs/Operations.md` additions:** dunning-window tuning, reading the billing-audit timeline, manual refund procedure, comp-seat procedure, switching payment provider.
+- [ ] **`docs/Operations.md` additions:** pre-renewal warning email cadence, reading the billing-audit timeline, manual refund procedure, comp-seat procedure, switching payment provider.
 - [ ] **`docs/Deployment.md` additions:** pushing `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SIGNING_SECRET` as Wrangler secrets; setting the webhook endpoint URL in the Stripe dashboard to `${APP_URL}/api/billing/webhook`; setting up tax registration (or onboarding to Paddle MoR); per-app product/price configuration.
 - [ ] **`docs/Architecture.md` additions:** the billing flow diagram (subscribe → checkout → webhook → entitlement state); new env vars; the webhook endpoint's exemption from the cross-origin write guard.
 - [ ] **Refund handling.** Refunds flip an invoice to `void` but **do not** retroactively revoke entitlements — too much downstream chaos. Discuss case-by-case via the operator dashboard.
@@ -127,14 +132,16 @@ Webhook handlers emit these as part of the synchronisation; org-UI actions emit 
 
 ## Open decisions
 
-- [ ] **Payment provider** — Stripe vs. Paddle vs. Lemon Squeezy. Pick before any code.
-- [ ] **Subscription SOR** — provider vs. Puff. Default: provider for billing fields, Puff for entitlement state.
-- [ ] **Self-serve vs. operator-gated** — per licensing mode.
-- [ ] **Multi-currency** — single at launch?
-- [ ] **Free-tier policy** — is there a tier-`free` that's always-active with no subscription row, or is "free" just "no subscription"? Affects how `isLicensed` interprets a missing subscription.
-- [ ] **Grace window length** — default `BILLING_GRACE_PERIOD_DAYS=7`. Operator-configurable.
-- [ ] **Receipt locale** — invoice locale follows the org's preference (which doesn't exist yet) or the user's browser locale at signup. May require a new `org_locale` field.
-- [ ] **Tax-id capture** — VAT/EIN/etc. for B2B customers. Required for some regions; otherwise the customer can't deduct.
+All resolved.
+
+- [x] **Payment provider** — Stripe.
+- [x] **Subscription SOR** — provider for billing fields, Puff for entitlement state.
+- [x] **Self-serve vs. operator-gated** — self-serve across all licensing modes (including `floating`). Bundles deferred.
+- [x] **Multi-currency** — single-currency at launch.
+- [x] **Free-tier policy** — no implicit free tier. `app_licensing_mode = 'none'` is the only "free" state; apps with any other mode require an active or trialing subscription to be licensed. A missing subscription row means the app is not available to the org.
+- [x] **Grace window length** — zero. Payment-up-front; on failed renewal `isLicensed` flips false the same moment the charge fails. No `BILLING_GRACE_PERIOD_DAYS` env var.
+- [x] **Receipt locale** — new `org_locale` column on `organisations` (added as a small migration in this phase). Falls back to `en` if NULL.
+- [x] **Tax-id capture** — captured on `billing_customers.tax_id` so the operator has it on file and Stripe shows it on invoices, but Puff itself does not branch billing logic on it.
 
 ## Carry-forward / deferred
 
