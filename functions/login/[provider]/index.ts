@@ -15,20 +15,7 @@ import {
   generateState,
   setOAuthStateCookie,
 } from "../../../src/utilities/oauth-state-cookie.js"
-
-function errorPage(message: string, status = 400): Response {
-  const body = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Sign-in error</title></head>
-<body><main>
-<h1>Sign-in error</h1>
-<p class="result-negative">${message}</p>
-<p><a href="/login">Back to sign-in</a></p>
-</main></body></html>`
-  return new Response(body, {
-    status,
-    headers: { "Content-Type": "text/html; charset=utf-8" },
-  })
-}
+import { errorPage } from "../../../src/utilities/login-provider-index.js"
 
 export const onRequestGet: Handler<"provider"> = async (context) => {
   const provider_name = String(context.params.provider)

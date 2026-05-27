@@ -1,4 +1,5 @@
 import { resultNegative } from "../../../../../src/utilities/responses.js"
+import { parseOperatorUuids } from "../../../../../src/utilities/operator-uuids.js"
 
 // Operator-only gate for /api/db/auth/admin/... — endpoints that rotate
 // keys, run manual purges, and so on. Puff has no admin role on a user row;
@@ -8,16 +9,6 @@ import { resultNegative } from "../../../../../src/utilities/responses.js"
 //
 // The session-auth middleware one level up has already populated
 // `context.data.user_uuid`, so this is purely an authorisation check.
-
-function parseOperatorUuids(raw: string | undefined): Set<string> {
-  if (!raw) return new Set()
-  return new Set(
-    raw
-      .split(/[\s,]+/)
-      .map((s) => s.trim())
-      .filter(Boolean)
-  )
-}
 
 const operatorAuthorise: Handler = async (context) => {
   const user_uuid = context.data.user_uuid

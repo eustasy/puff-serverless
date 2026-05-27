@@ -11,21 +11,12 @@ import { getCookie } from "../../../../../src/utilities/headers.js"
 import { readToken, createBypassToken } from "../../../../../src/tokens.js"
 import { readEmails } from "../../../../../src/emails.js"
 import { sendTwoFactorBypassEmail } from "../../../../../src/mailer.js"
+import { sessionExpired } from "../../../../../src/utilities/2fa-bypass-request.js"
 
 // Generic acknowledgement — identical whether or not an email was actually
 // sent, so the response never reveals account or email state.
 const GENERIC_OK =
   '<p class="result-positive">If your account has a verified email address, a one-time bypass link has been sent to it.</p>'
-
-// Built per-call, not held as a module-scope constant: constructing a Response
-// in the Workers global scope is a disallowed operation (its body is bound to
-// a request's I/O context), so it must happen inside a handler invocation.
-function sessionExpired(): Response {
-  return new Response(
-    '<p class="result-negative">Your login session has expired. Please log in again.</p>',
-    { status: 400, headers: { "Content-Type": "text/html" } }
-  )
-}
 
 export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!

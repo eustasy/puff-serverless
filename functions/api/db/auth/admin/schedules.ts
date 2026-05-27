@@ -4,18 +4,13 @@ import {
   methodNotAllowed,
 } from "../../../../../src/utilities/responses.js"
 import { showSchedules } from "../../../../../src/schedules.js"
-import { escapeHtml } from "../../../../../src/utilities/escape.js"
+import { cell } from "../../../../../src/utilities/admin-schedules.js"
 
 // Operator-only read-out of CockroachDB's scheduled jobs — chiefly the
 // Row-Level TTL cleanup schedules declared in `sql/schedules.sql`. Lets an
 // operator confirm the automated row reaping is configured and healthy
 // without opening a SQL shell. Served at /api/db/auth/admin/schedules, under
 // the operator-only gate in the admin middleware.
-
-/** Render one cell, escaping DB-sourced text and showing a dash for null. */
-function cell(value: string | null): string {
-  return value ? escapeHtml(value) : "—"
-}
 
 export const onRequestGet: Handler = async (context) => {
   const dbClient = context.data.dbClient!

@@ -13,32 +13,10 @@ import { Client } from "pg"
 import { escapeHtml } from "../src/utilities/escape.js"
 import { readFederatedSignupToken } from "../src/federated-signup-tokens.js"
 import { getProviderConfig } from "../src/oauth-providers.js"
-
-function errorPage(message: string, status = 400): Response {
-  const body = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Sign-up</title></head>
-<body><main>
-<h1>Sign-up</h1>
-<p class="result-negative">${escapeHtml(message)}</p>
-<p><a href="/login">Back to sign-in</a></p>
-</main></body></html>`
-  return new Response(body, {
-    status,
-    headers: { "Content-Type": "text/html; charset=utf-8" },
-  })
-}
-
-function deriveUsername(
-  display_name: string | null,
-  email: string | null
-): string {
-  if (display_name && display_name.trim() !== "") return display_name.trim()
-  if (email) {
-    const local = email.split("@")[0]
-    if (local && local.trim() !== "") return local.trim()
-  }
-  return "user"
-}
+import {
+  deriveUsername,
+  errorPage,
+} from "../src/utilities/federated-signup-page.js"
 
 export const onRequestGet: Handler = async (context) => {
   const url = new URL(context.request.url)
