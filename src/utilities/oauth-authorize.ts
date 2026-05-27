@@ -47,7 +47,10 @@ export function readParams(source: URLSearchParams): ParsedRequest {
  * Used before redirect_uri is validated — once validated, errors go via
  * redirectToClient so the client app can handle them.
  */
-export function renderAuthorizeErrorPage(message: string, status = 400): Response {
+export function renderAuthorizeErrorPage(
+  message: string,
+  status = 400
+): Response {
   const body = `<!doctype html>
 <html lang="en">
   <head><meta charset="utf-8"><title>Authorization error</title></head>
@@ -196,7 +199,10 @@ export async function validateRequest(
   }
   const appResult = await readAppByClientId(dbClient, params.client_id)
   if (appResult.error) {
-    return renderAuthorizeErrorPage("Server error looking up the application.", 500)
+    return renderAuthorizeErrorPage(
+      "Server error looking up the application.",
+      500
+    )
   }
   if (!appResult.success) {
     return renderAuthorizeErrorPage("Unknown client_id.")
@@ -207,7 +213,9 @@ export async function validateRequest(
     return renderAuthorizeErrorPage("Missing redirect_uri.")
   }
   if (!app.redirect_uris.includes(params.redirect_uri)) {
-    return renderAuthorizeErrorPage("redirect_uri is not registered for this app.")
+    return renderAuthorizeErrorPage(
+      "redirect_uri is not registered for this app."
+    )
   }
 
   // From here onwards, redirect_uri is safe to redirect to.
