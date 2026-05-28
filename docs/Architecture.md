@@ -17,6 +17,7 @@ How the codebase is laid out, how a request flows through it, and the runtime pi
   - [Don't use queues](#dont-use-queues)
 - [OAuth 2.1 / OIDC endpoints (Puff as provider)](#oauth-21--oidc-endpoints-puff-as-provider)
 - [Federated login (Puff as client)](#federated-login-puff-as-client)
+- [Billing (Phase 9)](#billing-phase-9)
 - [Environment variables](#environment-variables)
 
 ## Build model
@@ -208,6 +209,57 @@ Two endpoints under `functions/login/[provider]/`: the start (`index.ts`) genera
 Unlinking is gated by `unlinkExternalIdentity`'s "another usable credential exists" check — a user must keep at least one of: an active password, an active passkey, or another linked identity.
 
 Domain modules: `src/oauth-providers.ts` (registry + per-provider userinfo extractors), `src/oauth-outbound.ts` (build authorize URL / exchange code / fetch userinfo), `src/external-identities.ts`, `src/federated-signup-tokens.ts`, `src/utilities/oauth-state-cookie.ts`. The per-provider setup procedure is in [Operations.md → Adding a federated login provider](Operations.md#adding-a-federated-login-provider).
+
+## Billing (Phase 9)
+
+Puff acts as a payment orchestrator: orgs subscribe to apps through a provider-hosted checkout flow, and Puff records entitlement state locally while treating the payment provider as the source of truth for billing fields.
+
+### Request and data flow
+
+```
+org subscribe → startSubscriptionCheckout → Stripe-hosted checkout
+                                          ↓
+                              customer.subscription.created webhook
+                                          ↓
+                     billing_webhook_events (dedup) + subscriptions (upsert)
+                                          ↓
+                              isLicensed checks ENTITLED_STATUSES
+```
+
+Provider events feed back via `POST /api/billing/webhook`. The webhook handler (`src/billing-webhook.ts`) processes `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.finalized`, `invoice.paid`, `invoice.payment_succeeded`, `invoice.payment_failed`, and `invoice.voided`. Each event is recorded once in `billing_webhook_events` on a `(provider, provider_event_id)` unique key; the dedup insert and the state-change query run in one transaction so a replay rolls back harmlessly to a 200 ack, and a processing failure also rolls back the dedup row so the provider's retry is honoured.
+
+Metadata (`org_uuid`, `app_uuid`, `tier`) is set on `subscription_data` at checkout time so the created subscription carries the context the webhook handler needs to upsert the local `subscriptions` row.
+
+### Source-of-truth split
+
+- **Provider-as-SOR** for billing fields: `status`, period dates, `canceled_at`, `cancel_at`, `trial_end`. These are written exclusively by the webhook handler, never by the UI endpoints.
+- **Puff-as-SOR** for entitlement state: `isLicensed` in `src/entitlements.ts` reads the local `subscriptions` row and checks `ENTITLED_STATUSES` (only `"active"` and `"trialing"`). Payment-up-front, zero grace: `"past_due"`, `"canceled"`, `"paused"`, and `"incomplete"` all return `licensed: false` immediately. A missing subscription row for a billed app (`app_licensing_mode` anything other than `"none"`) also returns `licensed: false` — there is no implicit free tier.
+
+### Provider abstraction
+
+`src/billing-stripe.ts` implements the `BillingProvider` interface from `src/billing.ts` using plain `fetch` (no Stripe SDK dependency, same rationale as `mailer.ts`). The provider is injected as a parameter so the domain layer in `src/billing.ts` is provider-agnostic and tests can pass a fake. Adapter methods throw on error; the domain layer maps those throws to `502` error envelopes. Swapping to another provider (Paddle, Lemon Squeezy) means writing a new adapter and updating the call sites that call `createStripeProvider(env)`.
+
+### `/api/billing/*` tree
+
+`functions/api/billing/_middleware.ts` opens a Hyperdrive `pg` client with no session auth and no cross-origin write guard. The cross-origin write guard lives in `functions/api/db/_middleware.ts` and only runs for routes under the `/api/db/` subtree. Stripe and registered apps are non-browser clients authenticated by signature or HTTP Basic credentials respectively, so cookie-based CSRF protection does not apply.
+
+| Endpoint                             | Auth             | Purpose                                                                                                                                            |
+| ------------------------------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/billing/webhook`          | Stripe signature | Webhook receiver — verifies `stripe-signature`, then delegates to `handleStripeWebhookEvent`. Returns 400 on bad signature, 503 when unconfigured. |
+| `POST /api/billing/usage/[app_uuid]` | HTTP Basic (app) | Usage ingest for `usage`-mode apps. The credentialed app must match the path `[app_uuid]`; 403 otherwise. JSON in / JSON out.                      |
+
+Org-facing billing endpoints live under `functions/api/db/auth/organisations/[org_uuid]/billing/` and are gated by session auth and `org:billing:read` / `org:billing:write` permissions. The subscribe entry point is at `functions/api/db/auth/organisations/[org_uuid]/apps/[app_uuid]/subscribe.ts`.
+
+### Usage metering (cron)
+
+`src/cron.ts`'s daily tick (`0 0 * * *`) runs two rollup calls via `recomputeUsageRollups` (previous full UTC day + current in-progress day) and then calls `syncUsageRollups`, which pushes unsynced `usage_rollups` rows to Stripe as **Billing Meter events** (`POST /v1/billing/meter_events`). The `event_name` sent to Stripe equals the `metric` string on the rollup row — the operator must configure a Stripe Billing Meter whose `event_name` matches each metric. A per-`(app, org, metric, day)` `identifier` prevents double-billing on retry. The provider sync only runs when `STRIPE_SECRET_KEY` is configured; failures are logged and retried on the next daily tick.
+
+### Environment variables
+
+| Variable                        | Default | Purpose                                                                                                                   |
+| ------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `STRIPE_SECRET_KEY`             | unset   | Stripe API key, sent as a `Bearer` token. **Secret** — set via `wrangler secret put`.                                     |
+| `STRIPE_WEBHOOK_SIGNING_SECRET` | unset   | Webhook endpoint signing secret. **Secret** — set via `wrangler secret put`. When unset the webhook endpoint returns 503. |
 
 ## Environment variables
 

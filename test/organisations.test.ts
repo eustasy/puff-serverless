@@ -14,6 +14,7 @@ const orgRow = (over: Partial<OrganisationRow> = {}): OrganisationRow => ({
   org_uuid: "org-1",
   org_name: "Acme",
   org_active: true,
+  org_locale: null,
   org_created_at: new Date(),
   org_created_by: "user-1",
   ...over,
@@ -128,8 +129,9 @@ describe("disableOrganisation / enableOrganisation", () => {
 })
 
 describe("deleteOrganisation", () => {
-  it("succeeds when a row was deleted", async () => {
+  it("succeeds when a row was deleted and there is no outstanding balance", async () => {
     const db = new FakeDb()
+    db.on(/FROM invoices/, { rows: [], rowCount: 0 })
     db.on(/DELETE FROM organisations/, { rows: [{ org_uuid: "org-1" }] })
     expect(await deleteOrganisation(db.client, "org-1")).toEqual({
       success: true,
@@ -139,8 +141,20 @@ describe("deleteOrganisation", () => {
 
   it("returns 404 when the organisation does not exist", async () => {
     const db = new FakeDb()
+    db.on(/FROM invoices/, { rows: [], rowCount: 0 })
     db.on(/DELETE FROM organisations/, { rows: [] })
     expect((await deleteOrganisation(db.client, "org-1")).status).toBe(404)
+  })
+
+  it("refuses with 409 when the org has an outstanding balance", async () => {
+    const db = new FakeDb()
+    db.on(/FROM invoices/, { rows: [{ "?column?": 1 }], rowCount: 1 })
+    const result = await deleteOrganisation(db.client, "org-1")
+    expect(result).toMatchObject({ success: false, status: 409 })
+    // The DELETE must not have run.
+    expect(db.calls.some((c) => /DELETE FROM organisations/.test(c.text))).toBe(
+      false
+    )
   })
 })
 

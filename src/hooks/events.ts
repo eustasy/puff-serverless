@@ -53,6 +53,19 @@ export const EVENTS = {
   OAUTH_SIGNING_KEY_ROTATED: "oauth.signing_key.rotated",
   OAUTH_SIGNING_KEY_ROTATION_FAILED: "oauth.signing_key.rotation.failed",
   OAUTH_SIGNING_KEY_RETIRED_PROMOTED: "oauth.signing_key.retired.promoted",
+
+  BILLING_CUSTOMER_CREATED: "billing.customer.created",
+  BILLING_INVOICE_ISSUED: "billing.invoice.issued",
+  BILLING_INVOICE_PAID: "billing.invoice.paid",
+  BILLING_INVOICE_VOIDED: "billing.invoice.voided",
+  BILLING_PAYMENT_FAILED: "billing.payment.failed",
+  BILLING_PAYMENT_SUCCEEDED: "billing.payment.succeeded",
+  BILLING_SUBSCRIPTION_CANCELED: "billing.subscription.canceled",
+  BILLING_SUBSCRIPTION_CREATED: "billing.subscription.created",
+  BILLING_SUBSCRIPTION_PAUSED: "billing.subscription.paused",
+  BILLING_SUBSCRIPTION_RESUMED: "billing.subscription.resumed",
+  BILLING_SUBSCRIPTION_UPDATED: "billing.subscription.updated",
+  BILLING_USAGE_RECORDED: "billing.usage.recorded",
 } as const
 
 export type EventType = (typeof EVENTS)[keyof typeof EVENTS]
@@ -114,4 +127,17 @@ export const DEFAULT_SEVERITY: Record<EventType, HookSeverity> = {
   "oauth.signing_key.rotated": "alert",
   "oauth.signing_key.rotation.failed": "critical",
   "oauth.signing_key.retired.promoted": "alert",
+
+  "billing.customer.created": "notice",
+  "billing.invoice.issued": "notice",
+  "billing.invoice.paid": "notice",
+  "billing.invoice.voided": "notice",
+  "billing.payment.failed": "warning",
+  "billing.payment.succeeded": "notice",
+  "billing.subscription.canceled": "alert",
+  "billing.subscription.created": "notice",
+  "billing.subscription.paused": "notice",
+  "billing.subscription.resumed": "notice",
+  "billing.subscription.updated": "notice",
+  "billing.usage.recorded": "debug",
 }

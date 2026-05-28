@@ -1,0 +1,23 @@
+CREATE TABLE public.subscriptions (
+  subscription_uuid STRING NOT NULL,
+  org_uuid STRING NOT NULL,
+  app_uuid STRING NOT NULL,
+  provider STRING NOT NULL,
+  provider_subscription_id STRING NOT NULL,
+  status STRING NOT NULL,
+  tier STRING NOT NULL,
+  current_period_start TIMESTAMP NOT NULL,
+  current_period_end TIMESTAMP NOT NULL,
+  cancel_at TIMESTAMP NULL,
+  canceled_at TIMESTAMP NULL,
+  trial_end TIMESTAMP NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT current_timestamp():::TIMESTAMP,
+  CONSTRAINT subscriptions_pkey PRIMARY KEY (subscription_uuid ASC),
+  CONSTRAINT subscriptions_org_uuid_fkey FOREIGN KEY (org_uuid) REFERENCES public.organisations(org_uuid) ON DELETE CASCADE,
+  CONSTRAINT subscriptions_app_uuid_fkey FOREIGN KEY (app_uuid) REFERENCES public.apps(app_uuid) ON DELETE CASCADE,
+  CONSTRAINT subscriptions_org_uuid_app_uuid_unique UNIQUE (org_uuid, app_uuid),
+  CONSTRAINT subscriptions_status_check CHECK (status IN ('trialing', 'active', 'past_due', 'canceled', 'paused', 'incomplete')),
+  INDEX idx_subscriptions_org_uuid (org_uuid ASC),
+  INDEX idx_subscriptions_app_uuid (app_uuid ASC),
+  INDEX idx_subscriptions_provider_subscription_id (provider_subscription_id ASC)
+) LOCALITY REGIONAL BY TABLE IN PRIMARY REGION

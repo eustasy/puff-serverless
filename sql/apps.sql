@@ -6,6 +6,7 @@ CREATE TABLE public.apps (
   redirect_uris STRING[] NOT NULL,
   app_active BOOLEAN NOT NULL DEFAULT TRUE,
   app_licensing_mode STRING NOT NULL DEFAULT 'none',
+  app_default_trial_days INT NULL,
   app_created_at TIMESTAMP NOT NULL DEFAULT current_timestamp():::TIMESTAMP,
   CONSTRAINT apps_pkey PRIMARY KEY (app_uuid ASC),
   CONSTRAINT apps_client_id_unique UNIQUE (client_id),

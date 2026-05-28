@@ -1,4 +1,5 @@
 import { listOrganisationsForUser } from "../../../../../src/organisations.js"
+import { can } from "../../../../../src/permissions.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
 import {
   htmlResponse,
@@ -9,7 +10,8 @@ import {
 /**
  * Lists the organisations the authenticated user belongs to, with the roles
  * they hold in each. Each row links to that organisation's dedicated
- * management page (`/organisations/:org_uuid`).
+ * management page (`/organisations/:org_uuid`). When the viewer holds
+ * `org:billing:read` a Billing link is also shown.
  */
 export const onRequestGet: Handler = async (context) => {
   const result = await listOrganisationsForUser(
@@ -27,10 +29,13 @@ export const onRequestGet: Handler = async (context) => {
   for (const org of result.organisations) {
     const disabled = org.org_active ? "" : " (disabled)"
     const pagePath = `/organisations/${encodeURIComponent(org.org_uuid)}`
+    const billingLink = can(org.roles, "org:billing:read")
+      ? ` <a class="btn-safe" href="${pagePath}/billing">Billing</a>`
+      : ""
     html += `<li>
       <strong>${escapeHtml(org.org_name)}</strong>${disabled}
       — ${escapeHtml(org.roles.join(", "))}
-      <a class="btn-safe" href="${pagePath}">Manage</a>
+      <a class="btn-safe" href="${pagePath}">Manage</a>${billingLink}
     </li>`
   }
   html += "</ul>"

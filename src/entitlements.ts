@@ -17,6 +17,7 @@ import {
 } from "./apps.js"
 import { resolveKeyValue } from "./keyvalues-resolver.js"
 import { listAppPermissions } from "./apps.js"
+import { ENTITLED_STATUSES, getSubscriptionForApp } from "./billing.js"
 
 // --- Grantee-in-org constraint --------------------------------------------
 
@@ -112,9 +113,18 @@ export async function assertGranteeInOrg(
 
 /**
  * Resolves whether a user is licensed for `(app, org)` under the app's
- * declared licensing mode. The four modes have four different answers:
+ * declared licensing mode.
  *
- *   none      — always true; the app does not gate on licenses.
+ * For every mode except `none`, the org must first hold an active or trialing
+ * subscription for the app (see `billing.ts`). Billing is payment-up-front
+ * with zero grace: a `past_due` / `canceled` / `paused` / `incomplete`
+ * subscription — or no subscription row at all — makes the app unlicensed
+ * regardless of any granted entitlements. There is no implicit free tier;
+ * `none` is the only mode that is free.
+ *
+ * Once the subscription gate passes, the per-user answer depends on the mode:
+ *
+ *   none      — always true; the app does not gate on licenses or billing.
  *   seat      — true if `license:tier` resolves to a value for the user
  *               under the app's owner namespace (most-specific tier wins via
  *               the standard KV resolver chain).
@@ -134,6 +144,22 @@ export async function isLicensed(
   try {
     if (app.app_licensing_mode === "none") {
       return { success: true, licensed: true, tier: null, status: 200 }
+    }
+
+    // Billed modes require the org to hold an active/trialing subscription for
+    // the app before any per-user entitlement is honoured. No grace window,
+    // no implicit free tier.
+    const subscription = await getSubscriptionForApp(
+      dbClient,
+      org_uuid,
+      app.app_uuid
+    )
+    if (!subscription.success) return subscription
+    if (
+      !subscription.subscription ||
+      !ENTITLED_STATUSES.includes(subscription.subscription.status)
+    ) {
+      return { success: true, licensed: false, tier: null, status: 200 }
     }
 
     if (app.app_licensing_mode === "usage") {

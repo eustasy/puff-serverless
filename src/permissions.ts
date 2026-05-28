@@ -59,7 +59,8 @@ export type OrgAction =
   | "org:update"
   | "org:disable"
   | "org:delete"
-  | "org:billing"
+  | "org:billing:read"
+  | "org:billing:write"
   | "org:members:view"
   | "org:members:invite"
   | "org:members:remove"
@@ -94,7 +95,8 @@ const ORG_ROLE_ACTIONS: Record<OrgRole, readonly OrgAction[]> = {
     "org:update",
     "org:disable",
     "org:delete",
-    "org:billing",
+    "org:billing:read",
+    "org:billing:write",
     "org:members:view",
     "org:members:invite",
     "org:members:remove",
@@ -109,6 +111,7 @@ const ORG_ROLE_ACTIONS: Record<OrgRole, readonly OrgAction[]> = {
   admin: [
     "org:view",
     "org:update",
+    "org:billing:read",
     "org:members:view",
     "org:members:invite",
     "org:members:remove",
@@ -123,7 +126,8 @@ const ORG_ROLE_ACTIONS: Record<OrgRole, readonly OrgAction[]> = {
   member: ["org:view", "org:members:view", "org:keyvalues:read"],
   billing: [
     "org:view",
-    "org:billing",
+    "org:billing:read",
+    "org:billing:write",
     "org:keyvalues:read",
     "org:entitlements:read",
   ],

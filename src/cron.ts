@@ -27,6 +27,8 @@
 
 import { Client } from "pg"
 import { maybeRotateSigningKey } from "./oauth-keys-rotation.js"
+import { recomputeUsageRollups, syncUsageRollups } from "./usage.js"
+import { createStripeProvider } from "./billing-stripe.js"
 
 // `totp_used_codes` rows matter only while the code is still inside its
 // `verify()` acceptance window; a small margin past that is plenty.
@@ -58,6 +60,90 @@ async function runScheduledWork(env: Env, cron: string): Promise<void> {
     await maybeRotateSigningKey(env, { cron })
   } catch (error) {
     console.error(`Scheduled work (${cron}) failed:`, error)
+  }
+
+  await runDailyUsageRollup(env)
+}
+
+/**
+ * Recomputes usage rollups for the previous full UTC day, and also for the
+ * current in-progress UTC day so intra-day queries are never stale.
+ *
+ * Opens its own `pg` client — like all cron work, there is no middleware
+ * in front of the scheduled handler. Never throws: failures are logged so
+ * the rest of the cron handler is unaffected.
+ */
+async function runDailyUsageRollup(env: Env): Promise<void> {
+  if (!env.HYPERDRIVE?.connectionString) {
+    console.error("Daily usage rollup: HYPERDRIVE binding missing; skipping.")
+    return
+  }
+
+  const client = new Client(env.HYPERDRIVE.connectionString)
+  try {
+    await client.connect()
+
+    const now = new Date()
+    // Previous full UTC day.
+    const yesterday = new Date(now)
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1)
+    const yesterdayStr = yesterday.toISOString().slice(0, 10)
+
+    // Current in-progress UTC day ("today so far").
+    const todayStr = now.toISOString().slice(0, 10)
+
+    const yResult = await recomputeUsageRollups(client, yesterdayStr)
+    if (yResult.success) {
+      console.log(
+        `Daily usage rollup: upserted ${yResult.upserted} rows for ${yesterdayStr}.`
+      )
+    } else {
+      console.error(
+        `Daily usage rollup: failed for ${yesterdayStr}:`,
+        yResult.message
+      )
+    }
+
+    const tResult = await recomputeUsageRollups(client, todayStr)
+    if (tResult.success) {
+      console.log(
+        `Daily usage rollup: upserted ${tResult.upserted} rows for ${todayStr}.`
+      )
+    } else {
+      console.error(
+        `Daily usage rollup: failed for ${todayStr}:`,
+        tResult.message
+      )
+    }
+
+    // Push freshly-computed rollups to the billing provider as metered usage.
+    // Only runs when billing is configured; failures are logged, not fatal.
+    if (env.STRIPE_SECRET_KEY) {
+      try {
+        const provider = createStripeProvider(env)
+        const syncResult = await syncUsageRollups(client, provider)
+        if (syncResult.success) {
+          console.log(
+            `Daily usage rollup: synced ${syncResult.synced} rollups to the provider.`
+          )
+        } else {
+          console.error(
+            "Daily usage rollup: provider sync failed:",
+            syncResult.message
+          )
+        }
+      } catch (syncError) {
+        console.error("Daily usage rollup: provider sync error:", syncError)
+      }
+    }
+  } catch (error) {
+    console.error("Daily usage rollup: unexpected error:", error)
+  } finally {
+    try {
+      await client.end()
+    } catch (endError) {
+      console.error("Daily usage rollup: error closing DB client:", endError)
+    }
   }
 }
 

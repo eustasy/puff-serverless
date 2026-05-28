@@ -23,6 +23,11 @@ declare global {
     OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC?: string
     OAUTH_KEY_ROTATION_INTERVAL_DAYS?: string
     OPERATOR_USER_UUIDS?: string
+    // Billing (Phase 9). Both are Wrangler secrets, declared optional so the
+    // codebase typechecks whether or not the binding is present in a given
+    // deployment (e.g. local dev without billing configured).
+    STRIPE_SECRET_KEY?: string
+    STRIPE_WEBHOOK_SIGNING_SECRET?: string
   }
 
   interface RequestData extends Record<string, unknown> {
@@ -174,6 +179,7 @@ declare global {
     org_uuid: string
     org_name: string
     org_active: boolean
+    org_locale: string | null
     org_created_at: Date
     org_created_by: string | null
   }
@@ -220,6 +226,9 @@ declare global {
     redirect_uris: string[]
     app_active: boolean
     app_licensing_mode: "none" | "seat" | "usage" | "floating"
+    // Default trial length (days) applied when an org first subscribes to a
+    // billed app. NULL = no trial. Read by the subscribe flow (Phase 9).
+    app_default_trial_days: number | null
     app_created_at: Date
   }
 
@@ -276,6 +285,89 @@ declare global {
     app_uuid: string
     scopes: string[]
     granted_at: Date
+  }
+
+  // Billing (Phase 9) — source of truth: sql/billing_*.sql, sql/subscriptions.sql,
+  // sql/invoices.sql, sql/usage_*.sql. `pg` decodes DECIMAL as a string and INT
+  // as a number, hence `quantity: string` but `amount_cents: number`.
+
+  interface BillingCustomerRow {
+    org_uuid: string
+    provider: string
+    provider_customer_id: string
+    default_payment_method_id: string | null
+    tax_id: string | null
+    billing_email: string | null
+  }
+
+  interface SubscriptionRow {
+    subscription_uuid: string
+    org_uuid: string
+    app_uuid: string
+    provider: string
+    provider_subscription_id: string
+    status:
+      | "trialing"
+      | "active"
+      | "past_due"
+      | "canceled"
+      | "paused"
+      | "incomplete"
+    tier: string
+    current_period_start: Date
+    current_period_end: Date
+    cancel_at: Date | null
+    canceled_at: Date | null
+    trial_end: Date | null
+    created_at: Date
+  }
+
+  interface InvoiceRow {
+    invoice_uuid: string
+    org_uuid: string
+    subscription_uuid: string | null
+    provider: string
+    provider_invoice_id: string
+    status: "draft" | "open" | "paid" | "void" | "uncollectible"
+    amount_cents: number
+    currency: string
+    period_start: Date
+    period_end: Date
+    due_at: Date | null
+    paid_at: Date | null
+    hosted_invoice_url: string | null
+    created_at: Date
+  }
+
+  interface BillingPricingRow {
+    pricing_uuid: string
+    app_uuid: string
+    tier: string
+    price_cents: number
+    currency: string
+    billing_interval: "month" | "year"
+    provider_price_id: string
+  }
+
+  interface UsageEventRow {
+    event_uuid: string
+    app_uuid: string
+    org_uuid: string
+    user_uuid: string | null
+    metric: string
+    quantity: string
+    occurred_at: Date
+    received_at: Date
+    idempotency_key: string
+  }
+
+  interface UsageRollupRow {
+    app_uuid: string
+    org_uuid: string
+    metric: string
+    day: Date
+    quantity: string
+    synced_at: Date | null
   }
 
   interface AuditEventRow {

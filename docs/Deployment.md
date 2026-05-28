@@ -10,6 +10,7 @@ Shipping Puff to production. Every step is intended to be runnable as-is — sub
 - [3. Create the KV namespace](#3-create-the-kv-namespace)
 - [4. Authenticate Wrangler](#4-authenticate-wrangler)
 - [5. Push secrets](#5-push-secrets)
+- [5a. Configure billing (Stripe)](#5a-configure-billing-stripe)
 - [6. Set non-secret variables](#6-set-non-secret-variables)
 - [7. Deploy](#7-deploy)
 - [8. Attach a custom domain](#8-attach-a-custom-domain)
@@ -77,7 +78,19 @@ $PSQL < sql/passkeys.sql
 # 9. Audit log (no FK dependencies — actor/target uuids are plain strings by design)
 $PSQL < sql/audit_events.sql
 
-# 10. Row-Level TTL cleanup rules (CockroachDB v23.1+). Replaces the bulk
+# 10. Billing tables (organisations → billing_customers; apps + organisations
+#     → subscriptions; subscriptions + organisations → invoices; apps +
+#     organisations + users → usage_events + usage_rollups; apps → billing_pricing;
+#     billing_webhook_events has no FK dependencies)
+$PSQL < sql/billing_customers.sql
+$PSQL < sql/subscriptions.sql
+$PSQL < sql/invoices.sql
+$PSQL < sql/usage_events.sql
+$PSQL < sql/usage_rollups.sql
+$PSQL < sql/billing_pricing.sql
+$PSQL < sql/billing_webhook_events.sql
+
+# 11. Row-Level TTL cleanup rules (CockroachDB v23.1+). Replaces the bulk
 #     of what used to run in the Worker cron. Idempotent — re-applying is
 #     safe (ALTER TABLE … SET just re-applies the same parameters).
 $PSQL < sql/schedules.sql
@@ -168,6 +181,58 @@ echo "<the client secret>" | npx wrangler secret put OAUTH_MICROSOFT_CLIENT_SECR
 ```
 
 The per-provider registration walkthrough (which form fields to fill in at GitHub / Google / Microsoft) is in [Operations.md → Adding a federated login provider](Operations.md#adding-a-federated-login-provider).
+
+## 5a. Configure billing (Stripe)
+
+Billing is optional at deploy time — skipping this section disables the billing surfaces but does not affect auth, OAuth, or any other feature. Complete it before accepting real subscriptions.
+
+### Push Stripe secrets
+
+```sh
+npx wrangler secret put STRIPE_SECRET_KEY
+npx wrangler secret put STRIPE_WEBHOOK_SIGNING_SECRET
+```
+
+`STRIPE_SECRET_KEY` is the Stripe secret API key (`sk_live_…` or `sk_test_…`). `STRIPE_WEBHOOK_SIGNING_SECRET` is the signing secret for the webhook endpoint (starts with `whsec_`). Both are found in the Stripe Dashboard — the signing secret appears after you create the webhook endpoint in the next step. When `STRIPE_SECRET_KEY` is absent the billing domain functions return provider errors; when `STRIPE_WEBHOOK_SIGNING_SECRET` is absent `POST /api/billing/webhook` returns 503.
+
+### Register the webhook endpoint
+
+In the Stripe Dashboard → Developers → Webhooks → Add endpoint:
+
+- **Endpoint URL**: `${APP_URL}/api/billing/webhook`
+- **Events to send** (select all of these):
+  - `customer.subscription.created`
+  - `customer.subscription.updated`
+  - `customer.subscription.deleted`
+  - `invoice.finalized`
+  - `invoice.paid`
+  - `invoice.payment_succeeded`
+  - `invoice.payment_failed`
+  - `invoice.voided`
+
+After saving, copy the **Signing secret** (`whsec_…`) shown on the endpoint detail page and push it as `STRIPE_WEBHOOK_SIGNING_SECRET` above.
+
+### Configure products and prices
+
+For each app registered in Puff, create a Stripe Product (one per app) and one or more Prices (one per tier). Then seed the `billing_pricing` table with a row per `(app_uuid, tier)`, setting `provider_price_id` to the Stripe Price ID (`price_…`):
+
+```sql
+INSERT INTO billing_pricing
+  (pricing_uuid, app_uuid, tier, price_cents, currency, billing_interval, provider_price_id)
+VALUES
+  (gen_random_uuid(), '<app_uuid>', 'basic', 1000, 'usd', 'month', 'price_…'),
+  (gen_random_uuid(), '<app_uuid>', 'pro',   3000, 'usd', 'month', 'price_…');
+```
+
+`billing_interval` is free-form — it mirrors whatever Stripe's Price has configured and is shown in the billing UI. For `usage`-mode apps, create a **Billing Meter** in the Stripe Dashboard (Billing → Meters → Create meter) and note the `event_name` — it must match the `metric` string your apps send to `POST /api/billing/usage/[app_uuid]`. No `billing_pricing` row is required for pure usage-metered apps if there is no fixed per-seat price component.
+
+### Stripe Tax
+
+If you need to collect and remit tax, enable **Stripe Tax** in the Dashboard (Settings → Tax) and add your tax registrations. Puff stores an optional `tax_id` on `billing_customers` so you can supply it to Stripe for invoice display, but Puff itself does not branch billing logic on it — tax calculation and remittance are fully delegated to Stripe.
+
+### Schema import order
+
+The billing tables are already included in step [1. Provision the database](#1-provision-the-database) above (block 10 of the import sequence). No extra schema step is needed here.
 
 ## 6. Set non-secret variables
 

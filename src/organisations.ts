@@ -14,7 +14,7 @@ import { validateDisplayName } from "./utilities/validation.js"
 export const MAX_NAME_LENGTH = 128
 
 const ORG_COLUMNS =
-  "org_uuid, org_name, org_active, org_created_at, org_created_by"
+  "org_uuid, org_name, org_active, org_locale, org_created_at, org_created_by"
 
 const validateName = (name: string): string | null =>
   validateDisplayName(
@@ -192,15 +192,33 @@ export async function enableOrganisation(
  * Permanently deletes an organisation. Its teams and every membership row are
  * removed by `ON DELETE CASCADE`. Irreversible — use `disableOrganisation` for
  * anything reversible.
+ *
+ * Refuses (409) if the org has an outstanding balance — open or uncollectible
+ * invoices. Because `invoices.org_uuid` is `ON DELETE CASCADE`, deleting the
+ * org would otherwise destroy unsettled financial records (Phase 9 billing).
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} org_uuid - The organisation UUID.
- * @returns {Promise<Envelope>} `{ success: true, status: 200 }`, `{ success: false, status: 404 }`, or an error envelope.
+ * @returns {Promise<Envelope>} `{ success: true, status: 200 }`, `{ success: false, status: 404|409 }`, or an error envelope.
  */
 export async function deleteOrganisation(
   dbClient: DbClient,
   org_uuid: string
 ): Promise<Envelope> {
   try {
+    const balance = await dbClient.query(
+      `SELECT 1 FROM invoices
+        WHERE org_uuid = $1 AND status IN ('open', 'uncollectible') LIMIT 1`,
+      [org_uuid]
+    )
+    if ((balance.rowCount ?? 0) > 0) {
+      return {
+        success: false,
+        message:
+          "Cannot delete an organisation with an outstanding balance. Settle or void its open invoices first.",
+        status: 409,
+      }
+    }
+
     const result = await dbClient.query(
       "DELETE FROM organisations WHERE org_uuid = $1 RETURNING org_uuid",
       [org_uuid]

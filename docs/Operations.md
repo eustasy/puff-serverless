@@ -16,6 +16,12 @@ Tasks that need doing intermittently — not on every deploy, but as part of run
   - [Google](#google)
   - [Microsoft](#microsoft)
   - [Pushing credentials to Cloudflare](#pushing-credentials-to-cloudflare)
+- [Billing operations](#billing-operations)
+  - [Reading the billing audit timeline](#reading-the-billing-audit-timeline)
+  - [Webhook idempotency and replay](#webhook-idempotency-and-replay)
+  - [Nightly usage rollup and provider sync](#nightly-usage-rollup-and-provider-sync)
+  - [Switching payment provider](#switching-payment-provider)
+  - [Known gaps and deferred work](#known-gaps-and-deferred-work)
 - [Security concerns](#security-concerns)
 
 ## Scheduled cleanup
@@ -313,6 +319,118 @@ echo "<the client secret>" | npx wrangler secret put OAUTH_MICROSOFT_CLIENT_SECR
 ```
 
 For local development, put the same values in `.env` (git-ignored). A provider where **either** of its env vars is missing is treated as not configured and its `/login/<provider>` route 404s.
+
+## Billing operations
+
+### Reading the billing audit timeline
+
+All billing state changes emit events through the standard audit log (`audit_events`). The full set of `billing.*` event types and their default severities:
+
+| Event type                      | Default severity | When emitted                                                                            |
+| ------------------------------- | ---------------- | --------------------------------------------------------------------------------------- |
+| `billing.customer.created`      | `notice`         | `ensureCustomer` creates a new Stripe customer.                                         |
+| `billing.subscription.created`  | `notice`         | Webhook `customer.subscription.created`.                                                |
+| `billing.subscription.updated`  | `notice`         | Webhook `customer.subscription.updated` (tier change, period renewal, status sync).     |
+| `billing.subscription.paused`   | `notice`         | Webhook `customer.subscription.updated` with `status = "paused"`.                       |
+| `billing.subscription.resumed`  | `notice`         | Webhook `customer.subscription.updated` when recovering from `paused`.                  |
+| `billing.subscription.canceled` | **`alert`**      | Webhook `customer.subscription.deleted`. Investigate if unexpected.                     |
+| `billing.invoice.issued`        | `notice`         | Webhook `invoice.finalized`.                                                            |
+| `billing.invoice.paid`          | `notice`         | Webhook `invoice.paid`.                                                                 |
+| `billing.invoice.voided`        | `notice`         | Webhook `invoice.voided`.                                                               |
+| `billing.payment.succeeded`     | `notice`         | Webhook `invoice.payment_succeeded`.                                                    |
+| `billing.payment.failed`        | **`warning`**    | Webhook `invoice.payment_failed`. Access is cut off immediately — no grace window.      |
+| `billing.usage.recorded`        | `debug`          | App posts a usage event to `POST /api/billing/usage/[app_uuid]`. High-volume; ages out. |
+
+Useful queries:
+
+```sql
+-- All billing events for an org, newest first
+SELECT created_at, event_type, event_metadata
+FROM audit_events
+WHERE target_org_uuid = '<org_uuid>'
+  AND event_type LIKE 'billing.%'
+ORDER BY created_at DESC;
+
+-- Recent payment failures across all orgs (potential dunning candidates)
+SELECT created_at, target_org_uuid, target_app_uuid, event_metadata
+FROM audit_events
+WHERE event_type = 'billing.payment.failed'
+  AND created_at > NOW() - INTERVAL '7 days'
+ORDER BY created_at DESC;
+
+-- Subscription cancellations in the last 30 days (churn)
+SELECT created_at, target_org_uuid, target_app_uuid, event_metadata
+FROM audit_events
+WHERE event_type = 'billing.subscription.canceled'
+  AND created_at > NOW() - INTERVAL '30 days'
+ORDER BY created_at DESC;
+```
+
+`billing.payment.failed` flips `isLicensed` to `false` immediately (the `subscriptions.status` is updated to `past_due` by the preceding `customer.subscription.updated` webhook). There is no grace window and no automatic dunning — see [Known gaps and deferred work](#known-gaps-and-deferred-work).
+
+**Refunds** are handled manually in the Stripe Dashboard (Billing → Invoices → find the invoice → Refund). A refunded invoice does not retroactively revoke entitlements — the subscription status drives access, not the invoice status. After issuing a refund you may separately cancel the subscription if warranted.
+
+### Webhook idempotency and replay
+
+`POST /api/billing/webhook` verifies the Stripe `stripe-signature` header (WebCrypto HMAC-SHA256, constant-time comparison) before doing any DB work. Stripe retries a failed delivery for up to three days with the same event `id`.
+
+Replay safety is enforced by the `billing_webhook_events` table: each event is recorded once under the composite PK `(provider, provider_event_id)`. The dedup `INSERT … ON CONFLICT DO NOTHING` and the state-change query run inside one transaction. A replay sees `rowCount = 0` on the dedup insert, rolls back via a `Rollback` sentinel, and returns 200 to stop further retries. A processing failure also rolls back the dedup row so the provider's next retry is honoured rather than silently dropped.
+
+To inspect recent webhook activity:
+
+```sql
+SELECT received_at, event_type, provider_event_id
+FROM billing_webhook_events
+WHERE provider = 'stripe'
+ORDER BY received_at DESC
+LIMIT 50;
+```
+
+If you need to force-replay an event (e.g. after a bug fix), delete its row from `billing_webhook_events` first:
+
+```sql
+DELETE FROM billing_webhook_events
+WHERE provider = 'stripe' AND provider_event_id = 'evt_…';
+```
+
+Then trigger a manual retry in the Stripe Dashboard (Developers → Webhooks → select endpoint → find the event → Resend).
+
+### Nightly usage rollup and provider sync
+
+The daily Cron Trigger (`0 0 * * *`) runs the following in order:
+
+1. `maybeRotateSigningKey` — OAuth key rotation (existing; see [OAuth signing-key rotation](#oauth-signing-key-rotation)).
+2. `recomputeUsageRollups(yesterday)` — aggregates `usage_events` for the previous full UTC day into `usage_rollups`, grouped by `(app_uuid, org_uuid, metric, day)`. Fully idempotent: re-running overwrites the quantity and clears `synced_at` only when the quantity changed.
+3. `recomputeUsageRollups(today)` — same for the current in-progress UTC day, so intra-day queries reflect recent events.
+4. `syncUsageRollups` — pushes unsynced rollups (where `synced_at IS NULL`) to Stripe as Billing Meter events (`POST /v1/billing/meter_events`). The `metric` string becomes the `event_name`; a per-`(app, org, metric, day)` `identifier` prevents double-billing on retry. Sets `synced_at = now()` on success; leaves failures unsynced for the next run. Only executes when `STRIPE_SECRET_KEY` is configured.
+
+To check for unsynced rollups manually:
+
+```sql
+SELECT app_uuid, org_uuid, metric, day, quantity
+FROM usage_rollups
+WHERE synced_at IS NULL
+ORDER BY day ASC;
+```
+
+### Switching payment provider
+
+The billing domain layer (`src/billing.ts`) is provider-agnostic. The `BillingProvider` interface defines all payment-rail operations; `createStripeProvider(env)` in `src/billing-stripe.ts` is the only Stripe-specific code. To switch providers:
+
+1. Write a new adapter implementing `BillingProvider` (throws on error; the domain layer maps throws to 502 envelopes).
+2. Replace calls to `createStripeProvider(env)` in the endpoint files with calls to your new factory.
+3. Update the webhook endpoint (`functions/api/billing/webhook.ts`) to verify the new provider's signature scheme and call the appropriate handler.
+4. Migrate `billing_customers.provider` / `subscriptions.provider` / `invoices.provider` / `billing_webhook_events.provider` rows if you need historical data to remain queryable under the new provider name.
+
+The schema's `provider` column is a plain `TEXT` field — it stores `"stripe"` today but is not constrained to that value.
+
+### Known gaps and deferred work
+
+Operators should be aware of the following limitations that are not yet implemented:
+
+- **Dunning / pre-renewal warning emails.** When a payment fails (`billing.payment.failed`) or a trial is about to end, no email is sent to `billing`-role members of the org. Access is cut off immediately on failure. Manual outreach via the Stripe Dashboard is the current mitigation until a dunning mailer is built.
+- **Operator write endpoints** (comp-seats, manual invoice issuance). No endpoints under `functions/api/db/auth/admin/billing/` exist yet. Comping seats requires granting entitlement KV rows directly (see [Registering a new app](#registering-a-new-app) → step 5) but note that `isLicensed` also requires an active or trialing subscription row — a comp arrangement that bypasses billing entirely conflicts with the "no implicit free tier" rule and needs a product decision before it can be implemented cleanly.
+- **Refund automation.** Refunds are manual via the Stripe Dashboard. Issuing a refund does not automatically adjust entitlements — subscription cancellation is a separate step.
 
 ## Security concerns
 

@@ -1,0 +1,23 @@
+CREATE TABLE public.invoices (
+  invoice_uuid STRING NOT NULL,
+  org_uuid STRING NOT NULL,
+  subscription_uuid STRING NULL,
+  provider STRING NOT NULL,
+  provider_invoice_id STRING NOT NULL,
+  status STRING NOT NULL,
+  amount_cents INT NOT NULL,
+  currency STRING NOT NULL,
+  period_start TIMESTAMP NOT NULL,
+  period_end TIMESTAMP NOT NULL,
+  due_at TIMESTAMP NULL,
+  paid_at TIMESTAMP NULL,
+  hosted_invoice_url STRING NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT current_timestamp():::TIMESTAMP,
+  CONSTRAINT invoices_pkey PRIMARY KEY (invoice_uuid ASC),
+  CONSTRAINT invoices_org_uuid_fkey FOREIGN KEY (org_uuid) REFERENCES public.organisations(org_uuid) ON DELETE CASCADE,
+  CONSTRAINT invoices_subscription_uuid_fkey FOREIGN KEY (subscription_uuid) REFERENCES public.subscriptions(subscription_uuid) ON DELETE SET NULL,
+  CONSTRAINT invoices_status_check CHECK (status IN ('draft', 'open', 'paid', 'void', 'uncollectible')),
+  CONSTRAINT invoices_provider_invoice_id_unique UNIQUE (provider_invoice_id),
+  INDEX idx_invoices_org_uuid (org_uuid ASC),
+  INDEX idx_invoices_subscription_uuid (subscription_uuid ASC)
+) LOCALITY REGIONAL BY TABLE IN PRIMARY REGION

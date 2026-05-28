@@ -31,7 +31,8 @@ describe("can — organisation actions", () => {
     "org:update",
     "org:disable",
     "org:delete",
-    "org:billing",
+    "org:billing:read",
+    "org:billing:write",
     "org:members:view",
     "org:members:invite",
     "org:members:remove",
@@ -48,11 +49,12 @@ describe("can — organisation actions", () => {
     }
   })
 
-  it("withholds org deletion, disable and billing from an admin", () => {
+  it("withholds org deletion, disable and billing write from an admin", () => {
     expect(can(["admin"], "org:delete")).toBe(false)
     expect(can(["admin"], "org:disable")).toBe(false)
-    expect(can(["admin"], "org:billing")).toBe(false)
-    // ...but an admin still manages members and teams.
+    expect(can(["admin"], "org:billing:write")).toBe(false)
+    // ...but an admin can read billing and still manages members and teams.
+    expect(can(["admin"], "org:billing:read")).toBe(true)
     expect(can(["admin"], "org:members:invite")).toBe(true)
     expect(can(["admin"], "org:teams:create")).toBe(true)
   })
@@ -64,9 +66,15 @@ describe("can — organisation actions", () => {
     expect(can(["member"], "org:teams:create")).toBe(false)
   })
 
-  it("scopes billing to the owner and billing roles", () => {
-    expect(can(["billing"], "org:billing")).toBe(true)
-    expect(can(["owner"], "org:billing")).toBe(true)
+  it("scopes billing read+write to owner and billing roles; read to admin", () => {
+    expect(can(["billing"], "org:billing:read")).toBe(true)
+    expect(can(["billing"], "org:billing:write")).toBe(true)
+    expect(can(["owner"], "org:billing:read")).toBe(true)
+    expect(can(["owner"], "org:billing:write")).toBe(true)
+    expect(can(["admin"], "org:billing:read")).toBe(true)
+    expect(can(["admin"], "org:billing:write")).toBe(false)
+    expect(can(["member"], "org:billing:read")).toBe(false)
+    expect(can(["member"], "org:billing:write")).toBe(false)
     expect(can(["billing"], "org:update")).toBe(false)
   })
 
@@ -79,7 +87,8 @@ describe("can — organisation actions", () => {
   })
 
   it("treats the role set as a union — any granting role suffices", () => {
-    expect(can(["member", "billing"], "org:billing")).toBe(true)
+    expect(can(["member", "billing"], "org:billing:read")).toBe(true)
+    expect(can(["member", "billing"], "org:billing:write")).toBe(true)
   })
 })
 

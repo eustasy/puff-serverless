@@ -62,8 +62,36 @@ describe("isLicensed", () => {
     expect(db.calls).toHaveLength(0)
   })
 
-  it("'usage' is licensed iff user is in org", async () => {
+  it("a billed mode is unlicensed when the org has no subscription", async () => {
     const db = new FakeDb()
+    db.on(/FROM subscriptions/, { rows: [], rowCount: 0 })
+    const r = await isLicensed(
+      db.client,
+      { app_uuid: "a-1", app_licensing_mode: "seat" },
+      "u-1",
+      "o-1"
+    )
+    expect(r).toMatchObject({ success: true, licensed: false, tier: null })
+  })
+
+  it("a billed mode is unlicensed when the subscription is past_due", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions/, {
+      rows: [{ status: "past_due" }],
+      rowCount: 1,
+    })
+    const r = await isLicensed(
+      db.client,
+      { app_uuid: "a-1", app_licensing_mode: "usage" },
+      "u-1",
+      "o-1"
+    )
+    expect(r).toMatchObject({ success: true, licensed: false, tier: null })
+  })
+
+  it("'usage' is licensed iff user is in org (with active sub)", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions/, { rows: [{ status: "active" }], rowCount: 1 })
     db.on(/FROM organisation_members/, { rows: [{ x: 1 }], rowCount: 1 })
     const r = await isLicensed(
       db.client,
@@ -74,8 +102,9 @@ describe("isLicensed", () => {
     expect(r).toMatchObject({ success: true, licensed: true, tier: null })
   })
 
-  it("'seat' is licensed when license:tier resolves", async () => {
+  it("'seat' is licensed when license:tier resolves (with trialing sub)", async () => {
     const db = new FakeDb()
+    db.on(/FROM subscriptions/, { rows: [{ status: "trialing" }], rowCount: 1 })
     db.on(/FROM user_key_values/, {
       rows: [{ kv_value: "pro" }],
       rowCount: 1,
@@ -91,6 +120,7 @@ describe("isLicensed", () => {
 
   it("'seat' is unlicensed when no tier resolves at any level", async () => {
     const db = new FakeDb()
+    db.on(/FROM subscriptions/, { rows: [{ status: "active" }], rowCount: 1 })
     db.on(/FROM user_key_values/, { rows: [], rowCount: 0 })
     db.on(/FROM org_role_key_values/, { rows: [], rowCount: 0 })
     db.on(/FROM organisation_key_values/, { rows: [], rowCount: 0 })
@@ -104,8 +134,9 @@ describe("isLicensed", () => {
     expect(r).toMatchObject({ success: true, licensed: false, tier: null })
   })
 
-  it("'floating' is licensed iff an active session row exists", async () => {
+  it("'floating' is licensed iff an active session row exists (with active sub)", async () => {
     const db = new FakeDb()
+    db.on(/FROM subscriptions/, { rows: [{ status: "active" }], rowCount: 1 })
     db.on(/FROM app_floating_sessions/, { rows: [{ x: 1 }], rowCount: 1 })
     const r = await isLicensed(
       db.client,

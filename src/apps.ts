@@ -44,7 +44,7 @@ export const LICENSE_PERMS_PREFIX = "license:perms:"
 export const PERM_PREFIX = "perm:"
 
 const APP_COLUMNS =
-  "app_uuid, app_name, client_id, client_secret, redirect_uris, app_active, app_licensing_mode, app_created_at"
+  "app_uuid, app_name, client_id, client_secret, redirect_uris, app_active, app_licensing_mode, app_default_trial_days, app_created_at"
 
 /**
  * Read a single app by its app_uuid. The app must be active (`app_active` is
