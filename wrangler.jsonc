@@ -6,14 +6,17 @@
 		"nodejs_compat"
 	],
 	"triggers": {
-		// Daily tick driving OAuth signing-key rotation. The handler only
-		// rotates once the active key is older than OAUTH_KEY_ROTATION_INTERVAL_DAYS
-		// (default 7), so the effective cadence is weekly; a daily cron just
-		// guarantees a prompt rotation without depending on exact clock timing.
+		// Two ticks (handler dispatches on the matched expression in src/cron.ts):
+		//   "0 0 * * *" (daily) — OAuth signing-key rotation (only rotates once
+		//     the active key is older than OAUTH_KEY_ROTATION_INTERVAL_DAYS,
+		//     default 7, so the effective cadence is weekly) + the usage rollup.
+		//   "0 * * * *" (hourly) — billing-email reconcile (re-resolves each
+		//     org's effective billing contact and patches the provider on drift).
 		// Pure-SQL row reaping (TOTP, floating-session, session, token, audit)
 		// lives in CockroachDB itself via `sql/schedules.sql`.
 		"crons": [
-			"0 0 * * *"
+			"0 0 * * *",
+			"0 * * * *"
 		]
 	},
 	"assets": {

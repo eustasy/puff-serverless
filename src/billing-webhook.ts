@@ -244,10 +244,13 @@ async function recordInvoice(
 ): Promise<void> {
   const invoiceId = str(object.id)
   const subId = str(object.subscription)
+  const customerId = str(object.customer)
   if (!invoiceId) return
 
-  // Attribute the invoice to a local subscription (and thus an org). Without a
-  // matching subscription row there is nothing to hang the invoice on.
+  // Attribute the invoice to an org. Subscription invoices map via the
+  // subscription row (and carry its `subscription_uuid`); one-off invoices
+  // (e.g. an operator-issued charge in the Stripe dashboard) have no
+  // subscription, so fall back to the customer → billing_customers → org.
   let org_uuid: string | null = null
   let subscription_uuid: string | null = null
   if (subId) {
@@ -262,9 +265,17 @@ async function recordInvoice(
     org_uuid = row?.org_uuid ?? null
     subscription_uuid = row?.subscription_uuid ?? null
   }
+  if (!org_uuid && customerId) {
+    const { rows } = await dbClient.query(
+      `SELECT org_uuid FROM billing_customers
+        WHERE provider_customer_id = $1 LIMIT 1`,
+      [customerId]
+    )
+    org_uuid = (rows[0] as { org_uuid?: string } | undefined)?.org_uuid ?? null
+  }
   if (!org_uuid) {
     console.error(
-      `recordInvoice: invoice ${invoiceId} has no resolvable org (subscription ${subId ?? "none"}); skipping.`
+      `recordInvoice: invoice ${invoiceId} has no resolvable org (subscription ${subId ?? "none"}, customer ${customerId ?? "none"}); skipping.`
     )
     return
   }

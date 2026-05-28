@@ -71,6 +71,12 @@ export interface BillingProvider {
     idempotencyKey?: string
   }): Promise<ProviderCustomer>
 
+  /** Updates mutable fields on an existing provider customer (e.g. the email). */
+  updateCustomer(
+    providerCustomerId: string,
+    input: { email: string | null }
+  ): Promise<void>
+
   createSubscription(input: {
     customerId: string
     priceId: string
@@ -137,7 +143,7 @@ export interface BillingProvider {
 // --- Column lists ----------------------------------------------------------
 
 const CUSTOMER_COLUMNS =
-  "org_uuid, provider, provider_customer_id, default_payment_method_id, tax_id, billing_email"
+  "org_uuid, provider, provider_customer_id, default_payment_method_id, tax_id, billing_email, synced_email"
 
 const SUBSCRIPTION_COLUMNS =
   "subscription_uuid, org_uuid, app_uuid, provider, provider_subscription_id, status, tier, current_period_start, current_period_end, cancel_at, canceled_at, trial_end, created_at"
@@ -218,6 +224,64 @@ export async function getPricing(
 
 // --- Customers -------------------------------------------------------------
 
+/**
+ * Resolves the org's billing-contact email from its membership, used when no
+ * explicit `billing_customers.billing_email` override is set. Ranks members
+ * who hold a verified primary email by role:
+ *   1. billing only (the dedicated finance contact)
+ *   2. billing + owner
+ *   3. billing + admin
+ *   4. any billing-role holder
+ *   5. owner (final fallback, even without the billing role)
+ * Tiebreak: earliest membership, then email. Returns null if nobody qualifies.
+ * Members without a verified primary email are skipped so the result is always
+ * a deliverable address.
+ */
+export async function resolveBillingEmail(
+  dbClient: DbClient,
+  org_uuid: string
+): Promise<Envelope<{ email: string | null }>> {
+  try {
+    const { rows } = await dbClient.query(
+      `WITH member_roles AS (
+         SELECT user_uuid, array_agg(role) AS roles, min(added_at) AS first_added
+           FROM organisation_members
+          WHERE org_uuid = $1
+          GROUP BY user_uuid
+       ),
+       ranked AS (
+         SELECT user_uuid, first_added,
+           CASE
+             WHEN 'billing' = ALL(roles) THEN 1
+             WHEN 'billing' = ANY(roles) AND 'owner' = ANY(roles) THEN 2
+             WHEN 'billing' = ANY(roles) AND 'admin' = ANY(roles) THEN 3
+             WHEN 'billing' = ANY(roles) THEN 4
+             WHEN 'owner' = ANY(roles) THEN 5
+             ELSE NULL
+           END AS tier
+           FROM member_roles
+       )
+       SELECT e.email_address
+         FROM ranked r
+         JOIN emails e ON e.user_uuid = r.user_uuid
+                      AND e.is_primary = TRUE AND e.is_verified = TRUE
+        WHERE r.tier IS NOT NULL
+        ORDER BY r.tier ASC, r.first_added ASC, e.email_address ASC
+        LIMIT 1`,
+      [org_uuid]
+    )
+    return { success: true, email: rows[0]?.email_address ?? null, status: 200 }
+  } catch (error) {
+    console.error("Error in resolveBillingEmail:", error)
+    return {
+      error: true,
+      message: "Could not resolve billing email.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
 /** The billing-customer row for an org, or null if the org has none yet. */
 export async function getCustomer(
   dbClient: DbClient,
@@ -252,7 +316,6 @@ export async function ensureCustomer(
   provider: BillingProvider,
   input: {
     org_uuid: string
-    billing_email: string | null
     org_name: string | null
     locale: string | null
   }
@@ -264,10 +327,16 @@ export async function ensureCustomer(
       return { success: true, customer: existing.customer, status: 200 }
     }
 
+    // No override exists before the row does, so the effective email is the
+    // resolved billing-contact from membership.
+    const resolved = await resolveBillingEmail(dbClient, input.org_uuid)
+    if (!resolved.success) return resolved
+    const effective = resolved.email
+
     let created: ProviderCustomer
     try {
       created = await provider.createCustomer({
-        email: input.billing_email,
+        email: effective,
         name: input.org_name,
         locale: input.locale,
         metadata: { org_uuid: input.org_uuid },
@@ -279,11 +348,11 @@ export async function ensureCustomer(
 
     const { rows } = await dbClient.query(
       `INSERT INTO billing_customers
-         (org_uuid, provider, provider_customer_id, billing_email)
+         (org_uuid, provider, provider_customer_id, synced_email)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (org_uuid) DO NOTHING
        RETURNING ${CUSTOMER_COLUMNS}`,
-      [input.org_uuid, provider.name, created.id, input.billing_email]
+      [input.org_uuid, provider.name, created.id, effective]
     )
     if (rows.length > 0) {
       return { success: true, customer: rows[0], status: 201 }
@@ -309,6 +378,126 @@ export async function ensureCustomer(
     return {
       error: true,
       message: "Could not ensure billing customer.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
+/**
+ * Sets (or clears) the operator override for an org's billing email and syncs
+ * the effective address to the provider. Pass `null`/empty to clear the
+ * override and fall back to `resolveBillingEmail`. Requires an existing billing
+ * customer. Pushes to the provider only when the effective email drifts from
+ * `synced_email`.
+ */
+export async function setBillingEmailOverride(
+  dbClient: DbClient,
+  provider: BillingProvider,
+  input: { org_uuid: string; email: string | null }
+): Promise<Envelope<{ email: string | null }>> {
+  try {
+    const customerRes = await getCustomer(dbClient, input.org_uuid)
+    if (!customerRes.success) return customerRes
+    if (!customerRes.customer) {
+      return {
+        success: false,
+        message: "This organisation has no billing set up yet.",
+        status: 400,
+      }
+    }
+    const customer = customerRes.customer
+    const override =
+      input.email && input.email.trim() ? input.email.trim() : null
+
+    let effective: string | null = override
+    if (!effective) {
+      const resolved = await resolveBillingEmail(dbClient, input.org_uuid)
+      if (!resolved.success) return resolved
+      effective = resolved.email
+    }
+
+    await dbClient.query(
+      `UPDATE billing_customers SET billing_email = $2 WHERE org_uuid = $1`,
+      [input.org_uuid, override]
+    )
+
+    if (effective !== customer.synced_email) {
+      try {
+        await provider.updateCustomer(customer.provider_customer_id, {
+          email: effective,
+        })
+      } catch (error) {
+        return providerError("setBillingEmailOverride", error)
+      }
+      await dbClient.query(
+        `UPDATE billing_customers SET synced_email = $2 WHERE org_uuid = $1`,
+        [input.org_uuid, effective]
+      )
+    }
+
+    return { success: true, email: effective, status: 200 }
+  } catch (error) {
+    console.error("Error in setBillingEmailOverride:", error)
+    return {
+      error: true,
+      message: "Could not set billing email.",
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
+/**
+ * Reconciles every billing customer's provider email against the current
+ * effective address (`billing_email` override ?? `resolveBillingEmail`),
+ * pushing to the provider only on drift and recording the new `synced_email`.
+ * Run hourly from `src/cron.ts`. A single customer's failure is logged and
+ * skipped so the rest still reconcile. Returns the count actually updated.
+ */
+export async function reconcileBillingEmails(
+  dbClient: DbClient,
+  provider: BillingProvider,
+  opts: { limit?: number } = {}
+): Promise<Envelope<{ reconciled: number }>> {
+  const limit = opts.limit ?? 1000
+  try {
+    const { rows } = await dbClient.query(
+      `SELECT ${CUSTOMER_COLUMNS} FROM billing_customers
+        ORDER BY org_uuid ASC LIMIT $1`,
+      [limit]
+    )
+    let reconciled = 0
+    for (const customer of rows as BillingCustomerRow[]) {
+      let effective: string | null = customer.billing_email
+      if (!effective) {
+        const resolved = await resolveBillingEmail(dbClient, customer.org_uuid)
+        if (!resolved.success) continue
+        effective = resolved.email
+      }
+      if (effective === customer.synced_email) continue
+      try {
+        await provider.updateCustomer(customer.provider_customer_id, {
+          email: effective,
+        })
+        await dbClient.query(
+          `UPDATE billing_customers SET synced_email = $2 WHERE org_uuid = $1`,
+          [customer.org_uuid, effective]
+        )
+        reconciled++
+      } catch (error) {
+        console.error(
+          `reconcileBillingEmails: failed for org ${customer.org_uuid}:`,
+          error
+        )
+      }
+    }
+    return { success: true, reconciled, status: 200 }
+  } catch (error) {
+    console.error("Error in reconcileBillingEmails:", error)
+    return {
+      error: true,
+      message: "Could not reconcile billing emails.",
       details: error instanceof Error ? error.message : String(error),
       status: 500,
     }

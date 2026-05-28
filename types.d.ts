@@ -297,7 +297,11 @@ declare global {
     provider_customer_id: string
     default_payment_method_id: string | null
     tax_id: string | null
+    // Operator-set override for the billing contact email.
     billing_email: string | null
+    // Last effective email pushed to the provider — for cheap drift detection
+    // by the hourly reconcile. `effective = billing_email ?? resolveBillingEmail`.
+    synced_email: string | null
   }
 
   interface SubscriptionRow {

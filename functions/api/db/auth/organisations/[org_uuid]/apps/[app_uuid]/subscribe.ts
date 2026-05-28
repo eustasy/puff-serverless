@@ -62,7 +62,6 @@ export const onRequestPost: Handler<"org_uuid" | "app_uuid"> = async (
 
   const customerResult = await ensureCustomer(dbClient, provider, {
     org_uuid,
-    billing_email: null,
     org_name: org.org_name,
     locale: org.org_locale ?? null,
   })

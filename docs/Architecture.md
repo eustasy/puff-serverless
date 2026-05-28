@@ -59,7 +59,7 @@ type Envelope<T> =
 
 They do not throw or return raw rows. The sole exception is `registerUser`, which throws (wrap calls in try/catch).
 
-`src/cron.ts` is a deliberate departure: it runs on a Cron Trigger with no `_middleware.ts` in front of it. It only handles work that has to stay in the Worker — currently OAuth signing-key rotation (`src/oauth-keys-rotation.ts`), on a daily cron that rotates the key weekly. Pure-SQL row reaping lives in the database itself via `sql/schedules.sql`. The retained `runScheduledCleanup` helper is for manual / fallback use and opens its own short-lived `pg` client. See [Operations.md → Scheduled cleanup](Operations.md#scheduled-cleanup).
+`src/cron.ts` is a deliberate departure: it runs on a Cron Trigger with no `_middleware.ts` in front of it. It handles work that has to stay in the Worker, dispatching on the matched cron expression: the daily tick (`0 0 * * *`) does OAuth signing-key rotation (`src/oauth-keys-rotation.ts`, rotating weekly) and the usage rollup + provider sync; the hourly tick (`0 * * * *`) reconciles each org's billing-contact email to the provider. Pure-SQL row reaping lives in the database itself via `sql/schedules.sql`. The retained `runScheduledCleanup` helper is for manual / fallback use and opens its own short-lived `pg` client. See [Operations.md → Scheduled cleanup](Operations.md#scheduled-cleanup).
 
 `src/hooks/` is the extensibility point — every account/org mutation emits a structured event through it. The default listener writes to the `audit_events` table; future listeners (webhooks, SIEM forwarding) plug into the same registry. See [Operations.md → Audit events & hooks](Operations.md#audit-events--hooks).
 
@@ -253,6 +253,10 @@ Org-facing billing endpoints live under `functions/api/db/auth/organisations/[or
 ### Usage metering (cron)
 
 `src/cron.ts`'s daily tick (`0 0 * * *`) runs two rollup calls via `recomputeUsageRollups` (previous full UTC day + current in-progress day) and then calls `syncUsageRollups`, which pushes unsynced `usage_rollups` rows to Stripe as **Billing Meter events** (`POST /v1/billing/meter_events`). The `event_name` sent to Stripe equals the `metric` string on the rollup row — the operator must configure a Stripe Billing Meter whose `event_name` matches each metric. A per-`(app, org, metric, day)` `identifier` prevents double-billing on retry. The provider sync only runs when `STRIPE_SECRET_KEY` is configured; failures are logged and retried on the next daily tick.
+
+### Billing-contact email
+
+The address on each Stripe customer (used for Stripe's receipts and dunning) is **resolved**, not free-typed per subscription. The effective email is `billing_customers.billing_email` (an operator override) when set, otherwise `resolveBillingEmail(org)` — which ranks org members holding a verified primary email: billing-only → billing+owner → billing+admin → any-billing → owner (final fallback), tiebreaking on earliest membership then email. The resolved address is written to the Stripe customer at creation (`ensureCustomer`), re-synced immediately when the override changes (`POST /api/db/auth/organisations/[org_uuid]/billing/email`), and reconciled by a second **hourly** Cron Trigger (`0 * * * *`) that re-resolves every customer and patches the provider only when the effective address drifts from the stored `billing_customers.synced_email`. Stripe's Customer object holds a single email, so to reach multiple billing-role members the override should point at a distribution alias.
 
 ### Environment variables
 

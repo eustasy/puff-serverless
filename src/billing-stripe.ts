@@ -235,6 +235,17 @@ export function createStripeProvider(env: Env): BillingProvider {
       return { id: String(raw.id) }
     },
 
+    async updateCustomer(providerCustomerId, input): Promise<void> {
+      // Stripe clears the email when sent empty; send a space-collapsed value
+      // or empty string explicitly so a cleared override propagates.
+      await stripeRequest(
+        secret,
+        "POST",
+        `/v1/customers/${encodeURIComponent(providerCustomerId)}`,
+        { email: input.email ?? "" }
+      )
+    },
+
     async createSubscription(input): Promise<ProviderSubscription> {
       const body: Record<string, unknown> = {
         customer: input.customerId,

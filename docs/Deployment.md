@@ -204,6 +204,8 @@ In the Stripe Dashboard → Developers → Webhooks → Add endpoint:
   - `customer.subscription.created`
   - `customer.subscription.updated`
   - `customer.subscription.deleted`
+  - `customer.subscription.paused`
+  - `customer.subscription.resumed`
   - `invoice.finalized`
   - `invoice.paid`
   - `invoice.payment_succeeded`
@@ -225,6 +227,10 @@ VALUES
 ```
 
 `billing_interval` is free-form — it mirrors whatever Stripe's Price has configured and is shown in the billing UI. For `usage`-mode apps, create a **Billing Meter** in the Stripe Dashboard (Billing → Meters → Create meter) and note the `event_name` — it must match the `metric` string your apps send to `POST /api/billing/usage/[app_uuid]`. No `billing_pricing` row is required for pure usage-metered apps if there is no fixed per-seat price component.
+
+### Billing-contact email and the hourly cron
+
+You do not configure the Stripe customer's email per subscription — Puff resolves it (operator override on `billing_customers.billing_email`, else the org's highest-ranked verified billing-role member; see [Operations.md → Billing-contact email](Operations.md#billing-contact-email)). Enabling billing also activates a **second Cron Trigger** already declared in `wrangler.jsonc` (`triggers.crons`): `0 * * * *` (hourly) runs `reconcileBillingEmails`, which keeps each Stripe customer's email in sync as membership or the override changes. It is a no-op when `STRIPE_SECRET_KEY` is unset, so it costs nothing on non-billing deploys. (The daily `0 0 * * *` trigger continues to handle key rotation + the usage rollup.)
 
 ### Stripe Tax
 

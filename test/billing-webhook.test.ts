@@ -150,7 +150,36 @@ describe("handleStripeWebhookEvent", () => {
     expect(audit?.values[1]).toBe("billing.invoice.paid")
   })
 
-  it("skips an invoice that resolves to no local subscription", async () => {
+  it("attributes a subscription-less invoice via the customer fallback", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO billing_webhook_events/, { rows: [], rowCount: 1 })
+    db.on(/SELECT org_uuid FROM billing_customers/, {
+      rows: [{ org_uuid: "org-1" }],
+    })
+    db.on(/INSERT INTO invoices/, { rows: [], rowCount: 1 })
+    db.on(/INSERT INTO audit_events/, { rows: [], rowCount: 1 })
+
+    const event: StripeEvent = {
+      id: "evt_4",
+      type: "invoice.paid",
+      data: {
+        object: {
+          id: "in_oneoff",
+          status: "paid",
+          total: 5000,
+          currency: "usd",
+          customer: "cus_ext",
+        },
+      },
+    }
+    const result = await handleStripeWebhookEvent(db.client, null, event)
+    expect(result).toEqual({ status: 200 })
+    // subscription_uuid (3rd insert column) should be null for a one-off.
+    const insert = db.calls.find((c) => /INSERT INTO invoices/.test(c.text))
+    expect(insert?.values[2]).toBeNull()
+  })
+
+  it("skips an invoice that resolves to no local subscription or customer", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO billing_webhook_events/, { rows: [], rowCount: 1 })
     db.on(/SELECT subscription_uuid, org_uuid FROM subscriptions/, { rows: [] })

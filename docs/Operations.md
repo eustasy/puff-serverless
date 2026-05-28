@@ -20,6 +20,7 @@ Tasks that need doing intermittently — not on every deploy, but as part of run
   - [Reading the billing audit timeline](#reading-the-billing-audit-timeline)
   - [Webhook idempotency and replay](#webhook-idempotency-and-replay)
   - [Nightly usage rollup and provider sync](#nightly-usage-rollup-and-provider-sync)
+  - [Billing-contact email](#billing-contact-email)
   - [Switching payment provider](#switching-payment-provider)
   - [Known gaps and deferred work](#known-gaps-and-deferred-work)
 - [Security concerns](#security-concerns)
@@ -30,11 +31,12 @@ The request path only ever _soft_-expires data: sessions are marked inactive, to
 
 Two different cleanup surfaces are in play, by design:
 
-| Where                                                                                                      | Cadence             | Reaps                                                                                                              |
-| ---------------------------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| CockroachDB [Row-Level TTL](https://www.cockroachlabs.com/docs/stable/row-level-ttl) (`sql/schedules.sql`) | every 5 min         | `totp_used_codes` (2 min after `used_at`), `app_floating_sessions` (at `expires_at`)                               |
-| CockroachDB Row-Level TTL (`sql/schedules.sql`)                                                            | hourly              | `sessions` (1 month, defunct only), `tokens` (1 month), `audit_events` (`debug`/`info` after 90 days)              |
-| Cloudflare Cron Trigger (`wrangler.jsonc` `triggers.crons` → `src/cron.ts`)                                | `0 0 * * *` (daily) | `maybeRotateSigningKey(env)` — rotates weekly; see [OAuth signing-key rotation](#oauth-signing-key-rotation) below |
+| Where                                                                                                      | Cadence              | Reaps                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CockroachDB [Row-Level TTL](https://www.cockroachlabs.com/docs/stable/row-level-ttl) (`sql/schedules.sql`) | every 5 min          | `totp_used_codes` (2 min after `used_at`), `app_floating_sessions` (at `expires_at`)                                                                      |
+| CockroachDB Row-Level TTL (`sql/schedules.sql`)                                                            | hourly               | `sessions` (1 month, defunct only), `tokens` (1 month), `audit_events` (`debug`/`info` after 90 days)                                                     |
+| Cloudflare Cron Trigger (`wrangler.jsonc` `triggers.crons` → `src/cron.ts`)                                | `0 0 * * *` (daily)  | `maybeRotateSigningKey(env)` — rotates weekly; see [OAuth signing-key rotation](#oauth-signing-key-rotation) below; plus the usage rollup + provider sync |
+| Cloudflare Cron Trigger (`wrangler.jsonc` `triggers.crons` → `src/cron.ts`)                                | `0 * * * *` (hourly) | `reconcileBillingEmails(env)` — re-resolves each org's billing-contact email and patches the provider on drift (only when `STRIPE_SECRET_KEY` is set)     |
 
 Row reaping (TOTP, floating-session, session, token, audit) runs **in CockroachDB itself** via Row-Level TTL — no Worker invocation, no Hyperdrive handshake per tick, no round-trip per DELETE. Work that needs Web Crypto or an external API stays in the Worker.
 
@@ -413,6 +415,26 @@ WHERE synced_at IS NULL
 ORDER BY day ASC;
 ```
 
+### Billing-contact email
+
+The email on each Stripe customer (where Stripe sends receipts and its own failed-payment dunning) is **resolved automatically**, never typed per subscription:
+
+`effective = billing_customers.billing_email (operator override) ?? resolveBillingEmail(org)`
+
+`resolveBillingEmail` picks the highest-ranked org member who has a **verified primary email**, in order:
+
+1. a member whose only role is `billing` (the dedicated finance contact)
+2. `billing` + `owner`
+3. `billing` + `admin`
+4. any `billing`-role member
+5. an `owner` (final fallback, even without the billing role)
+
+Tiebreak: earliest membership, then email. If nobody qualifies and no override is set, the customer is created with no email (Stripe then has no one to notify).
+
+- **Set / clear the override:** `POST /api/db/auth/organisations/[org_uuid]/billing/email` (form field `email`; empty clears it), requires `org:billing:write`. This re-resolves and pushes to Stripe immediately.
+- **Drift:** the hourly cron (`reconcileBillingEmails`) re-resolves every customer and patches Stripe only when the effective address differs from the stored `billing_customers.synced_email` — so a membership change or an email re-verification propagates within an hour without touching the membership endpoints.
+- **Multiple recipients:** Stripe's customer holds a single email. To notify several billing-role members, point the override at a distribution alias the org maintains (Puff does not multicast on Stripe's behalf).
+
 ### Switching payment provider
 
 The billing domain layer (`src/billing.ts`) is provider-agnostic. The `BillingProvider` interface defines all payment-rail operations; `createStripeProvider(env)` in `src/billing-stripe.ts` is the only Stripe-specific code. To switch providers:
@@ -428,8 +450,8 @@ The schema's `provider` column is a plain `TEXT` field — it stores `"stripe"` 
 
 Operators should be aware of the following limitations that are not yet implemented:
 
-- **Dunning / pre-renewal warning emails.** When a payment fails (`billing.payment.failed`) or a trial is about to end, no email is sent to `billing`-role members of the org. Access is cut off immediately on failure. Manual outreach via the Stripe Dashboard is the current mitigation until a dunning mailer is built.
-- **Operator write endpoints** (comp-seats, manual invoice issuance). No endpoints under `functions/api/db/auth/admin/billing/` exist yet. Comping seats requires granting entitlement KV rows directly (see [Registering a new app](#registering-a-new-app) → step 5) but note that `isLicensed` also requires an active or trialing subscription row — a comp arrangement that bypasses billing entirely conflicts with the "no implicit free tier" rule and needs a product decision before it can be implemented cleanly.
+- **Puff-originated dunning emails.** Puff does not send its own emails to `billing`-role members on payment failure or upcoming renewal. Stripe's built-in dunning does reach the resolved customer email (see [Billing-contact email](#billing-contact-email)), and access is cut off immediately on failure; a Puff-side mailer that notifies all billing-role members is deferred.
+- **Operator endpoints.** Read-only dashboards exist — `GET /api/db/auth/admin/billing/subscriptions` (all subscriptions across orgs) and `GET /api/db/auth/admin/billing/usage` (rollups, optional `?org_uuid=`), behind the `OPERATOR_USER_UUIDS` gate. **Comp seats** are handled with a Stripe 100%-off coupon (Puff sees a normal `active` subscription — no special status); **manual invoices** are raised in the Stripe Dashboard and flow into Puff via the webhook's customer fallback. Neither needs a Puff write endpoint.
 - **Refund automation.** Refunds are manual via the Stripe Dashboard. Issuing a refund does not automatically adjust entitlements — subscription cancellation is a separate step.
 
 ## Security concerns

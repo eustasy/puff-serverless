@@ -9,6 +9,9 @@ import {
   listInvoices,
   listSubscriptions,
   openBillingPortal,
+  reconcileBillingEmails,
+  resolveBillingEmail,
+  setBillingEmailOverride,
   startSubscriptionCheckout,
   updateSubscription,
   type BillingProvider,
@@ -66,6 +69,7 @@ function fakeProvider(over: Partial<BillingProvider> = {}): BillingProvider {
     createBillingPortalSession: vi.fn(async () => ({
       url: "https://portal.example/p_1",
     })),
+    updateCustomer: vi.fn(async () => {}),
     recordMeterEvent: vi.fn(async () => {}),
     verifyWebhookSignature: vi.fn(async () => true),
     ...over,
@@ -103,7 +107,6 @@ describe("ensureCustomer", () => {
     const provider = fakeProvider()
     const result = await ensureCustomer(db.client, provider, {
       org_uuid: "org-1",
-      billing_email: "a@b.c",
       org_name: "Acme",
       locale: "en",
     })
@@ -111,9 +114,10 @@ describe("ensureCustomer", () => {
     expect(provider.createCustomer).not.toHaveBeenCalled()
   })
 
-  it("creates a provider customer and inserts the row when absent", async () => {
+  it("resolves the email, creates a provider customer, and inserts the row", async () => {
     const db = new FakeDb()
     db.on(/FROM billing_customers/, { rows: [] })
+    db.on(/member_roles/, { rows: [{ email_address: "billing@acme.test" }] })
     db.on(/INSERT INTO billing_customers/, {
       rows: [
         {
@@ -126,12 +130,122 @@ describe("ensureCustomer", () => {
     const provider = fakeProvider()
     const result = await ensureCustomer(db.client, provider, {
       org_uuid: "org-1",
-      billing_email: "a@b.c",
       org_name: "Acme",
       locale: "en",
     })
     expect(result).toMatchObject({ success: true, status: 201 })
     expect(provider.createCustomer).toHaveBeenCalledOnce()
+    // The resolved billing-contact email is what we send to the provider.
+    expect(provider.createCustomer).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "billing@acme.test" })
+    )
+  })
+})
+
+describe("resolveBillingEmail", () => {
+  it("returns the best-ranked billing contact's verified email", async () => {
+    const db = new FakeDb()
+    db.on(/member_roles/, { rows: [{ email_address: "billing@acme.test" }] })
+    const r = await resolveBillingEmail(db.client, "org-1")
+    expect(r).toMatchObject({ success: true, email: "billing@acme.test" })
+  })
+
+  it("returns null when nobody qualifies", async () => {
+    const db = new FakeDb()
+    db.on(/member_roles/, { rows: [] })
+    const r = await resolveBillingEmail(db.client, "org-1")
+    expect(r).toMatchObject({ success: true, email: null })
+  })
+})
+
+describe("setBillingEmailOverride", () => {
+  it("rejects with 400 when the org has no billing customer", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, { rows: [] })
+    const r = await setBillingEmailOverride(db.client, fakeProvider(), {
+      org_uuid: "org-1",
+      email: "new@x.test",
+    })
+    expect(r).toMatchObject({ success: false, status: 400 })
+  })
+
+  it("stores the override and patches the provider on drift", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, {
+      rows: [
+        {
+          org_uuid: "org-1",
+          provider_customer_id: "cus_1",
+          billing_email: null,
+          synced_email: "old@x.test",
+        },
+      ],
+    })
+    db.on(/UPDATE billing_customers SET billing_email/, { rowCount: 1 })
+    db.on(/UPDATE billing_customers SET synced_email/, { rowCount: 1 })
+    const provider = fakeProvider()
+    const r = await setBillingEmailOverride(db.client, provider, {
+      org_uuid: "org-1",
+      email: "new@x.test",
+    })
+    expect(r).toMatchObject({ success: true, email: "new@x.test" })
+    expect(provider.updateCustomer).toHaveBeenCalledWith("cus_1", {
+      email: "new@x.test",
+    })
+  })
+
+  it("does not patch when the override already matches synced_email", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, {
+      rows: [
+        {
+          org_uuid: "org-1",
+          provider_customer_id: "cus_1",
+          billing_email: null,
+          synced_email: "same@x.test",
+        },
+      ],
+    })
+    db.on(/UPDATE billing_customers SET billing_email/, { rowCount: 1 })
+    const provider = fakeProvider()
+    const r = await setBillingEmailOverride(db.client, provider, {
+      org_uuid: "org-1",
+      email: "same@x.test",
+    })
+    expect(r.success).toBe(true)
+    expect(provider.updateCustomer).not.toHaveBeenCalled()
+  })
+})
+
+describe("reconcileBillingEmails", () => {
+  it("patches only the customers whose effective email drifted", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers[\s\S]*ORDER BY org_uuid/, {
+      rows: [
+        {
+          org_uuid: "org-1",
+          provider_customer_id: "cus_1",
+          billing_email: "override@x.test",
+          synced_email: "old@x.test",
+        },
+        {
+          org_uuid: "org-2",
+          provider_customer_id: "cus_2",
+          billing_email: null,
+          synced_email: "current@x.test",
+        },
+      ],
+    })
+    // org-2 has no override → resolver returns the already-synced value.
+    db.on(/member_roles/, { rows: [{ email_address: "current@x.test" }] })
+    db.on(/UPDATE billing_customers SET synced_email/, { rowCount: 1 })
+    const provider = fakeProvider()
+    const r = await reconcileBillingEmails(db.client, provider)
+    expect(r).toMatchObject({ success: true, reconciled: 1 })
+    expect(provider.updateCustomer).toHaveBeenCalledTimes(1)
+    expect(provider.updateCustomer).toHaveBeenCalledWith("cus_1", {
+      email: "override@x.test",
+    })
   })
 })
 

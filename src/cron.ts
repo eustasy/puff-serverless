@@ -29,6 +29,9 @@ import { Client } from "pg"
 import { maybeRotateSigningKey } from "./oauth-keys-rotation.js"
 import { recomputeUsageRollups, syncUsageRollups } from "./usage.js"
 import { createStripeProvider } from "./billing-stripe.js"
+import { reconcileBillingEmails } from "./billing.js"
+
+const HOURLY_CRON = "0 * * * *"
 
 // `totp_used_codes` rows matter only while the code is still inside its
 // `verify()` acceptance window; a small margin past that is plenty.
@@ -56,6 +59,16 @@ export async function scheduled(
 }
 
 async function runScheduledWork(env: Env, cron: string): Promise<void> {
+  // The hourly tick ("0 * * * *") also matches at midnight, but Cloudflare
+  // fires each configured expression as its own invocation, so the daily and
+  // hourly branches stay disjoint — guard each on the exact expression.
+  if (cron === HOURLY_CRON) {
+    await runBillingEmailReconcile(env)
+    return
+  }
+
+  // Daily tick ("0 0 * * *"), plus a manual/fallback invocation with any other
+  // expression runs the daily work.
   try {
     await maybeRotateSigningKey(env, { cron })
   } catch (error) {
@@ -63,6 +76,46 @@ async function runScheduledWork(env: Env, cron: string): Promise<void> {
   }
 
   await runDailyUsageRollup(env)
+}
+
+/**
+ * Hourly: re-resolve each billing customer's effective billing email and patch
+ * the provider on drift (see `reconcileBillingEmails`). Only runs when billing
+ * is configured. Opens its own `pg` client; never throws.
+ */
+async function runBillingEmailReconcile(env: Env): Promise<void> {
+  if (!env.STRIPE_SECRET_KEY) return
+  if (!env.HYPERDRIVE?.connectionString) {
+    console.error(
+      "Billing-email reconcile: HYPERDRIVE binding missing; skipping."
+    )
+    return
+  }
+
+  const client = new Client(env.HYPERDRIVE.connectionString)
+  try {
+    await client.connect()
+    const provider = createStripeProvider(env)
+    const result = await reconcileBillingEmails(client, provider)
+    if (result.success) {
+      console.log(
+        `Billing-email reconcile: updated ${result.reconciled} customers.`
+      )
+    } else {
+      console.error("Billing-email reconcile failed:", result.message)
+    }
+  } catch (error) {
+    console.error("Billing-email reconcile: unexpected error:", error)
+  } finally {
+    try {
+      await client.end()
+    } catch (endError) {
+      console.error(
+        "Billing-email reconcile: error closing DB client:",
+        endError
+      )
+    }
+  }
 }
 
 /**

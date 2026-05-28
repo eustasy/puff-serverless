@@ -17,6 +17,7 @@ function fakeProvider(over: Partial<BillingProvider> = {}): BillingProvider {
     cancelSubscription: vi.fn(),
     createCheckoutSession: vi.fn(),
     createBillingPortalSession: vi.fn(),
+    updateCustomer: vi.fn(async () => {}),
     recordMeterEvent: vi.fn(async () => {}),
     verifyWebhookSignature: vi.fn(async () => true),
     ...over,
