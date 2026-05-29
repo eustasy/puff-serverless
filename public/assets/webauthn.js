@@ -76,6 +76,35 @@ function serializeCredential(cred) {
   return obj
 }
 
+// Remembers the last successfully-used login on this device so the login page
+// can pre-fill the email and auto-offer a passkey. `usedPasskey` is sticky per
+// email: a passkey sign-in sets it, and a later password sign-in for the same
+// email keeps it (the device still holds the passkey); a different email resets.
+const LAST_LOGIN_KEY = "puff_last_login"
+
+function readLastLogin() {
+  try {
+    const raw = localStorage.getItem(LAST_LOGIN_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function rememberLogin(email, viaPasskey) {
+  try {
+    const prev = readLastLogin()
+    const usedPasskey =
+      viaPasskey || (prev && prev.email === email && prev.usedPasskey === true)
+    localStorage.setItem(
+      LAST_LOGIN_KEY,
+      JSON.stringify({ email, usedPasskey: !!usedPasskey })
+    )
+  } catch {
+    // localStorage unavailable (private mode / disabled) — feature degrades.
+  }
+}
+
 // Registration — called from the register passkey button in account.html
 async function registerPasskey() {
   const msgArea = document.getElementById("passkey-message-area")
@@ -133,7 +162,7 @@ async function authenticateWithPasskey() {
   const resultArea = document.getElementById("passkey-result")
   if (resultArea) resultArea.innerHTML = ""
 
-  const emailInput = document.getElementById("passkey-email")
+  const emailInput = document.getElementById("email")
   const email = emailInput ? emailInput.value.trim() : ""
   if (!email) {
     if (resultArea)
@@ -183,6 +212,7 @@ async function authenticateWithPasskey() {
     // Handle redirect from HX-Redirect header
     const redirect = completeRes.headers.get("HX-Redirect")
     if (redirect) {
+      rememberLogin(email, true)
       window.location.href = redirect
       return
     }
@@ -209,5 +239,27 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault()
       authenticateWithPasskey()
     })
+  }
+
+  // Login-page only: remember the email across visits and auto-offer a passkey.
+  const emailInput = document.getElementById("email")
+  const loginForm = document.querySelector('form[hx-post="/api/db/user/login"]')
+  if (emailInput && loginForm) {
+    // Record a successful password sign-in. Every successful outcome (session,
+    // 2FA, or password-upgrade) returns an HX-Redirect; failures do not.
+    loginForm.addEventListener("htmx:afterRequest", (e) => {
+      const xhr = e.detail && e.detail.xhr
+      if (xhr && xhr.getResponseHeader("HX-Redirect")) {
+        rememberLogin(emailInput.value.trim(), false)
+      }
+    })
+
+    const last = readLastLogin()
+    if (last && last.email) {
+      if (!emailInput.value) emailInput.value = last.email
+      // If a passkey was used for this email on this device, offer it straight
+      // away. Cancel/failure surfaces in #passkey-result and the form remains.
+      if (last.usedPasskey) authenticateWithPasskey()
+    }
   }
 })

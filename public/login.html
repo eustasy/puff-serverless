@@ -54,6 +54,7 @@
             id="email"
             name="email"
             placeholder="you@email.com"
+            autocomplete="email webauthn"
             required
           />
         </div>
@@ -75,16 +76,7 @@
       <div id="login-result" class="result-area"></div>
 
       <hr />
-      <div class="form-group">
-        <label for="passkey-email">Sign in with a passkey:</label>
-        <input
-          type="email"
-          id="passkey-email"
-          name="email"
-          placeholder="Email address"
-          autocomplete="email webauthn"
-        />
-      </div>
+      <p>Sign in with a passkey for the email above:</p>
       <button id="passkey-login-btn" class="btn-safe">Use Passkey</button>
       <div id="passkey-result" class="result-area"></div>
 
