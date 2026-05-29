@@ -254,12 +254,19 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     })
 
+    // Don't auto-offer a passkey right after a deliberate logout (the logout
+    // endpoint redirects here with ?code=logout_success); the email is still
+    // pre-filled and the manual button still works.
+    const justLoggedOut =
+      new URLSearchParams(window.location.search).get("code") ===
+      "logout_success"
+
     const last = readLastLogin()
     if (last && last.email) {
       if (!emailInput.value) emailInput.value = last.email
       // If a passkey was used for this email on this device, offer it straight
       // away. Cancel/failure surfaces in #passkey-result and the form remains.
-      if (last.usedPasskey) authenticateWithPasskey()
+      if (last.usedPasskey && !justLoggedOut) authenticateWithPasskey()
     }
   }
 })
