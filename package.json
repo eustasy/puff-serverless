@@ -13,8 +13,8 @@
     "format": "npx prettier --write **/*.{js,ts,mjs,md,cjs,json,yml,html,css,less,sass}"
   },
   "dependencies": {
-    "@simplewebauthn/server": "^13.3.0",
-    "otplib": "^13.4.0",
+    "@simplewebauthn/server": "^13.3.1",
+    "otplib": "^13.4.1",
     "pg": "^8.21.0",
     "uqr": "^0.1.3",
     "zxcvbn": "^4.4.2"
@@ -26,6 +26,6 @@
     "prettier": "3.8.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7",
-    "wrangler": "^4.94.0"
+    "wrangler": "^4.95.0"
   }
 }
