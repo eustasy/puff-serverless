@@ -1,8 +1,8 @@
 CREATE TABLE public.users (
-  user_uuid STRING NOT NULL,
-  user_name STRING NOT NULL,
-  user_active BOOLEAN NOT NULL DEFAULT TRUE,
-  user_created_at TIMESTAMP NOT NULL DEFAULT current_timestamp():::TIMESTAMP,
-  user_last_login TIMESTAMP NULL,
-  CONSTRAINT users_pkey PRIMARY KEY (user_uuid ASC)
+    user_uuid STRING NOT NULL,
+    user_name STRING NOT NULL,
+    user_active BOOLEAN NOT NULL DEFAULT TRUE,
+    user_created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP():::TIMESTAMP,
+    user_last_login TIMESTAMP NULL,
+    CONSTRAINT users_pkey PRIMARY KEY (user_uuid ASC)
 ) LOCALITY REGIONAL BY TABLE IN PRIMARY REGION
