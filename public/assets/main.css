@@ -2,11 +2,11 @@ body {
   font-family: sans-serif;
   margin: 20px;
   background-color: #f4f4f4;
-  color: #333;
+  color: #333333;
 }
 
 .container {
-  background-color: #fff;
+  background-color: #ffffff;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -18,7 +18,7 @@ body {
 }
 
 h1 {
-  color: #333;
+  color: #333333;
   text-align: center;
 }
 
@@ -27,7 +27,7 @@ input[type="email"],
 input[type="password"] {
   width: 100%;
   padding: 10px;
-  border: 1px solid #ccc;
+  border: 1px solid #cccccc;
   border-radius: 4px;
   box-sizing: border-box;
 }
@@ -35,12 +35,12 @@ input[type="password"] {
 label {
   display: block;
   margin-bottom: 5px;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 button,
 input[type="submit"] {
-  color: white;
+  color: #ffffff;
   background: #333333;
   padding: 10px 15px;
   border: none;
@@ -83,7 +83,7 @@ button.float-right {
   /* Class for #login-result, #logout-result, #register, #email-exists, #pw-checklist */
   margin-top: 20px;
   padding: 10px;
-  border: 1px solid #ccc;
+  border: 1px solid #cccccc;
   border-radius: 4px;
   background-color: #e9ecef;
 }
@@ -100,8 +100,7 @@ button.float-right {
 }
 
 /* Specific result areas that don't need margin-top if they are not the primary result */
-#email-exists,
-#pw-checklist {
+.result-area-tight {
   margin-top: 5px; /* Reduced margin for these specific areas */
 }
 
@@ -120,13 +119,13 @@ button.float-right {
   margin-bottom: 15px;
 }
 
-#pw-checklist ul {
+.pw-checklist ul {
   list-style-type: none;
   padding-left: 0;
   margin-top: 5px;
 }
 
-#pw-checklist li {
+.pw-checklist li {
   margin-bottom: 3px;
 }
 
@@ -140,23 +139,18 @@ button.float-right {
   text-align: center;
 }
 
-/* Input field full width fix for logout page */
-#sessionToken {
-  width: 100%; /* Ensures it takes full width like other inputs */
-}
-
 /* Styles for password_test.html specific elements if any, or general utility */
 .password-strength-meter {
   /* Example style, adjust as needed */
   height: 10px;
-  background-color: #ddd;
+  background-color: #dddddd;
   border-radius: 5px;
   margin-top: 5px;
 }
 
 .strength-bar {
   height: 100%;
-  background-color: red; /* Default, will be changed by JS */
+  background-color: #ff0000; /* Default, will be changed by JS */
   border-radius: 5px;
   width: 0%; /* Initial width */
 }
@@ -169,7 +163,7 @@ table {
 th,
 td {
   padding: 10px;
-  border: 1px solid #ccc;
+  border: 1px solid #cccccc;
   text-align: left;
 }
 th {
@@ -199,7 +193,7 @@ th {
   align-items: center;
   margin: 5rem 0 1rem;
 }
-.grid-header > * {
+.grid-header > .grid-item {
   margin: 0; /* Reset margin for grid items */
 }
 .grid-header > :first-child {
