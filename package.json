@@ -9,8 +9,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "typecheck:strict": "tsc --noEmit --strict --noImplicitOverride --noUnusedLocals --noUnusedParameters --noImplicitReturns --noFallthroughCasesInSwitch --exactOptionalPropertyTypes --noUncheckedIndexedAccess --noPropertyAccessFromIndexSignature",
-    "lint": "npx prettier --check **/*.{js,ts,mjs,cjs,mts,cts,json} && npm run typecheck",
-    "format": "npx prettier --write **/*.{js,ts,mjs,cjs,mts,cts,json}"
+    "lint": "npm run format && npm run typecheck",
+    "format": "git ls-files -- '*.js' '*.ts' '*.mjs' '*.cjs' '*.mts' '*.cts' | xargs -r qlty check --filter=prettier",
+    "format:fix": "git ls-files -- '*.js' '*.ts' '*.mjs' '*.cjs' '*.mts' '*.cts' | xargs -r qlty fmt --filter=prettier"
   },
   "dependencies": {
     "@simplewebauthn/server": "^13.3.1",
