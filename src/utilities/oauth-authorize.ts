@@ -69,7 +69,7 @@ export function renderAuthorizeErrorPage(message: string, status = 400): Respons
 export function redirectToClient(target: string, status = 302): Response {
   return new Response(null, {
     status,
-    headers: { Location: target, "Cache-Control": "no-store" },
+    headers: { "Location": target, "Cache-Control": "no-store" },
   })
 }
 
@@ -80,7 +80,7 @@ export function redirectToLogin(env: Env, originalUrl: string): Response {
   return new Response(null, {
     status: 302,
     headers: {
-      Location: "/login",
+      "Location": "/login",
       "Set-Cookie": setNextCookie(env, path),
       "Cache-Control": "no-store",
     },

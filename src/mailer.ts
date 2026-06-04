@@ -72,7 +72,7 @@ export async function sendEmail(env: Env, message: EmailMessage): Promise<Envelo
     const response = await fetch(env.MAILTRAP_API_URL || DEFAULT_API_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
+        "Authorization": `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),

@@ -58,7 +58,7 @@ async function stripeRequest(
   idempotencyKey?: string
 ): Promise<Record<string, unknown>> {
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${secret}`,
+    "Authorization": `Bearer ${secret}`,
     "Stripe-Version": STRIPE_API_VERSION,
   }
   let encoded: string | undefined

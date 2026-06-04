@@ -233,7 +233,7 @@ export const onRequestPost: Handler = async (context) => {
     const next = await readNext(context.request)
     const destination = next || "/account"
     const headers = new Headers({
-      Location: destination,
+      "Location": destination,
       "HX-Redirect": destination,
       "Content-Type": "text/html", // Though with redirect, body might not be shown
     })

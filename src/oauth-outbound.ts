@@ -67,7 +67,7 @@ export async function exchangeCode(opts: {
     const response = await fetch(opts.provider.token_url, {
       method: "POST",
       headers: {
-        Accept: "application/json",
+        "Accept": "application/json",
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: body.toString(),
@@ -122,8 +122,8 @@ export async function fetchUserIdentity(
 ): Promise<Envelope<{ identity: NormalisedIdentity }>> {
   try {
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${access_token}`,
-      Accept: "application/json",
+      "Authorization": `Bearer ${access_token}`,
+      "Accept": "application/json",
       // GitHub's API requires a User-Agent. Harmless on the others.
       "User-Agent": "Puff/1.0",
     }

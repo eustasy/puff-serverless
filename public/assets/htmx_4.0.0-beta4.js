@@ -420,7 +420,7 @@ var htmx = (() => {
         "HX-Request": "true",
         "HX-Source": this.#buildIdentifier(elt),
         "HX-Current-URL": location.href,
-        Accept: "text/html",
+        "Accept": "text/html",
       }
       if (this.#isBoosted(elt)) {
         headers["HX-Boosted"] = "true"

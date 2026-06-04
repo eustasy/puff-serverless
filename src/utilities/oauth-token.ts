@@ -136,7 +136,7 @@ export function tokenResponse(body: TokenResponse): Response {
     headers: {
       "Content-Type": "application/json",
       "Cache-Control": "no-store",
-      Pragma: "no-cache",
+      "Pragma": "no-cache",
     },
   })
 }
