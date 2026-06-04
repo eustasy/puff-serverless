@@ -1,11 +1,13 @@
 # Puff Serverless
 
 [![CI: Build](https://github.com/eustasy/puff-serverless/actions/workflows/build.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/build.yml)
-[![CI: Test](https://github.com/eustasy/puff-serverless/actions/workflows/test.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/test.yml)
-[![CI: Typecheck](https://github.com/eustasy/puff-serverless/actions/workflows/typecheck.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/typecheck.yml)
-[![CI: Prettier](https://github.com/eustasy/puff-serverless/actions/workflows/prettier.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/prettier.yml)
+[![CI: Typecheck](https://github.com/eustasy/puff-serverless/actions/workflows/types.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/types.yml)
+[![Normal: TypeScript](https://github.com/eustasy/puff-serverless/actions/workflows/js.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/js.yml)
+[![Test: TypeScript](https://github.com/eustasy/puff-serverless/actions/workflows/test-js.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/test-js.yml)
 [![CodeQL](https://github.com/eustasy/puff-serverless/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/github-code-scanning/codeql)
 [![Dependabot Updates](https://github.com/eustasy/puff-serverless/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/dependabot/dependabot-updates)
+[![Maintainability](https://qlty.sh/gh/eustasy/projects/puff-serverless/maintainability.svg)](https://qlty.sh/gh/eustasy/projects/puff-serverless)
+[![Code Coverage](https://qlty.sh/gh/eustasy/projects/puff-serverless/coverage.svg)](https://qlty.sh/gh/eustasy/projects/puff-serverless)
 
 ## Project Goals & Use Case
 
