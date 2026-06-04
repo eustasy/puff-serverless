@@ -216,7 +216,7 @@ Puff acts as a payment orchestrator: orgs subscribe to apps through a provider-h
 
 ### Request and data flow
 
-```
+```text
 org subscribe → startSubscriptionCheckout → Stripe-hosted checkout
                                           ↓
                               customer.subscription.created webhook
@@ -258,7 +258,7 @@ Org-facing billing endpoints live under `functions/api/db/auth/organisations/[or
 
 The address on each Stripe customer (used for Stripe's receipts and dunning) is **resolved**, not free-typed per subscription. The effective email is `billing_customers.billing_email` (an operator override) when set, otherwise `resolveBillingEmail(org)` — which ranks org members holding a verified primary email: billing-only → billing+owner → billing+admin → any-billing → owner (final fallback), tiebreaking on earliest membership then email. The resolved address is written to the Stripe customer at creation (`ensureCustomer`), re-synced immediately when the override changes (`POST /api/db/auth/organisations/[org_uuid]/billing/email`), and reconciled by a second **hourly** Cron Trigger (`0 * * * *`) that re-resolves every customer and patches the provider only when the effective address drifts from the stored `billing_customers.synced_email`. Stripe's Customer object holds a single email, so to reach multiple billing-role members the override should point at a distribution alias.
 
-### Environment variables
+### Billing environment variables
 
 | Variable                        | Default | Purpose                                                                                                                   |
 | ------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |

@@ -91,7 +91,7 @@ One additive migration on an existing table:
 
 ## Subscription lifecycle
 
-```
+```text
 trialing → active → past_due → canceled
                  → paused
                  → active (resubscribed)
@@ -173,7 +173,7 @@ Critical path: **S1 → O1 → O2**.
 
 ### Sequence
 
-```
+```text
 S1 schema ─┬─> O1 domain+adapter ─┬─> O2 webhook+auth
            │                      ├─> S4 endpoints ─> S5 frontend
 S2 audit ──┘                      └─> usage (Opus auth + Sonnet recording)

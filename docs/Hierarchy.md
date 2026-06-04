@@ -18,7 +18,7 @@ For the codebase shape see [Architecture.md](Architecture.md); for operator task
 
 ## The conceptual shape
 
-```
+```text
 Puff                  (the deployment — one Worker, one database)
  ├─ Apps              (globally registered OAuth clients, operator-managed)
  ├─ Users             (global accounts — one user, many memberships)
@@ -117,7 +117,7 @@ Each has the same shape: subject FK(s) (NOT NULL, CASCADE) + `kv_key`/`kv_value`
 
 **The resolver chain.** `src/keyvalues-resolver.ts`'s `resolveKeyValue` walks the most-specific-first chain, filtered by the `owner` namespace:
 
-```
+```text
 user → team-role → org-role → team → org → app
 ```
 

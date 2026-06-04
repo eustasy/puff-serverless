@@ -270,7 +270,7 @@ To enable one, three things have to line up: an app registration at the provider
 
 **Redirect URI** — every provider needs the exact callback URL Puff will return to, derived from `APP_URL`:
 
-```
+```text
 ${APP_URL}/login/<provider>/callback
 ```
 

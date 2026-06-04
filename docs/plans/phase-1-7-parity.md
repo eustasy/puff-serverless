@@ -23,7 +23,7 @@ Blockers. The app must not be deployed to production until these are done.
 Verification and reset links are sent via Mailtrap (`src/mailer.ts`). Remaining
 unchecked items are production-deploy operations, not code.
 
-**Configuration & secrets**
+#### Configuration & secrets
 
 * [x] Store the Mailtrap API token as a Cloudflare secret (`MAILTRAP_TOKEN`) on the `puff-serverless` Worker via `wrangler secret put`.
 * [x] Set the non-secret email vars for production — `MAILTRAP_SENDER` (`puff@eustasy.org`), `MAILTRAP_SENDER_NAME`, `APP_URL` (`https://puff-serverless.eustasy.org`) — as `vars` in `wrangler.jsonc`.
@@ -32,18 +32,18 @@ unchecked items are production-deploy operations, not code.
 * [x] Add `MAILTRAP_SENDER` / `MAILTRAP_SENDER_NAME` env vars (local `.env` uses the `hello@demomailtrap.co` demo sender; pick a verified production domain before launch).
 * [x] Dev behaviour decided: live sending API by default; set `MAILTRAP_API_URL` to a sandbox inbox URL to test without delivering real mail.
 
-**Mailer module**
+#### Mailer module
 
 * [x] Integration approach: Mailtrap REST API via native `fetch` — no SDK dependency.
 * [x] `src/mailer.ts` — `sendEmail()` plus `sendVerificationEmail()` / `sendPasswordResetEmail()`, returning the standard envelope.
 * [x] API failures logged (without the token) and returned as `502` envelopes; 10s timeout via `AbortSignal.timeout`; no automatic retry (resend/re-request flows cover it).
 
-**Templates**
+#### Templates
 
 * [x] Verification + password-reset templates (text + HTML) — `src/email-templates.ts`.
 * [x] Resend reuses the verification template.
 
-**Call-site wiring**
+#### Call-site wiring
 
 * [x] Registration verification email — `src/users.ts` (`user_register` now takes `env`).
 * [x] Password-reset email — `functions/api/db/password/request.ts`.
@@ -51,7 +51,7 @@ unchecked items are production-deploy operations, not code.
 * [x] Mid-registration send failure: non-fatal — the account is created and the user can resend; a failure is logged, not aborted.
 * [x] Both `// SECURITY: remove before production` log sites removed.
 
-**Docs**
+#### Docs
 
 * [x] Email env vars added to the `docs/Architecture.md` env-vars table.
 
