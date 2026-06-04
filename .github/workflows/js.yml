@@ -15,6 +15,7 @@ on:
       - ".github/workflows/js.yml"
       - ".qlty/configs/oxlint.json"
       - ".qlty/configs/.prettierrc.json"
+      - ".qlty/configs/knip.json"
       - ".qlty/qlty.toml"
   pull_request:
     branches: [cf-pages]
@@ -28,6 +29,7 @@ on:
       - ".github/workflows/js.yml"
       - ".qlty/configs/oxlint.json"
       - ".qlty/configs/.prettierrc.json"
+      - ".qlty/configs/knip.json"
       - ".qlty/qlty.toml"
 
 permissions:
