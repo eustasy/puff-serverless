@@ -4,29 +4,29 @@ Local-machine setup for contributors. For the shape of the codebase see [Archite
 
 ## Table of Contents
 
-* [Prerequisites](#prerequisites)
-* [First-time setup](#first-time-setup)
-* [Running locally](#running-locally)
-* [Local database](#local-database)
-* [Local environment variables](#local-environment-variables)
-* [Local OAuth signing key](#local-oauth-signing-key)
-* [Local email](#local-email)
-* [Local federated-login providers](#local-federated-login-providers)
-* [Tests](#tests)
-* [Linting and formatting](#linting-and-formatting)
-* [Type checking and Wrangler types](#type-checking-and-wrangler-types)
-* [CI](#ci)
+- [Prerequisites](#prerequisites)
+- [First-time setup](#first-time-setup)
+- [Running locally](#running-locally)
+- [Local database](#local-database)
+- [Local environment variables](#local-environment-variables)
+- [Local OAuth signing key](#local-oauth-signing-key)
+- [Local email](#local-email)
+- [Local federated-login providers](#local-federated-login-providers)
+- [Tests](#tests)
+- [Linting and formatting](#linting-and-formatting)
+- [Type checking and Wrangler types](#type-checking-and-wrangler-types)
+- [CI](#ci)
 
 ## Prerequisites
 
-* **Node.js 22+** (`wrangler` refuses to run on older versions). Use [`nvm`](https://github.com/nvm-sh/nvm) if you don't already have it pinned:
+- **Node.js 22+** (`wrangler` refuses to run on older versions). Use [`nvm`](https://github.com/nvm-sh/nvm) if you don't already have it pinned:
 
   ```sh
   nvm install stable
   nvm use stable
   ```
 
-* A local PostgreSQL or CockroachDB instance, or a hosted one you can connect to from your machine. See [Local database](#local-database) below.
+- A local PostgreSQL or CockroachDB instance, or a hosted one you can connect to from your machine. See [Local database](#local-database) below.
 
 ## First-time setup
 

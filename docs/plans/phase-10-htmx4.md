@@ -4,20 +4,20 @@ The frontend is driven **entirely** by HTMX: static HTML under `public/`, server
 
 ## Table of Contents
 
-* [Context](#context)
-* [Decisions](#decisions)
-* [What the official `upgrade-check` reports](#what-the-official-upgrade-check-reports)
-* [Current-state inventory](#current-state-inventory)
-* [Breaking-change impact](#breaking-change-impact)
-* [Attribute inheritance (the subtle one)](#attribute-inheritance-the-subtle-one)
-* [The `hx-prompt` removal](#the-hx-prompt-removal)
-* [Migration steps (future execution phase)](#migration-steps-future-execution-phase)
-* [Per-file checklist](#per-file-checklist)
-* [Verification / test matrix](#verification--test-matrix)
-* [Rollback](#rollback)
-* [Open questions / VERIFY-on-stable](#open-questions--verify-on-stable)
-* [Sources](#sources)
-* [Out of scope](#out-of-scope)
+- [Context](#context)
+- [Decisions](#decisions)
+- [What the official `upgrade-check` reports](#what-the-official-upgrade-check-reports)
+- [Current-state inventory](#current-state-inventory)
+- [Breaking-change impact](#breaking-change-impact)
+- [Attribute inheritance (the subtle one)](#attribute-inheritance-the-subtle-one)
+- [The `hx-prompt` removal](#the-hx-prompt-removal)
+- [Migration steps (future execution phase)](#migration-steps-future-execution-phase)
+- [Per-file checklist](#per-file-checklist)
+- [Verification / test matrix](#verification--test-matrix)
+- [Rollback](#rollback)
+- [Open questions / VERIFY-on-stable](#open-questions--verify-on-stable)
+- [Sources](#sources)
+- [Out of scope](#out-of-scope)
 
 ## Context
 
@@ -25,19 +25,19 @@ There is no rush — HTMX 2.x remains supported, and 4.0 is still beta. The valu
 
 ## Decisions
 
-* [x] **No `htmx-2-compat` shim.** Migrate to native HTMX 4 idioms rather than loading the compatibility extension. That shim exists precisely to restore implicit inheritance, old event names, and the old error-swapping defaults — i.e. it would paper over the [inheritance findings](#attribute-inheritance-the-subtle-one) instead of resolving them. We handle each natively.
-* [x] **Pinned target: `htmx_4.0.0-beta4.min.js`** (the IIFE build, already vendored at `public/assets/`). We load HTMX via a plain `<script src>` tag, not as a module, so the IIFE build is correct and the `.esm.*` variants are unused.
-* [x] **Keep versioned filenames.** Pages load `/assets/htmx_2.0.4.min.js` by explicit version — not a stable `/htmx.min.js` alias — so bumping the filename is itself the cache-bust. `public/_headers` has no `/assets/*` immutable rule, so there is no stale-cache trap.
+- [x] **No `htmx-2-compat` shim.** Migrate to native HTMX 4 idioms rather than loading the compatibility extension. That shim exists precisely to restore implicit inheritance, old event names, and the old error-swapping defaults — i.e. it would paper over the [inheritance findings](#attribute-inheritance-the-subtle-one) instead of resolving them. We handle each natively.
+- [x] **Pinned target: `htmx_4.0.0-beta4.min.js`** (the IIFE build, already vendored at `public/assets/`). We load HTMX via a plain `<script src>` tag, not as a module, so the IIFE build is correct and the `.esm.*` variants are unused.
+- [x] **Keep versioned filenames.** Pages load `/assets/htmx_2.0.4.min.js` by explicit version — not a stable `/htmx.min.js` alias — so bumping the filename is itself the cache-bust. `public/_headers` has no `/assets/*` immutable rule, so there is no stale-cache trap.
 
 ## What the official `upgrade-check` reports
 
 `npx htmx.org@next upgrade-check` was run against the tree (output in `phase-10-htmx4-check.txt`). Filtering out `node_modules/` and the `dist/worker/` build artifact (regenerated, never hand-edited), the actionable findings are:
 
-* **`responseHandling` config removed** — every page that sets it: all 8 static HTML pages **plus 3 server-rendered functions** (`functions/invite.ts`, `functions/organisations/[org_uuid].ts`, `functions/organisations/[org_uuid]/billing.ts`).
-* **`hx-disabled-elt` → `hx-disable`** rename.
-* **`hx-prompt` removed** (`account.html`, the add-email control).
-* **Explicit-inheritance `:inherited` needed** on 4 pages: `register`, `password-upgrade`, `reset/set`, `account`.
-* The long list of `[old-event]` / `[removed-event]` / `[removed-header]` hits all point at `public/assets/htmx_2.0.4.min.js` itself — they are the _old library's_ internals, not our code. We use no `hx-on` handlers and set none of the removed headers server-side (`grep HX-Trigger-After` → none), so these are **N/A** once the old file is deleted.
+- **`responseHandling` config removed** — every page that sets it: all 8 static HTML pages **plus 3 server-rendered functions** (`functions/invite.ts`, `functions/organisations/[org_uuid].ts`, `functions/organisations/[org_uuid]/billing.ts`).
+- **`hx-disabled-elt` → `hx-disable`** rename.
+- **`hx-prompt` removed** (`account.html`, the add-email control).
+- **Explicit-inheritance `:inherited` needed** on 4 pages: `register`, `password-upgrade`, `reset/set`, `account`.
+- The long list of `[old-event]` / `[removed-event]` / `[removed-header]` hits all point at `public/assets/htmx_2.0.4.min.js` itself — they are the _old library's_ internals, not our code. We use no `hx-on` handlers and set none of the removed headers server-side (`grep HX-Trigger-After` → none), so these are **N/A** once the old file is deleted.
 
 **Tool reliability caveat:** `upgrade-check` reliably detects `responseHandling` (a config string) inside both `.html` and `.ts` files, but its **attribute-level detection inside `functions/*.ts` template literals is incomplete** — it flagged the `responseHandling` in `billing.ts` but _missed_ the `hx-disabled-elt=".btn-safe"` in the same file. **Therefore the server-rendered `.ts` pages must be reviewed by hand**, not trusted to the tool. Counting that missed one, there are **15** `hx-disabled-elt` occurrences to rename (14 in HTML + ≥1 in `billing.ts`).
 
@@ -45,18 +45,18 @@ There is no rush — HTMX 2.x remains supported, and 4.0 is still beta. The valu
 
 Confirmed from the working tree as of this writing:
 
-* **Version in use: HTMX 2.0.4**, loaded via `<script src="/assets/htmx_2.0.4.min.js"></script>`.
-* **11 files load HTMX and embed the `htmx-config` meta:**
-  * 8 static: `register`, `login`, `logout`, `password-upgrade`, `2fa`, `account`, `reset/request`, `reset/set` (`index.html` loads no HTMX).
-  * 3 server-rendered: `functions/invite.ts`, `functions/organisations/[org_uuid].ts`, `functions/organisations/[org_uuid]/billing.ts` (each emits the same `<head>` boilerplate from inside the handler).
-* **HTMX 4.0.0-beta4 is already vendored** in four builds under `public/assets/`: `htmx_4.0.0-beta4.min.js` (IIFE min, target), `htmx_4.0.0-beta4.js` (IIFE readable), and `.esm.min.js` / `.esm.js` (unused).
-* **`responseHandling` shapes vary:** static pages enumerate `200/400/401/403/404/405/500` (all `swap:true`); `billing.ts` uses the wildcard `{"code":".*","swap":true}`. Both mean "swap success and error responses."
-* **Attribute usage (static pages):** `hx-target` 23, `hx-swap` 21, `hx-post` 19, `hx-get` 17, `hx-trigger` 16, `hx-disabled-elt` 14, `hx-include` 7, `hx-validate` 6, `hx-sync` 5, `hx-confirm` 2, `hx-prompt` 1. **No `hx-on`, `hx-headers`, `hx-boost`, `hx-push-url`, or `hx-swap-oob` anywhere.**
-* **Every explicit `hx-swap` is `"innerHTML"`** (21×); requests that omit it rely on the default, which is _also_ `innerHTML` in v4 (config line 120), so they are unaffected.
-* **Live-validation pattern:** several forms (`register`, `password-upgrade`, `reset/set`, `account`'s change-password) wrap an `<input>` that fires its own keyup-triggered `hx-get`/`hx-post` to a requirements/exists endpoint. This is the inheritance hotspot — see below.
-* **Indicators:** `.htmx-indicator` + `bars.svg` inside buttons; `htmx-request` is the active class. Both class names are HTMX 4 defaults (config lines 121–122), so the pattern carries over untouched (HTMX 4 also self-injects indicator CSS via `includeIndicatorCSS:true`, line 124 — at worst a harmless double-definition with `main.css`).
-* **`webauthn.js`** (passkeys) loads on `login.html` and `account.html` as an independent `<script defer>` — unaffected by the HTMX version.
-* **Server-side HTMX headers:** handlers read `HX-Request` (branch HTMX-nav vs. plain `Location`) and `HX-Prompt` (one site: `functions/api/db/auth/email/add.ts`), and set `HX-Redirect` / `HX-Trigger`. None read `HX-Target`; none set the removed `HX-Trigger-After-Swap`/`-Settle`.
+- **Version in use: HTMX 2.0.4**, loaded via `<script src="/assets/htmx_2.0.4.min.js"></script>`.
+- **11 files load HTMX and embed the `htmx-config` meta:**
+  - 8 static: `register`, `login`, `logout`, `password-upgrade`, `2fa`, `account`, `reset/request`, `reset/set` (`index.html` loads no HTMX).
+  - 3 server-rendered: `functions/invite.ts`, `functions/organisations/[org_uuid].ts`, `functions/organisations/[org_uuid]/billing.ts` (each emits the same `<head>` boilerplate from inside the handler).
+- **HTMX 4.0.0-beta4 is already vendored** in four builds under `public/assets/`: `htmx_4.0.0-beta4.min.js` (IIFE min, target), `htmx_4.0.0-beta4.js` (IIFE readable), and `.esm.min.js` / `.esm.js` (unused).
+- **`responseHandling` shapes vary:** static pages enumerate `200/400/401/403/404/405/500` (all `swap:true`); `billing.ts` uses the wildcard `{"code":".*","swap":true}`. Both mean "swap success and error responses."
+- **Attribute usage (static pages):** `hx-target` 23, `hx-swap` 21, `hx-post` 19, `hx-get` 17, `hx-trigger` 16, `hx-disabled-elt` 14, `hx-include` 7, `hx-validate` 6, `hx-sync` 5, `hx-confirm` 2, `hx-prompt` 1. **No `hx-on`, `hx-headers`, `hx-boost`, `hx-push-url`, or `hx-swap-oob` anywhere.**
+- **Every explicit `hx-swap` is `"innerHTML"`** (21×); requests that omit it rely on the default, which is _also_ `innerHTML` in v4 (config line 120), so they are unaffected.
+- **Live-validation pattern:** several forms (`register`, `password-upgrade`, `reset/set`, `account`'s change-password) wrap an `<input>` that fires its own keyup-triggered `hx-get`/`hx-post` to a requirements/exists endpoint. This is the inheritance hotspot — see below.
+- **Indicators:** `.htmx-indicator` + `bars.svg` inside buttons; `htmx-request` is the active class. Both class names are HTMX 4 defaults (config lines 121–122), so the pattern carries over untouched (HTMX 4 also self-injects indicator CSS via `includeIndicatorCSS:true`, line 124 — at worst a harmless double-definition with `main.css`).
+- **`webauthn.js`** (passkeys) loads on `login.html` and `account.html` as an independent `<script defer>` — unaffected by the HTMX version.
+- **Server-side HTMX headers:** handlers read `HX-Request` (branch HTMX-nav vs. plain `Location`) and `HX-Prompt` (one site: `functions/api/db/auth/email/add.ts`), and set `HX-Redirect` / `HX-Trigger`. None read `HX-Target`; none set the removed `HX-Trigger-After-Swap`/`-Settle`.
 
 ## Breaking-change impact
 
@@ -83,8 +83,8 @@ On inspection, **each descendant input already sets its own `hx-target`** (`#ema
 
 The only attributes the descendant passively inherits are **`hx-disabled-elt`** (so today a keyup-validation request also disables the form's submit button) and **`hx-swap`** (harmlessly `innerHTML` either way). So:
 
-* **Recommended (cleaner):** do **not** add `:inherited`. Let v4's explicit-inheritance default stand. The behavioural delta is that live-validation keystrokes will no longer disable the submit button — neutral-to-better. Confirm per page that each descendant sets the target it needs (it does today).
-* **Alternative (byte-for-byte parity):** add `:inherited` to the flagged parent attributes — note the rename interaction: `hx-disabled-elt` becomes **`hx-disable:inherited`**.
+- **Recommended (cleaner):** do **not** add `:inherited`. Let v4's explicit-inheritance default stand. The behavioural delta is that live-validation keystrokes will no longer disable the submit button — neutral-to-better. Confirm per page that each descendant sets the target it needs (it does today).
+- **Alternative (byte-for-byte parity):** add `:inherited` to the flagged parent attributes — note the rename interaction: `hx-disabled-elt` becomes **`hx-disable:inherited`**.
 
 **VERIFY** during execution by exercising each live-validation field after the swap.
 
@@ -94,51 +94,51 @@ The only attributes the descendant passively inherits are **`hx-disabled-elt`** 
 
 HTMX 4 removes `hx-prompt`. Native paths:
 
-* **(Recommended) Convert to a real `<input name="email_address">` + submit button**, matching every other form in the repo, and drop the `HX-Prompt` header entirely. `add.ts` already accepts the field value, so the server likely needs only to drop the header branch. This avoids inline JS and keeps CSP untouched.
-* **(Alternative) `hx-confirm="js:…"`** to prompt-and-confirm in one expression (`js:` exists in beta4). But getting the captured value to the server is not a drop-in for `HX-Prompt`, and a `js:` expression is eval-adjacent — relevant to the `script-src` CSP. Only if the input-field path is rejected.
+- **(Recommended) Convert to a real `<input name="email_address">` + submit button**, matching every other form in the repo, and drop the `HX-Prompt` header entirely. `add.ts` already accepts the field value, so the server likely needs only to drop the header branch. This avoids inline JS and keeps CSP untouched.
+- **(Alternative) `hx-confirm="js:…"`** to prompt-and-confirm in one expression (`js:` exists in beta4). But getting the captured value to the server is not a drop-in for `HX-Prompt`, and a `js:` expression is eval-adjacent — relevant to the `script-src` CSP. Only if the input-field path is rejected.
 
 **VERIFY**: confirm `add.ts`'s field fallback fully covers the value once the header path is gone, and update its comment.
 
 ## Migration steps (future execution phase)
 
-* [ ] **Stage A — pilot one page.** Repoint the script tag on a single low-risk static page (`logout.html`) to `htmx_4.0.0-beta4.min.js`, delete its `responseHandling`, rename its `hx-disabled-elt`. Smoke-test end to end.
-* [ ] **Stage B — resolve the VERIFY items** on a page that exercises them (`register.html`): `hx-disable` runtime behaviour, the inheritance decision on live-validation, `hx-sync`/`hx-trigger`/`hx-validate` syntax.
-* [ ] **Stage C — roll out to the remaining static pages**, then the **3 server-rendered functions** (hand-reviewed, since the tool under-reports their attributes). Handle the `account.html` `hx-prompt` rewrite + `email/add.ts` follow-up together.
-* [ ] **Stage D — clean up:** delete `htmx_2.0.4.min.js` and the unused `.esm*.js` builds (optionally keep the readable `.js` for debugging); update `.github/instructions/frontend.instructions.md` and `docs/Architecture.md` (script src, removed `responseHandling`, `hx-disabled-elt`→`hx-disable`, explicit inheritance).
+- [ ] **Stage A — pilot one page.** Repoint the script tag on a single low-risk static page (`logout.html`) to `htmx_4.0.0-beta4.min.js`, delete its `responseHandling`, rename its `hx-disabled-elt`. Smoke-test end to end.
+- [ ] **Stage B — resolve the VERIFY items** on a page that exercises them (`register.html`): `hx-disable` runtime behaviour, the inheritance decision on live-validation, `hx-sync`/`hx-trigger`/`hx-validate` syntax.
+- [ ] **Stage C — roll out to the remaining static pages**, then the **3 server-rendered functions** (hand-reviewed, since the tool under-reports their attributes). Handle the `account.html` `hx-prompt` rewrite + `email/add.ts` follow-up together.
+- [ ] **Stage D — clean up:** delete `htmx_2.0.4.min.js` and the unused `.esm*.js` builds (optionally keep the readable `.js` for debugging); update `.github/instructions/frontend.instructions.md` and `docs/Architecture.md` (script src, removed `responseHandling`, `hx-disabled-elt`→`hx-disable`, explicit inheritance).
 
 ## Per-file checklist
 
 Static HTML (repoint script → strip `responseHandling` → rename `hx-disabled-elt` → inheritance review where noted):
 
-* [ ] `public/login.html`
-* [ ] `public/register.html` — **inheritance** (form → email-exists input)
-* [ ] `public/logout.html`
-* [ ] `public/password-upgrade.html` — **inheritance**
-* [ ] `public/2fa.html`
-* [ ] `public/account.html` — **inheritance** (change-password form) + **`hx-prompt` rewrite** + 6× `hx-disable`
-* [ ] `public/reset/request.html`
-* [ ] `public/reset/set.html` — **inheritance**
+- [ ] `public/login.html`
+- [ ] `public/register.html` — **inheritance** (form → email-exists input)
+- [ ] `public/logout.html`
+- [ ] `public/password-upgrade.html` — **inheritance**
+- [ ] `public/2fa.html`
+- [ ] `public/account.html` — **inheritance** (change-password form) + **`hx-prompt` rewrite** + 6× `hx-disable`
+- [ ] `public/reset/request.html`
+- [ ] `public/reset/set.html` — **inheritance**
 
 Server-rendered (hand-review — tool under-reports attributes in `.ts`):
 
-* [ ] `functions/invite.ts` — script + `responseHandling`
-* [ ] `functions/organisations/[org_uuid].ts` — script + `responseHandling`
-* [ ] `functions/organisations/[org_uuid]/billing.ts` — script + `responseHandling` + 1× `hx-disable` (tool missed)
+- [ ] `functions/invite.ts` — script + `responseHandling`
+- [ ] `functions/organisations/[org_uuid].ts` — script + `responseHandling`
+- [ ] `functions/organisations/[org_uuid]/billing.ts` — script + `responseHandling` + 1× `hx-disable` (tool missed)
 
 ## Verification / test matrix
 
 Unit tests (`vitest`) run in plain Node and **never touch the browser**, so they will not catch an HTMX regression. `npm run lint` + `npm run build` confirm the pages compile and Prettier is happy, but manual browser smoke-testing is **mandatory** per flow:
 
-* [ ] Register (live email-exists + password-requirements; verify the inheritance change)
-* [ ] Login — password, passkey, federated provider buttons
-* [ ] 2FA code entry + "lost authenticator?" bypass
-* [ ] Password upgrade (forced) — live password-requirements field
-* [ ] Logout
-* [ ] Password reset — request, then set (live field)
-* [ ] Account dashboard: add/remove email (rewritten control), sessions + terminate-others, password change (live field), 2FA enable/disable, passkeys, linked accounts, organisations, stored data
-* [ ] Server-rendered pages: invite accept, org management panel, org billing panel
-* [ ] Confirm error responses (400/401/etc.) still render their fragment with `responseHandling` removed
-* [ ] `npm run lint && npm run build && npm test`
+- [ ] Register (live email-exists + password-requirements; verify the inheritance change)
+- [ ] Login — password, passkey, federated provider buttons
+- [ ] 2FA code entry + "lost authenticator?" bypass
+- [ ] Password upgrade (forced) — live password-requirements field
+- [ ] Logout
+- [ ] Password reset — request, then set (live field)
+- [ ] Account dashboard: add/remove email (rewritten control), sessions + terminate-others, password change (live field), 2FA enable/disable, passkeys, linked accounts, organisations, stored data
+- [ ] Server-rendered pages: invite accept, org management panel, org billing panel
+- [ ] Confirm error responses (400/401/etc.) still render their fragment with `responseHandling` removed
+- [ ] `npm run lint && npm run build && npm test`
 
 ## Rollback
 
@@ -146,19 +146,19 @@ Revert the script `src` on affected files to `/assets/htmx_2.0.4.min.js` and res
 
 ## Open questions / VERIFY-on-stable
 
-* All rows/items marked **VERIFY** — re-check against the _final_ 4.0 migration guide when 4.0 stable ships (the current guide self-describes as early/in-progress) and re-run `upgrade-check`.
-* Whether to keep pinning a specific beta or track the latest 4.0.x at execution time.
-* Whether to take the optional CSP tightening (`script-src 'unsafe-inline'`) — only relevant if the `hx-prompt` replacement uses `js:`; the recommended input-field path keeps CSP out of scope.
+- All rows/items marked **VERIFY** — re-check against the _final_ 4.0 migration guide when 4.0 stable ships (the current guide self-describes as early/in-progress) and re-run `upgrade-check`.
+- Whether to keep pinning a specific beta or track the latest 4.0.x at execution time.
+- Whether to take the optional CSP tightening (`script-src 'unsafe-inline'`) — only relevant if the `hx-prompt` replacement uses `js:`; the recommended input-field path keeps CSP out of scope.
 
 ## Sources
 
-* Official migration guide: `https://four.htmx.org/docs/get-started/migration` (beta, in progress).
-* Official tool output: [`phase-10-htmx4-check.txt`](./phase-10-htmx4-check.txt) — `npx htmx.org@next upgrade-check`, 71 issues across 15 files (incl. `node_modules`/`dist`; the actionable subset is described above).
-* Vendored source (authoritative for beta4): `public/assets/htmx_4.0.0-beta4.js` — config defaults lines 115-132 (`defaultSwap`, `noSwap`, `implicitInheritance`, indicator classes), status handling `#handleStatusCodes` lines 2151-2166.
+- Official migration guide: `https://four.htmx.org/docs/get-started/migration` (beta, in progress).
+- Official tool output: [`phase-10-htmx4-check.txt`](./phase-10-htmx4-check.txt) — `npx htmx.org@next upgrade-check`, 71 issues across 15 files (incl. `node_modules`/`dist`; the actionable subset is described above).
+- Vendored source (authoritative for beta4): `public/assets/htmx_4.0.0-beta4.js` — config defaults lines 115-132 (`defaultSwap`, `noSwap`, `implicitInheritance`, indicator classes), status handling `#handleStatusCodes` lines 2151-2166.
 
 ## Out of scope
 
-* Any actual code change to `public/`, `functions/`, `src/`, `_headers`, or build config — all deferred to the execution phase.
-* Adopting morphing swaps (first-class in v4) — opportunity, not a requirement.
-* Tightening the `script-src` CSP.
-* Loading the `htmx-2-compat` shim (explicitly rejected — see [Decisions](#decisions)).
+- Any actual code change to `public/`, `functions/`, `src/`, `_headers`, or build config — all deferred to the execution phase.
+- Adopting morphing swaps (first-class in v4) — opportunity, not a requirement.
+- Tightening the `script-src` CSP.
+- Loading the `htmx-2-compat` shim (explicitly rejected — see [Decisions](#decisions)).

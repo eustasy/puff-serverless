@@ -31,11 +31,11 @@ Every page that makes HTMX requests configures response handling in a meta tag t
 
 Forms use these HTMX attributes:
 
-* `hx-post="/api/..."` or `hx-get="/api/..."` — the API endpoint.
-* `hx-target="#result-id"` — where to swap the response HTML.
-* `hx-validate="true"` — enable HTML5 validation before submission.
-* `hx-disabled-elt=".btn-safe"` — disable the submit button during the request.
-* `hx-include="[name='field1'], [name='field2']"` — explicitly include fields.
+- `hx-post="/api/..."` or `hx-get="/api/..."` — the API endpoint.
+- `hx-target="#result-id"` — where to swap the response HTML.
+- `hx-validate="true"` — enable HTML5 validation before submission.
+- `hx-disabled-elt=".btn-safe"` — disable the submit button during the request.
+- `hx-include="[name='field1'], [name='field2']"` — explicitly include fields.
 
 ```html
 <form hx-validate="true" hx-post="/api/db/user/login" hx-target="#login-result" hx-disabled-elt=".btn-safe">
@@ -60,9 +60,9 @@ Sections that load content on page load and refresh on server-triggered events:
 
 Key event names used with `HX-Trigger`:
 
-* Account: `emailListChanged`, `sessionListChanged`, `tfaStatusChanged`, `passkeysChanged`, `externalIdentitiesChanged`.
-* Organisations & teams: `organisationsChanged`, `organisationChanged`, `organisationMembersChanged`, `teamsChanged`, `teamMembersChanged`, `organisationInvitationsChanged`.
-* App entitlements: `appEntitlementsChanged`.
+- Account: `emailListChanged`, `sessionListChanged`, `tfaStatusChanged`, `passkeysChanged`, `externalIdentitiesChanged`.
+- Organisations & teams: `organisationsChanged`, `organisationChanged`, `organisationMembersChanged`, `teamsChanged`, `teamMembersChanged`, `organisationInvitationsChanged`.
+- App entitlements: `appEntitlementsChanged`.
 
 ### Real-Time Validation
 
@@ -84,53 +84,53 @@ Password and email fields use delayed keyup triggers for live feedback:
 
 ### Confirmations and Prompts
 
-* `hx-confirm="Are you sure?"` — browser confirm dialog before submission.
-* `hx-prompt="Enter value:"` — browser prompt dialog; value sent as `HX-Prompt` header.
+- `hx-confirm="Are you sure?"` — browser confirm dialog before submission.
+- `hx-prompt="Enter value:"` — browser prompt dialog; value sent as `HX-Prompt` header.
 
 ## CSS Classes
 
 ### Buttons
 
-* `.btn-safe` — Blue. Primary/safe actions (login, submit).
-* `.btn-danger` — Red. Destructive actions (logout, terminate, remove).
-* `.btn-save` — Green. Constructive actions (register, save).
-* `.float-right` — Floats a button right with auto width.
+- `.btn-safe` — Blue. Primary/safe actions (login, submit).
+- `.btn-danger` — Red. Destructive actions (logout, terminate, remove).
+- `.btn-save` — Green. Constructive actions (register, save).
+- `.float-right` — Floats a button right with auto width.
 
 ### Results and Messages
 
-* `.result-area` — Container for response messages. Padded, bordered, gray background. **Hidden when empty** via `.result-area:empty { display: none; }`.
-* `.result-positive` — Dark green text for success messages.
-* `.result-negative` — Dark red text for error messages.
+- `.result-area` — Container for response messages. Padded, bordered, gray background. **Hidden when empty** via `.result-area:empty { display: none; }`.
+- `.result-positive` — Dark green text for success messages.
+- `.result-negative` — Dark red text for error messages.
 
 ### Layout
 
-* `.container` — Centered card, max-width 500px.
-* `.container.wide` — Wider variant, max-width 80rem (used for account dashboard).
-* `.form-group` — Wraps a label + input pair with bottom margin.
-* `.grid-container` — CSS Grid with auto-fit columns (min 200px).
-* `.grid-container.grid-header` — Three-column grid for section headers: first column takes remaining space (left-aligned), subsequent columns auto-width (right-aligned).
-* `.centered-link` / `.centered-link-secondary` — Centered navigation links below forms.
+- `.container` — Centered card, max-width 500px.
+- `.container.wide` — Wider variant, max-width 80rem (used for account dashboard).
+- `.form-group` — Wraps a label + input pair with bottom margin.
+- `.grid-container` — CSS Grid with auto-fit columns (min 200px).
+- `.grid-container.grid-header` — Three-column grid for section headers: first column takes remaining space (left-aligned), subsequent columns auto-width (right-aligned).
+- `.centered-link` / `.centered-link-secondary` — Centered navigation links below forms.
 
 ### HTMX Indicator
 
-* `.htmx-indicator` — Hidden by default; shown as inline-block during `htmx-request`.
-* Used with the `bars.svg` loading animation inside submit buttons.
+- `.htmx-indicator` — Hidden by default; shown as inline-block during `htmx-request`.
+- Used with the `bars.svg` loading animation inside submit buttons.
 
 ### Utility Spacers
 
 Single-property helpers used on `.result-area` containers and standalone controls. Prefer these over inline `style=""` attributes.
 
-* `.spacer-bottom` — `margin-bottom: 1em`.
-* `.spacer-top` — `margin-top: 1em`.
-* `.spacer-top-small` — `margin-top: 0.5em`.
+- `.spacer-bottom` — `margin-bottom: 1em`.
+- `.spacer-top` — `margin-top: 1em`.
+- `.spacer-top-small` — `margin-top: 0.5em`.
 
 ### 2FA Setup
 
 Used by server-rendered HTML for the TOTP setup flow (`functions/api/db/auth/2fa/setup/start.ts`):
 
-* `.tfa-qr-layout` — Flex container holding the QR image + manual-entry secret side-by-side; wraps on narrow screens.
-* `.tfa-qr-code` — Sizing constraint for the embedded QR image (`max-width: 200px; height: auto`).
-* `.tfa-secret-display` — Monospace font with `word-break: break-all` for the displayed base32 secret.
+- `.tfa-qr-layout` — Flex container holding the QR image + manual-entry secret side-by-side; wraps on narrow screens.
+- `.tfa-qr-code` — Sizing constraint for the embedded QR image (`max-width: 200px; height: auto`).
+- `.tfa-secret-display` — Monospace font with `word-break: break-all` for the displayed base32 secret.
 
 ## Page Structure
 
@@ -185,7 +185,7 @@ Pages-Function-rendered HTML follows the same head/CSS conventions as the static
 
 ### Assets
 
-* `assets/main.css` — global styles for every page.
-* `assets/htmx_2.0.4.min.js` — bundled HTMX client.
-* `assets/webauthn.js` — small ES module wrapping `navigator.credentials` for passkey registration and login. Imported only on pages that need it (`login.html`, `account.html`).
-* `assets/bars.svg` — HTMX loading-indicator graphic.
+- `assets/main.css` — global styles for every page.
+- `assets/htmx_2.0.4.min.js` — bundled HTMX client.
+- `assets/webauthn.js` — small ES module wrapping `navigator.credentials` for passkey registration and login. Imported only on pages that need it (`login.html`, `account.html`).
+- `assets/bars.svg` — HTMX loading-indicator graphic.

@@ -17,8 +17,8 @@ We run JavaScript on [Cloudflare Workers](https://developers.cloudflare.com/work
 
 Further reading in [`docs/`](docs/):
 
-* [Architecture.md](docs/Architecture.md) — codebase shape, request layering, libraries, OAuth endpoints, environment variables.
-* [Hierarchy.md](docs/Hierarchy.md) — the data model: Apps, Organisations, Teams, Roles, Users.
-* [Development.md](docs/Development.md) — local-machine setup, tests, linting.
-* [Deployment.md](docs/Deployment.md) — shipping to production with copy-paste commands.
-* [Operations.md](docs/Operations.md) — running it: cron, audit log, OAuth key rotation, registering apps and providers.
+- [Architecture.md](docs/Architecture.md) — codebase shape, request layering, libraries, OAuth endpoints, environment variables.
+- [Hierarchy.md](docs/Hierarchy.md) — the data model: Apps, Organisations, Teams, Roles, Users.
+- [Development.md](docs/Development.md) — local-machine setup, tests, linting.
+- [Deployment.md](docs/Deployment.md) — shipping to production with copy-paste commands.
+- [Operations.md](docs/Operations.md) — running it: cron, audit log, OAuth key rotation, registering apps and providers.

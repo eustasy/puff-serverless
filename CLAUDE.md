@@ -37,9 +37,9 @@ A serverless SSO / access-control app. Stack: Cloudflare Workers + Pages Functio
 
 Routing is by directory depth under `functions/api/`, with two middleware files gating each layer:
 
-* `functions/api/` — no DB, no auth (e.g. `password/requirements.ts`).
-* `functions/api/db/` — `_middleware.ts` opens a Hyperdrive `pg` client, sets `context.data.dbClient`, closes it in `finally`.
-* `functions/api/db/auth/` — `_middleware.ts` reads the `session_token` cookie, verifies it, sets `context.data.user_uuid`.
+- `functions/api/` — no DB, no auth (e.g. `password/requirements.ts`).
+- `functions/api/db/` — `_middleware.ts` opens a Hyperdrive `pg` client, sets `context.data.dbClient`, closes it in `finally`.
+- `functions/api/db/auth/` — `_middleware.ts` reads the `session_token` cookie, verifies it, sets `context.data.user_uuid`.
 
 Endpoints read `context.data.dbClient` / `context.data.user_uuid` directly — never re-connect or re-authenticate in a handler. DB middleware runs before auth middleware.
 
@@ -57,26 +57,26 @@ Schema is in `sql/`, one file per table; `sql/schedules.sql` (CockroachDB v23.1+
 
 This repo has detailed, scoped instruction docs — consult them before non-trivial work:
 
-* `docs/Architecture.md` — codebase shape, request layering, libraries, OAuth endpoints, environment variables.
-* `docs/Hierarchy.md` — data model: Apps, Organisations, Teams, Roles, Users; KV resolver chain; entitlements.
-* `docs/Development.md` — local-machine setup, tests, linting.
-* `docs/Deployment.md` — production deploy, step-by-step.
-* `docs/Operations.md` — cron, audit log, OAuth key rotation, registering apps and providers, security concerns.
-* `.github/instructions/architecture.instructions.md` — routing, middleware, HTMX response headers.
-* `.github/instructions/backend.instructions.md` — `src/` envelope shapes, endpoint handler patterns, cookie assembly.
-* `.github/instructions/database.instructions.md` — query/transaction/conflict-handling conventions.
-* `.github/instructions/frontend.instructions.md` — HTMX form patterns, CSS classes, page list.
-* `.github/instructions/security.instructions.md` — sessions, password hashing, 2FA, token expiries, enumeration prevention.
+- `docs/Architecture.md` — codebase shape, request layering, libraries, OAuth endpoints, environment variables.
+- `docs/Hierarchy.md` — data model: Apps, Organisations, Teams, Roles, Users; KV resolver chain; entitlements.
+- `docs/Development.md` — local-machine setup, tests, linting.
+- `docs/Deployment.md` — production deploy, step-by-step.
+- `docs/Operations.md` — cron, audit log, OAuth key rotation, registering apps and providers, security concerns.
+- `.github/instructions/architecture.instructions.md` — routing, middleware, HTMX response headers.
+- `.github/instructions/backend.instructions.md` — `src/` envelope shapes, endpoint handler patterns, cookie assembly.
+- `.github/instructions/database.instructions.md` — query/transaction/conflict-handling conventions.
+- `.github/instructions/frontend.instructions.md` — HTMX form patterns, CSS classes, page list.
+- `.github/instructions/security.instructions.md` — sessions, password hashing, 2FA, token expiries, enumeration prevention.
 
 ## Endpoint conventions (quick reference)
 
-* Export `onRequestGet` / `onRequestPost` for supported methods, plus a catch-all `onRequest` returning 405 with an accurate `Allow` header.
-* Validate all input at the top of the handler, before any DB or business-logic call.
-* Success/error responses are HTML fragments with `class="result-positive"` / `class="result-negative"`.
-* Use `HX-Redirect` for HTMX navigation, plain `Location` for direct browser navigation (branch on the `HX-Request` header); use `HX-Trigger` to refresh other page sections.
-* Reflecting user input into HTML must go through `escapeHtml` from `src/utilities/escape.ts`.
-* Auth-cookie `Secure` / `SameSite` are driven by env vars (`SECURE_COOKIE`, `COOKIE_SAMESITE`) — never hardcode them.
-* Outbound `fetch()` to third-party APIs follows the patterns in `.github/instructions/backend.instructions.md → External API calls`: `cf.cacheTtl` for cacheable lookups (HIBP), `context.waitUntil` for fire-and-forget where the response is generic (most email sends), plain `await` only when the result shapes the user-facing reply.
+- Export `onRequestGet` / `onRequestPost` for supported methods, plus a catch-all `onRequest` returning 405 with an accurate `Allow` header.
+- Validate all input at the top of the handler, before any DB or business-logic call.
+- Success/error responses are HTML fragments with `class="result-positive"` / `class="result-negative"`.
+- Use `HX-Redirect` for HTMX navigation, plain `Location` for direct browser navigation (branch on the `HX-Request` header); use `HX-Trigger` to refresh other page sections.
+- Reflecting user input into HTML must go through `escapeHtml` from `src/utilities/escape.ts`.
+- Auth-cookie `Secure` / `SameSite` are driven by env vars (`SECURE_COOKIE`, `COOKIE_SAMESITE`) — never hardcode them.
+- Outbound `fetch()` to third-party APIs follows the patterns in `.github/instructions/backend.instructions.md → External API calls`: `cf.cacheTtl` for cacheable lookups (HIBP), `context.waitUntil` for fire-and-forget where the response is generic (most email sends), plain `await` only when the result shapes the user-facing reply.
 
 ## Production blocker
 

@@ -6,8 +6,8 @@ applyTo: "sql/**,src/**,functions/api/db/**"
 
 ## Database Engine
 
-* CockroachDB (Postgres-compatible) accessed via Cloudflare Hyperdrive.
-* Client library: `pg` (node-postgres).
+- CockroachDB (Postgres-compatible) accessed via Cloudflare Hyperdrive.
+- Client library: `pg` (node-postgres).
 
 ## Schema
 
@@ -15,36 +15,36 @@ Schema files live in `sql/`, one file per table. Import in foreign-key order: `u
 
 ### Tables
 
-* **`users`**: `user_uuid` (PK), `user_name`, `user_active` (account enabled/disabled flag), `user_created_at`, `user_last_login`.
-* **`sessions`**: `session_id` (PK), `user_uuid` (FK), `created_at`, `expires_at`, `is_active`, `last_accessed_at`, `last_accessed_ip`, `user_agent`, `ip_address`, `ip_country`.
-* **`emails`**: `email_address` (PK), `user_uuid` (FK), `is_primary`, `is_verified`, `verified_at`.
-* **`secrets`**: `secret_uuid` (PK), `user_uuid` (FK), `secret_type`, `secret_value`, `secret_name`, `is_enabled`, `secret_created_at`, `secret_last_used`. Used for both passwords (`secret_type = 'puff_password_SHA-384'`) and TOTP (`secret_type = 'totp_secret'`).
-* **`tokens`**: `token_value` (PK), `user_uuid` (FK), `token_type`, `expires_at`, `created_at`, `is_used`, `email_address`. Types: `'email_verification'`, `'password_reset'`, `'totp_verification_pending'`, `'password_upgrade'`, `'totp_bypass'`, `'webauthn_registration_challenge'`, `'webauthn_authentication_challenge'`, `'sudo_elevation'`. Consume atomically with `consumeToken` (single `UPDATE … RETURNING`) rather than separate read + mark-used calls — see `src/tokens.ts`.
-* **`totp_used_codes`**: composite PK `(user_uuid, totp_code)`, FK to `users` (cascade), `used_at`. TOTP replay guard: `INSERT … ON CONFLICT DO NOTHING` rejects re-use of a code within its acceptance window. Reaped (2 min after `used_at`) by a CockroachDB Row-Level TTL rule, scanned every 5 minutes — see `sql/schedules.sql`.
-* **`passkeys`**: `passkey_uuid` (PK), `user_uuid` (FK, cascade), `credential_id` (UNIQUE — keyed for O(1) authentication lookup), `public_key`, `counter`, `transports` (`STRING[]`), `passkey_name`, `created_at`, `last_used_at`, `is_enabled`. WebAuthn credentials.
-* **`external_identities`**: composite PK `(provider, provider_user_id)`, `user_uuid` (FK, cascade), `email`, `display_name`, `linked_at`, `last_used_at`. Federated-login linkage — a user may have several.
-* **`federated_signup_tokens`**: `token_value` (PK), `provider`, `provider_user_id`, `email`, `email_verified`, `display_name`, `expires_at`, `created_at`, `is_used`. Pre-user — carries verified provider data from the OAuth callback to the signup-confirmation POST; lives outside `tokens` because it has no `user_uuid` yet.
-* **`organisations`**: `org_uuid` (PK), `org_name`, `org_active`, `org_created_at`, `org_created_by` (FK → `users`, `ON DELETE SET NULL`).
-* **`teams`**: `team_uuid` (PK), `org_uuid` (FK → `organisations`, cascade), `team_name`, `team_created_at`.
-* **`organisation_members`**: composite PK `(org_uuid, user_uuid, role)`, FKs to `organisations` / `users` (cascade), `added_at`, `added_by` (FK → `users`, `SET NULL`). One row per (user, role).
-* **`team_members`**: composite PK `(team_uuid, user_uuid, role)`, FKs to `teams` / `users` (cascade), `added_at`, `added_by`. Same shape as `organisation_members`.
-* **`organisation_invitations`**: `invitation_token` (PK), `org_uuid` (FK → `organisations`, cascade), `email_address`, `roles` (`STRING[]`), `invited_by` (FK → `users`, `SET NULL`), `created_at`, `expires_at`, `is_used`.
-* **`apps`**: `app_uuid` (PK), `app_name`, `client_id` (UNIQUE), `client_secret` (hashed), `redirect_uris` (`STRING[]`, exact-match allowlist), `app_active`, `app_licensing_mode` (CHECK `'none'`|`'seat'`|`'usage'`|`'floating'`; default `'none'`), `app_created_at`. Globally registered OAuth clients — no organisation FK; operator-managed.
-* **`*_key_values`** (six tables: `user`, `team`, `organisation`, `org_role`, `team_role`, `app`): subject FK(s) + `kv_key` / `kv_value` + three nullable owner FKs (`owner_user_uuid` → `users`, `owner_org_uuid` → `organisations`, `owner_app_uuid` → `apps`, all CASCADE) + computed STORED `owner_id = COALESCE(...)` + CHECK that exactly one owner is set. PK includes `owner_id` so (subject, owner, key) is unique. The `app` subject is the resolver's final fallback tier when the owner is the app itself.
-* **`oauth_grants`**: `grant_value` (PK), `grant_type` (`'authorization_code'` | `'refresh_token'`), `user_uuid` (FK → `users`, cascade), `app_uuid` (FK → `apps`, cascade), `org_uuid` (FK → `organisations`, `ON DELETE SET NULL` — the org context the user picked at `/authorize` time, used to resolve entitlements and floating-seat pools), `scopes` (`STRING[]`), `redirect_uri`, `code_challenge`, `code_challenge_method` (PKCE — populated on auth-code rows), `nonce`, `parent_grant_value` (refresh-token rotation chain; plain column), `expires_at`, `created_at`, `is_used`. Access tokens are JWTs and not stored here.
-* **`oauth_consents`**: composite PK `(user_uuid, app_uuid)`, FKs to both (cascade), `scopes` (`STRING[]`), `granted_at`. Remembered per-(user, app) scope grant so the consent screen is skipped on the next OAuth round-trip.
-* **`app_floating_sessions`**: composite PK `(app_uuid, org_uuid, user_uuid)`, FKs to `apps` / `organisations` / `users` (all cascade), `heartbeat_at`, `expires_at`, `created_at`. Active concurrent-user seat allocations for `app_licensing_mode = 'floating'` apps; the row count for `(app, org)` is the current usage of that org's pool. Pool size comes from `organisation_key_values` (subject = org, owner = app, key `license:floating:max`) with a fallback to `app_key_values` (subject = app, owner = app) for the app's global default.
-* **`audit_events`**: `event_uuid` (PK), `event_type`, `event_severity` (CHECK `'debug'`|`'info'`|`'notice'`|`'warning'`|`'alert'`|`'critical'`; default `'info'`), `event_outcome` (CHECK `'success'`|`'failure'`|`'attempt'`; default `'success'`), `actor_user_uuid`, `actor_ip`, `actor_user_agent`, `target_user_uuid`, `target_org_uuid`, `target_team_uuid`, `target_app_uuid`, `target_label`, `event_metadata` (JSON-encoded), `created_at`. **Append-only and deliberately FK-less** on the uuid columns — an audit row must outlive its referents, so reports `LEFT JOIN` and tolerate unresolved uuids; `target_label` snapshots a human-readable handle at write time. Populated by `src/hooks/listeners/audit.ts`; tiered retention via a CockroachDB Row-Level TTL rule in `sql/schedules.sql` (`debug` / `info` reaped after 90 days, `notice` and above map to a `NULL` TTL expression and are kept forever).
+- **`users`**: `user_uuid` (PK), `user_name`, `user_active` (account enabled/disabled flag), `user_created_at`, `user_last_login`.
+- **`sessions`**: `session_id` (PK), `user_uuid` (FK), `created_at`, `expires_at`, `is_active`, `last_accessed_at`, `last_accessed_ip`, `user_agent`, `ip_address`, `ip_country`.
+- **`emails`**: `email_address` (PK), `user_uuid` (FK), `is_primary`, `is_verified`, `verified_at`.
+- **`secrets`**: `secret_uuid` (PK), `user_uuid` (FK), `secret_type`, `secret_value`, `secret_name`, `is_enabled`, `secret_created_at`, `secret_last_used`. Used for both passwords (`secret_type = 'puff_password_SHA-384'`) and TOTP (`secret_type = 'totp_secret'`).
+- **`tokens`**: `token_value` (PK), `user_uuid` (FK), `token_type`, `expires_at`, `created_at`, `is_used`, `email_address`. Types: `'email_verification'`, `'password_reset'`, `'totp_verification_pending'`, `'password_upgrade'`, `'totp_bypass'`, `'webauthn_registration_challenge'`, `'webauthn_authentication_challenge'`, `'sudo_elevation'`. Consume atomically with `consumeToken` (single `UPDATE … RETURNING`) rather than separate read + mark-used calls — see `src/tokens.ts`.
+- **`totp_used_codes`**: composite PK `(user_uuid, totp_code)`, FK to `users` (cascade), `used_at`. TOTP replay guard: `INSERT … ON CONFLICT DO NOTHING` rejects re-use of a code within its acceptance window. Reaped (2 min after `used_at`) by a CockroachDB Row-Level TTL rule, scanned every 5 minutes — see `sql/schedules.sql`.
+- **`passkeys`**: `passkey_uuid` (PK), `user_uuid` (FK, cascade), `credential_id` (UNIQUE — keyed for O(1) authentication lookup), `public_key`, `counter`, `transports` (`STRING[]`), `passkey_name`, `created_at`, `last_used_at`, `is_enabled`. WebAuthn credentials.
+- **`external_identities`**: composite PK `(provider, provider_user_id)`, `user_uuid` (FK, cascade), `email`, `display_name`, `linked_at`, `last_used_at`. Federated-login linkage — a user may have several.
+- **`federated_signup_tokens`**: `token_value` (PK), `provider`, `provider_user_id`, `email`, `email_verified`, `display_name`, `expires_at`, `created_at`, `is_used`. Pre-user — carries verified provider data from the OAuth callback to the signup-confirmation POST; lives outside `tokens` because it has no `user_uuid` yet.
+- **`organisations`**: `org_uuid` (PK), `org_name`, `org_active`, `org_created_at`, `org_created_by` (FK → `users`, `ON DELETE SET NULL`).
+- **`teams`**: `team_uuid` (PK), `org_uuid` (FK → `organisations`, cascade), `team_name`, `team_created_at`.
+- **`organisation_members`**: composite PK `(org_uuid, user_uuid, role)`, FKs to `organisations` / `users` (cascade), `added_at`, `added_by` (FK → `users`, `SET NULL`). One row per (user, role).
+- **`team_members`**: composite PK `(team_uuid, user_uuid, role)`, FKs to `teams` / `users` (cascade), `added_at`, `added_by`. Same shape as `organisation_members`.
+- **`organisation_invitations`**: `invitation_token` (PK), `org_uuid` (FK → `organisations`, cascade), `email_address`, `roles` (`STRING[]`), `invited_by` (FK → `users`, `SET NULL`), `created_at`, `expires_at`, `is_used`.
+- **`apps`**: `app_uuid` (PK), `app_name`, `client_id` (UNIQUE), `client_secret` (hashed), `redirect_uris` (`STRING[]`, exact-match allowlist), `app_active`, `app_licensing_mode` (CHECK `'none'`|`'seat'`|`'usage'`|`'floating'`; default `'none'`), `app_created_at`. Globally registered OAuth clients — no organisation FK; operator-managed.
+- **`*_key_values`** (six tables: `user`, `team`, `organisation`, `org_role`, `team_role`, `app`): subject FK(s) + `kv_key` / `kv_value` + three nullable owner FKs (`owner_user_uuid` → `users`, `owner_org_uuid` → `organisations`, `owner_app_uuid` → `apps`, all CASCADE) + computed STORED `owner_id = COALESCE(...)` + CHECK that exactly one owner is set. PK includes `owner_id` so (subject, owner, key) is unique. The `app` subject is the resolver's final fallback tier when the owner is the app itself.
+- **`oauth_grants`**: `grant_value` (PK), `grant_type` (`'authorization_code'` | `'refresh_token'`), `user_uuid` (FK → `users`, cascade), `app_uuid` (FK → `apps`, cascade), `org_uuid` (FK → `organisations`, `ON DELETE SET NULL` — the org context the user picked at `/authorize` time, used to resolve entitlements and floating-seat pools), `scopes` (`STRING[]`), `redirect_uri`, `code_challenge`, `code_challenge_method` (PKCE — populated on auth-code rows), `nonce`, `parent_grant_value` (refresh-token rotation chain; plain column), `expires_at`, `created_at`, `is_used`. Access tokens are JWTs and not stored here.
+- **`oauth_consents`**: composite PK `(user_uuid, app_uuid)`, FKs to both (cascade), `scopes` (`STRING[]`), `granted_at`. Remembered per-(user, app) scope grant so the consent screen is skipped on the next OAuth round-trip.
+- **`app_floating_sessions`**: composite PK `(app_uuid, org_uuid, user_uuid)`, FKs to `apps` / `organisations` / `users` (all cascade), `heartbeat_at`, `expires_at`, `created_at`. Active concurrent-user seat allocations for `app_licensing_mode = 'floating'` apps; the row count for `(app, org)` is the current usage of that org's pool. Pool size comes from `organisation_key_values` (subject = org, owner = app, key `license:floating:max`) with a fallback to `app_key_values` (subject = app, owner = app) for the app's global default.
+- **`audit_events`**: `event_uuid` (PK), `event_type`, `event_severity` (CHECK `'debug'`|`'info'`|`'notice'`|`'warning'`|`'alert'`|`'critical'`; default `'info'`), `event_outcome` (CHECK `'success'`|`'failure'`|`'attempt'`; default `'success'`), `actor_user_uuid`, `actor_ip`, `actor_user_agent`, `target_user_uuid`, `target_org_uuid`, `target_team_uuid`, `target_app_uuid`, `target_label`, `event_metadata` (JSON-encoded), `created_at`. **Append-only and deliberately FK-less** on the uuid columns — an audit row must outlive its referents, so reports `LEFT JOIN` and tolerate unresolved uuids; `target_label` snapshots a human-readable handle at write time. Populated by `src/hooks/listeners/audit.ts`; tiered retention via a CockroachDB Row-Level TTL rule in `sql/schedules.sql` (`debug` / `info` reaped after 90 days, `notice` and above map to a `NULL` TTL expression and are kept forever).
 
 ## Query Conventions
 
-* Always use parameterized queries with `$1`, `$2`, etc. to prevent SQL injection.
-* Access the database client from `context.data.dbClient` in API handlers. The middleware handles connection and teardown.
-* `src/` functions receive `dbClient` as their first parameter — they never create or close connections.
-* Use `RETURNING` clause when insert/update results need confirmation.
-* Use `LIMIT 1` for single-record lookups.
-* Functions that check existence return `{ success: true, exists: boolean }`.
-* Functions that read records return the envelope: `{ success: true, <key>: record, status: 200 }` on hit, `{ success: false, message: "...", status: 4xx }` on miss, `{ error: true, message: "...", details, status: 500 }` on DB error.
+- Always use parameterized queries with `$1`, `$2`, etc. to prevent SQL injection.
+- Access the database client from `context.data.dbClient` in API handlers. The middleware handles connection and teardown.
+- `src/` functions receive `dbClient` as their first parameter — they never create or close connections.
+- Use `RETURNING` clause when insert/update results need confirmation.
+- Use `LIMIT 1` for single-record lookups.
+- Functions that check existence return `{ success: true, exists: boolean }`.
+- Functions that read records return the envelope: `{ success: true, <key>: record, status: 200 }` on hit, `{ success: false, message: "...", status: 4xx }` on miss, `{ error: true, message: "...", details, status: 500 }` on DB error.
 
 ## Transactions
 
@@ -90,10 +90,10 @@ The callback may run more than once, so it must be safe to replay — no externa
 
 Examples in the codebase:
 
-* `setPrimaryEmail` (`src/emails.ts`) wraps demote-old-primary + promote-new-primary.
-* `updatePassword` (`src/passwords.ts`) wraps disable-old + create-new.
-* `upsertKeyValue` (`src/utilities/keyvalues-shared.ts`) wraps the per-owner key-count check + insert — shared by all five KV subject modules.
-* `disableUser` (`src/users.ts`) wraps the inactive-flag flip + session purge.
+- `setPrimaryEmail` (`src/emails.ts`) wraps demote-old-primary + promote-new-primary.
+- `updatePassword` (`src/passwords.ts`) wraps disable-old + create-new.
+- `upsertKeyValue` (`src/utilities/keyvalues-shared.ts`) wraps the per-owner key-count check + insert — shared by all five KV subject modules.
+- `disableUser` (`src/users.ts`) wraps the inactive-flag flip + session purge.
 
 ## Conflict Handling
 
@@ -113,16 +113,16 @@ This is cleaner than matching on `error.constraint` in a catch block (constraint
 
 ## Soft Deletion
 
-* Users can be reversibly **disabled** (`disableUser`, `src/users.ts`): `user_active = FALSE` plus termination of every session, in one transaction. Re-enable with `enableUser`. Queries for active users filter on `user_active = TRUE`.
-* `deleteUser` (`src/users.ts`) is a **permanent hard delete** — a single `DELETE FROM users`; every child row (sessions, secrets, emails, tokens, TOTP replay-guard rows) is removed by the `ON DELETE CASCADE` on each child table's `user_uuid` foreign key. Use `disableUser` for anything reversible.
-* Sessions are soft-terminated by setting `is_active = FALSE`. A CockroachDB Row-Level TTL rule (`sql/schedules.sql`, scanned hourly) reaps inactive/expired rows older than one month (kept that long as a lightweight audit trail); a still-valid row maps to a `NULL` TTL expression and is never deleted.
-* Tokens are consumed atomically via `consumeToken` — a single `UPDATE … WHERE token_value = $1 AND token_type = $2 AND is_used = FALSE AND expires_at > NOW() RETURNING …`. `rowCount === 0` collapses used / expired / wrong-type / missing into one "invalid token" outcome. **Always prefer `createToken` + `consumeToken`** for new single-use-token flows. A Row-Level TTL rule reaps rows older than one month.
-* Organisations and teams support reversible disable (`disableOrganisation` / `enableOrganisation`) and permanent hard-delete (`deleteOrganisation` / `deleteTeam`); cascades clean up members, invitations, and team rows.
-* `audit_events` is append-only and FK-less — never hand-delete from it. Severity-tiered purge happens via Row-Level TTL (`debug`/`info` after 90 days, `notice` and above kept indefinitely).
+- Users can be reversibly **disabled** (`disableUser`, `src/users.ts`): `user_active = FALSE` plus termination of every session, in one transaction. Re-enable with `enableUser`. Queries for active users filter on `user_active = TRUE`.
+- `deleteUser` (`src/users.ts`) is a **permanent hard delete** — a single `DELETE FROM users`; every child row (sessions, secrets, emails, tokens, TOTP replay-guard rows) is removed by the `ON DELETE CASCADE` on each child table's `user_uuid` foreign key. Use `disableUser` for anything reversible.
+- Sessions are soft-terminated by setting `is_active = FALSE`. A CockroachDB Row-Level TTL rule (`sql/schedules.sql`, scanned hourly) reaps inactive/expired rows older than one month (kept that long as a lightweight audit trail); a still-valid row maps to a `NULL` TTL expression and is never deleted.
+- Tokens are consumed atomically via `consumeToken` — a single `UPDATE … WHERE token_value = $1 AND token_type = $2 AND is_used = FALSE AND expires_at > NOW() RETURNING …`. `rowCount === 0` collapses used / expired / wrong-type / missing into one "invalid token" outcome. **Always prefer `createToken` + `consumeToken`** for new single-use-token flows. A Row-Level TTL rule reaps rows older than one month.
+- Organisations and teams support reversible disable (`disableOrganisation` / `enableOrganisation`) and permanent hard-delete (`deleteOrganisation` / `deleteTeam`); cascades clean up members, invitations, and team rows.
+- `audit_events` is append-only and FK-less — never hand-delete from it. Severity-tiered purge happens via Row-Level TTL (`debug`/`info` after 90 days, `notice` and above kept indefinitely).
 
 ## Secrets Table Usage
 
 The `secrets` table stores both passwords and TOTP secrets, differentiated by `secret_type`:
 
-* **Passwords**: `secret_type = 'puff_password_{algo}'` (e.g., `puff_password_SHA-384`). `secret_value` stores `hash:salt`. Old passwords are disabled (`is_enabled = FALSE`) rather than deleted when a password changes.
-* **TOTP**: `secret_type = 'totp_secret'`. `is_enabled` tracks whether 2FA is active. Created with `is_enabled = FALSE`, then enabled after verification.
+- **Passwords**: `secret_type = 'puff_password_{algo}'` (e.g., `puff_password_SHA-384`). `secret_value` stores `hash:salt`. Old passwords are disabled (`is_enabled = FALSE`) rather than deleted when a password changes.
+- **TOTP**: `secret_type = 'totp_secret'`. `is_enabled` tracks whether 2FA is active. Created with `is_enabled = FALSE`, then enabled after verification.

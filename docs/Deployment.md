@@ -4,26 +4,26 @@ Shipping Puff to production. Every step is intended to be runnable as-is — sub
 
 ## Table of Contents
 
-* [Prerequisites](#prerequisites)
-* [1. Provision the database](#1-provision-the-database)
-* [2. Create the Hyperdrive binding](#2-create-the-hyperdrive-binding)
-* [3. Create the KV namespace](#3-create-the-kv-namespace)
-* [4. Authenticate Wrangler](#4-authenticate-wrangler)
-* [5. Push secrets](#5-push-secrets)
-* [5a. Configure billing (Stripe)](#5a-configure-billing-stripe)
-* [6. Set non-secret variables](#6-set-non-secret-variables)
-* [7. Deploy](#7-deploy)
-* [8. Attach a custom domain](#8-attach-a-custom-domain)
-* [Post-deploy checklist](#post-deploy-checklist)
-* [Re-deploys](#re-deploys)
-* [Rolling back](#rolling-back)
+- [Prerequisites](#prerequisites)
+- [1. Provision the database](#1-provision-the-database)
+- [2. Create the Hyperdrive binding](#2-create-the-hyperdrive-binding)
+- [3. Create the KV namespace](#3-create-the-kv-namespace)
+- [4. Authenticate Wrangler](#4-authenticate-wrangler)
+- [5. Push secrets](#5-push-secrets)
+- [5a. Configure billing (Stripe)](#5a-configure-billing-stripe)
+- [6. Set non-secret variables](#6-set-non-secret-variables)
+- [7. Deploy](#7-deploy)
+- [8. Attach a custom domain](#8-attach-a-custom-domain)
+- [Post-deploy checklist](#post-deploy-checklist)
+- [Re-deploys](#re-deploys)
+- [Rolling back](#rolling-back)
 
 ## Prerequisites
 
-* A Cloudflare account with Workers + Pages enabled.
-* Node.js 22+ (`wrangler` refuses older versions).
-* A CockroachDB Cloud account (or any Postgres-compatible managed DB you can reach from Cloudflare).
-* A Mailtrap account with a verified sending domain.
+- A Cloudflare account with Workers + Pages enabled.
+- Node.js 22+ (`wrangler` refuses older versions).
+- A CockroachDB Cloud account (or any Postgres-compatible managed DB you can reach from Cloudflare).
+- A Mailtrap account with a verified sending domain.
 
 The codebase deploys as a **single Cloudflare Worker bundle** even though it's authored as Pages Functions — the build step uses the Pages compiler; the deploy step is the Workers path. See [Architecture.md → Build model](Architecture.md#build-model) for context.
 
@@ -199,18 +199,18 @@ npx wrangler secret put STRIPE_WEBHOOK_SIGNING_SECRET
 
 In the Stripe Dashboard → Developers → Webhooks → Add endpoint:
 
-* **Endpoint URL**: `${APP_URL}/api/billing/webhook`
-* **Events to send** (select all of these):
-  * `customer.subscription.created`
-  * `customer.subscription.updated`
-  * `customer.subscription.deleted`
-  * `customer.subscription.paused`
-  * `customer.subscription.resumed`
-  * `invoice.finalized`
-  * `invoice.paid`
-  * `invoice.payment_succeeded`
-  * `invoice.payment_failed`
-  * `invoice.voided`
+- **Endpoint URL**: `${APP_URL}/api/billing/webhook`
+- **Events to send** (select all of these):
+  - `customer.subscription.created`
+  - `customer.subscription.updated`
+  - `customer.subscription.deleted`
+  - `customer.subscription.paused`
+  - `customer.subscription.resumed`
+  - `invoice.finalized`
+  - `invoice.paid`
+  - `invoice.payment_succeeded`
+  - `invoice.payment_failed`
+  - `invoice.voided`
 
 After saving, copy the **Signing secret** (`whsec_…`) shown on the endpoint detail page and push it as `STRIPE_WEBHOOK_SIGNING_SECRET` above.
 
@@ -261,9 +261,9 @@ Edit `wrangler.jsonc`'s `vars` block before deploying:
 
 The full variable catalogue is in [Architecture.md → Environment variables](Architecture.md#environment-variables). In particular:
 
-* **`SECURE_COOKIE`** must be truthy in production so auth cookies are restricted to HTTPS.
-* **`APP_URL`** must be the public origin (no trailing slash) — it builds email links and federated-login redirect URIs.
-* **Password policy** (`REQUIRE_*`, `REQUIRE_ZXCVBN`, etc.) — pick what matches your security posture; `REQUIRE_NOT_COMPROMISED` is recommended.
+- **`SECURE_COOKIE`** must be truthy in production so auth cookies are restricted to HTTPS.
+- **`APP_URL`** must be the public origin (no trailing slash) — it builds email links and federated-login redirect URIs.
+- **Password policy** (`REQUIRE_*`, `REQUIRE_ZXCVBN`, etc.) — pick what matches your security posture; `REQUIRE_NOT_COMPROMISED` is recommended.
 
 ## 7. Deploy
 
@@ -300,17 +300,17 @@ Either way, keep `APP_URL` in sync with whichever hostname you pick — email ve
 
 After the first deploy, verify each surface works end-to-end. The audit log (`audit_events`) is the cleanest place to confirm: every successful action writes a row.
 
-* **Register a user** → `account.registered` row appears.
-* **Log in** → `account.login.success` row.
-* **Trigger a wrong-password attempt** → `account.login.failed` row with `event_outcome = 'failure'` and `actor_user_uuid = NULL`.
-* **Request a password reset** → email arrives at the verified inbox; the link works.
-* **Enable 2FA** → QR code renders inline (SVG, not a `data:` URL); `account.2fa.setup.verified` row.
-* **`/.well-known/jwks.json`** returns the active public JWK.
-* **`/.well-known/openid-configuration`** advertises endpoints matching your `APP_URL`.
-* **Row-Level TTL is installed** — `SHOW SCHEDULES;` lists one `row-level-ttl` schedule for each of `totp_used_codes`, `app_floating_sessions`, `sessions`, `tokens`, `audit_events`. Recent runs: `WITH x AS (SHOW JOBS) SELECT * FROM x WHERE job_type = 'ROW LEVEL TTL' ORDER BY created DESC LIMIT 20;`
-* **Worker cron is registered** — `wrangler deploy` prints `Cron Triggers: 0 0 * * *`. The daily tick drives `maybeRotateSigningKey` (see [Operations.md → OAuth signing-key rotation](Operations.md#oauth-signing-key-rotation)); it rotates the key once it is older than `OAUTH_KEY_ROTATION_INTERVAL_DAYS` (default 7), so the first rotation after seeding KV lands a week later.
-* **HTTP response headers** — `curl -I https://auth.example.com/` shows the CSP, HSTS, and Reporting-Endpoints headers from `public/_headers`.
-* **Federated login** (if configured) — clicking each provider button lands at the provider, returns to `/login/<provider>/callback`, and either creates an account, logs in, or links the identity.
+- **Register a user** → `account.registered` row appears.
+- **Log in** → `account.login.success` row.
+- **Trigger a wrong-password attempt** → `account.login.failed` row with `event_outcome = 'failure'` and `actor_user_uuid = NULL`.
+- **Request a password reset** → email arrives at the verified inbox; the link works.
+- **Enable 2FA** → QR code renders inline (SVG, not a `data:` URL); `account.2fa.setup.verified` row.
+- **`/.well-known/jwks.json`** returns the active public JWK.
+- **`/.well-known/openid-configuration`** advertises endpoints matching your `APP_URL`.
+- **Row-Level TTL is installed** — `SHOW SCHEDULES;` lists one `row-level-ttl` schedule for each of `totp_used_codes`, `app_floating_sessions`, `sessions`, `tokens`, `audit_events`. Recent runs: `WITH x AS (SHOW JOBS) SELECT * FROM x WHERE job_type = 'ROW LEVEL TTL' ORDER BY created DESC LIMIT 20;`
+- **Worker cron is registered** — `wrangler deploy` prints `Cron Triggers: 0 0 * * *`. The daily tick drives `maybeRotateSigningKey` (see [Operations.md → OAuth signing-key rotation](Operations.md#oauth-signing-key-rotation)); it rotates the key once it is older than `OAUTH_KEY_ROTATION_INTERVAL_DAYS` (default 7), so the first rotation after seeding KV lands a week later.
+- **HTTP response headers** — `curl -I https://auth.example.com/` shows the CSP, HSTS, and Reporting-Endpoints headers from `public/_headers`.
+- **Federated login** (if configured) — clicking each provider button lands at the provider, returns to `/login/<provider>/callback`, and either creates an account, logs in, or links the identity.
 
 ## Re-deploys
 

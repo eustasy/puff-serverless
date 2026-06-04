@@ -6,15 +6,15 @@ For the codebase shape see [Architecture.md](Architecture.md); for operator task
 
 ## Table of Contents
 
-* [The conceptual shape](#the-conceptual-shape)
-* [Users](#users)
-* [Organisations](#organisations)
-* [Teams](#teams)
-* [Roles and permissions](#roles-and-permissions)
-* [Apps & licensing](#apps--licensing)
-* [The key-value store and the resolver chain](#the-key-value-store-and-the-resolver-chain)
-* [Entitlements](#entitlements)
-* [How it all composes](#how-it-all-composes)
+- [The conceptual shape](#the-conceptual-shape)
+- [Users](#users)
+- [Organisations](#organisations)
+- [Teams](#teams)
+- [Roles and permissions](#roles-and-permissions)
+- [Apps & licensing](#apps--licensing)
+- [The key-value store and the resolver chain](#the-key-value-store-and-the-resolver-chain)
+- [Entitlements](#entitlements)
+- [How it all composes](#how-it-all-composes)
 
 ## The conceptual shape
 
@@ -30,8 +30,8 @@ Puff                  (the deployment — one Worker, one database)
 
 Two things to internalise up front:
 
-* **Users are global**, not per-tenant. One account, many memberships. The same user can belong to several organisations, each with a different role set.
-* **Apps are also global** — registered once by the operator. There is no "org owns an app" relationship. Any organisation can grant its users entitlements for any registered app, but the app itself is shared infrastructure.
+- **Users are global**, not per-tenant. One account, many memberships. The same user can belong to several organisations, each with a different role set.
+- **Apps are also global** — registered once by the operator. There is no "org owns an app" relationship. Any organisation can grant its users entitlements for any registered app, but the app itself is shared infrastructure.
 
 The hierarchy is mostly enforced by foreign keys with `ON DELETE CASCADE` — deleting a team removes its memberships; deleting an organisation removes its teams; deleting a user removes their session/email/password/2FA rows. The `audit_events` table is deliberately FK-less so its rows outlive their referents — see [Operations.md → Audit events & hooks](Operations.md#audit-events--hooks).
 
@@ -41,10 +41,10 @@ The root entity. `users` carries `user_uuid` (PK), `user_name` (display only —
 
 A user can hold any combination of authentication factors:
 
-* **Password** in `secrets` (`secret_type = 'puff_password_<algo>'`, hashed).
-* **TOTP secret** in `secrets` (`secret_type = 'totp_secret'`). Replay-guarded by `totp_used_codes`.
-* **Passkeys** in `passkeys` (WebAuthn credentials).
-* **Linked external identities** in `external_identities` (GitHub/Google/Microsoft).
+- **Password** in `secrets` (`secret_type = 'puff_password_<algo>'`, hashed).
+- **TOTP secret** in `secrets` (`secret_type = 'totp_secret'`). Replay-guarded by `totp_used_codes`.
+- **Passkeys** in `passkeys` (WebAuthn credentials).
+- **Linked external identities** in `external_identities` (GitHub/Google/Microsoft).
 
 Login can be by password (+ optional 2FA gate), by passkey (single-step — the passkey is both factors), or by external provider (single-step — the provider is the second factor). `unlinkExternalIdentity` and `deletePasskey` refuse to remove the last usable credential, so a user can't lock themselves out.
 
@@ -74,8 +74,8 @@ In practice, guests are surfaced explicitly. The `guest` role exists in the org-
 
 Roles are **code-defined and fixed** — the role set and the role-to-capability mapping both live in `src/permissions.ts`, not in the database. Only role _assignments_ — which user holds which role — are stored:
 
-* **Org roles** (`organisation_members.role`): `owner` | `admin` | `member` | `billing` | `guest`.
-* **Team roles** (`team_members.role`): `lead` | `member`.
+- **Org roles** (`organisation_members.role`): `owner` | `admin` | `member` | `billing` | `guest`.
+- **Team roles** (`team_members.role`): `lead` | `member`.
 
 A user may hold any combination, so a composite PK on `(scope, user, role)` lets each grant be one row. A user can be both an `admin` and `billing` in the same org, for example.
 
@@ -133,11 +133,11 @@ Entitlements are KV rows under an app's owner namespace. There is no separate `a
 
 Reserved keys under the app owner:
 
-* `license:tier` — the user's tier (on user / team / org subject under app owner). Used by `seat` mode.
-* `license:tiers:<name>` — the menu of available tiers (on the app's self-owned subject, i.e. `app` subject + `app` owner). Operator-set, not user-grantable.
-* `license:perms:<name>` — app-declared permission identifiers (app subject, app owner). Operator-set.
-* `license:floating:max` — per-org pool size (org subject under app owner), with a fallback to the app's self-owned default (app subject, app owner). Used by `floating` mode.
-* `perm:<name>` — the actual permission grants (user / team / org subject under app owner). The values are the granted permissions, resolved through the chain.
+- `license:tier` — the user's tier (on user / team / org subject under app owner). Used by `seat` mode.
+- `license:tiers:<name>` — the menu of available tiers (on the app's self-owned subject, i.e. `app` subject + `app` owner). Operator-set, not user-grantable.
+- `license:perms:<name>` — app-declared permission identifiers (app subject, app owner). Operator-set.
+- `license:floating:max` — per-org pool size (org subject under app owner), with a fallback to the app's self-owned default (app subject, app owner). Used by `floating` mode.
+- `perm:<name>` — the actual permission grants (user / team / org subject under app owner). The values are the granted permissions, resolved through the chain.
 
 The `validateEntitlementKey` helper in `src/utilities/entitlements-endpoint.ts` enforces the namespace at the API layer — only `license:tier` and `perm:*` are user-grantable through the org endpoints; the `license:tiers:*` / `license:perms:*` schema keys are operator-only.
 
@@ -145,10 +145,10 @@ The `validateEntitlementKey` helper in `src/utilities/entitlements-endpoint.ts` 
 
 **"Licensed" definition.** `isLicensed(dbClient, app, user, org)` branches on `app_licensing_mode`:
 
-* `none` → always licensed.
-* `usage` → licensed iff the user is a member of the org.
-* `seat` → `license:tier` resolves to a non-null value via the standard chain.
-* `floating` → a live `app_floating_sessions` row exists for `(app, org, user)`.
+- `none` → always licensed.
+- `usage` → licensed iff the user is a member of the org.
+- `seat` → `license:tier` resolves to a non-null value via the standard chain.
+- `floating` → a live `app_floating_sessions` row exists for `(app, org, user)`.
 
 `summariseLicensing` produces the per-org billing readout (assigned vs. active vs. pool max).
 
@@ -165,9 +165,9 @@ A typical end-to-end flow: an OAuth client (an "app") needs to log a user in.
 
 Behind that:
 
-* The user's session was established by one of password / passkey / federated provider (see [Architecture.md → Federated login](Architecture.md#federated-login-puff-as-client)).
-* Their `puff:roles` claim comes from `organisation_members` + `team_members` for the bound `org_uuid`.
-* Their `puff:entitlements` claim is resolved via the KV chain in [The key-value store and the resolver chain](#the-key-value-store-and-the-resolver-chain) — most-specific entitlement wins.
-* Each step that mutated state (login, consent, grant issue) emitted an audit event through `src/hooks/`; the audit row carries actor IP and user-agent for forensics.
+- The user's session was established by one of password / passkey / federated provider (see [Architecture.md → Federated login](Architecture.md#federated-login-puff-as-client)).
+- Their `puff:roles` claim comes from `organisation_members` + `team_members` for the bound `org_uuid`.
+- Their `puff:entitlements` claim is resolved via the KV chain in [The key-value store and the resolver chain](#the-key-value-store-and-the-resolver-chain) — most-specific entitlement wins.
+- Each step that mutated state (login, consent, grant issue) emitted an audit event through `src/hooks/`; the audit row carries actor IP and user-agent for forensics.
 
 Every entity in the hierarchy is reachable by uuid, every relationship is enforced by FK (or deliberately not, in the audit case), and every change is logged.
