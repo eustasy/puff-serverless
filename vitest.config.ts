@@ -9,5 +9,12 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["test/**/*.test.ts"],
+    coverage: {
+      provider: "v8",
+      // lcov is required by the Qlty upload step (coverage/lcov.info); text
+      // gives a readable summary in the CI log and locally.
+      reporter: ["text", "lcov"],
+      include: ["src/**/*.ts"],
+    },
   },
 })

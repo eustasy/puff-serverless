@@ -23,6 +23,7 @@
     "@types/node": "^25.9.1",
     "@types/pg": "^8.20.0",
     "@types/zxcvbn": "^4.4.5",
+    "@vitest/coverage-v8": "^4.1.8",
     "prettier": "3.8.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8",
