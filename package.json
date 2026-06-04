@@ -9,8 +9,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "typecheck:strict": "tsc --noEmit --strict --noImplicitOverride --noUnusedLocals --noUnusedParameters --noImplicitReturns --noFallthroughCasesInSwitch --exactOptionalPropertyTypes --noUncheckedIndexedAccess --noPropertyAccessFromIndexSignature",
-    "lint": "npx prettier --check **/*.{js,ts,mjs,md,cjs,json,yml,html,css,less,sass} && npm run typecheck",
-    "format": "npx prettier --write **/*.{js,ts,mjs,md,cjs,json,yml,html,css,less,sass}"
+    "lint": "npx prettier --check **/*.{js,ts,mjs,cjs,mts,cts,json} && npm run typecheck",
+    "format": "npx prettier --write **/*.{js,ts,mjs,cjs,mts,cts,json}"
   },
   "dependencies": {
     "@simplewebauthn/server": "^13.3.1",
