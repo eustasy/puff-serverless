@@ -1,8 +1,8 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta
       name="htmx-config"
       content='{"responseHandling": [
@@ -15,9 +15,9 @@
       {"code":"500", "swap": true}
     ]
     }'
-    />
+   >
     <title>Account Management</title>
-    <link rel="stylesheet" href="/assets/main.css" />
+    <link rel="stylesheet" href="/assets/main.css">
     <script src="/assets/htmx_2.0.4.min.js"></script>
     <script src="/assets/webauthn.js" defer></script>
   </head>
@@ -33,6 +33,7 @@
           </div>
           <div class="grid-item">
             <button
+              type="button"
               class="btn-save"
               hx-post="/api/db/auth/email/add"
               hx-target="#email-message-area"
@@ -43,11 +44,12 @@
               hx-confirm="Are you sure you want to add this email address? It can be used for login and account recovery."
             >
               Add Email
-              <img class="htmx-indicator" src="/assets/bars.svg" />
+              <img class="htmx-indicator" src="/assets/bars.svg" alt="">
             </button>
           </div>
           <div class="grid-item">
             <button
+              type="button"
               class="btn-safe"
               hx-get="/api/db/auth/email/list"
               hx-target="#email-list-container"
@@ -55,7 +57,7 @@
               hx-disabled-elt="this"
             >
               Refresh Emails
-              <img class="htmx-indicator" src="/assets/bars.svg" />
+              <img class="htmx-indicator" src="/assets/bars.svg" alt="">
             </button>
           </div>
         </div>
@@ -83,7 +85,7 @@
         >
           <div class="grid-item">
             <label for="current_password">Current Password:</label>
-            <input type="password" id="current_password" name="current_password" required class="form-input" />
+            <input type="password" id="current_password" name="current_password" required class="form-input">
           </div>
           <div class="grid-item">
             <label for="pw">New Password:</label>
@@ -96,7 +98,7 @@
               hx-sync="closest form:abort"
               hx-trigger="keyup changed delay:500ms"
               hx-target="#password-requirements-output"
-              autocapitalize="off"
+              autocomplete="new-password"
               autocorrect="off"
               spellcheck="false"
               maxlength="512"
@@ -104,14 +106,14 @@
               required
               class="form-input"
               aria-describedby="password-requirements-output"
-            />
+           >
             <!-- Password requirements will be loaded here by HTMX -->
             <div id="password-requirements-output" class="result-area spacer-top-small"></div>
           </div>
           <div class="grid-item">
             <button type="submit" class="btn-save" name="change_password">
               Change Password
-              <img class="htmx-indicator" src="/assets/bars.svg" />
+              <img class="htmx-indicator" src="/assets/bars.svg" alt="">
             </button>
           </div>
         </form>
@@ -133,9 +135,9 @@
             <h2>Passkeys</h2>
           </div>
           <div class="grid-item">
-            <button id="register-passkey" class="btn-save">
+            <button type="button" id="register-passkey" class="btn-save">
               Register a Passkey
-              <img class="htmx-indicator" src="/assets/bars.svg" />
+              <img class="htmx-indicator" src="/assets/bars.svg" alt="">
             </button>
           </div>
         </div>
@@ -186,6 +188,7 @@
           </div>
           <div class="grid-item">
             <button
+              type="button"
               class="btn-danger"
               hx-post="/api/db/auth/session/terminate/all"
               hx-target="#session-list-container"
@@ -194,11 +197,12 @@
               hx-confirm="Are you sure you want to terminate all other sessions? This will not affect your current session."
             >
               Terminate All Other Sessions
-              <img class="htmx-indicator" src="/assets/bars.svg" />
+              <img class="htmx-indicator" src="/assets/bars.svg" alt="">
             </button>
           </div>
           <div class="grid-item">
             <button
+              type="button"
               class="btn-safe"
               hx-get="/api/db/auth/session/list"
               hx-target="#session-list-container"
@@ -206,7 +210,7 @@
               hx-disabled-elt="this"
             >
               Refresh Sessions
-              <img class="htmx-indicator" src="/assets/bars.svg" />
+              <img class="htmx-indicator" src="/assets/bars.svg" alt="">
             </button>
           </div>
         </div>
@@ -228,6 +232,7 @@
           </div>
           <div class="grid-item">
             <button
+              type="button"
               class="btn-safe"
               hx-get="/api/db/auth/keyvalues/list"
               hx-target="#keyvalue-list-container"
@@ -235,7 +240,7 @@
               hx-disabled-elt="this"
             >
               Refresh
-              <img class="htmx-indicator" src="/assets/bars.svg" />
+              <img class="htmx-indicator" src="/assets/bars.svg" alt="">
             </button>
           </div>
         </div>
@@ -251,16 +256,16 @@
         >
           <div class="grid-item">
             <label for="kv-key">Key:</label>
-            <input type="text" id="kv-key" name="key" placeholder="Key" maxlength="128" required class="form-input" />
+            <input type="text" id="kv-key" name="key" placeholder="Key" maxlength="128" required class="form-input">
           </div>
           <div class="grid-item">
             <label for="kv-value">Value:</label>
-            <input type="text" id="kv-value" name="value" placeholder="Value" maxlength="4096" class="form-input" />
+            <input type="text" id="kv-value" name="value" placeholder="Value" maxlength="4096" class="form-input">
           </div>
           <div class="grid-item">
             <button type="submit" class="btn-save">
               Save
-              <img class="htmx-indicator" src="/assets/bars.svg" />
+              <img class="htmx-indicator" src="/assets/bars.svg" alt="">
             </button>
           </div>
         </form>
@@ -278,7 +283,7 @@
               hx-trigger="keyup changed delay:300ms, search"
               hx-target="#keyvalue-list-container"
               hx-swap="innerHTML"
-            />
+           >
           </div>
         </div>
 
@@ -297,6 +302,7 @@
           </div>
           <div class="grid-item">
             <button
+              type="button"
               class="btn-safe"
               hx-get="/api/db/auth/organisations/list"
               hx-target="#organisation-list-container"
@@ -304,7 +310,7 @@
               hx-disabled-elt="this"
             >
               Refresh
-              <img class="htmx-indicator" src="/assets/bars.svg" />
+              <img class="htmx-indicator" src="/assets/bars.svg" alt="">
             </button>
           </div>
         </div>
@@ -320,12 +326,12 @@
         >
           <div class="grid-item">
             <label for="org-name">Name:</label>
-            <input type="text" id="org-name" name="name" placeholder="Organisation name" maxlength="128" required class="form-input" />
+            <input type="text" id="org-name" name="name" placeholder="Organisation name" maxlength="128" required class="form-input">
           </div>
           <div class="grid-item">
             <button type="submit" class="btn-save">
               Create Organisation
-              <img class="htmx-indicator" src="/assets/bars.svg" />
+              <img class="htmx-indicator" src="/assets/bars.svg" alt="">
             </button>
           </div>
         </form>

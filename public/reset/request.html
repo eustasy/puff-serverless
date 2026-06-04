@@ -1,8 +1,8 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta
       name="htmx-config"
       content='{"responseHandling": [
@@ -15,10 +15,10 @@
       {"code":"500", "swap": true}
     ]
     }'
-    />
+   >
     <title>Reset Password</title>
     <script src="/assets/htmx_2.0.4.min.js"></script>
-    <link rel="stylesheet" href="/assets/main.css" />
+    <link rel="stylesheet" href="/assets/main.css">
   </head>
   <body>
     <div class="container">
@@ -32,11 +32,11 @@
       >
         <div class="form-group">
           <label for="email">Email:</label>
-          <input type="email" id="email" name="email" placeholder="you@email.com" required />
+          <input type="email" id="email" name="email" placeholder="you@email.com" required>
         </div>
         <button type="submit" class="btn-safe">
           Reset Password
-          <img class="htmx-indicator" src="/assets/bars.svg" />
+          <img class="htmx-indicator" src="/assets/bars.svg" alt="">
         </button>
       </form>
       <div id="reset-result" class="result-area"></div>

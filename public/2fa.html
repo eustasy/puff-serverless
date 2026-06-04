@@ -1,8 +1,8 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta
       name="htmx-config"
       content='{"responseHandling": [
@@ -15,10 +15,10 @@
       {"code":"500", "swap": true}
     ]
     }'
-    />
+   >
     <title>Login - 2 Factor Authentication</title>
     <script src="/assets/htmx_2.0.4.min.js"></script>
-    <link rel="stylesheet" href="/assets/main.css" />
+    <link rel="stylesheet" href="/assets/main.css">
   </head>
   <body>
     <div class="container">
@@ -36,11 +36,11 @@
             maxlength="6"
             pattern="[0-9]{6}"
             autocomplete="one-time-code"
-          />
+         >
         </div>
         <button type="submit" class="btn-safe">
           Login
-          <img class="htmx-indicator" src="/assets/bars.svg" />
+          <img class="htmx-indicator" src="/assets/bars.svg" alt="">
         </button>
       </form>
       <div id="login-result" class="result-area"></div>
@@ -51,7 +51,7 @@
         <form hx-post="/api/db/2fa/bypass/request" hx-target="#bypass-result" hx-swap="innerHTML" hx-disabled-elt="button">
           <button type="submit" class="btn-safe">
             Email me a bypass link
-            <img class="htmx-indicator" src="/assets/bars.svg" />
+            <img class="htmx-indicator" src="/assets/bars.svg" alt="">
           </button>
         </form>
         <div id="bypass-result" class="result-area"></div>

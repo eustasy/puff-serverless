@@ -1,8 +1,8 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta
       name="htmx-config"
       content='{"responseHandling": [
@@ -15,10 +15,10 @@
       {"code":"500", "swap": true}
     ]
     }'
-    />
+   >
     <title>Register</title>
     <script src="/assets/htmx_2.0.4.min.js"></script>
-    <link rel="stylesheet" href="/assets/main.css" />
+    <link rel="stylesheet" href="/assets/main.css">
   </head>
   <body>
     <div class="container">
@@ -43,7 +43,7 @@
             maxlength="512"
             minlength="1"
             required
-          />
+         >
         </div>
 
         <div class="form-group">
@@ -64,7 +64,7 @@
             maxlength="512"
             minlength="1"
             required
-          />
+         >
           <div id="email-exists" class="result-area"></div>
         </div>
 
@@ -85,7 +85,7 @@
             maxlength="512"
             minlength="12"
             required
-          />
+         >
           <div id="pw-checklist" class="result-area">
             <!-- Initial content can be pre-filled or loaded by hx-post -->
             <h3>Password Requirements</h3>
@@ -100,7 +100,7 @@
 
         <button type="submit" class="btn-save">
           Register
-          <img class="htmx-indicator" src="/assets/bars.svg" />
+          <img class="htmx-indicator" src="/assets/bars.svg" alt="">
         </button>
         <div id="register" class="result-area"></div>
         <!-- This is where the main registration result will go -->
