@@ -4,14 +4,14 @@ name: Normal (HTML)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [cf-pages]
     paths:
       - "**.html"
       - "**.htm"
       - ".github/workflows/html.yml"
       - ".qlty/configs/.htmlvalidate.json"
   pull_request:
-    branches: [main]
+    branches: [cf-pages]
     paths:
       - "**.html"
       - "**.htm"

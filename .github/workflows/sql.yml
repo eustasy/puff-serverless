@@ -4,14 +4,14 @@ name: Normal (SQL)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [cf-pages]
     paths:
       - "**.sql"
       - ".github/workflows/sql.yml"
       - ".qlty/configs/.sqlfluff"
       - ".qlty/qlty.toml"
   pull_request:
-    branches: [main]
+    branches: [cf-pages]
     paths:
       - "**.sql"
       - ".github/workflows/sql.yml"

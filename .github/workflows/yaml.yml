@@ -4,13 +4,13 @@ name: Normal (YAML)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [cf-pages]
     paths:
       - "**.yml"
       - "**.yaml"
       - ".qlty/qlty.toml"
   pull_request:
-    branches: [main]
+    branches: [cf-pages]
     paths:
       - "**.yml"
       - "**.yaml"

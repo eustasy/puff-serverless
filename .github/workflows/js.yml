@@ -4,7 +4,7 @@ name: Normal (JavaScript / TypeScript)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [cf-pages]
     paths:
       - "**.js"
       - "**.ts"
@@ -17,7 +17,7 @@ on:
       - ".qlty/configs/.prettierrc.json"
       - ".qlty/qlty.toml"
   pull_request:
-    branches: [main]
+    branches: [cf-pages]
     paths:
       - "**.js"
       - "**.ts"

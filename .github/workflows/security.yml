@@ -4,9 +4,9 @@ name: Normal (Security)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [cf-pages]
   pull_request:
-    branches: [main]
+    branches: [cf-pages]
 
 permissions:
   contents: read
