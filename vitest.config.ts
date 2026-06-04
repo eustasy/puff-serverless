@@ -1,11 +1,17 @@
-import { defineConfig } from "vitest/config"
+import type { ViteUserConfigExport } from "vitest/config"
 
 // Unit tests for the `src/` domain modules. They run in a plain Node
 // environment — Node 22+ provides the `crypto` Web Crypto global the hashing
 // code needs, and the `pg` client is never opened: tests pass a fake DbClient
 // (see test/helpers/fake-db.ts). Endpoint/Worker-level tests, if added later,
 // would want @cloudflare/vitest-pool-workers instead.
-export default defineConfig({
+//
+// This uses a type-only import + `satisfies` rather than `defineConfig` on
+// purpose: importing the `vitest/config` runtime value pulls in the Vite module
+// graph, which knip's config loader cannot evaluate ("Cannot use 'import.meta'
+// outside a module") in this CommonJS package. A type-only import is erased at
+// transpile, so knip can load this config; vitest accepts a plain object export.
+export default {
   test: {
     environment: "node",
     include: ["test/**/*.test.ts"],
@@ -17,4 +23,4 @@ export default defineConfig({
       include: ["src/**/*.ts"],
     },
   },
-})
+} satisfies ViteUserConfigExport

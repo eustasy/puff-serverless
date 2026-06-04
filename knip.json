@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["worker.ts", "functions/**/*.ts", "test/**/*.test.ts"],
+  "project": ["**/*.ts"],
+  "ignoreExportsUsedInFile": true,
+  "ignore": ["dist/**", "worker-configuration.d.ts"],
+  "ignoreUnresolved": ["./dist/worker/index.js"]
+}
