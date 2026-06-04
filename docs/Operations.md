@@ -4,26 +4,26 @@ Tasks that need doing intermittently — not on every deploy, but as part of run
 
 ## Table of Contents
 
-- [Scheduled cleanup](#scheduled-cleanup)
-- [Audit events & hooks](#audit-events--hooks)
-  - [What gets audited](#what-gets-audited)
-  - [Reading the audit log](#reading-the-audit-log)
-  - [Adding a new listener](#adding-a-new-listener)
-- [OAuth signing-key rotation](#oauth-signing-key-rotation)
-- [Registering a new app](#registering-a-new-app)
-- [Adding a federated login provider](#adding-a-federated-login-provider)
-  - [GitHub](#github)
-  - [Google](#google)
-  - [Microsoft](#microsoft)
-  - [Pushing credentials to Cloudflare](#pushing-credentials-to-cloudflare)
-- [Billing operations](#billing-operations)
-  - [Reading the billing audit timeline](#reading-the-billing-audit-timeline)
-  - [Webhook idempotency and replay](#webhook-idempotency-and-replay)
-  - [Nightly usage rollup and provider sync](#nightly-usage-rollup-and-provider-sync)
-  - [Billing-contact email](#billing-contact-email)
-  - [Switching payment provider](#switching-payment-provider)
-  - [Known gaps and deferred work](#known-gaps-and-deferred-work)
-- [Security concerns](#security-concerns)
+* [Scheduled cleanup](#scheduled-cleanup)
+* [Audit events & hooks](#audit-events--hooks)
+  * [What gets audited](#what-gets-audited)
+  * [Reading the audit log](#reading-the-audit-log)
+  * [Adding a new listener](#adding-a-new-listener)
+* [OAuth signing-key rotation](#oauth-signing-key-rotation)
+* [Registering a new app](#registering-a-new-app)
+* [Adding a federated login provider](#adding-a-federated-login-provider)
+  * [GitHub](#github)
+  * [Google](#google)
+  * [Microsoft](#microsoft)
+  * [Pushing credentials to Cloudflare](#pushing-credentials-to-cloudflare)
+* [Billing operations](#billing-operations)
+  * [Reading the billing audit timeline](#reading-the-billing-audit-timeline)
+  * [Webhook idempotency and replay](#webhook-idempotency-and-replay)
+  * [Nightly usage rollup and provider sync](#nightly-usage-rollup-and-provider-sync)
+  * [Billing-contact email](#billing-contact-email)
+  * [Switching payment provider](#switching-payment-provider)
+  * [Known gaps and deferred work](#known-gaps-and-deferred-work)
+* [Security concerns](#security-concerns)
 
 ## Scheduled cleanup
 
@@ -82,10 +82,10 @@ Every event is one of the named constants in `src/hooks/events.ts`. Account even
 
 Every event has a default severity (`debug` < `info` < `notice` < `warning` < `alert` < `critical`) baked into `DEFAULT_SEVERITY` in the same file. Tiering rule of thumb:
 
-- **`info`** — routine, expected, high-volume (logins, verification resends).
-- **`notice`** — meaningful state change (member added, email changed, team created).
-- **`warning`** — failed attempt or suspicious action (failed login).
-- **`alert`** — security-sensitive change (password change, 2FA disabled, org deleted).
+* **`info`** — routine, expected, high-volume (logins, verification resends).
+* **`notice`** — meaningful state change (member added, email changed, team created).
+* **`warning`** — failed attempt or suspicious action (failed login).
+* **`alert`** — security-sensitive change (password change, 2FA disabled, org deleted).
 
 Severities are codified centrally so adding a new event without assigning one is a typecheck error. Override per call site via the `event_severity` field on the emit payload when the context warrants escalation.
 
@@ -146,9 +146,9 @@ A `filter: (event) => boolean` restricts which events the listener sees. A webho
 
 Examples worth thinking about:
 
-- **Webhook delivery**: `kind: 'async'`, reads per-org webhook URLs from a future subscription table, POSTs the event.
-- **Console structured-logger**: `kind: 'async'`, wraps `console.log` with a JSON envelope so log aggregators can parse it.
-- **Real-time admin dashboard**: `kind: 'async'`, pushes to a Durable Object that fans out to connected admins.
+* **Webhook delivery**: `kind: 'async'`, reads per-org webhook URLs from a future subscription table, POSTs the event.
+* **Console structured-logger**: `kind: 'async'`, wraps `console.log` with a JSON envelope so log aggregators can parse it.
+* **Real-time admin dashboard**: `kind: 'async'`, pushes to a Durable Object that fans out to connected admins.
 
 ## OAuth signing-key rotation
 
@@ -279,9 +279,9 @@ Localhost and production are separate registrations (the URI must match exactly)
 ### GitHub
 
 1. **Register the OAuth App** — [Settings → Developer settings → OAuth Apps → New OAuth App](https://github.com/settings/developers).
-   - **Application name**: anything (shown to users on the consent screen).
-   - **Homepage URL**: your `APP_URL`.
-   - **Authorization callback URL**: `${APP_URL}/login/github/callback`.
+   * **Application name**: anything (shown to users on the consent screen).
+   * **Homepage URL**: your `APP_URL`.
+   * **Authorization callback URL**: `${APP_URL}/login/github/callback`.
 2. **Generate a client secret** — on the app's page, _Generate a new client secret_. Copy it once; GitHub never shows it again.
 3. **Note the Client ID** — shown on the same page.
 4. Scopes are requested at authorize-time (`read:user user:email`) — no per-app scope configuration on GitHub's side.
@@ -290,15 +290,15 @@ Localhost and production are separate registrations (the URI must match exactly)
 
 1. **Configure the OAuth consent screen** first — Google requires it before any credential will work. [Cloud Console → APIs & Services → OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent). Set User Type to External (or Internal for a Workspace tenant), fill in the app name + support email, and add the `openid`, `email`, and `profile` scopes.
 2. **Create an OAuth 2.0 Client ID** — [Credentials → Create Credentials → OAuth client ID](https://console.cloud.google.com/apis/credentials). Application type: **Web application**.
-   - **Authorised redirect URIs**: `${APP_URL}/login/google/callback`.
+   * **Authorised redirect URIs**: `${APP_URL}/login/google/callback`.
 3. **Copy the Client ID + Client Secret** from the credential's details page.
 4. While the consent screen is in Testing mode, only the test users you list can sign in; submit it for verification before going public.
 
 ### Microsoft
 
 1. **Register the application** — [Azure Portal → App registrations → New registration](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBlade).
-   - **Supported account types**: _Accounts in any organizational directory (Any Microsoft Entra ID tenant — Multitenant) and personal Microsoft accounts (e.g. Skype, Xbox)_ — this is what matches the `https://login.microsoftonline.com/common/...` endpoints Puff uses.
-   - **Redirect URI**: platform **Web**, URI `${APP_URL}/login/microsoft/callback`.
+   * **Supported account types**: _Accounts in any organizational directory (Any Microsoft Entra ID tenant — Multitenant) and personal Microsoft accounts (e.g. Skype, Xbox)_ — this is what matches the `https://login.microsoftonline.com/common/...` endpoints Puff uses.
+   * **Redirect URI**: platform **Web**, URI `${APP_URL}/login/microsoft/callback`.
 2. **Generate a client secret** — _Certificates & secrets → Client secrets → New client secret_. Copy the **Value** (not the Secret ID) immediately; Azure hides it on the next page load.
 3. **Copy the Application (client) ID** — shown on the Overview page.
 4. **API permissions** — Microsoft Graph → Delegated → add `openid`, `email`, `profile` (already present by default for a fresh registration; verify they are there).
@@ -431,9 +431,9 @@ The email on each Stripe customer (where Stripe sends receipts and its own faile
 
 Tiebreak: earliest membership, then email. If nobody qualifies and no override is set, the customer is created with no email (Stripe then has no one to notify).
 
-- **Set / clear the override:** `POST /api/db/auth/organisations/[org_uuid]/billing/email` (form field `email`; empty clears it), requires `org:billing:write`. This re-resolves and pushes to Stripe immediately.
-- **Drift:** the hourly cron (`reconcileBillingEmails`) re-resolves every customer and patches Stripe only when the effective address differs from the stored `billing_customers.synced_email` — so a membership change or an email re-verification propagates within an hour without touching the membership endpoints.
-- **Multiple recipients:** Stripe's customer holds a single email. To notify several billing-role members, point the override at a distribution alias the org maintains (Puff does not multicast on Stripe's behalf).
+* **Set / clear the override:** `POST /api/db/auth/organisations/[org_uuid]/billing/email` (form field `email`; empty clears it), requires `org:billing:write`. This re-resolves and pushes to Stripe immediately.
+* **Drift:** the hourly cron (`reconcileBillingEmails`) re-resolves every customer and patches Stripe only when the effective address differs from the stored `billing_customers.synced_email` — so a membership change or an email re-verification propagates within an hour without touching the membership endpoints.
+* **Multiple recipients:** Stripe's customer holds a single email. To notify several billing-role members, point the override at a distribution alias the org maintains (Puff does not multicast on Stripe's behalf).
 
 ### Switching payment provider
 
@@ -450,19 +450,19 @@ The schema's `provider` column is a plain `TEXT` field — it stores `"stripe"` 
 
 Operators should be aware of the following limitations that are not yet implemented:
 
-- **Puff-originated dunning emails.** Puff does not send its own emails to `billing`-role members on payment failure or upcoming renewal. Stripe's built-in dunning does reach the resolved customer email (see [Billing-contact email](#billing-contact-email)), and access is cut off immediately on failure; a Puff-side mailer that notifies all billing-role members is deferred.
-- **Operator endpoints.** Read-only dashboards exist — `GET /api/db/auth/admin/billing/subscriptions` (all subscriptions across orgs) and `GET /api/db/auth/admin/billing/usage` (rollups, optional `?org_uuid=`), behind the `OPERATOR_USER_UUIDS` gate. **Comp seats** are handled with a Stripe 100%-off coupon (Puff sees a normal `active` subscription — no special status); **manual invoices** are raised in the Stripe Dashboard and flow into Puff via the webhook's customer fallback. Neither needs a Puff write endpoint.
-- **Refund automation.** Refunds are manual via the Stripe Dashboard. Issuing a refund does not automatically adjust entitlements — subscription cancellation is a separate step.
+* **Puff-originated dunning emails.** Puff does not send its own emails to `billing`-role members on payment failure or upcoming renewal. Stripe's built-in dunning does reach the resolved customer email (see [Billing-contact email](#billing-contact-email)), and access is cut off immediately on failure; a Puff-side mailer that notifies all billing-role members is deferred.
+* **Operator endpoints.** Read-only dashboards exist — `GET /api/db/auth/admin/billing/subscriptions` (all subscriptions across orgs) and `GET /api/db/auth/admin/billing/usage` (rollups, optional `?org_uuid=`), behind the `OPERATOR_USER_UUIDS` gate. **Comp seats** are handled with a Stripe 100%-off coupon (Puff sees a normal `active` subscription — no special status); **manual invoices** are raised in the Stripe Dashboard and flow into Puff via the webhook's customer fallback. Neither needs a Puff write endpoint.
+* **Refund automation.** Refunds are manual via the Stripe Dashboard. Issuing a refund does not automatically adjust entitlements — subscription cancellation is a separate step.
 
 ## Security concerns
 
 Operational guardrails worth keeping in mind:
 
-- **Cookie security** — `SECURE_COOKIE=true` and `COOKIE_SAMESITE=Lax` are the production defaults. The cross-origin write guard in `functions/api/db/_middleware.ts` rejects same-site CSRF from sibling subdomains independently of `SameSite`. If you serve Puff alongside other apps on the same parent domain, the guard is what closes the residual gap.
-- **Password policy** — at minimum, enforce `MIN_PASSWORD_LENGTH ≥ 12` and turn on `REQUIRE_NOT_COMPROMISED` (HIBP). `REQUIRE_ZXCVBN` is the strongest single setting — score ≥ 3 catches most weak passwords without requiring arbitrary character-class flags.
-- **2FA bypass** — the `/api/db/2fa/bypass/request` flow sends a single-use email link to a verified address on the account: the primary if it's verified, otherwise the oldest-verified secondary. Possession of that inbox is the second factor; if an attacker compromises a user's email and their password, 2FA does not save them. The endpoint also refuses to send if a password reset was completed in the last 24 hours — otherwise email alone could reset the password (factor 1) and then bypass 2FA (factor 2). Encourage passkeys (which bind to the device and aren't email-recoverable) for high-value accounts.
-- **TOTP replay** — handled by `totp_used_codes` and the 5-minute DB schedule. A code is accepted at most once within its 30s validity window; replays within the same window are rejected.
-- **OAuth signing key** — the active key lives in `KV_OAUTH_KEYS`; a daily cron rotates it automatically once a week (default `OAUTH_KEY_ROTATION_INTERVAL_DAYS=7`). The retired key is held in JWKS for a two-hour overlap so in-flight tokens validate through the transition. Trigger an on-demand rotation via `POST /api/db/auth/admin/oauth-keys/rotate` after any suspected compromise.
-- **Audit log** — `notice` and above are retained indefinitely. Use it for incident investigation; the `target_label` column snapshots referents that may later be deleted. Don't store sensitive payloads in `event_metadata` (passwords, full tokens) — it ends up in the audit table verbatim.
-- **CSP violation reporting** — `public/_headers` declares a `report-uri` and `Reporting-Endpoints`; violations land at `functions/api/csp-report.ts`, which logs them via `console.warn`. Check `wrangler tail` periodically (or pipe it to a log aggregator) to spot misconfigurations or attacks.
-- **Schema changes** — keep additive. The audit table outlives its referents because the FK constraints were deliberately omitted; any schema change that adds FKs to existing append-only data should be reviewed carefully.
+* **Cookie security** — `SECURE_COOKIE=true` and `COOKIE_SAMESITE=Lax` are the production defaults. The cross-origin write guard in `functions/api/db/_middleware.ts` rejects same-site CSRF from sibling subdomains independently of `SameSite`. If you serve Puff alongside other apps on the same parent domain, the guard is what closes the residual gap.
+* **Password policy** — at minimum, enforce `MIN_PASSWORD_LENGTH ≥ 12` and turn on `REQUIRE_NOT_COMPROMISED` (HIBP). `REQUIRE_ZXCVBN` is the strongest single setting — score ≥ 3 catches most weak passwords without requiring arbitrary character-class flags.
+* **2FA bypass** — the `/api/db/2fa/bypass/request` flow sends a single-use email link to a verified address on the account: the primary if it's verified, otherwise the oldest-verified secondary. Possession of that inbox is the second factor; if an attacker compromises a user's email and their password, 2FA does not save them. The endpoint also refuses to send if a password reset was completed in the last 24 hours — otherwise email alone could reset the password (factor 1) and then bypass 2FA (factor 2). Encourage passkeys (which bind to the device and aren't email-recoverable) for high-value accounts.
+* **TOTP replay** — handled by `totp_used_codes` and the 5-minute DB schedule. A code is accepted at most once within its 30s validity window; replays within the same window are rejected.
+* **OAuth signing key** — the active key lives in `KV_OAUTH_KEYS`; a daily cron rotates it automatically once a week (default `OAUTH_KEY_ROTATION_INTERVAL_DAYS=7`). The retired key is held in JWKS for a two-hour overlap so in-flight tokens validate through the transition. Trigger an on-demand rotation via `POST /api/db/auth/admin/oauth-keys/rotate` after any suspected compromise.
+* **Audit log** — `notice` and above are retained indefinitely. Use it for incident investigation; the `target_label` column snapshots referents that may later be deleted. Don't store sensitive payloads in `event_metadata` (passwords, full tokens) — it ends up in the audit table verbatim.
+* **CSP violation reporting** — `public/_headers` declares a `report-uri` and `Reporting-Endpoints`; violations land at `functions/api/csp-report.ts`, which logs them via `console.warn`. Check `wrangler tail` periodically (or pipe it to a log aggregator) to spot misconfigurations or attacks.
+* **Schema changes** — keep additive. The audit table outlives its referents because the FK constraints were deliberately omitted; any schema change that adds FKs to existing append-only data should be reviewed carefully.

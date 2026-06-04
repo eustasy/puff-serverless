@@ -79,9 +79,9 @@ All `src/` functions return the envelope shape — none throw, none return raw r
 
 ### Error Handling
 
-- Wrap database calls in `try/catch`.
-- Log errors with `console.error("Error in functionName:", error)`. Never log secrets or PII payloads.
-- Either return an error envelope or rethrow — don't swallow errors silently.
+* Wrap database calls in `try/catch`.
+* Log errors with `console.error("Error in functionName:", error)`. Never log secrets or PII payloads.
+* Either return an error envelope or rethrow — don't swallow errors silently.
 
 ### Transactions
 

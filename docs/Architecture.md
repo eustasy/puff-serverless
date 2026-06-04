@@ -4,21 +4,21 @@ How the codebase is laid out, how a request flows through it, and the runtime pi
 
 ## Table of Contents
 
-- [Build model](#build-model)
-- [Request layering](#request-layering)
-- [`src/` domain modules](#src-domain-modules)
-- [Directories](#directories)
-- [Special files](#special-files)
-- [Libraries](#libraries)
-- [External APIs](#external-apis)
-  - [Cached lookups](#cached-lookups)
-  - [Outbound email](#outbound-email)
-  - [Synchronous external calls](#synchronous-external-calls)
-  - [Don't use queues](#dont-use-queues)
-- [OAuth 2.1 / OIDC endpoints (Puff as provider)](#oauth-21--oidc-endpoints-puff-as-provider)
-- [Federated login (Puff as client)](#federated-login-puff-as-client)
-- [Billing (Phase 9)](#billing-phase-9)
-- [Environment variables](#environment-variables)
+* [Build model](#build-model)
+* [Request layering](#request-layering)
+* [`src/` domain modules](#src-domain-modules)
+* [Directories](#directories)
+* [Special files](#special-files)
+* [Libraries](#libraries)
+* [External APIs](#external-apis)
+  * [Cached lookups](#cached-lookups)
+  * [Outbound email](#outbound-email)
+  * [Synchronous external calls](#synchronous-external-calls)
+  * [Don't use queues](#dont-use-queues)
+* [OAuth 2.1 / OIDC endpoints (Puff as provider)](#oauth-21--oidc-endpoints-puff-as-provider)
+* [Federated login (Puff as client)](#federated-login-puff-as-client)
+* [Billing (Phase 9)](#billing-phase-9)
+* [Environment variables](#environment-variables)
 
 ## Build model
 
@@ -232,8 +232,8 @@ Metadata (`org_uuid`, `app_uuid`, `tier`) is set on `subscription_data` at check
 
 ### Source-of-truth split
 
-- **Provider-as-SOR** for billing fields: `status`, period dates, `canceled_at`, `cancel_at`, `trial_end`. These are written exclusively by the webhook handler, never by the UI endpoints.
-- **Puff-as-SOR** for entitlement state: `isLicensed` in `src/entitlements.ts` reads the local `subscriptions` row and checks `ENTITLED_STATUSES` (only `"active"` and `"trialing"`). Payment-up-front, zero grace: `"past_due"`, `"canceled"`, `"paused"`, and `"incomplete"` all return `licensed: false` immediately. A missing subscription row for a billed app (`app_licensing_mode` anything other than `"none"`) also returns `licensed: false` — there is no implicit free tier.
+* **Provider-as-SOR** for billing fields: `status`, period dates, `canceled_at`, `cancel_at`, `trial_end`. These are written exclusively by the webhook handler, never by the UI endpoints.
+* **Puff-as-SOR** for entitlement state: `isLicensed` in `src/entitlements.ts` reads the local `subscriptions` row and checks `ENTITLED_STATUSES` (only `"active"` and `"trialing"`). Payment-up-front, zero grace: `"past_due"`, `"canceled"`, `"paused"`, and `"incomplete"` all return `licensed: false` immediately. A missing subscription row for a billed app (`app_licensing_mode` anything other than `"none"`) also returns `licensed: false` — there is no implicit free tier.
 
 ### Provider abstraction
 
