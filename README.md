@@ -1,7 +1,7 @@
 # Puff Serverless
 
 [![CI: Build](https://github.com/eustasy/puff-serverless/actions/workflows/build.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/build.yml)
-[![CI: Typecheck](https://github.com/eustasy/puff-serverless/actions/workflows/types.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/types.yml)
+[![Type: TS](https://github.com/eustasy/puff-serverless/actions/workflows/type-js.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/type-js.yml)
 [![Normal: TypeScript](https://github.com/eustasy/puff-serverless/actions/workflows/js.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/js.yml)
 [![Test: TypeScript](https://github.com/eustasy/puff-serverless/actions/workflows/test-js.yml/badge.svg)](https://github.com/eustasy/puff-serverless/actions/workflows/test-js.yml)
 [![Maintainability](https://qlty.sh/gh/eustasy/projects/puff-serverless/maintainability.svg)](https://qlty.sh/gh/eustasy/projects/puff-serverless)
