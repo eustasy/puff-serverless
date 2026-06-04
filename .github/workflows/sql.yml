@@ -1,0 +1,36 @@
+# eustasy/.Normal 4.0beta10
+name: Normal (SQL)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "**.sql"
+      - ".github/workflows/sql.yml"
+      - ".qlty/configs/.sqlfluff"
+      - ".qlty/qlty.toml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.sql"
+      - ".github/workflows/sql.yml"
+      - ".qlty/configs/.sqlfluff"
+      - ".qlty/qlty.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  sql:
+    name: Lint + format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: qltysh/qlty-action/install@fd52dc852530a708d68c3b7342f8d33d1df4cd55 # v2.2.1
+
+      - name: Lint + format check (sqlfluff)
+        run: qlty check --all --filter=sqlfluff

@@ -1,0 +1,34 @@
+# eustasy/.Normal 4.0beta10
+name: Normal (JSON)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "**.json"
+      - ".github/workflows/json.yml"
+      - ".qlty/qlty.toml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.json"
+      - ".github/workflows/json.yml"
+      - ".qlty/qlty.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  json:
+    name: Format check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: qltysh/qlty-action/install@fd52dc852530a708d68c3b7342f8d33d1df4cd55 # v2.2.1
+
+      - name: Format check (prettier)
+        run: git ls-files -- '*.json' | xargs -r qlty check --filter=prettier
