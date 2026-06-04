@@ -1,9 +1,14 @@
 [sqlfluff]
 # Single source of truth for the dialect: qlty.toml no longer pins --dialect on
 # the command, so switch mysql/postgres/sqlite/… here with no other edits.
-dialect = mysql
+dialect = postgres
 templater = raw
 max_line_length = 140
+# The schema is CockroachDB DDL (STRING, :::casts, LOCALITY ... REGIONAL BY
+# TABLE, AS (...) STORED, PK column ASC). sqlfluff has no CockroachDB dialect and
+# postgres — the closest — cannot parse these, so suppress parse (PRS) errors;
+# sqlfluff still applies layout/capitalisation rules to the parts it can read.
+ignore = parsing
 
 [sqlfluff:indentation]
 # indent_unit / tab_space_size are only honoured under [sqlfluff:indentation],
