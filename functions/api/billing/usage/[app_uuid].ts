@@ -106,5 +106,5 @@ export const onRequestPost: Handler<"app_uuid"> = async (context) => {
 export const onRequest: Handler = async () =>
   new Response(JSON.stringify({ error: "method not allowed" }), {
     status: 405,
-    headers: { "Content-Type": "application/json", "Allow": "POST" },
+    headers: { "Content-Type": "application/json", Allow: "POST" },
   })

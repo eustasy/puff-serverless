@@ -44,7 +44,7 @@ export const onRequestGet: Handler<"provider"> = async (context) => {
   return new Response(null, {
     status: 302,
     headers: {
-      "Location": url,
+      Location: url,
       "Set-Cookie": stateCookie,
       "Cache-Control": "no-store",
     },

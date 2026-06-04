@@ -124,7 +124,7 @@ export function oauthErrorResponse(
     headers: {
       "Content-Type": "application/json",
       "Cache-Control": "no-store",
-      "Pragma": "no-cache",
+      Pragma: "no-cache",
       ...extraHeaders,
     },
   })

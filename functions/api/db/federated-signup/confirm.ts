@@ -137,7 +137,7 @@ export const onRequestPost: Handler = async (context) => {
 
   const next = await readNext(request)
   const headers = new Headers({
-    "Location": next || "/account",
+    Location: next || "/account",
     "Cache-Control": "no-store",
   })
   headers.append("Set-Cookie", buildSessionCookie(env, sessionResult.session_id))
