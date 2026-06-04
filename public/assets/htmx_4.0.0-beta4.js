@@ -10,10 +10,7 @@ var htmx = (() => {
         return true
       } else {
         // Replace strategy OR current is abortable: abort current and issue new
-        if (
-          queueStrategy === "replace" ||
-          (queueStrategy !== "abort" && this.#c.queueStrategy === "abort")
-        ) {
+        if (queueStrategy === "replace" || (queueStrategy !== "abort" && this.#c.queueStrategy === "abort")) {
           this.#q.forEach((value) => (value.status = "dropped"))
           this.#q = []
           this.#c.request?.abort?.()
@@ -76,9 +73,7 @@ var htmx = (() => {
     constructor() {
       this.#initHtmxConfig()
       this.#initRequestIndicatorCss()
-      this.#actionSelector = this.#prefixSelector(
-        "[hx-action],[hx-get],[hx-post],[hx-put],[hx-patch],[hx-delete]"
-      )
+      this.#actionSelector = this.#prefixSelector("[hx-action],[hx-get],[hx-post],[hx-put],[hx-patch],[hx-delete]")
       this.#hxOnQuery = new XPathEvaluator().createExpression(
         `.//*[@*[${this.#prefixes("hx-on")
           .map((p) => `starts-with(name(), "${p}")`)
@@ -158,32 +153,23 @@ var htmx = (() => {
     }
 
     registerExtension(name, extension) {
-      if (this.#approvedExt && !this.#approvedExt.split(/,\s*/).includes(name))
-        return false
+      if (this.#approvedExt && !this.#approvedExt.split(/,\s*/).includes(name)) return false
       if (this.#registeredExt.has(name)) return false
       this.#registeredExt.add(name)
       if (extension.init) extension.init(this.#internalAPI)
       Object.entries(extension).forEach(([key, value]) => {
-        if (!this.#extMethods.get(key)?.push(value))
-          this.#extMethods.set(key, [value])
+        if (!this.#extMethods.get(key)?.push(value)) this.#extMethods.set(key, [value])
       })
     }
 
     #ignore(elt) {
       let p = this.config.prefix
-      return (
-        !elt.closest ||
-        elt.closest("[hx-ignore]") != null ||
-        (p && elt.closest(`[${p}ignore]`) != null)
-      )
+      return !elt.closest || elt.closest("[hx-ignore]") != null || (p && elt.closest(`[${p}ignore]`) != null)
     }
 
     #attr(elt, name) {
       let p = this.config.prefix
-      return (
-        elt.getAttribute(name) ??
-        (p ? elt.getAttribute(name.replace("hx-", p)) : null)
-      )
+      return elt.getAttribute(name) ?? (p ? elt.getAttribute(name.replace("hx-", p)) : null)
     }
 
     #attrName(elt, name) {
@@ -197,8 +183,7 @@ var htmx = (() => {
 
     #prefixes(s) {
       let result = [s]
-      if (this.config.prefix)
-        result.push(s.replaceAll("hx-", this.config.prefix))
+      if (this.config.prefix) result.push(s.replaceAll("hx-", this.config.prefix))
       return result
     }
 
@@ -238,28 +223,17 @@ var htmx = (() => {
       let val = this.#attr(elt, name) ?? this.#attr(elt, name + inherited)
       if (val != null) return eltCollector ? eltCollector(val, elt) : val
 
-      let n1 = CSS.escape(
-        this.config.implicitInheritance ? name : name + inherited
-      )
+      let n1 = CSS.escape(this.config.implicitInheritance ? name : name + inherited)
       let n2 = CSS.escape(name + inherited + append)
       let inheritSelector = this.#prefixSelector(`[${n1}],[${n2}]`)
-      let appendName =
-        this.#attrName(elt, name + append) ??
-        this.#attrName(elt, name + inherited + append)
+      let appendName = this.#attrName(elt, name + append) ?? this.#attrName(elt, name + inherited + append)
       if (appendName) {
         let appendValue = elt.getAttribute(appendName)
         let parent = elt.parentNode?.closest?.(inheritSelector)
         if (eltCollector) eltCollector(appendValue, elt)
         if (parent) {
-          let parentVal = this.#attributeValue(
-            parent,
-            name,
-            undefined,
-            eltCollector
-          )
-          return parentVal
-            ? (parentVal + "," + appendValue).replace(/[{}]/g, "")
-            : appendValue
+          let parentVal = this.#attributeValue(parent, name, undefined, eltCollector)
+          return parentVal ? (parentVal + "," + appendValue).replace(/[{}]/g, "") : appendValue
         }
         return appendValue
       }
@@ -282,29 +256,17 @@ var htmx = (() => {
     #parseConfig(configString) {
       if (!configString) return {}
       if (configString[0] === "{") return JSON.parse(configString)
-      let configPattern =
-        /(?:"([^"]+)"|([^\s,:]+))(?:\s*:\s*(?:"([^"]*)"|'([^']*)'|<([^>]+)\/>|([^\s,]+)))?(?=\s|,|$)/g
-      return [...configString.matchAll(configPattern)].reduce(
-        (result, match) => {
-          let keyPath = (match[1] ?? match[2]).split(".")
-          let value = (
-            match[3] ??
-            match[4] ??
-            match[5] ??
-            match[6] ??
-            "true"
-          ).trim()
-          if (value === "true") value = true
-          else if (value === "false") value = false
-          else if (/^\d+$/.test(value)) value = parseInt(value)
-          if (keyPath.some((k) => this.#internalField(k))) return result
-          keyPath.slice(0, -1).reduce((obj, key) => (obj[key] ??= {}), result)[
-            keyPath.at(-1)
-          ] = value
-          return result
-        },
-        {}
-      )
+      let configPattern = /(?:"([^"]+)"|([^\s,:]+))(?:\s*:\s*(?:"([^"]*)"|'([^']*)'|<([^>]+)\/>|([^\s,]+)))?(?=\s|,|$)/g
+      return [...configString.matchAll(configPattern)].reduce((result, match) => {
+        let keyPath = (match[1] ?? match[2]).split(".")
+        let value = (match[3] ?? match[4] ?? match[5] ?? match[6] ?? "true").trim()
+        if (value === "true") value = true
+        else if (value === "false") value = false
+        else if (/^\d+$/.test(value)) value = parseInt(value)
+        if (keyPath.some((k) => this.#internalField(k))) return result
+        keyPath.slice(0, -1).reduce((obj, key) => (obj[key] ??= {}), result)[keyPath.at(-1)] = value
+        return result
+      }, {})
     }
 
     #internalField(k) {
@@ -316,12 +278,7 @@ var htmx = (() => {
       for (let key in parsed) {
         if (this.#internalField(key)) continue
         let val = parsed[key]
-        if (
-          val &&
-          typeof val === "object" &&
-          !Array.isArray(val) &&
-          target[key]
-        ) {
+        if (val && typeof val === "object" && !Array.isArray(val) && target[key]) {
           Object.assign(target[key], val)
         } else {
           target[key] = val
@@ -333,8 +290,7 @@ var htmx = (() => {
     #parseTriggerSpecs(spec) {
       // Split on commas that are NOT inside [...] — handles filters like click[myFunc(a,b)]
       return spec.split(/,(?![^\[]*\])/).flatMap((s) => {
-        let [, name, rest] =
-          s.match(/^\s*(\S+\[[^\]]*\]|\S+)\s*(.*?)\s*$/) ?? []
+        let [, name, rest] = s.match(/^\s*(\S+\[[^\]]*\]|\S+)\s*(.*?)\s*$/) ?? []
         if (!name) return [] // skip empty/whitespace-only tokens
         if (/\[[^\]]*$/.test(name)) throw "unterminated:" + name // e.g. click[ctrlKey
         return [{ name, ...this.#parseConfig(rest) }] // spread modifiers (delay, throttle, etc.) onto result
@@ -366,13 +322,8 @@ var htmx = (() => {
       if (elt.matches("a")) {
         return { action: elt.getAttribute("href"), method: "GET" }
       } else {
-        let action =
-          evt.submitter?.getAttribute?.("formAction") ||
-          elt.getAttribute("action")
-        let method =
-          evt.submitter?.getAttribute?.("formMethod") ||
-          elt.getAttribute("method") ||
-          "GET"
+        let action = evt.submitter?.getAttribute?.("formAction") || elt.getAttribute("action")
+        let method = evt.submitter?.getAttribute?.("formMethod") || elt.getAttribute("method") || "GET"
         return { action, method: method.toUpperCase() }
       }
     }
@@ -386,10 +337,7 @@ var htmx = (() => {
     }
 
     #initializeElement(elt) {
-      if (
-        this.#shouldInitialize(elt) &&
-        this.#trigger(elt, "htmx:before:init", {}, true)
-      ) {
+      if (this.#shouldInitialize(elt) && this.#trigger(elt, "htmx:before:init", {}, true)) {
         let htmxProp = this.#htmxProp(elt)
         htmxProp.initialized = true
         htmxProp.eventHandler = this.#createHtmxEventHandler(elt)
@@ -411,10 +359,7 @@ var htmx = (() => {
     }
 
     #createRequestContext(sourceElement, sourceEvent) {
-      let { action, method } = this.#determineMethodAndAction(
-        sourceElement,
-        sourceEvent
-      )
+      let { action, method } = this.#determineMethodAndAction(sourceElement, sourceEvent)
       let [fullAction, anchor] = (action || "").split("#")
       let ac = new AbortController()
       let ctx = {
@@ -424,9 +369,7 @@ var htmx = (() => {
         select: this.#attributeValue(sourceElement, "hx-select"),
         selectOOB: this.#attributeValue(sourceElement, "hx-select-oob"),
         target: this.#attributeValue(sourceElement, "hx-target"),
-        swap:
-          this.#attributeValue(sourceElement, "hx-swap") ??
-          this.config.defaultSwap,
+        swap: this.#attributeValue(sourceElement, "hx-swap") ?? this.config.defaultSwap,
         push: this.#attributeValue(sourceElement, "hx-push-url"),
         replace: this.#attributeValue(sourceElement, "hx-replace-url"),
         transition: this.config.transitions,
@@ -437,11 +380,7 @@ var htmx = (() => {
             this.#attributeValue(
               sourceElement,
               "hx-validate",
-              sourceElement.matches("form") &&
-                !sourceElement.noValidate &&
-                !sourceEvent.submitter?.formNoValidate
-                ? "true"
-                : "false"
+              sourceElement.matches("form") && !sourceElement.noValidate && !sourceEvent.submitter?.formNoValidate ? "true" : "false"
             ),
           action: fullAction,
           anchor,
@@ -458,8 +397,7 @@ var htmx = (() => {
         this.#mergeConfig(sourceElement._htmx.boosted, ctx)
       }
       ctx.target = this.#resolveTarget(sourceElement, ctx.target)
-      ctx.request.headers["HX-Request-Type"] =
-        ctx.target === document.body || ctx.select ? "full" : "partial"
+      ctx.request.headers["HX-Request-Type"] = ctx.target === document.body || ctx.select ? "full" : "partial"
       if (ctx.target) {
         ctx.request.headers["HX-Target"] = this.#buildIdentifier(ctx.target)
       }
@@ -526,20 +464,10 @@ var htmx = (() => {
 
       // Only include *enclosing* form info for request types that do not use
       // query parameters (can still be included explicitly with hx-include)
-      let form = usesQueryParams
-        ? elt.matches("form")
-          ? elt
-          : null
-        : elt.form || elt.closest("form")
+      let form = usesQueryParams ? (elt.matches("form") ? elt : null) : elt.form || elt.closest("form")
 
       // Build request body
-      let body = this.#collectFormData(
-        elt,
-        form,
-        evt.submitter,
-        ctx.request.validate,
-        usesQueryParams
-      )
+      let body = this.#collectFormData(elt, form, evt.submitter, ctx.request.validate, usesQueryParams)
       if (!body) return // Validation failed
       let valsResult = this.#getAttributeObject(elt, "hx-vals", (obj) => {
         ctx.vals = obj // make available for json extensions
@@ -570,12 +498,7 @@ var htmx = (() => {
       let javascriptContent = this.#extractJavascriptContent(ctx.request.action)
       if (javascriptContent != null) {
         let data = Object.fromEntries(ctx.request.body)
-        await this.#executeJavaScript(
-          ctx.sourceElement,
-          data,
-          javascriptContent,
-          false
-        )
+        await this.#executeJavaScript(ctx.sourceElement, data, javascriptContent, false)
         return
       } else if (usesQueryParams) {
         let url = new URL(ctx.request.action, document.baseURI)
@@ -594,9 +517,7 @@ var htmx = (() => {
           ctx.request.action = url.href
         }
         ctx.request.body = null
-      } else if (
-        this.#attributeValue(elt, "hx-encoding") !== "multipart/form-data"
-      ) {
+      } else if (this.#attributeValue(elt, "hx-encoding") !== "multipart/form-data") {
         ctx.request.body = new URLSearchParams(ctx.request.body)
       }
 
@@ -625,11 +546,7 @@ var htmx = (() => {
             }
             if (this.#trigger(elt, "htmx:confirm", detail)) {
               let js = this.#extractJavascriptContent(ctx.confirm)
-              resolve(
-                js
-                  ? this.#executeJavaScript(elt, {}, js, true)
-                  : window.confirm(ctx.confirm)
-              )
+              resolve(js ? this.#executeJavaScript(elt, {}, js, true) : window.confirm(ctx.confirm))
             }
           })
           if (!confirmed) return
@@ -736,10 +653,7 @@ var htmx = (() => {
     }
 
     #initTimeout(ctx) {
-      let timeout =
-        ctx.request.timeout != null
-          ? this.parseInterval(ctx.request.timeout)
-          : this.config.defaultTimeout
+      let timeout = ctx.request.timeout != null ? this.parseInterval(ctx.request.timeout) : this.config.defaultTimeout
       if (timeout) {
         ctx.requestTimeout = setTimeout(() => ctx.request?.abort?.(), timeout)
       }
@@ -749,9 +663,7 @@ var htmx = (() => {
       let syncValue = this.#attributeValue(elt, "hx-sync")
       if (!syncValue) return "queue first"
       let strategy = syncValue.split(":").pop().trim()
-      return /^(drop|abort|replace|queue)/.test(strategy)
-        ? strategy
-        : "queue first"
+      return /^(drop|abort|replace|queue)/.test(strategy) ? strategy : "queue first"
     }
 
     #getRequestQueue(elt) {
@@ -763,16 +675,13 @@ var htmx = (() => {
           : /^(drop|abort|replace|queue)/.test(syncValue)
             ? null
             : syncValue
-        if (selector)
-          syncElt = this.#findOrWarn(elt, selector, "hx-sync") || elt
+        if (selector) syncElt = this.#findOrWarn(elt, selector, "hx-sync") || elt
       }
       return (this.#htmxProp(syncElt).rq ||= new ReqQ())
     }
 
     #isModifierKeyClick(evt) {
-      return (
-        evt.type === "click" && (evt.ctrlKey || evt.metaKey || evt.shiftKey)
-      )
+      return evt.type === "click" && (evt.ctrlKey || evt.metaKey || evt.shiftKey)
     }
 
     #shouldCancel(evt) {
@@ -783,17 +692,10 @@ var htmx = (() => {
       let isClick = evt.type === "click" && evt.button === 0
       if (!isClick) return false
 
-      let btn = elt?.closest?.(
-        'button, input[type="submit"], input[type="image"]'
-      )
+      let btn = elt?.closest?.('button, input[type="submit"], input[type="image"]')
       let form = btn?.form || btn?.closest("form")
       let isSubmitButton =
-        btn &&
-        !btn.disabled &&
-        form &&
-        (btn.type === "submit" ||
-          btn.type === "image" ||
-          (!btn.type && btn.tagName === "BUTTON"))
+        btn && !btn.disabled && form && (btn.type === "submit" || btn.type === "image" || (!btn.type && btn.tagName === "BUTTON"))
       if (isSubmitButton) return true
 
       let link = elt?.closest?.("a")
@@ -809,9 +711,7 @@ var htmx = (() => {
       if (!specString) {
         specString = elt.matches("form")
           ? "submit"
-          : elt.matches(
-                "input:not([type=button]):not([type=submit]),select,textarea"
-              )
+          : elt.matches("input:not([type=button]):not([type=submit]),select,textarea")
             ? "change"
             : "click"
       }
@@ -832,20 +732,14 @@ var htmx = (() => {
         // Resolve from: elements (self listens on elt but filters by event.target in guard)
         let fromElts = [elt]
         if (spec.from === "outside") fromElts = [document]
-        else if (spec.from && spec.from !== "self")
-          fromElts = this.#findAllExt(elt, spec.from)
+        else if (spec.from && spec.from !== "self") fromElts = this.#findAllExt(elt, spec.from)
 
         // Inner: runs after delay/throttle resolves
         let inner = (evt) => {
           if (spec.halt || spec.prevent) evt.preventDefault()
           if (spec.halt || spec.stop || spec.consume) evt.stopPropagation()
           if (spec.once) {
-            for (let info of spec.listeners)
-              info.fromElt.removeEventListener(
-                info.eventName,
-                info.handler,
-                info
-              )
+            for (let info of spec.listeners) info.fromElt.removeEventListener(info.eventName, info.handler, info)
           }
           handler(evt)
         }
@@ -855,10 +749,7 @@ var htmx = (() => {
         if (spec.delay) {
           timed = (evt) => {
             clearTimeout(spec.timeout)
-            spec.timeout = setTimeout(
-              () => inner(evt),
-              this.parseInterval(spec.delay)
-            )
+            spec.timeout = setTimeout(() => inner(evt), this.parseInterval(spec.delay))
           }
         } else if (spec.throttle) {
           timed = (evt) => {
@@ -899,8 +790,7 @@ var htmx = (() => {
             if (this.#shouldCancel(evt)) evt.preventDefault()
             let evtArgs = {}
             for (let k in evt) evtArgs[k] = evt[k]
-            if (!this.#executeJavaScript(elt, evtArgs, filter, true, false))
-              return
+            if (!this.#executeJavaScript(elt, evtArgs, filter, true, false)) return
           }
           timed(evt)
         }
@@ -909,8 +799,7 @@ var htmx = (() => {
         if (eventName === "intersect" || eventName === "revealed") {
           let observerOptions = { rootMargin: spec.rootMargin }
           if (spec.root) observerOptions.root = this.#findOrWarn(elt, spec.root)
-          if (spec.threshold)
-            observerOptions.threshold = parseFloat(spec.threshold)
+          if (spec.threshold) observerOptions.threshold = parseFloat(spec.threshold)
           let isRevealed = eventName === "revealed"
           spec.observer = new IntersectionObserver((entries) => {
             for (let i = 0; i < entries.length; i++) {
@@ -971,11 +860,7 @@ var htmx = (() => {
           if (detail?.target) {
             target = this.find(detail.target)
           }
-          this.trigger(
-            target,
-            name,
-            typeof detail === "object" ? detail : { value: detail }
-          )
+          this.trigger(target, name, typeof detail === "object" ? detail : { value: detail })
         }
       } else {
         value.split(",").forEach((name) => this.trigger(elt, name.trim(), {}))
@@ -1013,10 +898,7 @@ var htmx = (() => {
       let keys = Object.keys(args)
       let values = Object.values(args)
       let FunctionConstructor = isAsync ? this.#AsyncFunction : this.#Function
-      let func = new FunctionConstructor(
-        ...keys,
-        expression ? `return (${code})` : code
-      )
+      let func = new FunctionConstructor(...keys, expression ? `return (${code})` : code)
       return func.call(thisArg, ...values)
     }
 
@@ -1033,23 +915,14 @@ var htmx = (() => {
       let node = null
       while ((node = iter.iterateNext())) hxOnNodes.push(node)
       for (let hxOnNode of hxOnNodes) {
-        if (
-          !this.#ignore(hxOnNode) &&
-          this.#trigger(hxOnNode, "htmx:before:on:init", {}, true)
-        ) {
+        if (!this.#ignore(hxOnNode) && this.#trigger(hxOnNode, "htmx:before:on:init", {}, true)) {
           this.#handleHxOnAttributes(hxOnNode)
         }
       }
-      for (let child of this.#queryEltAndDescendants(
-        elt,
-        this.#actionSelector
-      )) {
+      for (let child of this.#queryEltAndDescendants(elt, this.#actionSelector)) {
         this.#initializeElement(child)
       }
-      for (let child of this.#queryEltAndDescendants(
-        elt,
-        this.#boostSelector
-      )) {
+      for (let child of this.#queryEltAndDescendants(elt, this.#boostSelector)) {
         this.#maybeBoost(child)
       }
       this.#trigger(elt, "htmx:after:process")
@@ -1057,12 +930,7 @@ var htmx = (() => {
 
     #maybeBoost(elt) {
       let boostValue = this.#attributeValue(elt, "hx-boost")
-      if (
-        boostValue &&
-        boostValue !== "false" &&
-        this.#shouldBoost(elt) &&
-        this.#trigger(elt, "htmx:before:init", {}, true)
-      ) {
+      if (boostValue && boostValue !== "false" && this.#shouldBoost(elt) && this.#trigger(elt, "htmx:before:init", {}, true)) {
         let htmxProp = this.#htmxProp(elt)
         htmxProp.initialized = true
         htmxProp.eventHandler = this.#createHtmxEventHandler(elt)
@@ -1082,10 +950,7 @@ var htmx = (() => {
       if (this.#shouldInitialize(elt)) {
         if (elt.tagName === "A") {
           if (elt.target === "" || elt.target === "_self") {
-            return (
-              !elt.getAttribute("href")?.startsWith?.("#") &&
-              this.#isSameOrigin(elt.href)
-            )
+            return !elt.getAttribute("href")?.startsWith?.("#") && this.#isSameOrigin(elt.href)
           }
         } else if (elt.tagName === "FORM") {
           return elt.method !== "dialog" && this.#isSameOrigin(elt.action)
@@ -1118,11 +983,7 @@ var htmx = (() => {
           spec.observer?.disconnect()
         }
         for (let listenerInfo of elt._htmx.listeners || []) {
-          listenerInfo.fromElt.removeEventListener(
-            listenerInfo.eventName,
-            listenerInfo.handler,
-            listenerInfo
-          )
+          listenerInfo.fromElt.removeEventListener(listenerInfo.eventName, listenerInfo.handler, listenerInfo)
         }
         this.#trigger(elt, "htmx:after:cleanup")
       }
@@ -1137,8 +998,7 @@ var htmx = (() => {
       let pantry = document.createElement("div")
       pantry.hidden = true
       document.body.insertAdjacentElement("afterend", pantry)
-      let newPreservedElts =
-        fragment.querySelectorAll?.(this.#prefixSelector("[hx-preserve]")) || []
+      let newPreservedElts = fragment.querySelectorAll?.(this.#prefixSelector("[hx-preserve]")) || []
       for (let preservedElt of newPreservedElts) {
         let currentElt = document.getElementById(preservedElt.id)
         if (currentElt) {
@@ -1162,25 +1022,15 @@ var htmx = (() => {
 
     #parseHTML(resp) {
       let trusted = this.#ttPolicy.createHTML(resp)
-      return (
-        Document.parseHTMLUnsafe?.(trusted) ||
-        new DOMParser().parseFromString(trusted, "text/html")
-      )
+      return Document.parseHTMLUnsafe?.(trusted) || new DOMParser().parseFromString(trusted, "text/html")
     }
 
     #makeFragment(text) {
       // Convert <hx-*> tags (e.g. <hx-partial>, <hx-oob>) to <template hx type="*">
-      let response = text
-        .replace(/<hx-([a-z]+)(\s+|>)/gi, '<template hx type="$1"$2')
-        .replace(/<\/hx-[a-z]+>/gi, "</template>")
+      let response = text.replace(/<hx-([a-z]+)(\s+|>)/gi, '<template hx type="$1"$2').replace(/<\/hx-[a-z]+>/gi, "</template>")
       let title = ""
-      response = response.replace(
-        /<head(\s[^>]*)?>[\s\S]*?<\/head>/i,
-        (m) => ((title = this.#parseHTML(m).title), "")
-      )
-      let startTag = response
-        .match(/<([a-z][^\/>\x20\t\r\n\f]*)/i)?.[1]
-        ?.toLowerCase()
+      response = response.replace(/<head(\s[^>]*)?>[\s\S]*?<\/head>/i, (m) => ((title = this.#parseHTML(m).title), ""))
+      let startTag = response.match(/<([a-z][^\/>\x20\t\r\n\f]*)/i)?.[1]?.toLowerCase()
 
       let doc, fragment
       if (startTag === "html" || startTag === "body") {
@@ -1242,9 +1092,7 @@ var htmx = (() => {
       }
 
       // Process elements with hx-swap-oob attribute
-      for (let oobElt of fragment.querySelectorAll(
-        this.#prefixSelector("[hx-swap-oob]")
-      )) {
+      for (let oobElt of fragment.querySelectorAll(this.#prefixSelector("[hx-swap-oob]"))) {
         let oobAttr = this.#attrName(oobElt, "hx-swap-oob")
         let oobValue = oobElt.getAttribute(oobAttr)
         oobElt.removeAttribute(oobAttr)
@@ -1282,14 +1130,10 @@ var htmx = (() => {
         let type = templateElt.getAttribute("type")
 
         if (type === "partial") {
-          let targetSelector =
-            this.#attr(templateElt, "hx-target") ||
-            (templateElt.id ? "#" + CSS.escape(templateElt.id) : null)
+          let targetSelector = this.#attr(templateElt, "hx-target") || (templateElt.id ? "#" + CSS.escape(templateElt.id) : null)
           if (targetSelector) {
             this.#processScripts(templateElt.content)
-            let swapSpec = this.#parseSwapSpec(
-              this.#attr(templateElt, "hx-swap") || this.config.defaultSwap
-            )
+            let swapSpec = this.#parseSwapSpec(this.#attr(templateElt, "hx-swap") || this.config.defaultSwap)
             for (let target of document.querySelectorAll(targetSelector)) {
               tasks.push({
                 type: "partial",
@@ -1332,9 +1176,7 @@ var htmx = (() => {
 
     #handleScroll(swapSpec, target) {
       if (swapSpec.scroll) {
-        let scrollTarget = swapSpec.scrollTarget
-          ? this.#findExt(swapSpec.scrollTarget)
-          : target
+        let scrollTarget = swapSpec.scrollTarget ? this.#findExt(swapSpec.scrollTarget) : target
         if (scrollTarget) {
           if (swapSpec.scroll === "top") {
             scrollTarget.scrollTop = 0
@@ -1344,18 +1186,14 @@ var htmx = (() => {
         }
       }
       if (swapSpec.show === "top" || swapSpec.show === "bottom") {
-        let showTarget = swapSpec.showTarget
-          ? this.#findExt(swapSpec.showTarget)
-          : target
+        let showTarget = swapSpec.showTarget ? this.#findExt(swapSpec.showTarget) : target
         showTarget?.scrollIntoView(swapSpec.show === "top")
       }
     }
 
     #handleAnchorScroll(ctx) {
       if (ctx.request?.anchor) {
-        document
-          .getElementById(ctx.request.anchor)
-          ?.scrollIntoView({ block: "start", behavior: "auto" })
+        document.getElementById(ctx.request.anchor)?.scrollIntoView({ block: "start", behavior: "auto" })
       }
     }
 
@@ -1369,9 +1207,7 @@ var htmx = (() => {
         if (this.config.inlineScriptNonce) {
           newScript.nonce = this.config.inlineScriptNonce
         }
-        newScript.textContent = this.#ttPolicy.createScript(
-          oldScript.textContent
-        )
+        newScript.textContent = this.#ttPolicy.createScript(oldScript.textContent)
         oldScript.replaceWith(newScript)
       }
     }
@@ -1388,11 +1224,7 @@ var htmx = (() => {
         let tasks = []
 
         // Process OOB and partials
-        let oobTasks = this.#processOOB(
-          fragment,
-          ctx.sourceElement,
-          ctx.selectOOB
-        )
+        let oobTasks = this.#processOOB(fragment, ctx.sourceElement, ctx.selectOOB)
         let partialTasks = this.#processPartials(fragment, ctx)
         tasks.push(...oobTasks, ...partialTasks)
 
@@ -1402,20 +1234,14 @@ var htmx = (() => {
           tasks.unshift(mainSwap)
         }
 
-        if (
-          !this.#trigger(ctx.sourceElement, "htmx:before:swap", { ctx, tasks })
-        ) {
+        if (!this.#trigger(ctx.sourceElement, "htmx:before:swap", { ctx, tasks })) {
           return
         }
 
         let swapPromises = []
         let transitionTasks = []
         for (let task of tasks) {
-          if (
-            task.swapSpec?.transition ??
-            mainSwap?.transition ??
-            ctx.transition
-          ) {
+          if (task.swapSpec?.transition ?? mainSwap?.transition ?? ctx.transition) {
             transitionTasks.push(task)
           } else {
             swapPromises.push(this.#insertContent(task))
@@ -1435,8 +1261,7 @@ var htmx = (() => {
         await Promise.all(swapPromises)
 
         this.#trigger(ctx.sourceElement, "htmx:after:swap", { ctx })
-        if (ctx.title && !mainSwap?.swapSpec?.ignoreTitle)
-          document.title = ctx.title
+        if (ctx.title && !mainSwap?.swapSpec?.ignoreTitle) document.title = ctx.title
         this.#handleAnchorScroll(ctx)
       } finally {
         this.#trigger(ctx.sourceElement, "htmx:swap:finally", { ctx })
@@ -1447,12 +1272,7 @@ var htmx = (() => {
       // Create main task if needed
       let swapSpec = this.#parseSwapSpec(ctx.swap || this.config.defaultSwap)
       // skip creating main swap if extracting partials resulted in empty response except for delete style
-      if (
-        swapSpec.style === "delete" ||
-        fragment.childElementCount > 0 ||
-        /\S/.test(fragment.textContent) ||
-        !partialTasks.length
-      ) {
+      if (swapSpec.style === "delete" || fragment.childElementCount > 0 || /\S/.test(fragment.textContent) || !partialTasks.length) {
         if (ctx.select) {
           let selected = fragment.querySelectorAll(ctx.select)
           fragment = document.createDocumentFragment()
@@ -1464,10 +1284,7 @@ var htmx = (() => {
         let mainSwap = {
           type: "main",
           fragment,
-          target: this.#resolveTarget(
-            ctx.sourceElement || document.body,
-            swapSpec.target || ctx.target
-          ),
+          target: this.#resolveTarget(ctx.sourceElement || document.body, swapSpec.target || ctx.target),
           swapSpec,
           sourceElement: ctx.sourceElement,
           transition: ctx.transition && swapSpec.transition !== false,
@@ -1494,12 +1311,7 @@ var htmx = (() => {
       }
       if (swapSpec.strip && fragment.firstElementChild) {
         fragment = document.createDocumentFragment()
-        fragment.append(
-          ...(
-            task.fragment.firstElementChild.content ||
-            task.fragment.firstElementChild
-          ).childNodes
-        )
+        fragment.append(...(task.fragment.firstElementChild.content || task.fragment.firstElementChild).childNodes)
       }
 
       this.#addClass(target, "htmx-swapping")
@@ -1520,10 +1332,7 @@ var htmx = (() => {
       let settleTasks = []
       let settleDelay = swapSpec.settle ?? this.config.defaultSettleDelay
       let parentNode = target.parentNode
-      if (
-        swapStyle === "innerHTML" ||
-        (swapStyle === "outerHTML" && parentNode)
-      ) {
+      if (swapStyle === "innerHTML" || (swapStyle === "outerHTML" && parentNode)) {
         let activeElt = document.activeElement
         if (activeElt?.id) {
           let start, end
@@ -1533,10 +1342,7 @@ var htmx = (() => {
           } catch (e) {}
           focusInfo = { elt: activeElt, start, end }
         }
-        settleTasks =
-          cssTransition && settleDelay
-            ? this.#startCSSTransitions(fragment, target)
-            : []
+        settleTasks = cssTransition && settleDelay ? this.#startCSSTransitions(fragment, target) : []
       }
 
       let pantry = this.#handlePreservedElements(fragment)
@@ -1608,10 +1414,7 @@ var htmx = (() => {
         let newElt = document.getElementById(focusInfo.elt.id)
         if (newElt) {
           let focusOptions = {
-            preventScroll:
-              swapSpec.focusScroll !== undefined
-                ? !swapSpec.focusScroll
-                : !this.config.defaultFocusScroll,
+            preventScroll: swapSpec.focusScroll !== undefined ? !swapSpec.focusScroll : !this.config.defaultFocusScroll,
           }
           this.#setFocus(newElt, focusOptions, focusInfo.start, focusInfo.end)
         }
@@ -1657,8 +1460,7 @@ var htmx = (() => {
       // otherwise at event level (gated by config.logAll). One emit per event.
       if (detail.error) {
         let prefix = `htmx: ${eventName}: ${detail.error.message ?? detail.error}`
-        if (detail.error instanceof Error)
-          console.error(prefix, detail.error, { elt: on, detail })
+        if (detail.error instanceof Error) console.error(prefix, detail.error, { elt: on, detail })
         else console.error(prefix, { elt: on, detail })
       } else if (detail.warn) {
         console.warn(`htmx: ${eventName}: ${detail.warn}`, { elt: on, detail })
@@ -1667,12 +1469,7 @@ var htmx = (() => {
       }
       on = this.#normalizeElement(on)
       this.#triggerExtensions(on, eventName, detail)
-      return this.trigger(
-        on,
-        this.#maybeAdjustMetaCharacter(eventName),
-        detail,
-        bubbles
-      )
+      return this.trigger(on, this.#maybeAdjustMetaCharacter(eventName), detail, bubbles)
     }
 
     #triggerExtensions(elt, eventName, detail = {}) {
@@ -1746,18 +1543,11 @@ var htmx = (() => {
     }
     ajax(verb, path, context) {
       // Normalize context to object
-      if (
-        !context ||
-        context instanceof Element ||
-        typeof context === "string"
-      ) {
+      if (!context || context instanceof Element || typeof context === "string") {
         context = { target: context }
       }
 
-      let sourceElt =
-        typeof context.source === "string"
-          ? document.querySelector(context.source)
-          : context.source
+      let sourceElt = typeof context.source === "string" ? document.querySelector(context.source) : context.source
 
       // If source selector was provided but didn't match, reject
       if (typeof context.source === "string" && !sourceElt) {
@@ -1777,8 +1567,7 @@ var htmx = (() => {
 
       let ctx = this.#createRequestContext(sourceElt, context.event || {})
       Object.assign(ctx, context)
-      if (context.target)
-        ctx.target = this.#resolveTarget(document.body, context.target)
+      if (context.target) ctx.target = this.#resolveTarget(document.body, context.target)
       Object.assign(ctx.request, { action: path, method: verb.toUpperCase() })
       if (context.headers) Object.assign(ctx.request.headers, context.headers)
 
@@ -1816,9 +1605,7 @@ var htmx = (() => {
 
     #restoreHistory(path) {
       path = path || location.pathname + location.search
-      let historyElt =
-        document.querySelector(this.#prefixSelector("[hx-history-elt]")) ||
-        document.body
+      let historyElt = document.querySelector(this.#prefixSelector("[hx-history-elt]")) || document.body
       if (
         this.#trigger(document, "htmx:before:history:restore", {
           path,
@@ -1832,10 +1619,7 @@ var htmx = (() => {
           this.ajax("GET", path, {
             target: historyElt,
             swap: "outerSync",
-            select:
-              historyElt !== document.body
-                ? this.#prefixSelector("[hx-history-elt]")
-                : undefined,
+            select: historyElt !== document.body ? this.#prefixSelector("[hx-history-elt]") : undefined,
             request: {
               headers: { "HX-History-Restore-Request": "true" },
               signal: this.#historyAbort.signal,
@@ -1871,10 +1655,7 @@ var htmx = (() => {
       if (path === "true") {
         let finalUrl = response?.raw?.url || ctx.request.action
         let url = new URL(finalUrl, location.href)
-        path =
-          url.pathname +
-          url.search +
-          (ctx.request.anchor ? "#" + ctx.request.anchor : "")
+        path = url.pathname + url.search + (ctx.request.anchor ? "#" + ctx.request.anchor : "")
       }
 
       let type = push ? "push" : "replace"
@@ -1890,8 +1671,7 @@ var htmx = (() => {
         sourceElement: ctx.sourceElement,
         response: ctx.response,
       }
-      if (!this.#trigger(document, "htmx:before:history:update", historyDetail))
-        return
+      if (!this.#trigger(document, "htmx:before:history:update", historyDetail)) return
       if (action.type === "push") {
         this.#pushUrlIntoHistory(action.path)
       } else {
@@ -1907,15 +1687,9 @@ var htmx = (() => {
       let mc = this.config.metaCharacter || ":"
       let handler = (code) => async (evt) => {
         try {
-          await this.#executeJavaScript(
-            node,
-            { event: evt },
-            `with(event?.detail||{}){${code}}`,
-            false
-          )
+          await this.#executeJavaScript(node, { event: evt }, `with(event?.detail||{}){${code}}`, false)
         } catch (e) {
-          if (typeof e !== "symbol")
-            this.#trigger(node, "htmx:error", { error: e })
+          if (typeof e !== "symbol") this.#trigger(node, "htmx:error", { error: e })
         }
       }
       for (let attr of node.getAttributeNames()) {
@@ -1927,20 +1701,14 @@ var htmx = (() => {
         if (!rest) {
           for (let part of value.split(/;(?=[^;]*->)/)) {
             let idx = part.indexOf("->")
-            if (idx !== -1)
-              this.#onTrigger(
-                node,
-                part.substring(0, idx).trim(),
-                handler(part.substring(idx + 2).trim())
-              )
+            if (idx !== -1) this.#onTrigger(node, part.substring(0, idx).trim(), handler(part.substring(idx + 2).trim()))
           }
           continue
         }
         // hx-on:click="code" or hx-on::before:request="code"
         if (rest[0] !== mc) continue
         let eventName = rest.substring(1)
-        if (eventName.startsWith(mc))
-          eventName = "htmx" + mc + eventName.substring(1)
+        if (eventName.startsWith(mc)) eventName = "htmx" + mc + eventName.substring(1)
         this.#onTrigger(node, eventName, handler(value))
       }
     }
@@ -1951,11 +1719,7 @@ var htmx = (() => {
       if (!indicatorsSelector) {
         indicatorElements = [elt]
       } else {
-        indicatorElements = this.#findAllExt(
-          elt,
-          indicatorsSelector,
-          "hx-indicator"
-        )
+        indicatorElements = this.#findAllExt(elt, indicatorsSelector, "hx-indicator")
       }
       for (const indicator of indicatorElements) {
         let p = this.#htmxProp(indicator)
@@ -2027,17 +1791,13 @@ var htmx = (() => {
       let inputs = []
       if (tag === "BUTTON") {
         inputs = [elt] // buttons only send own value, never collect children
-      } else if (
-        ["INPUT", "SELECT", "TEXTAREA", "FIELDSET"].includes(tag) ||
-        !isGet
-      ) {
+      } else if (["INPUT", "SELECT", "TEXTAREA", "FIELDSET"].includes(tag) || !isGet) {
         inputs = this.#queryEltAndDescendants(elt, "input, select, textarea")
       }
       // GET on non-form-control containers (div, etc.) sends nothing — use hx-include for explicit inclusion
 
       for (let input of inputs) {
-        if (!input.name || input.matches(":disabled") || included.has(input))
-          continue
+        if (!input.name || input.matches(":disabled") || included.has(input)) continue
         included.add(input)
 
         let type = input.type
@@ -2073,11 +1833,9 @@ var htmx = (() => {
           javascriptContent = "{" + javascriptContent + "}"
         }
         // Return promise for async evaluation
-        return this.#executeJavaScript(elt, {}, javascriptContent, true).then(
-          (obj) => {
-            callback(obj)
-          }
-        )
+        return this.#executeJavaScript(elt, {}, javascriptContent, true).then((obj) => {
+          callback(obj)
+        })
       } else {
         // Synchronous path - return the parsed object directly
         callback(this.#parseConfig(attrValue))
@@ -2116,10 +1874,7 @@ var htmx = (() => {
           item = elt.nextElementSibling
         } else if (selector.startsWith("next ")) {
           item = this.#scanForwardQuery(elt, selector.slice(5), !!global)
-        } else if (
-          selector === "previous" ||
-          selector === "previousElementSibling"
-        ) {
+        } else if (selector === "previous" || selector === "previousElementSibling") {
           item = elt.previousElementSibling
         } else if (selector.startsWith("previous ")) {
           item = this.#scanBackwardsQuery(elt, selector.slice(9), !!global)
@@ -2156,22 +1911,12 @@ var htmx = (() => {
     }
 
     #scanForwardQuery(start, match, global) {
-      return this.#scanUntilComparison(
-        this.#getRootNode(start, global).querySelectorAll(match),
-        start,
-        Node.DOCUMENT_POSITION_PRECEDING
-      )
+      return this.#scanUntilComparison(this.#getRootNode(start, global).querySelectorAll(match), start, Node.DOCUMENT_POSITION_PRECEDING)
     }
 
     #scanBackwardsQuery(start, match, global) {
-      let results = [
-        ...this.#getRootNode(start, global).querySelectorAll(match),
-      ].reverse()
-      return this.#scanUntilComparison(
-        results,
-        start,
-        Node.DOCUMENT_POSITION_FOLLOWING
-      )
+      let results = [...this.#getRootNode(start, global).querySelectorAll(match)].reverse()
+      return this.#scanUntilComparison(results, start, Node.DOCUMENT_POSITION_FOLLOWING)
     }
 
     #scanUntilComparison(results, start, comparison) {
@@ -2193,10 +1938,7 @@ var htmx = (() => {
     #findOrWarn(elt, selector, thisAttr) {
       let result = this.#findAllExt(elt, selector, thisAttr)[0]
       if (!result) {
-        console.warn(
-          `htmx: '${selector}' on ${thisAttr} did not match any element`,
-          { elt, selector, attr: thisAttr }
-        )
+        console.warn(`htmx: '${selector}' on ${thisAttr} did not match any element`, { elt, selector, attr: thisAttr })
       }
       return result
     }
@@ -2244,29 +1986,14 @@ var htmx = (() => {
       if (innerHTML) {
         this.#morphChildren(ctx, oldNode, fragment)
       } else {
-        this.#morphChildren(
-          ctx,
-          oldNode.parentNode,
-          fragment,
-          oldNode,
-          oldNode.nextSibling
-        )
+        this.#morphChildren(ctx, oldNode.parentNode, fragment, oldNode, oldNode.nextSibling)
       }
       this.#cleanup(pantry)
       pantry.remove()
     }
 
-    #morphChildren(
-      ctx,
-      oldParent,
-      newParent,
-      insertionPoint = null,
-      endPoint = null
-    ) {
-      if (
-        oldParent instanceof HTMLTemplateElement &&
-        newParent instanceof HTMLTemplateElement
-      ) {
+    #morphChildren(ctx, oldParent, newParent, insertionPoint = null, endPoint = null) {
+      if (oldParent instanceof HTMLTemplateElement && newParent instanceof HTMLTemplateElement) {
         oldParent = oldParent.content
         newParent = newParent.content
       }
@@ -2276,12 +2003,7 @@ var htmx = (() => {
       while (newChild) {
         let matchedNode
         if (insertionPoint && insertionPoint != endPoint) {
-          matchedNode = this.#findBestMatch(
-            ctx,
-            newChild,
-            insertionPoint,
-            endPoint
-          )
+          matchedNode = this.#findBestMatch(ctx, newChild, insertionPoint, endPoint)
           if (matchedNode) {
             if (matchedNode !== insertionPoint) {
               let cursor = insertionPoint
@@ -2289,11 +2011,7 @@ var htmx = (() => {
                 let tempNode = cursor
                 cursor = cursor.nextSibling
                 // remove nodes unless they match upcoming content in which case move them to end for later use
-                if (
-                  tempNode instanceof Element &&
-                  (ctx.idMap.has(tempNode) ||
-                    this.#matchesUpcomingSibling(ctx, tempNode, newChild))
-                ) {
+                if (tempNode instanceof Element && (ctx.idMap.has(tempNode) || this.#matchesUpcomingSibling(ctx, tempNode, newChild))) {
                   this.#moveBefore(oldParent, tempNode, endPoint)
                 } else {
                   this.#removeNode(ctx, tempNode)
@@ -2303,11 +2021,7 @@ var htmx = (() => {
           }
         }
 
-        if (
-          !matchedNode &&
-          newChild instanceof Element &&
-          ctx.persistentIds.has(newChild.id)
-        ) {
+        if (!matchedNode && newChild instanceof Element && ctx.persistentIds.has(newChild.id)) {
           let escapedId = CSS.escape(newChild.id)
           matchedNode =
             (ctx.target.id === newChild.id && ctx.target) ||
@@ -2353,11 +2067,7 @@ var htmx = (() => {
 
     #matchesUpcomingSibling(ctx, oldElt, startNode) {
       if (ctx.futureMatches.has(oldElt)) return true
-      for (
-        let sibling = startNode.nextSibling, i = 0;
-        sibling && i < this.config.morphScanLimit;
-        sibling = sibling.nextSibling, i++
-      ) {
+      for (let sibling = startNode.nextSibling, i = 0; sibling && i < this.config.morphScanLimit; sibling = sibling.nextSibling, i++) {
         if (sibling instanceof Element && oldElt.isEqualNode(sibling)) {
           ctx.futureMatches.add(oldElt)
           return true
@@ -2380,8 +2090,7 @@ var htmx = (() => {
         let oldSet = ctx.idMap.get(cursor)
         if (this.#internalAPI.isSoftMatch(cursor, node)) {
           // Hard match: matching IDs found in both nodes
-          if (oldSet && newSet && [...oldSet].some((id) => newSet.has(id)))
-            return cursor
+          if (oldSet && newSet && [...oldSet].some((id) => newSet.has(id))) return cursor
           if (!oldSet) {
             // Exact match: nodes are identical
             if (scanLimit > 0 && cursor.isEqualNode(node)) return cursor
@@ -2399,26 +2108,18 @@ var htmx = (() => {
         cursor = cursor.nextSibling
       }
       // Only return fallback softMatch if it does not match upcoming content
-      if (softMatch && this.#matchesUpcomingSibling(ctx, softMatch, node))
-        return null
+      if (softMatch && this.#matchesUpcomingSibling(ctx, softMatch, node)) return null
       return softMatch
     }
 
     #isSoftMatch(oldNode, newNode) {
-      if (
-        !(oldNode instanceof Element) ||
-        oldNode.tagName !== newNode.tagName
-      ) {
+      if (!(oldNode instanceof Element) || oldNode.tagName !== newNode.tagName) {
         return false
       }
       // Script tags must be identical to match - never patch a script with different content
-      if (oldNode.tagName === "SCRIPT" && !oldNode.isEqualNode(newNode))
-        return false
+      if (oldNode.tagName === "SCRIPT" && !oldNode.isEqualNode(newNode)) return false
       // If both have Alpine reactive ID bindings, ignore ID mismatch
-      if (
-        oldNode._x_bindings?.id &&
-        newNode.matches?.("[\\:id], [x-bind\\:id]")
-      ) {
+      if (oldNode._x_bindings?.id && newNode.matches?.("[\\:id], [x-bind\\:id]")) {
         return true
       }
       return !oldNode.id || oldNode.id === newNode.id
@@ -2446,8 +2147,7 @@ var htmx = (() => {
     }
 
     #morphNode(oldNode, newNode, ctx) {
-      if (this.config.morphSkip && oldNode.matches?.(this.config.morphSkip))
-        return
+      if (this.config.morphSkip && oldNode.matches?.(this.config.morphSkip)) return
 
       // Trigger extension hook - if returns false, skip morphing this node
       if (
@@ -2459,22 +2159,12 @@ var htmx = (() => {
         return
 
       this.#copyAttributes(oldNode, newNode)
-      if (
-        oldNode instanceof HTMLTextAreaElement &&
-        oldNode.defaultValue != newNode.defaultValue
-      ) {
+      if (oldNode instanceof HTMLTextAreaElement && oldNode.defaultValue != newNode.defaultValue) {
         oldNode.value = newNode.value
       }
-      let skipChildren =
-        this.config.morphSkipChildren &&
-        oldNode.matches?.(this.config.morphSkipChildren)
+      let skipChildren = this.config.morphSkipChildren && oldNode.matches?.(this.config.morphSkipChildren)
       // isEqualNode does not detect template content diff so always morph templates
-      if (
-        !skipChildren &&
-        (!oldNode.isEqualNode(newNode) ||
-          newNode.tagName === "TEMPLATE" ||
-          newNode.querySelector?.("template"))
-      ) {
+      if (!skipChildren && (!oldNode.isEqualNode(newNode) || newNode.tagName === "TEMPLATE" || newNode.querySelector?.("template"))) {
         this.#morphChildren(ctx, oldNode, newNode)
       }
     }
@@ -2482,27 +2172,16 @@ var htmx = (() => {
     #copyAttributes(destination, source) {
       let attributesToIgnore = this.config.morphIgnore || []
       for (const attr of source.attributes) {
-        if (
-          !attributesToIgnore.includes(attr.name) &&
-          destination.getAttribute(attr.name) !== attr.value
-        ) {
+        if (!attributesToIgnore.includes(attr.name) && destination.getAttribute(attr.name) !== attr.value) {
           destination.setAttribute(attr.name, attr.value)
-          if (
-            attr.name === "value" &&
-            destination instanceof HTMLInputElement &&
-            destination.type !== "file"
-          ) {
+          if (attr.name === "value" && destination instanceof HTMLInputElement && destination.type !== "file") {
             destination.value = attr.value
           }
         }
       }
       for (let i = destination.attributes.length - 1; i >= 0; i--) {
         let attr = destination.attributes[i]
-        if (
-          attr &&
-          !source.hasAttribute(attr.name) &&
-          !attributesToIgnore.includes(attr.name)
-        ) {
+        if (attr && !source.hasAttribute(attr.name) && !attributesToIgnore.includes(attr.name)) {
           destination.removeAttribute(attr.name)
         }
       }
@@ -2528,23 +2207,10 @@ var htmx = (() => {
     #createIdMaps(oldNode, newContent) {
       let oldIdElements = this.#queryEltAndDescendants(oldNode, "[id]")
       let newIdElements = newContent.querySelectorAll("[id]")
-      let persistentIds = this.#createPersistentIds(
-        oldIdElements,
-        newIdElements
-      )
+      let persistentIds = this.#createPersistentIds(oldIdElements, newIdElements)
       let idMap = new Map()
-      this.#populateIdMapWithTree(
-        idMap,
-        persistentIds,
-        oldNode.parentElement,
-        oldIdElements
-      )
-      this.#populateIdMapWithTree(
-        idMap,
-        persistentIds,
-        newContent,
-        newIdElements
-      )
+      this.#populateIdMapWithTree(idMap, persistentIds, oldNode.parentElement, oldIdElements)
+      this.#populateIdMapWithTree(idMap, persistentIds, newContent, newIdElements)
       return { persistentIds, idMap }
     }
 
@@ -2573,10 +2239,7 @@ var htmx = (() => {
           ctx.swap = "none"
           return
         }
-        let statusValue = this.#attributeValue(
-          ctx.sourceElement,
-          "hx-status:" + pattern
-        )
+        let statusValue = this.#attributeValue(ctx.sourceElement, "hx-status:" + pattern)
         if (statusValue) {
           this.#mergeConfig(statusValue, ctx)
           return
@@ -2621,9 +2284,7 @@ var htmx = (() => {
 
     #startCSSTransitions(fragment, root) {
       let idElements = root.querySelectorAll("[id]")
-      let existingElementsById = Object.fromEntries(
-        [...idElements].map((e) => [e.id, e])
-      )
+      let existingElementsById = Object.fromEntries([...idElements].map((e) => [e.id, e]))
       let newElementsWithIds = fragment.querySelectorAll("[id]")
       let restoreTasks = []
       for (let elt of newElementsWithIds) {

@@ -135,8 +135,7 @@ export async function checkoutFloatingSeat(
         if (poolMax.max === null) {
           throw new Rollback<Result>({
             success: false,
-            message:
-              "No floating-licence pool is configured for this app in this organisation.",
+            message: "No floating-licence pool is configured for this app in this organisation.",
             status: 409,
           })
         }
@@ -256,13 +255,9 @@ export async function releaseFloatingSeat(
  * scheduled cleanup job to free orphan allocations whose access tokens have
  * expired without being explicitly released.
  */
-export async function reapStaleFloatingSessions(
-  dbClient: DbClient
-): Promise<Envelope<{ reaped: number }>> {
+export async function reapStaleFloatingSessions(dbClient: DbClient): Promise<Envelope<{ reaped: number }>> {
   try {
-    const result = await dbClient.query(
-      `DELETE FROM app_floating_sessions WHERE expires_at <= NOW()`
-    )
+    const result = await dbClient.query(`DELETE FROM app_floating_sessions WHERE expires_at <= NOW()`)
     return { success: true, reaped: result.rowCount ?? 0, status: 200 }
   } catch (error) {
     console.error("Error in reapStaleFloatingSessions:", error)

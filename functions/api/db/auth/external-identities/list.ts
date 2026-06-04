@@ -1,11 +1,7 @@
 import { listExternalIdentities } from "../../../../../src/external-identities.js"
 import { getProviderConfig } from "../../../../../src/oauth-providers.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
-import {
-  htmlResponse,
-  methodNotAllowed,
-  resultNegative,
-} from "../../../../../src/utilities/responses.js"
+import { htmlResponse, methodNotAllowed, resultNegative } from "../../../../../src/utilities/responses.js"
 
 /**
  * Renders the user's linked third-party identities as an HTML fragment for
@@ -17,25 +13,17 @@ export const onRequestGet: Handler = async (context) => {
 
   const result = await listExternalIdentities(dbClient, user_uuid)
   if (!result.success) {
-    return resultNegative(
-      result.message ?? "Could not load linked accounts.",
-      500
-    )
+    return resultNegative(result.message ?? "Could not load linked accounts.", 500)
   }
   if (result.identities.length === 0) {
-    return htmlResponse(
-      '<p class="result-info">No linked sign-in providers yet.</p>'
-    )
+    return htmlResponse('<p class="result-info">No linked sign-in providers yet.</p>')
   }
 
   const rows = result.identities
     .map((id: ExternalIdentityRow) => {
-      const providerLabel =
-        getProviderConfig(id.provider)?.display_name ?? id.provider
+      const providerLabel = getProviderConfig(id.provider)?.display_name ?? id.provider
       const linked = new Date(id.linked_at).toLocaleDateString()
-      const lastUsed = id.last_used_at
-        ? new Date(id.last_used_at).toLocaleDateString()
-        : "Never"
+      const lastUsed = id.last_used_at ? new Date(id.last_used_at).toLocaleDateString() : "Never"
       const subtitle = id.email
         ? `${escapeHtml(id.email)} &middot; Linked ${linked} &middot; Last used ${lastUsed}`
         : `Linked ${linked} &middot; Last used ${lastUsed}`

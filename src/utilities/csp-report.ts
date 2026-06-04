@@ -28,12 +28,7 @@ export function truncate(value: string): string {
 
 /** Formats and logs a CSP violation report as a structured console warning. */
 export function logViolation(v: Violation): void {
-  const location = v.sourceFile
-    ? ` at ${truncate(v.sourceFile)}:${v.lineNumber ?? "?"}`
-    : ""
+  const location = v.sourceFile ? ` at ${truncate(v.sourceFile)}:${v.lineNumber ?? "?"}` : ""
   const sample = v.sample ? ` sample="${truncate(v.sample)}"` : ""
-  console.warn(
-    `CSP violation: '${v.directive}' blocked '${v.blockedURL || "inline"}' ` +
-      `on '${v.documentURL}'${location}${sample}`
-  )
+  console.warn(`CSP violation: '${v.directive}' blocked '${v.blockedURL || "inline"}' ` + `on '${v.documentURL}'${location}${sample}`)
 }

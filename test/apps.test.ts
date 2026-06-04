@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest"
-import {
-  hashClientSecret,
-  listApps,
-  readApp,
-  readAppByClientId,
-  verifyAppCredentials,
-} from "../src/apps.js"
+import { hashClientSecret, listApps, readApp, readAppByClientId, verifyAppCredentials } from "../src/apps.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
 
 const sampleApp: AppRow = {
@@ -129,8 +123,6 @@ describe("hashClientSecret", () => {
     expect(stored.split(":").length).toBe(2)
     const [hash, salt] = stored.split(":")
     expect(hash).toMatch(/^[0-9a-f]+$/)
-    expect(salt).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-    )
+    expect(salt).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
   })
 })

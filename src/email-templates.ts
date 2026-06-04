@@ -97,10 +97,7 @@ export function twoFactorBypassEmail(link: string): EmailContent {
  * @param {string} organisationName - Name of the inviting organisation.
  * @returns {EmailContent} Subject, plain-text, and HTML bodies.
  */
-export function organisationInvitationEmail(
-  link: string,
-  organisationName: string
-): EmailContent {
+export function organisationInvitationEmail(link: string, organisationName: string): EmailContent {
   const heading = `You've been invited to join ${organisationName}`
   return {
     subject: heading,

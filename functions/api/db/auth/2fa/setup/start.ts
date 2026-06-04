@@ -20,16 +20,13 @@ export const onRequestPost: Handler = async (context) => {
 
     if (twoFactorStatus.error) {
       console.error("Error checking 2FA status:", twoFactorStatus.message)
-      return new Response(
-        '<p class="result-negative">Error: Could not check 2FA status. Please try again later.</p>',
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#tfa-message-area",
-          },
-        }
-      )
+      return new Response('<p class="result-negative">Error: Could not check 2FA status. Please try again later.</p>', {
+        status: 500,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#tfa-message-area",
+        },
+      })
     }
 
     if (twoFactor && twoFactor.is_enabled == true) {
@@ -48,21 +45,14 @@ export const onRequestPost: Handler = async (context) => {
     // Step 3: Fetch user's username for the label
     const userResult = await readUser(dbClient, user_uuid)
     if (userResult.error || !userResult.success) {
-      console.error(
-        "Error fetching user for user_uuid:",
-        user_uuid,
-        userResult.message
-      )
-      return new Response(
-        '<p class="result-negative">Error: Could not retrieve user name to setup 2FA.</p>',
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#tfa-message-area",
-          },
-        }
-      )
+      console.error("Error fetching user for user_uuid:", user_uuid, userResult.message)
+      return new Response('<p class="result-negative">Error: Could not retrieve user name to setup 2FA.</p>', {
+        status: 500,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#tfa-message-area",
+        },
+      })
     }
     const userName = userResult.user.user_name
 
@@ -79,24 +69,16 @@ export const onRequestPost: Handler = async (context) => {
 
       // Step 4c: Store Secret (Unverified) using create2fa
       // create2fa will set is_enabled to FALSE by default
-      const createResult = await create2fa(
-        dbClient,
-        user_uuid,
-        encrypted_secret,
-        label
-      )
+      const createResult = await create2fa(dbClient, user_uuid, encrypted_secret, label)
       if (createResult.error) {
         console.error("Error storing 2FA secret:", createResult.message)
-        return new Response(
-          '<p class="result-negative">Error: Failed to save 2FA setup information. Please try again.</p>',
-          {
-            status: 500,
-            headers: {
-              "Content-Type": "text/html",
-              "HX-Retarget": "#tfa-message-area",
-            },
-          }
-        )
+        return new Response('<p class="result-negative">Error: Failed to save 2FA setup information. Please try again.</p>', {
+          status: 500,
+          headers: {
+            "Content-Type": "text/html",
+            "HX-Retarget": "#tfa-message-area",
+          },
+        })
       }
       await emitFromContext(context, {
         event_type: EVENTS.ACCOUNT_2FA_SETUP_STARTED,
@@ -108,10 +90,7 @@ export const onRequestPost: Handler = async (context) => {
     // twoFactor.secret_value (if a row exists with one set)
     // or the newly generated secret (new_secret_for_qr)
     // Ensure we strip the prefix for the QR code and manual setup display
-    let display_secret =
-      twoFactor && twoFactor.secret_value
-        ? twoFactor.secret_value.replace("sim_encrypted::", "")
-        : new_secret_for_qr
+    let display_secret = twoFactor && twoFactor.secret_value ? twoFactor.secret_value.replace("sim_encrypted::", "") : new_secret_for_qr
     if (!display_secret) {
       // This case should ideally not be reached if logic is correct
       // but as a fallback if new_secret_for_qr was somehow not set and twoFactorStatus.secret_value was also null/empty
@@ -186,16 +165,13 @@ export const onRequestPost: Handler = async (context) => {
     })
   } catch (error) {
     console.error("Error during 2FA setup start:", error)
-    return new Response(
-      '<p class="result-negative">Error: Failed to start 2FA setup due to an unexpected server error.</p>',
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Retarget": "#tfa-message-area",
-        },
-      }
-    )
+    return new Response('<p class="result-negative">Error: Failed to start 2FA setup due to an unexpected server error.</p>', {
+      status: 500,
+      headers: {
+        "Content-Type": "text/html",
+        "HX-Retarget": "#tfa-message-area",
+      },
+    })
   }
 }
 

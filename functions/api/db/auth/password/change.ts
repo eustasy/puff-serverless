@@ -29,10 +29,7 @@ export const onRequestPost: Handler = async (context) => {
 
   // Step 3: Input Validation
   if (!current_password || typeof current_password !== "string") {
-    return new Response(
-      "<p>Error: Current password is missing or invalid.</p>",
-      { status: 400, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response("<p>Error: Current password is missing or invalid.</p>", { status: 400, headers: { "Content-Type": "text/html" } })
   }
   if (!new_password || typeof new_password !== "string") {
     return new Response("<p>Error: New password is missing or invalid.</p>", {
@@ -57,21 +54,14 @@ export const onRequestPost: Handler = async (context) => {
     }
 
     // Step 5: Verify Current Password
-    const verifyResult = await verifyPassword(
-      dbClient,
-      user_uuid,
-      current_password
-    )
+    const verifyResult = await verifyPassword(dbClient, user_uuid, current_password)
 
     if (verifyResult.error) {
       console.error("Error verifying current password:", verifyResult.message)
-      return new Response(
-        `<p>Error: ${escapeHtml(verifyResult.message || "Could not verify current password.")}</p>`,
-        {
-          status: verifyResult.status || 500,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      return new Response(`<p>Error: ${escapeHtml(verifyResult.message || "Could not verify current password.")}</p>`, {
+        status: verifyResult.status || 500,
+        headers: { "Content-Type": "text/html" },
+      })
     }
     if (!verifyResult.verified) {
       return new Response("<p>Error: Incorrect current password.</p>", {
@@ -81,42 +71,30 @@ export const onRequestPost: Handler = async (context) => {
     }
 
     // Step 6: Reject reuse of a current or previous password (issue #22).
-    const reuseResult = await isPasswordReused(
-      dbClient,
-      user_uuid,
-      new_password
-    )
+    const reuseResult = await isPasswordReused(dbClient, user_uuid, new_password)
     if (reuseResult.error) {
       console.error("Error checking password history:", reuseResult.message)
-      return new Response(
-        `<p>Error: ${escapeHtml(reuseResult.message || "Could not check password history.")}</p>`,
-        {
-          status: reuseResult.status || 500,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      return new Response(`<p>Error: ${escapeHtml(reuseResult.message || "Could not check password history.")}</p>`, {
+        status: reuseResult.status || 500,
+        headers: { "Content-Type": "text/html" },
+      })
     }
     if (reuseResult.reused) {
-      return new Response(
-        "<p>Error: Your new password must be different from your current and previous passwords.</p>",
-        { status: 400, headers: { "Content-Type": "text/html" } }
-      )
+      return new Response("<p>Error: Your new password must be different from your current and previous passwords.</p>", {
+        status: 400,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
     // Step 7: Update Password using the helper function
     const updateResult = await updatePassword(dbClient, user_uuid, new_password)
 
     if (updateResult.error || !updateResult.success) {
-      console.error(
-        `Failed to update password for user_uuid ${user_uuid}: ${updateResult.message}`
-      )
-      return new Response(
-        `<p>Error: ${escapeHtml(updateResult.message || "Failed to update password.")}</p>`,
-        {
-          status: updateResult.status || 500,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      console.error(`Failed to update password for user_uuid ${user_uuid}: ${updateResult.message}`)
+      return new Response(`<p>Error: ${escapeHtml(updateResult.message || "Failed to update password.")}</p>`, {
+        status: updateResult.status || 500,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
     await emitFromContext(context, {
@@ -133,10 +111,10 @@ export const onRequestPost: Handler = async (context) => {
     // None of the src/ helpers used here throw — this catches only
     // unexpected runtime errors (e.g., formData parsing).
     console.error("Error during password change:", error)
-    return new Response(
-      "<p>Error: Failed to change password due to a server error.</p>",
-      { status: 500, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response("<p>Error: Failed to change password due to a server error.</p>", {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
   // No finally block needed here as individual helpers manage their own DB connections.
 }

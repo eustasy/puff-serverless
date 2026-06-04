@@ -27,15 +27,11 @@ describe("escapeHtml", () => {
   })
 
   it("neutralises a script-tag injection payload", () => {
-    expect(escapeHtml("<script>alert('xss')</script>")).toBe(
-      "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;"
-    )
+    expect(escapeHtml("<script>alert('xss')</script>")).toBe("&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;")
   })
 
   it("escapes an attribute-breakout payload", () => {
-    expect(escapeHtml('" onmouseover="evil()')).toBe(
-      "&quot; onmouseover=&quot;evil()"
-    )
+    expect(escapeHtml('" onmouseover="evil()')).toBe("&quot; onmouseover=&quot;evil()")
   })
 
   it("coerces non-string values via String()", () => {

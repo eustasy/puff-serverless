@@ -24,20 +24,12 @@
   <body>
     <div class="container">
       <h1>Login</h1>
-      <div
-        id="message-area"
-        class="result-area"
-        hx-trigger="load"
-        hx-swap="innerHTML"
-      ></div>
+      <div id="message-area" class="result-area" hx-trigger="load" hx-swap="innerHTML"></div>
       <script>
         // Set hx-get to /api/messages plus the current query string (CSP-safe, no eval)
         const msgArea = document.getElementById("message-area")
         if (msgArea) {
-          msgArea.setAttribute(
-            "hx-get",
-            "/api/messages" + window.location.search
-          )
+          msgArea.setAttribute("hx-get", "/api/messages" + window.location.search)
         }
       </script>
       <form
@@ -49,24 +41,11 @@
       >
         <div class="form-group">
           <label for="email">Email:</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            placeholder="you@email.com"
-            autocomplete="email webauthn"
-            required
-          />
+          <input type="email" id="email" name="email" placeholder="you@email.com" autocomplete="email webauthn" required />
         </div>
         <div class="form-group">
           <label for="pw">Password:</label>
-          <input
-            type="password"
-            id="pw"
-            name="pw"
-            placeholder="Password"
-            required
-          />
+          <input type="password" id="pw" name="pw" placeholder="Password" required />
         </div>
         <button type="submit" class="btn-safe">
           Log In
@@ -80,22 +59,11 @@
       <button id="passkey-login-btn" class="btn-safe">Use Passkey</button>
       <div id="passkey-result" class="result-area"></div>
 
-      <div
-        id="federated-providers"
-        hx-get="/api/providers"
-        hx-trigger="load"
-        hx-swap="innerHTML"
-      ></div>
+      <div id="federated-providers" hx-get="/api/providers" hx-trigger="load" hx-swap="innerHTML"></div>
 
-      <p class="centered-link">
-        Don't have an account? <a href="/register">Register</a>
-      </p>
-      <p class="centered-link">
-        Forgot your password? <a href="/reset/request">Reset it</a>
-      </p>
-      <p class="centered-link-secondary">
-        Go to <a href="/logout">Logout</a> Page
-      </p>
+      <p class="centered-link">Don't have an account? <a href="/register">Register</a></p>
+      <p class="centered-link">Forgot your password? <a href="/reset/request">Reset it</a></p>
+      <p class="centered-link-secondary">Go to <a href="/logout">Logout</a> Page</p>
     </div>
   </body>
 </html>

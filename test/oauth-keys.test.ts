@@ -17,19 +17,12 @@ async function generateEs256Jwk(): Promise<{
   privateJwkJson: string
   publicJwkJson: string
 }> {
-  const { publicKey, privateKey } = (await crypto.subtle.generateKey(
-    { name: "ECDSA", namedCurve: "P-256" },
-    true,
-    ["sign", "verify"]
-  )) as CryptoKeyPair
-  const privateJwk = (await crypto.subtle.exportKey(
-    "jwk",
-    privateKey
-  )) as JsonWebKey
-  const publicJwk = (await crypto.subtle.exportKey(
-    "jwk",
-    publicKey
-  )) as JsonWebKey
+  const { publicKey, privateKey } = (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
+    "sign",
+    "verify",
+  ])) as CryptoKeyPair
+  const privateJwk = (await crypto.subtle.exportKey("jwk", privateKey)) as JsonWebKey
+  const publicJwk = (await crypto.subtle.exportKey("jwk", publicKey)) as JsonWebKey
   return {
     privateJwkJson: JSON.stringify({
       kty: privateJwk.kty,
@@ -77,19 +70,13 @@ describe("jwkThumbprint", () => {
       kty: rsa.kty,
       n: rsa.n,
     })
-    const hash = await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(canonical)
-    )
+    const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical))
     function b64url(bytes: Uint8Array): string {
       let s = ""
-      for (let i = 0; i < bytes.byteLength; i++)
-        s += String.fromCharCode(bytes[i]!)
+      for (let i = 0; i < bytes.byteLength; i++) s += String.fromCharCode(bytes[i]!)
       return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
     }
-    expect(b64url(new Uint8Array(hash))).toBe(
-      "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs"
-    )
+    expect(b64url(new Uint8Array(hash))).toBe("NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs")
   })
 
   it("is deterministic for an EC P-256 JWK", async () => {

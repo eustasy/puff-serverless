@@ -1,22 +1,13 @@
 import { setKeyValue } from "../../../../../../../../../../../src/user-keyvalues.js"
 import { assertGranteeInOrg } from "../../../../../../../../../../../src/entitlements.js"
 import { can } from "../../../../../../../../../../../src/permissions.js"
-import {
-  parseSetForm,
-  validateEntitlementKey,
-} from "../../../../../../../../../../../src/utilities/entitlements-endpoint.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-  resultPositive,
-} from "../../../../../../../../../../../src/utilities/responses.js"
+import { parseSetForm, validateEntitlementKey } from "../../../../../../../../../../../src/utilities/entitlements-endpoint.js"
+import { methodNotAllowed, resultNegative, resultPositive } from "../../../../../../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../../../../../../src/hooks/events.js"
 
 /** Upserts a user-subject entitlement under the app's owner namespace. */
-export const onRequestPost: Handler<
-  "app_uuid" | "org_uuid" | "user_uuid"
-> = async (context) => {
+export const onRequestPost: Handler<"app_uuid" | "org_uuid" | "user_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []
   if (!can(orgRoles, "org:entitlements:write")) {
     return resultNegative("You cannot modify this data.", 403)
@@ -35,19 +26,10 @@ export const onRequestPost: Handler<
     user_uuid,
   })
   if (!inOrg.success) {
-    return resultNegative(
-      inOrg.message ?? "Grantee is not in this organisation.",
-      inOrg.status
-    )
+    return resultNegative(inOrg.message ?? "Grantee is not in this organisation.", inOrg.status)
   }
 
-  const result = await setKeyValue(
-    context.data.dbClient!,
-    user_uuid,
-    { type: "app", app_uuid: app.app_uuid },
-    parsed.key,
-    parsed.value
-  )
+  const result = await setKeyValue(context.data.dbClient!, user_uuid, { type: "app", app_uuid: app.app_uuid }, parsed.key, parsed.value)
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }
@@ -59,11 +41,9 @@ export const onRequestPost: Handler<
     target_label: parsed.key,
     event_metadata: { value: parsed.value, created: result.created },
   })
-  return resultPositive(
-    `Entitlement "${parsed.key}" ${result.created ? "granted" : "updated"}.`,
-    result.status,
-    { "HX-Trigger": "appEntitlementsChanged" }
-  )
+  return resultPositive(`Entitlement "${parsed.key}" ${result.created ? "granted" : "updated"}.`, result.status, {
+    "HX-Trigger": "appEntitlementsChanged",
+  })
 }
 
 export const onRequest: Handler = async () => methodNotAllowed("POST")

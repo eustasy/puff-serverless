@@ -1,10 +1,6 @@
 import { disableOrganisation } from "../../../../../../src/organisations.js"
 import { can } from "../../../../../../src/permissions.js"
-import {
-  resultPositive,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../src/utilities/responses.js"
+import { resultPositive, resultNegative, methodNotAllowed } from "../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../src/hooks/events.js"
 
@@ -15,17 +11,9 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
     return resultNegative("You do not have permission to do this.", 403)
   }
 
-  const result = await disableOrganisation(
-    context.data.dbClient!,
-    String(context.params.org_uuid)
-  )
+  const result = await disableOrganisation(context.data.dbClient!, String(context.params.org_uuid))
   if (!result.success) {
-    return resultNegative(
-      result.error
-        ? "Could not disable the organisation."
-        : "Organisation not found.",
-      result.status
-    )
+    return resultNegative(result.error ? "Could not disable the organisation." : "Organisation not found.", result.status)
   }
   await emitFromContext(context, {
     event_type: EVENTS.ORG_DISABLED,

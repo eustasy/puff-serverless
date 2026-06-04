@@ -1,7 +1,4 @@
-import {
-  readKeyValues,
-  searchKeyValues,
-} from "../../../../../src/user-keyvalues.js"
+import { readKeyValues, searchKeyValues } from "../../../../../src/user-keyvalues.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
 
 /**
@@ -18,31 +15,23 @@ export const onRequestGet: Handler = async (context) => {
     const url = new URL(context.request.url)
     const search = (url.searchParams.get("key") ?? "").trim()
 
-    const result = search
-      ? await searchKeyValues(dbClient, user_uuid, owner, search)
-      : await readKeyValues(dbClient, user_uuid, owner)
+    const result = search ? await searchKeyValues(dbClient, user_uuid, owner, search) : await readKeyValues(dbClient, user_uuid, owner)
 
     if (!result.success) {
-      return new Response(
-        `<p class="result-negative">${escapeHtml(result.message)}</p>`,
-        {
-          status: result.status,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      return new Response(`<p class="result-negative">${escapeHtml(result.message)}</p>`, {
+        status: result.status,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
     if (result.pairs.length === 0) {
-      const message = search
-        ? `No keys match "${escapeHtml(search)}".`
-        : "No stored keys yet."
+      const message = search ? `No keys match "${escapeHtml(search)}".` : "No stored keys yet."
       return new Response(`<p>${message}</p>`, {
         headers: { "Content-Type": "text/html" },
       })
     }
 
-    let html =
-      "<table><thead><tr><th>Key</th><th>Value</th><th>Actions</th></tr></thead><tbody>"
+    let html = "<table><thead><tr><th>Key</th><th>Value</th><th>Actions</th></tr></thead><tbody>"
     for (const pair of result.pairs) {
       html += `<tr>
         <td>${escapeHtml(pair.kv_key)}</td>
@@ -68,13 +57,10 @@ export const onRequestGet: Handler = async (context) => {
     })
   } catch (error) {
     console.error("Error in /api/db/auth/keyvalues/list:", error)
-    return new Response(
-      '<p class="result-negative">Failed to load stored keys due to a server error.</p>',
-      {
-        status: 500,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
+    return new Response('<p class="result-negative">Failed to load stored keys due to a server error.</p>', {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 }
 

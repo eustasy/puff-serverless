@@ -25,25 +25,19 @@ export const onRequestPost: Handler = async (context) => {
     const result = await deleteKeyValue(dbClient, user_uuid, owner, key)
 
     if (!result.success) {
-      return new Response(
-        `<p class="result-negative">${escapeHtml(result.message)}</p>`,
-        {
-          status: result.status,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      return new Response(`<p class="result-negative">${escapeHtml(result.message)}</p>`, {
+        status: result.status,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
-    return new Response(
-      `<p class="result-positive">Key "${escapeHtml(key)}" deleted.</p>`,
-      {
-        status: result.status,
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Trigger": "keyValueListChanged",
-        },
-      }
-    )
+    return new Response(`<p class="result-positive">Key "${escapeHtml(key)}" deleted.</p>`, {
+      status: result.status,
+      headers: {
+        "Content-Type": "text/html",
+        "HX-Trigger": "keyValueListChanged",
+      },
+    })
   } catch (error) {
     console.error("Error in /api/db/auth/keyvalues/remove:", error)
     let message = "Failed to delete key due to a server error."

@@ -32,12 +32,7 @@ export function buildClearSessionCookie(env: Env): string {
  * parallel in-flight requests into a single redirect rather than 10 error
  * fragments.
  */
-export function unauthorizedResponse(
-  env: Env,
-  isHtmx: boolean,
-  heading: string,
-  message: string
-): Response {
+export function unauthorizedResponse(env: Env, isHtmx: boolean, heading: string, message: string): Response {
   const headers: Record<string, string> = {
     "Content-Type": "text/html",
     "Set-Cookie": buildClearSessionCookie(env),

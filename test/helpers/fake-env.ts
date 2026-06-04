@@ -6,8 +6,6 @@
 // `vars` declared in wrangler.jsonc (e.g. `APP_URL: "https://…eustasy.org"`),
 // and tests need to pass their own stand-in values without matching those
 // literals exactly.
-export function fakeEnv(
-  overrides: Partial<Record<keyof Env, unknown>> = {}
-): Env {
+export function fakeEnv(overrides: Partial<Record<keyof Env, unknown>> = {}): Env {
   return overrides as Env
 }

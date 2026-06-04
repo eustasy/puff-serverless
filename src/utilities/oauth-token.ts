@@ -2,11 +2,7 @@ import { claimsForScopes } from "../oauth.js"
 import { signJwt } from "../oauth-jwt.js"
 import { readEmails } from "../emails.js"
 import { readUser } from "../users.js"
-import {
-  buildEntitlementsClaim,
-  buildMembershipsClaim,
-  buildRolesClaim,
-} from "../oauth-claims.js"
+import { buildEntitlementsClaim, buildMembershipsClaim, buildRolesClaim } from "../oauth-claims.js"
 
 export const ACCESS_TOKEN_TTL_SECONDS = 60 * 60 // 1 hour
 
@@ -42,11 +38,7 @@ export interface IdTokenContext {
 }
 
 /** Signs and returns a JWT ID token with OIDC claims for the requested scopes, or null if openid is not requested. */
-export async function buildIdToken(
-  env: Env,
-  dbClient: DbClient,
-  ctx: IdTokenContext
-): Promise<string | null> {
+export async function buildIdToken(env: Env, dbClient: DbClient, ctx: IdTokenContext): Promise<string | null> {
   if (!ctx.scopes.includes("openid")) return null
   const now = Math.floor(Date.now() / 1000)
   const payload: Record<string, unknown> = {
@@ -70,9 +62,7 @@ export async function buildIdToken(
       if (flags.includeEmail) {
         try {
           const emails = await readEmails(dbClient, ctx.user_uuid)
-          const primary =
-            emails.find((e) => e.is_primary && e.is_verified) ||
-            emails.find((e) => e.is_verified)
+          const primary = emails.find((e) => e.is_primary && e.is_verified) || emails.find((e) => e.is_verified)
           if (primary) {
             payload.email = primary.email_address
             payload.email_verified = true
@@ -93,12 +83,7 @@ export async function buildIdToken(
     if (r.success) payload["puff:roles"] = r.roles
   }
   if (flags.includeEntitlements) {
-    const e = await buildEntitlementsClaim(
-      dbClient,
-      ctx.app,
-      ctx.user_uuid,
-      ctx.org_uuid
-    )
+    const e = await buildEntitlementsClaim(dbClient, ctx.app, ctx.user_uuid, ctx.org_uuid)
     if (e.success && e.entitlements) {
       payload["puff:entitlements"] = e.entitlements
     }

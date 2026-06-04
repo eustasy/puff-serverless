@@ -1,8 +1,4 @@
-import {
-  resultNegative,
-  resultPositive,
-  methodNotAllowed,
-} from "../../../../../../src/utilities/responses.js"
+import { resultNegative, resultPositive, methodNotAllowed } from "../../../../../../src/utilities/responses.js"
 import { promoteRetiredKey } from "../../../../../../src/oauth-keys-rotation.js"
 
 // Emergency rollback for OAuth signing-key rotation. Promotes the retired
@@ -23,19 +19,11 @@ export const onRequestPost: Handler = async (context) => {
     if (!result.promoted) {
       return resultNegative(result.reason, 409)
     }
-    console.log(
-      `OAuth signing-key promote-retired: triggered by ${user_uuid ?? "unknown"}; ` +
-        `new_kid=${result.new_kid}.`
-    )
-    return resultPositive(
-      `Promoted retired key. New active kid: ${result.new_kid}.`
-    )
+    console.log(`OAuth signing-key promote-retired: triggered by ${user_uuid ?? "unknown"}; ` + `new_kid=${result.new_kid}.`)
+    return resultPositive(`Promoted retired key. New active kid: ${result.new_kid}.`)
   } catch (error) {
     console.error("Manual OAuth key promote-retired failed:", error)
-    return resultNegative(
-      error instanceof Error ? error.message : "Promotion failed.",
-      500
-    )
+    return resultNegative(error instanceof Error ? error.message : "Promotion failed.", 500)
   }
 }
 

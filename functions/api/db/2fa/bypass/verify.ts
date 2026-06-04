@@ -18,10 +18,10 @@ export const onRequestGet: Handler = async (context) => {
   const token = new URL(context.request.url).searchParams.get("token")
 
   if (!token) {
-    return new Response(
-      '<p class="result-negative">Bypass token is missing.</p>',
-      { status: 400, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response('<p class="result-negative">Bypass token is missing.</p>', {
+      status: 400,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 
   try {
@@ -39,22 +39,13 @@ export const onRequestGet: Handler = async (context) => {
     const ip_address = context.request.headers.get("CF-Connecting-IP") || ""
     const ip_country = context.request.headers.get("CF-IPCountry") || ""
 
-    const sessionResult = await createSession(
-      dbClient,
-      tokenResult.token.user_uuid,
-      user_agent,
-      ip_address,
-      ip_country
-    )
+    const sessionResult = await createSession(dbClient, tokenResult.token.user_uuid, user_agent, ip_address, ip_country)
     if (!sessionResult.success) {
-      console.error(
-        "Error creating session during 2FA bypass:",
-        sessionResult.error
-      )
-      return new Response(
-        '<p class="result-negative">Could not complete login. Please try again.</p>',
-        { status: 500, headers: { "Content-Type": "text/html" } }
-      )
+      console.error("Error creating session during 2FA bypass:", sessionResult.error)
+      return new Response('<p class="result-negative">Could not complete login. Please try again.</p>', {
+        status: 500,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
     // Issue the session cookie and clear the now-irrelevant pending-login
@@ -71,13 +62,7 @@ export const onRequestGet: Handler = async (context) => {
     if (context.env.SECURE_COOKIE) sessionCookie.push("Secure")
     headers.append("Set-Cookie", sessionCookie.join("; "))
 
-    const clearPending = [
-      "totp_verification_token=",
-      "HttpOnly",
-      "Path=/",
-      `SameSite=${context.env.COOKIE_SAMESITE || "Lax"}`,
-      "Max-Age=0",
-    ]
+    const clearPending = ["totp_verification_token=", "HttpOnly", "Path=/", `SameSite=${context.env.COOKIE_SAMESITE || "Lax"}`, "Max-Age=0"]
     if (context.env.SECURE_COOKIE) clearPending.push("Secure")
     headers.append("Set-Cookie", clearPending.join("; "))
 
@@ -87,10 +72,10 @@ export const onRequestGet: Handler = async (context) => {
     return new Response(null, { status: 303, headers })
   } catch (error) {
     console.error("Error in 2FA bypass verify endpoint:", error)
-    return new Response(
-      '<p class="result-negative">An internal server error occurred.</p>',
-      { status: 500, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response('<p class="result-negative">An internal server error occurred.</p>', {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 }
 

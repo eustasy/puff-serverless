@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest"
-import {
-  verificationEmail,
-  passwordResetEmail,
-  twoFactorBypassEmail,
-  organisationInvitationEmail,
-} from "../src/email-templates.js"
+import { verificationEmail, passwordResetEmail, twoFactorBypassEmail, organisationInvitationEmail } from "../src/email-templates.js"
 
 const LINK = "https://app.example/verify?token=abc123"
 

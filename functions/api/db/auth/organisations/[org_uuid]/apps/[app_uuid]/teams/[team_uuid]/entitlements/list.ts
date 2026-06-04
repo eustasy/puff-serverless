@@ -1,19 +1,11 @@
-import {
-  readKeyValues,
-  searchKeyValues,
-} from "../../../../../../../../../../../src/team-keyvalues.js"
+import { readKeyValues, searchKeyValues } from "../../../../../../../../../../../src/team-keyvalues.js"
 import { assertGranteeInOrg } from "../../../../../../../../../../../src/entitlements.js"
 import { can } from "../../../../../../../../../../../src/permissions.js"
 import { renderKeyValueTable } from "../../../../../../../../../../../src/utilities/keyvalues-endpoint.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-} from "../../../../../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative } from "../../../../../../../../../../../src/utilities/responses.js"
 
 /** Lists team-subject entitlements under the app's owner namespace. */
-export const onRequestGet: Handler<
-  "app_uuid" | "org_uuid" | "team_uuid"
-> = async (context) => {
+export const onRequestGet: Handler<"app_uuid" | "org_uuid" | "team_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []
   if (!can(orgRoles, "org:entitlements:read")) {
     return resultNegative("You cannot view this data.", 403)
@@ -27,10 +19,7 @@ export const onRequestGet: Handler<
     team_uuid,
   })
   if (!inOrg.success) {
-    return resultNegative(
-      inOrg.message ?? "Team is not in this organisation.",
-      inOrg.status
-    )
+    return resultNegative(inOrg.message ?? "Team is not in this organisation.", inOrg.status)
   }
 
   const owner = { type: "app" as const, app_uuid: app.app_uuid }

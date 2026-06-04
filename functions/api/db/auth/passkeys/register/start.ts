@@ -11,18 +11,18 @@ export const onRequestPost: Handler = async (context) => {
 
   const userResult = await readUser(dbClient, user_uuid)
   if (!userResult.success) {
-    return new Response(
-      '<p class="result-negative">Could not load user details.</p>',
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    )
+    return new Response('<p class="result-negative">Could not load user details.</p>', {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   const passkeysResult = await listPasskeys(dbClient, user_uuid)
   if (passkeysResult.error || !passkeysResult.success) {
-    return new Response(
-      JSON.stringify({ error: "Could not load existing passkeys." }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    )
+    return new Response(JSON.stringify({ error: "Could not load existing passkeys." }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   const { rpID, rpName } = getRpConfig(context.env)
@@ -32,18 +32,12 @@ export const onRequestPost: Handler = async (context) => {
   const challenge = isoBase64URL.fromBuffer(challengeBytes)
 
   const expires_at = new Date(Date.now() + 5 * 60 * 1000).toISOString()
-  const tokenResult = await createWebAuthnToken(
-    dbClient,
-    user_uuid,
-    "webauthn_registration_challenge",
-    challenge,
-    expires_at
-  )
+  const tokenResult = await createWebAuthnToken(dbClient, user_uuid, "webauthn_registration_challenge", challenge, expires_at)
   if (tokenResult.error) {
-    return new Response(
-      JSON.stringify({ error: "Could not create registration challenge." }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    )
+    return new Response(JSON.stringify({ error: "Could not create registration challenge." }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   const existingCredentials = passkeysResult.passkeys.map((pk: PasskeyRow) => ({
@@ -67,13 +61,7 @@ export const onRequestPost: Handler = async (context) => {
 
   const sameSite = context.env.COOKIE_SAMESITE || "Lax"
   const secure = !!context.env.SECURE_COOKIE
-  const challengeCookie = [
-    `webauthn_challenge_token=${challenge}`,
-    "HttpOnly",
-    "Path=/",
-    `SameSite=${sameSite}`,
-    "Max-Age=300",
-  ]
+  const challengeCookie = [`webauthn_challenge_token=${challenge}`, "HttpOnly", "Path=/", `SameSite=${sameSite}`, "Max-Age=300"]
   if (secure) challengeCookie.push("Secure")
 
   return new Response(JSON.stringify({ options, origin }), {

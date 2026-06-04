@@ -1,9 +1,6 @@
 import { getInvoice } from "../../../../../../../../src/billing.js"
 import { can } from "../../../../../../../../src/permissions.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-} from "../../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative } from "../../../../../../../../src/utilities/responses.js"
 
 /**
  * Redirects to the hosted invoice URL for a single invoice. The `invoice_uuid`

@@ -10,11 +10,7 @@
 import { listExternalIdentities } from "../../../../../src/external-identities.js"
 import { listConfiguredProviders } from "../../../../../src/oauth-providers.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
-import {
-  htmlResponse,
-  methodNotAllowed,
-  resultNegative,
-} from "../../../../../src/utilities/responses.js"
+import { htmlResponse, methodNotAllowed, resultNegative } from "../../../../../src/utilities/responses.js"
 
 export const onRequestGet: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -22,26 +18,16 @@ export const onRequestGet: Handler = async (context) => {
 
   const linked = await listExternalIdentities(dbClient, user_uuid)
   if (!linked.success) {
-    return resultNegative(
-      linked.message ?? "Could not load linked accounts.",
-      500
-    )
+    return resultNegative(linked.message ?? "Could not load linked accounts.", 500)
   }
   const linkedProviders = new Set(linked.identities.map((i) => i.provider))
 
-  const available = listConfiguredProviders(context.env).filter(
-    (p) => !linkedProviders.has(p.name)
-  )
+  const available = listConfiguredProviders(context.env).filter((p) => !linkedProviders.has(p.name))
   if (available.length === 0) {
-    return htmlResponse(
-      '<p class="result-info">All configured providers are already linked.</p>'
-    )
+    return htmlResponse('<p class="result-info">All configured providers are already linked.</p>')
   }
   const buttons = available
-    .map(
-      (p) =>
-        `<a class="btn-safe" href="/login/${encodeURIComponent(p.name)}">${escapeHtml(p.display_name)}</a>`
-    )
+    .map((p) => `<a class="btn-safe" href="/login/${encodeURIComponent(p.name)}">${escapeHtml(p.display_name)}</a>`)
     .join(" ")
   return htmlResponse(`<p>${buttons}</p>`)
 }

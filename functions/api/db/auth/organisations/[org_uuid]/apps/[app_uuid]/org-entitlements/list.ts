@@ -1,21 +1,13 @@
-import {
-  readKeyValues,
-  searchKeyValues,
-} from "../../../../../../../../../src/organisation-keyvalues.js"
+import { readKeyValues, searchKeyValues } from "../../../../../../../../../src/organisation-keyvalues.js"
 import { can } from "../../../../../../../../../src/permissions.js"
 import { renderKeyValueTable } from "../../../../../../../../../src/utilities/keyvalues-endpoint.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-} from "../../../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative } from "../../../../../../../../../src/utilities/responses.js"
 
 /**
  * Lists org-subject entitlement rows owned by the app — i.e. defaults the
  * org has set for everyone in the org via this app. `?key=` substring-filters.
  */
-export const onRequestGet: Handler<"app_uuid" | "org_uuid"> = async (
-  context
-) => {
+export const onRequestGet: Handler<"app_uuid" | "org_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []
   if (!can(orgRoles, "org:entitlements:read")) {
     return resultNegative("You cannot view this data.", 403)

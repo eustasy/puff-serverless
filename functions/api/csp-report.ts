@@ -14,12 +14,7 @@
 // report is dropped quietly, so the endpoint cannot be used to inject
 // arbitrary log content at scale.
 
-import {
-  asNumber,
-  asString,
-  logViolation,
-  type Violation,
-} from "../../src/utilities/csp-report.js"
+import { asNumber, asString, logViolation, type Violation } from "../../src/utilities/csp-report.js"
 
 // Cap on violations logged per request: the Reporting API batches reports, so
 // one POST can carry many — this bounds how much a single request can log.
@@ -43,10 +38,7 @@ export const onRequestPost: Handler = async (context) => {
     if (report && typeof report === "object") {
       const r = report as Record<string, unknown>
       violations.push({
-        directive:
-          asString(r["effective-directive"]) ||
-          asString(r["violated-directive"]) ||
-          "unknown",
+        directive: asString(r["effective-directive"]) || asString(r["violated-directive"]) || "unknown",
         blockedURL: asString(r["blocked-uri"]),
         documentURL: asString(r["document-uri"]),
         sourceFile: asString(r["source-file"]),

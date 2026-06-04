@@ -24,8 +24,5 @@ export function validateEntitlementKey(key: string): Response | null {
   if (key.startsWith(PERM_PREFIX) && key.length > PERM_PREFIX.length) {
     return null
   }
-  return resultNegative(
-    `Entitlement key must be "${LICENSE_TIER_KEY}" or start with "${PERM_PREFIX}".`,
-    400
-  )
+  return resultNegative(`Entitlement key must be "${LICENSE_TIER_KEY}" or start with "${PERM_PREFIX}".`, 400)
 }

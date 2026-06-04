@@ -18,10 +18,7 @@ export const onRequestGet: Handler = async ({ env }) => {
     subject_types_supported: ["public"],
     id_token_signing_alg_values_supported: [JWT_ALG],
     scopes_supported: SUPPORTED_SCOPES,
-    token_endpoint_auth_methods_supported: [
-      "client_secret_basic",
-      "client_secret_post",
-    ],
+    token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
     code_challenge_methods_supported: ["S256"],
     claims_supported: [
       "sub",
@@ -48,5 +45,4 @@ export const onRequestGet: Handler = async ({ env }) => {
   })
 }
 
-export const onRequest: Handler = async () =>
-  new Response("Method Not Allowed", { status: 405, headers: { Allow: "GET" } })
+export const onRequest: Handler = async () => new Response("Method Not Allowed", { status: 405, headers: { Allow: "GET" } })

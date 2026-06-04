@@ -24,13 +24,7 @@
     <div class="container">
       <h1>Login</h1>
       <div id="message-area" class="result-area"></div>
-      <form
-        hx-validate="true"
-        hx-post="/api/db/2fa/login"
-        hx-target="#login-result"
-        hx-include="[name='otp']"
-        hx-disabled-elt=".btn-safe"
-      >
+      <form hx-validate="true" hx-post="/api/db/2fa/login" hx-target="#login-result" hx-include="[name='otp']" hx-disabled-elt=".btn-safe">
         <div class="form-group">
           <label for="otp">One-Time Password (OTP):</label>
           <input
@@ -50,21 +44,11 @@
         </button>
       </form>
       <div id="login-result" class="result-area"></div>
-      <p class="centered-link">
-        Don't have an account? <a href="/register">Register</a>
-      </p>
+      <p class="centered-link">Don't have an account? <a href="/register">Register</a></p>
       <details class="tfa-bypass">
         <summary>Lost access to your authenticator?</summary>
-        <p>
-          We can email a one-time link to a verified email address on your
-          account. Opening it completes this login without a code.
-        </p>
-        <form
-          hx-post="/api/db/2fa/bypass/request"
-          hx-target="#bypass-result"
-          hx-swap="innerHTML"
-          hx-disabled-elt="button"
-        >
+        <p>We can email a one-time link to a verified email address on your account. Opening it completes this login without a code.</p>
+        <form hx-post="/api/db/2fa/bypass/request" hx-target="#bypass-result" hx-swap="innerHTML" hx-disabled-elt="button">
           <button type="submit" class="btn-safe">
             Email me a bypass link
             <img class="htmx-indicator" src="/assets/bars.svg" />
@@ -72,9 +56,7 @@
         </form>
         <div id="bypass-result" class="result-area"></div>
       </details>
-      <p class="centered-link-secondary">
-        Go to <a href="/logout">Logout</a> Page
-      </p>
+      <p class="centered-link-secondary">Go to <a href="/logout">Logout</a> Page</p>
     </div>
   </body>
 </html>

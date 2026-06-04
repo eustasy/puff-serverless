@@ -1,11 +1,7 @@
 import { setKeyValue } from "../../../../../../../../../src/org-role-keyvalues.js"
 import { can } from "../../../../../../../../../src/permissions.js"
 import { parseSetForm } from "../../../../../../../../../src/utilities/keyvalues-endpoint.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-  resultPositive,
-} from "../../../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative, resultPositive } from "../../../../../../../../../src/utilities/responses.js"
 
 /** Upserts an org-role-subject KV row owned by this organisation. */
 export const onRequestPost: Handler<"org_uuid" | "role"> = async (context) => {
@@ -18,22 +14,13 @@ export const onRequestPost: Handler<"org_uuid" | "role"> = async (context) => {
 
   const org_uuid = String(context.params.org_uuid)
   const role = String(context.params.role)
-  const result = await setKeyValue(
-    context.data.dbClient!,
-    org_uuid,
-    role,
-    { type: "org", org_uuid },
-    parsed.key,
-    parsed.value
-  )
+  const result = await setKeyValue(context.data.dbClient!, org_uuid, role, { type: "org", org_uuid }, parsed.key, parsed.value)
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }
-  return resultPositive(
-    `Key "${parsed.key}" ${result.created ? "created" : "updated"}.`,
-    result.status,
-    { "HX-Trigger": "organisationRoleKeyValuesChanged" }
-  )
+  return resultPositive(`Key "${parsed.key}" ${result.created ? "created" : "updated"}.`, result.status, {
+    "HX-Trigger": "organisationRoleKeyValuesChanged",
+  })
 }
 
 export const onRequest: Handler = async () => methodNotAllowed("POST")

@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest"
-import {
-  hasConsentFor,
-  readConsent,
-  revokeConsent,
-  upsertConsent,
-} from "../src/oauth-consents.js"
+import { hasConsentFor, readConsent, revokeConsent, upsertConsent } from "../src/oauth-consents.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
 
 describe("readConsent", () => {
@@ -55,10 +50,7 @@ describe("upsertConsent", () => {
         },
       ],
     })
-    const result = await upsertConsent(db.client, "u-1", "a-1", [
-      "openid",
-      "email",
-    ])
+    const result = await upsertConsent(db.client, "u-1", "a-1", ["openid", "email"])
     expect(result.success).toBe(true)
     expect(db.calls[0]!.text).toMatch(/ON CONFLICT \(user_uuid, app_uuid\)/)
     expect(db.calls[0]!.values).toEqual(["u-1", "a-1", ["openid", "email"]])
@@ -89,10 +81,7 @@ describe("hasConsentFor", () => {
     db.on(/FROM oauth_consents/, {
       rows: [{ scopes: ["openid", "email", "profile"] }],
     })
-    const result = await hasConsentFor(db.client, "u-1", "a-1", [
-      "openid",
-      "email",
-    ])
+    const result = await hasConsentFor(db.client, "u-1", "a-1", ["openid", "email"])
     expect(result.success).toBe(true)
     if (result.success) expect(result.covered).toBe(true)
   })
@@ -100,10 +89,7 @@ describe("hasConsentFor", () => {
   it("returns covered:false when a requested scope is missing", async () => {
     const db = new FakeDb()
     db.on(/FROM oauth_consents/, { rows: [{ scopes: ["openid"] }] })
-    const result = await hasConsentFor(db.client, "u-1", "a-1", [
-      "openid",
-      "email",
-    ])
+    const result = await hasConsentFor(db.client, "u-1", "a-1", ["openid", "email"])
     expect(result.success).toBe(true)
     if (result.success) expect(result.covered).toBe(false)
   })

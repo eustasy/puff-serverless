@@ -13,12 +13,7 @@
 // whether a failure is fatal. There is no automatic retry — the verification
 // and password-reset flows both expose a user-driven resend/re-request path.
 
-import {
-  verificationEmail,
-  passwordResetEmail,
-  twoFactorBypassEmail,
-  organisationInvitationEmail,
-} from "./email-templates.js"
+import { verificationEmail, passwordResetEmail, twoFactorBypassEmail, organisationInvitationEmail } from "./email-templates.js"
 
 const DEFAULT_API_URL = "https://send.api.mailtrap.io/api/send"
 const SEND_TIMEOUT_MS = 10000
@@ -49,16 +44,11 @@ function appOrigin(env: Env): string | null {
  * @returns {Promise<Envelope>} `{ success: true, status: 200 }` on accept,
  *   `{ error: true, message, status }` when unconfigured (500) or the send fails (502).
  */
-export async function sendEmail(
-  env: Env,
-  message: EmailMessage
-): Promise<Envelope> {
+export async function sendEmail(env: Env, message: EmailMessage): Promise<Envelope> {
   const token = env.MAILTRAP_TOKEN
   const sender = env.MAILTRAP_SENDER
   if (!token || !sender) {
-    console.error(
-      "Error in sendEmail: MAILTRAP_TOKEN or MAILTRAP_SENDER is not configured."
-    )
+    console.error("Error in sendEmail: MAILTRAP_TOKEN or MAILTRAP_SENDER is not configured.")
     return {
       error: true,
       message: "Email delivery is not configured.",
@@ -91,10 +81,7 @@ export async function sendEmail(
 
     if (!response.ok) {
       const detail = await response.text().catch(() => "")
-      console.error(
-        `Error in sendEmail: Mailtrap responded ${response.status}.`,
-        detail
-      )
+      console.error(`Error in sendEmail: Mailtrap responded ${response.status}.`, detail)
       return {
         error: true,
         message: "Failed to send email.",
@@ -122,11 +109,7 @@ export async function sendEmail(
  * @param {string} token - The email-verification token value.
  * @returns {Promise<Envelope>} Result of the underlying {@link sendEmail} call.
  */
-export async function sendVerificationEmail(
-  env: Env,
-  to: string,
-  token: string
-): Promise<Envelope> {
+export async function sendVerificationEmail(env: Env, to: string, token: string): Promise<Envelope> {
   const origin = appOrigin(env)
   if (!origin) {
     return {
@@ -154,11 +137,7 @@ export async function sendVerificationEmail(
  * @param {string} token - The password-reset token value.
  * @returns {Promise<Envelope>} Result of the underlying {@link sendEmail} call.
  */
-export async function sendPasswordResetEmail(
-  env: Env,
-  to: string,
-  token: string
-): Promise<Envelope> {
+export async function sendPasswordResetEmail(env: Env, to: string, token: string): Promise<Envelope> {
   const origin = appOrigin(env)
   if (!origin) {
     return {
@@ -186,11 +165,7 @@ export async function sendPasswordResetEmail(
  * @param {string} token - The 2FA-bypass token value.
  * @returns {Promise<Envelope>} Result of the underlying {@link sendEmail} call.
  */
-export async function sendTwoFactorBypassEmail(
-  env: Env,
-  to: string,
-  token: string
-): Promise<Envelope> {
+export async function sendTwoFactorBypassEmail(env: Env, to: string, token: string): Promise<Envelope> {
   const origin = appOrigin(env)
   if (!origin) {
     return {
@@ -219,12 +194,7 @@ export async function sendTwoFactorBypassEmail(
  * @param {string} organisationName - Name of the inviting organisation.
  * @returns {Promise<Envelope>} Result of the underlying {@link sendEmail} call.
  */
-export async function sendOrganisationInvitationEmail(
-  env: Env,
-  to: string,
-  token: string,
-  organisationName: string
-): Promise<Envelope> {
+export async function sendOrganisationInvitationEmail(env: Env, to: string, token: string, organisationName: string): Promise<Envelope> {
   const origin = appOrigin(env)
   if (!origin) {
     return {

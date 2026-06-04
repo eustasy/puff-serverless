@@ -26,10 +26,7 @@ export const onRequestGet: Handler = async (context) => {
     })
   }
   const buttons = configured
-    .map(
-      (p) =>
-        `<a class="btn-safe" href="/login/${encodeURIComponent(p.name)}">${escapeHtml(p.display_name)}</a>`
-    )
+    .map((p) => `<a class="btn-safe" href="/login/${encodeURIComponent(p.name)}">${escapeHtml(p.display_name)}</a>`)
     .join(" ")
   const body = `<hr><p>Or continue with:</p><p>${buttons}</p>`
   return new Response(body, {

@@ -1,10 +1,6 @@
 import { deleteOrganisation } from "../../../../../../src/organisations.js"
 import { can } from "../../../../../../src/permissions.js"
-import {
-  resultPositive,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../src/utilities/responses.js"
+import { resultPositive, resultNegative, methodNotAllowed } from "../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../src/hooks/events.js"
 
@@ -21,12 +17,7 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
   const org_uuid = String(context.params.org_uuid)
   const result = await deleteOrganisation(context.data.dbClient!, org_uuid)
   if (!result.success) {
-    return resultNegative(
-      result.error
-        ? "Could not delete the organisation."
-        : "Organisation not found.",
-      result.status
-    )
+    return resultNegative(result.error ? "Could not delete the organisation." : "Organisation not found.", result.status)
   }
   await emitFromContext(context, {
     event_type: EVENTS.ORG_DELETED,

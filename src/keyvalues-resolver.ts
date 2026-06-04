@@ -18,19 +18,9 @@
 // and de-duplicated (the caller decides how to combine them — see
 // `kv-unified-design` memory).
 
-import {
-  Owner,
-  ownerFilter,
-  validatePair,
-} from "./utilities/keyvalues-shared.js"
+import { Owner, ownerFilter, validatePair } from "./utilities/keyvalues-shared.js"
 
-export type ResolveSource =
-  | "user"
-  | "team-role"
-  | "org-role"
-  | "team"
-  | "org"
-  | "app"
+export type ResolveSource = "user" | "team-role" | "org-role" | "team" | "org" | "app"
 
 export interface ResolveOptions {
   owner: Owner
@@ -53,10 +43,7 @@ export type ResolveResult = Envelope<{
  * no tier has a hit; `values` may contain multiple entries only at the
  * role tiers (the user holds several roles, each with a value).
  */
-export async function resolveKeyValue(
-  dbClient: DbClient,
-  opts: ResolveOptions
-): Promise<ResolveResult> {
+export async function resolveKeyValue(dbClient: DbClient, opts: ResolveOptions): Promise<ResolveResult> {
   const { owner, key, user_uuid, org_uuid, team_uuid } = opts
 
   const invalid = validatePair(key)
@@ -73,13 +60,7 @@ export async function resolveKeyValue(
 
     // Tier 2 — team-role (requires team context)
     if (team_uuid !== undefined) {
-      const teamRoleHits = await queryTeamRoleTier(
-        dbClient,
-        team_uuid,
-        user_uuid,
-        owner,
-        key
-      )
+      const teamRoleHits = await queryTeamRoleTier(dbClient, team_uuid, user_uuid, owner, key)
       if (teamRoleHits.length > 0) {
         return {
           success: true,
@@ -92,13 +73,7 @@ export async function resolveKeyValue(
 
     // Tier 3 — org-role (requires org context)
     if (org_uuid !== undefined) {
-      const orgRoleHits = await queryOrgRoleTier(
-        dbClient,
-        org_uuid,
-        user_uuid,
-        owner,
-        key
-      )
+      const orgRoleHits = await queryOrgRoleTier(dbClient, org_uuid, user_uuid, owner, key)
       if (orgRoleHits.length > 0) {
         return {
           success: true,
@@ -152,12 +127,7 @@ export async function resolveKeyValue(
   }
 }
 
-async function queryUserTier(
-  dbClient: DbClient,
-  user_uuid: string,
-  owner: Owner,
-  key: string
-): Promise<string | null> {
+async function queryUserTier(dbClient: DbClient, user_uuid: string, owner: Owner, key: string): Promise<string | null> {
   const ownerWhere = ownerFilter(owner, 2)
   const result = await dbClient.query(
     `SELECT kv_value FROM user_key_values WHERE user_uuid = $1 AND ${ownerWhere.sql} AND kv_key = $3 LIMIT 1`,
@@ -166,12 +136,7 @@ async function queryUserTier(
   return result.rows.length === 0 ? null : result.rows[0].kv_value
 }
 
-async function queryTeamTier(
-  dbClient: DbClient,
-  team_uuid: string,
-  owner: Owner,
-  key: string
-): Promise<string | null> {
+async function queryTeamTier(dbClient: DbClient, team_uuid: string, owner: Owner, key: string): Promise<string | null> {
   const ownerWhere = ownerFilter(owner, 2)
   const result = await dbClient.query(
     `SELECT kv_value FROM team_key_values WHERE team_uuid = $1 AND ${ownerWhere.sql} AND kv_key = $3 LIMIT 1`,
@@ -180,12 +145,7 @@ async function queryTeamTier(
   return result.rows.length === 0 ? null : result.rows[0].kv_value
 }
 
-async function queryOrgTier(
-  dbClient: DbClient,
-  org_uuid: string,
-  owner: Owner,
-  key: string
-): Promise<string | null> {
+async function queryOrgTier(dbClient: DbClient, org_uuid: string, owner: Owner, key: string): Promise<string | null> {
   const ownerWhere = ownerFilter(owner, 2)
   const result = await dbClient.query(
     `SELECT kv_value FROM organisation_key_values WHERE org_uuid = $1 AND ${ownerWhere.sql} AND kv_key = $3 LIMIT 1`,
@@ -194,12 +154,7 @@ async function queryOrgTier(
   return result.rows.length === 0 ? null : result.rows[0].kv_value
 }
 
-async function queryAppTier(
-  dbClient: DbClient,
-  app_uuid: string,
-  owner: Owner,
-  key: string
-): Promise<string | null> {
+async function queryAppTier(dbClient: DbClient, app_uuid: string, owner: Owner, key: string): Promise<string | null> {
   const ownerWhere = ownerFilter(owner, 2)
   const result = await dbClient.query(
     `SELECT kv_value FROM app_key_values WHERE app_uuid = $1 AND ${ownerWhere.sql} AND kv_key = $3 LIMIT 1`,
@@ -212,13 +167,7 @@ async function queryAppTier(
  * Returns every distinct value a user has via team-roles they hold in
  * `team_uuid`. One row per matching role; de-duplicated across roles.
  */
-async function queryTeamRoleTier(
-  dbClient: DbClient,
-  team_uuid: string,
-  user_uuid: string,
-  owner: Owner,
-  key: string
-): Promise<string[]> {
+async function queryTeamRoleTier(dbClient: DbClient, team_uuid: string, user_uuid: string, owner: Owner, key: string): Promise<string[]> {
   const ownerWhere = ownerFilter(owner, 3)
   const result = await dbClient.query(
     `SELECT DISTINCT kv.kv_value
@@ -234,13 +183,7 @@ async function queryTeamRoleTier(
   return result.rows.map((row) => row.kv_value)
 }
 
-async function queryOrgRoleTier(
-  dbClient: DbClient,
-  org_uuid: string,
-  user_uuid: string,
-  owner: Owner,
-  key: string
-): Promise<string[]> {
+async function queryOrgRoleTier(dbClient: DbClient, org_uuid: string, user_uuid: string, owner: Owner, key: string): Promise<string[]> {
   const ownerWhere = ownerFilter(owner, 3)
   const result = await dbClient.query(
     `SELECT DISTINCT kv.kv_value

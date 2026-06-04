@@ -13,9 +13,7 @@ afterEach(() => vi.unstubAllGlobals())
 // Stubs global fetch with a recording mock that resolves to `response`.
 // The args are typed so `.mock.calls` carries the URL and init object.
 function stubFetch(response: Response) {
-  const fetchMock = vi.fn((_url: string, _init?: RequestInit) =>
-    Promise.resolve(response)
-  )
+  const fetchMock = vi.fn((_url: string, _init?: RequestInit) => Promise.resolve(response))
   vi.stubGlobal("fetch", fetchMock)
   return fetchMock
 }
@@ -103,35 +101,24 @@ describe("templated senders", () => {
   it("sendVerificationEmail builds an absolute verify link with the token", async () => {
     const fetchMock = stubFetch(new Response("", { status: 200 }))
     await sendVerificationEmail(configured, "a@b.test", "tok 123")
-    expect(sentBody(fetchMock).text).toContain(
-      "https://app.example.com/api/db/email/verify?token=tok%20123"
-    )
+    expect(sentBody(fetchMock).text).toContain("https://app.example.com/api/db/email/verify?token=tok%20123")
   })
 
   it("sendPasswordResetEmail builds an absolute reset link", async () => {
     const fetchMock = stubFetch(new Response("", { status: 200 }))
     await sendPasswordResetEmail(configured, "a@b.test", "rtok")
-    expect(sentBody(fetchMock).text).toContain(
-      "https://app.example.com/reset/set?token=rtok"
-    )
+    expect(sentBody(fetchMock).text).toContain("https://app.example.com/reset/set?token=rtok")
   })
 
   it("sendTwoFactorBypassEmail builds an absolute bypass link", async () => {
     const fetchMock = stubFetch(new Response("", { status: 200 }))
     await sendTwoFactorBypassEmail(configured, "a@b.test", "btok")
-    expect(sentBody(fetchMock).text).toContain(
-      "https://app.example.com/api/db/2fa/bypass/verify?token=btok"
-    )
+    expect(sentBody(fetchMock).text).toContain("https://app.example.com/api/db/2fa/bypass/verify?token=btok")
   })
 
   it("sendOrganisationInvitationEmail builds an absolute /invite link", async () => {
     const fetchMock = stubFetch(new Response("", { status: 200 }))
-    await sendOrganisationInvitationEmail(
-      configured,
-      "a@b.test",
-      "itok",
-      "Acme"
-    )
+    await sendOrganisationInvitationEmail(configured, "a@b.test", "itok", "Acme")
     const body = sentBody(fetchMock)
     expect(body.text).toContain("https://app.example.com/invite?token=itok")
     expect(body.subject).toContain("Acme")
@@ -139,8 +126,6 @@ describe("templated senders", () => {
 
   it("returns 500 when APP_URL is unset", async () => {
     const env = fakeEnv({ MAILTRAP_TOKEN: "t", MAILTRAP_SENDER: "s@e.test" })
-    expect(
-      await sendOrganisationInvitationEmail(env, "a@b.test", "itok", "Acme")
-    ).toMatchObject({ error: true, status: 500 })
+    expect(await sendOrganisationInvitationEmail(env, "a@b.test", "itok", "Acme")).toMatchObject({ error: true, status: 500 })
   })
 })

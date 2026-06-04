@@ -13,21 +13,11 @@ export const onRequestPost: Handler = async (context) => {
   const pw = formdata.get("pw")
 
   // Basic validation for required fields
-  if (
-    typeof email !== "string" ||
-    typeof name !== "string" ||
-    typeof pw !== "string" ||
-    !email ||
-    !name ||
-    !pw
-  ) {
-    return new Response(
-      '<p class="result-negative">Name, email, and password are required.</p>',
-      {
-        status: 400,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
+  if (typeof email !== "string" || typeof name !== "string" || typeof pw !== "string" || !email || !name || !pw) {
+    return new Response('<p class="result-negative">Name, email, and password are required.</p>', {
+      status: 400,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 
   try {
@@ -48,20 +38,14 @@ export const onRequestPost: Handler = async (context) => {
       })
     } else {
       // This case might be hit if registerUser returns something unexpected without throwing an error
-      return new Response(
-        '<p class="result-negative">Registration failed. Please try again.</p>',
-        {
-          status: 500,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      return new Response('<p class="result-negative">Registration failed. Please try again.</p>', {
+        status: 500,
+        headers: { "Content-Type": "text/html" },
+      })
     }
   } catch (error) {
     console.error("Error in registerUser endpoint:", error)
-    if (
-      error instanceof Error &&
-      error.message === "Email is already registered."
-    ) {
+    if (error instanceof Error && error.message === "Email is already registered.") {
       // The email is taken. If the supplied password also matches the existing
       // account, this is a returning user who forgot they already had one —
       // log them in rather than erroring (issue #20). registerUser threw
@@ -69,42 +53,23 @@ export const onRequestPost: Handler = async (context) => {
       const user_agent = context.request.headers.get("User-Agent") || ""
       const ip_address = context.request.headers.get("CF-Connecting-IP") || ""
       const ip_country = context.request.headers.get("CF-IPCountry") || ""
-      const loginResult = await loginUser(
-        dbClient,
-        email,
-        pw,
-        user_agent,
-        ip_address,
-        ip_country,
-        minPasswordLength(context.env)
-      )
+      const loginResult = await loginUser(dbClient, email, pw, user_agent, ip_address, ip_country, minPasswordLength(context.env))
       if (!loginResult.error) {
         // Same outcome as a normal login: a session, or the 2FA /
         // password-upgrade step.
-        return await loginOutcomeResponse(
-          dbClient,
-          context.env,
-          loginResult,
-          context.request
-        )
+        return await loginOutcomeResponse(dbClient, context.env, loginResult, context.request)
       }
       // Password did not match the existing account — keep the generic
       // conflict response, revealing nothing about the password.
-      return new Response(
-        '<p class="result-negative">Email is already registered.</p>',
-        {
-          status: 409, // 409 Conflict is appropriate for existing email
-          headers: { "Content-Type": "text/html" },
-        }
-      )
-    }
-    return new Response(
-      '<p class="result-negative">An unexpected error occurred during registration.</p>',
-      {
-        status: 500,
+      return new Response('<p class="result-negative">Email is already registered.</p>', {
+        status: 409, // 409 Conflict is appropriate for existing email
         headers: { "Content-Type": "text/html" },
-      }
-    )
+      })
+    }
+    return new Response('<p class="result-negative">An unexpected error occurred during registration.</p>', {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 }
 

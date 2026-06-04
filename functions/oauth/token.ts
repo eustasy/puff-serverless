@@ -9,16 +9,8 @@
 
 import { oauthErrorResponse, verifyPkce } from "../../src/oauth.js"
 import { verifyAppCredentials } from "../../src/apps.js"
-import {
-  consumeAuthorizationCode,
-  consumeRefreshToken,
-  createRefreshToken,
-  revokeRefreshTokenChain,
-} from "../../src/oauth-grants.js"
-import {
-  checkoutFloatingSeat,
-  releaseFloatingSeat,
-} from "../../src/app-floating-sessions.js"
+import { consumeAuthorizationCode, consumeRefreshToken, createRefreshToken, revokeRefreshTokenChain } from "../../src/oauth-grants.js"
+import { checkoutFloatingSeat, releaseFloatingSeat } from "../../src/app-floating-sessions.js"
 import {
   ACCESS_TOKEN_TTL_SECONDS,
   buildAccessToken,
@@ -37,10 +29,7 @@ export const onRequestPost: Handler = async (context) => {
 
   const contentType = request.headers.get("Content-Type") || ""
   if (!contentType.includes("application/x-www-form-urlencoded")) {
-    return oauthErrorResponse(
-      "invalid_request",
-      "Content-Type must be application/x-www-form-urlencoded"
-    )
+    return oauthErrorResponse("invalid_request", "Content-Type must be application/x-www-form-urlencoded")
   }
 
   let form: URLSearchParams
@@ -54,22 +43,12 @@ export const onRequestPost: Handler = async (context) => {
   const client_id = basic?.client_id || form.get("client_id") || ""
   const client_secret = basic?.client_secret || form.get("client_secret") || ""
   if (!client_id || !client_secret) {
-    return oauthErrorResponse(
-      "invalid_client",
-      "Client credentials required",
-      401,
-      { "WWW-Authenticate": 'Basic realm="oauth"' }
-    )
+    return oauthErrorResponse("invalid_client", "Client credentials required", 401, { "WWW-Authenticate": 'Basic realm="oauth"' })
   }
 
   const creds = await verifyAppCredentials(dbClient, client_id, client_secret)
   if (creds.error || !creds.success || !creds.verified || !creds.app) {
-    return oauthErrorResponse(
-      "invalid_client",
-      "Invalid client credentials",
-      401,
-      { "WWW-Authenticate": 'Basic realm="oauth"' }
-    )
+    return oauthErrorResponse("invalid_client", "Invalid client credentials", 401, { "WWW-Authenticate": 'Basic realm="oauth"' })
   }
   const app = creds.app
 
@@ -81,18 +60,10 @@ export const onRequestPost: Handler = async (context) => {
     const redirect_uri = form.get("redirect_uri") || ""
     const code_verifier = form.get("code_verifier") || ""
     if (!code || !redirect_uri || !code_verifier) {
-      return oauthErrorResponse(
-        "invalid_request",
-        "code, redirect_uri and code_verifier are required"
-      )
+      return oauthErrorResponse("invalid_request", "code, redirect_uri and code_verifier are required")
     }
 
-    const consumed = await consumeAuthorizationCode(
-      dbClient,
-      code,
-      app.app_uuid,
-      redirect_uri
-    )
+    const consumed = await consumeAuthorizationCode(dbClient, code, app.app_uuid, redirect_uri)
     if (consumed.error) {
       return oauthErrorResponse("server_error", "DB error", 500)
     }
@@ -102,16 +73,9 @@ export const onRequestPost: Handler = async (context) => {
     const grant = consumed.grant
 
     if (!grant.code_challenge || !grant.code_challenge_method) {
-      return oauthErrorResponse(
-        "invalid_grant",
-        "Authorization code is missing PKCE challenge"
-      )
+      return oauthErrorResponse("invalid_grant", "Authorization code is missing PKCE challenge")
     }
-    const pkceOk = await verifyPkce(
-      code_verifier,
-      grant.code_challenge,
-      grant.code_challenge_method
-    )
+    const pkceOk = await verifyPkce(code_verifier, grant.code_challenge, grant.code_challenge_method)
     if (!pkceOk) {
       return oauthErrorResponse("invalid_grant", "PKCE verification failed")
     }
@@ -124,23 +88,11 @@ export const onRequestPost: Handler = async (context) => {
     // later when a seat frees up.
     if (app.app_licensing_mode === "floating") {
       if (!grant_org_uuid) {
-        return oauthErrorResponse(
-          "invalid_grant",
-          "Floating-licence app requires an organisation context."
-        )
+        return oauthErrorResponse("invalid_grant", "Floating-licence app requires an organisation context.")
       }
-      const seat = await checkoutFloatingSeat(
-        dbClient,
-        app.app_uuid,
-        grant_org_uuid,
-        grant.user_uuid,
-        ACCESS_TOKEN_TTL_SECONDS
-      )
+      const seat = await checkoutFloatingSeat(dbClient, app.app_uuid, grant_org_uuid, grant.user_uuid, ACCESS_TOKEN_TTL_SECONDS)
       if (!seat.success) {
-        return oauthErrorResponse(
-          "access_denied",
-          seat.message ?? "No floating seat available."
-        )
+        return oauthErrorResponse("access_denied", seat.message ?? "No floating seat available.")
       }
     }
 
@@ -193,11 +145,7 @@ export const onRequestPost: Handler = async (context) => {
     if (!presented) {
       return oauthErrorResponse("invalid_request", "refresh_token is required")
     }
-    const consumed = await consumeRefreshToken(
-      dbClient,
-      presented,
-      app.app_uuid
-    )
+    const consumed = await consumeRefreshToken(dbClient, presented, app.app_uuid)
     if (consumed.error) {
       return oauthErrorResponse("server_error", "DB error", 500)
     }
@@ -215,34 +163,17 @@ export const onRequestPost: Handler = async (context) => {
 
     if (app.app_licensing_mode === "floating") {
       if (!grant_org_uuid) {
-        return oauthErrorResponse(
-          "invalid_grant",
-          "Floating-licence app requires an organisation context."
-        )
+        return oauthErrorResponse("invalid_grant", "Floating-licence app requires an organisation context.")
       }
       // Heartbeat-or-allocate: the existing seat is bumped, or a new one is
       // claimed if the previous expired. Pool-exhausted at refresh time is
       // the same denial path as at code exchange.
-      const seat = await checkoutFloatingSeat(
-        dbClient,
-        app.app_uuid,
-        grant_org_uuid,
-        grant.user_uuid,
-        ACCESS_TOKEN_TTL_SECONDS
-      )
+      const seat = await checkoutFloatingSeat(dbClient, app.app_uuid, grant_org_uuid, grant.user_uuid, ACCESS_TOKEN_TTL_SECONDS)
       if (!seat.success) {
         // Best-effort: free anything we have for this user so the pool isn't
         // stuck.
-        await releaseFloatingSeat(
-          dbClient,
-          app.app_uuid,
-          grant_org_uuid,
-          grant.user_uuid
-        )
-        return oauthErrorResponse(
-          "access_denied",
-          seat.message ?? "No floating seat available."
-        )
+        await releaseFloatingSeat(dbClient, app.app_uuid, grant_org_uuid, grant.user_uuid)
+        return oauthErrorResponse("access_denied", seat.message ?? "No floating seat available.")
       }
     }
 
@@ -284,10 +215,7 @@ export const onRequestPost: Handler = async (context) => {
     return tokenResponse(body)
   }
 
-  return oauthErrorResponse(
-    "unsupported_grant_type",
-    `grant_type "${grant_type}" is not supported`
-  )
+  return oauthErrorResponse("unsupported_grant_type", `grant_type "${grant_type}" is not supported`)
 }
 
 export const onRequest: Handler = async () =>

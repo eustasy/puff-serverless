@@ -1,14 +1,7 @@
 import { addTeamMember } from "../../../../../../../../../src/memberships.js"
 import { getUserByEmail } from "../../../../../../../../../src/users.js"
-import {
-  can,
-  DEFAULT_TEAM_ROLE,
-} from "../../../../../../../../../src/permissions.js"
-import {
-  resultPositive,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../../../../src/utilities/responses.js"
+import { can, DEFAULT_TEAM_ROLE } from "../../../../../../../../../src/permissions.js"
+import { resultPositive, resultNegative, methodNotAllowed } from "../../../../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../../../../src/hooks/events.js"
 
@@ -18,15 +11,10 @@ import { EVENTS } from "../../../../../../../../../src/hooks/events.js"
  * a unique handle). A team grant alone makes the user a guest of the
  * organisation — organisation membership is not required.
  */
-export const onRequestPost: Handler<"org_uuid" | "team_uuid"> = async (
-  context
-) => {
+export const onRequestPost: Handler<"org_uuid" | "team_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []
   const teamRoles = context.data.teamRoles ?? []
-  if (
-    !can(teamRoles, "team:members:add") &&
-    !can(orgRoles, "org:teams:manage")
-  ) {
+  if (!can(teamRoles, "team:members:add") && !can(orgRoles, "org:teams:manage")) {
     return resultNegative("You do not have permission to do this.", 403)
   }
 
@@ -48,19 +36,10 @@ export const onRequestPost: Handler<"org_uuid" | "team_uuid"> = async (
     return resultNegative("Could not look up that user.", 500)
   }
   if (!user.success) {
-    return resultNegative(
-      "No account found for that email address — send an invitation instead.",
-      404
-    )
+    return resultNegative("No account found for that email address — send an invitation instead.", 404)
   }
 
-  const result = await addTeamMember(
-    dbClient,
-    String(context.params.team_uuid),
-    user.user_uuid,
-    role,
-    context.data.user_uuid!
-  )
+  const result = await addTeamMember(dbClient, String(context.params.team_uuid), user.user_uuid, role, context.data.user_uuid!)
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }

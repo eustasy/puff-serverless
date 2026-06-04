@@ -1,10 +1,7 @@
 import { openBillingPortal } from "../../../../../../../../src/billing.js"
 import { createStripeProvider } from "../../../../../../../../src/billing-stripe.js"
 import { can } from "../../../../../../../../src/permissions.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-} from "../../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative } from "../../../../../../../../src/utilities/responses.js"
 
 /**
  * Opens a Stripe-hosted billing portal session for this organisation and

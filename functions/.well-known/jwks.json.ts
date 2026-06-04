@@ -11,10 +11,7 @@ import { currentPublicJwk, previousPublicJwk } from "../../src/oauth-keys.js"
 // advertise as `jwks_uri`.
 
 export const onRequestGet: Handler = async ({ env }) => {
-  const [current, previous] = await Promise.all([
-    currentPublicJwk(env),
-    previousPublicJwk(env),
-  ])
+  const [current, previous] = await Promise.all([currentPublicJwk(env), previousPublicJwk(env)])
   const keys = previous ? [current, previous] : [current]
   return new Response(JSON.stringify({ keys }), {
     headers: {
@@ -25,5 +22,4 @@ export const onRequestGet: Handler = async ({ env }) => {
   })
 }
 
-export const onRequest: Handler = async () =>
-  new Response("Method Not Allowed", { status: 405, headers: { Allow: "GET" } })
+export const onRequest: Handler = async () => new Response("Method Not Allowed", { status: 405, headers: { Allow: "GET" } })

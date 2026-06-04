@@ -16,11 +16,7 @@ describe("runInTransaction", () => {
     await runInTransaction(db.client, async () => {
       await db.client.query("UPDATE users SET x = 1")
     })
-    expect(db.calls.map((c) => c.text)).toEqual([
-      "BEGIN",
-      "UPDATE users SET x = 1",
-      "COMMIT",
-    ])
+    expect(db.calls.map((c) => c.text)).toEqual(["BEGIN", "UPDATE users SET x = 1", "COMMIT"])
   })
 
   it("rolls back and rethrows a non-retryable error", async () => {
@@ -76,14 +72,7 @@ describe("runInTransaction", () => {
     expect(result).toBe("succeeded on third try")
     expect(attempts).toBe(3)
     // The first two attempts roll back; the third commits.
-    expect(db.calls.map((c) => c.text)).toEqual([
-      "BEGIN",
-      "ROLLBACK",
-      "BEGIN",
-      "ROLLBACK",
-      "BEGIN",
-      "COMMIT",
-    ])
+    expect(db.calls.map((c) => c.text)).toEqual(["BEGIN", "ROLLBACK", "BEGIN", "ROLLBACK", "BEGIN", "COMMIT"])
   })
 
   it("gives up after 5 attempts when 40001 never clears", async () => {

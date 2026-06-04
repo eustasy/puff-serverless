@@ -21,13 +21,10 @@ describe("isProviderName", () => {
 describe("getProviderConfig + extractors", () => {
   it("GitHub: pulls id + email from /user, prefers a verified primary from /user/emails", () => {
     const config = getProviderConfig("github")!
-    const identity = config.normaliseUserinfo(
-      { id: 12345, login: "alice", name: "Alice", email: null },
-      [
-        { email: "old@x", primary: false, verified: false },
-        { email: "alice@x", primary: true, verified: true },
-      ]
-    )
+    const identity = config.normaliseUserinfo({ id: 12345, login: "alice", name: "Alice", email: null }, [
+      { email: "old@x", primary: false, verified: false },
+      { email: "alice@x", primary: true, verified: true },
+    ])
     expect(identity).toEqual({
       provider_user_id: "12345",
       email: "alice@x",
@@ -91,38 +88,24 @@ describe("getProviderConfig + extractors", () => {
       .replace(/\//g, "_")
       .replace(/=+$/, "")
     const idToken = `header.${payload}.sig`
-    const identity = config.normaliseUserinfo(
-      { sub: "ms-1", email: "dave@corp", name: "Dave" },
-      undefined,
-      idToken
-    )
+    const identity = config.normaliseUserinfo({ sub: "ms-1", email: "dave@corp", name: "Dave" }, undefined, idToken)
     expect(identity?.email_verified).toBe(true)
   })
 
   it("Microsoft: keeps the email unverified for the personal-MSA tenant", () => {
     const config = getProviderConfig("microsoft")!
-    const payload = btoa(
-      JSON.stringify({ tid: "9188040d-6c67-4c5b-b112-36a304b66dad" })
-    )
+    const payload = btoa(JSON.stringify({ tid: "9188040d-6c67-4c5b-b112-36a304b66dad" }))
       .replace(/\+/g, "-")
       .replace(/\//g, "_")
       .replace(/=+$/, "")
     const idToken = `header.${payload}.sig`
-    const identity = config.normaliseUserinfo(
-      { sub: "ms-1", email: "dave@outlook.com", name: "Dave" },
-      undefined,
-      idToken
-    )
+    const identity = config.normaliseUserinfo({ sub: "ms-1", email: "dave@outlook.com", name: "Dave" }, undefined, idToken)
     expect(identity?.email_verified).toBe(false)
   })
 
   it("Microsoft: keeps the email unverified when the ID token is malformed", () => {
     const config = getProviderConfig("microsoft")!
-    const identity = config.normaliseUserinfo(
-      { sub: "ms-1", email: "dave@x", name: "Dave" },
-      undefined,
-      "not.a.valid.jwt"
-    )
+    const identity = config.normaliseUserinfo({ sub: "ms-1", email: "dave@x", name: "Dave" }, undefined, "not.a.valid.jwt")
     expect(identity?.email_verified).toBe(false)
   })
 
@@ -164,8 +147,6 @@ describe("getProviderCredentials + listConfiguredProviders", () => {
 describe("providerRedirectUri", () => {
   it("strips trailing slash from APP_URL and appends /login/{name}/callback", () => {
     const env = fakeEnv({ APP_URL: "https://puff.example/" })
-    expect(providerRedirectUri(env, "github")).toBe(
-      "https://puff.example/login/github/callback"
-    )
+    expect(providerRedirectUri(env, "github")).toBe("https://puff.example/login/github/callback")
   })
 })

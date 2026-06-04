@@ -13,8 +13,7 @@ export const MAX_NAME_LENGTH = 128
 
 const TEAM_COLUMNS = "team_uuid, org_uuid, team_name, team_created_at"
 
-const validateName = (name: string): string | null =>
-  validateDisplayName(name, "A team name is required.", MAX_NAME_LENGTH)
+const validateName = (name: string): string | null => validateDisplayName(name, "A team name is required.", MAX_NAME_LENGTH)
 
 /**
  * Creates a team within an organisation. The caller is responsible for the
@@ -24,11 +23,7 @@ const validateName = (name: string): string | null =>
  * @param {string} name - Display name.
  * @returns {Promise<Envelope<{ team: TeamRow }>>} `{ success: true, team, status: 201 }`, `{ success: false, message, status: 400|404 }`, or an error envelope.
  */
-export async function createTeam(
-  dbClient: DbClient,
-  org_uuid: string,
-  name: string
-): Promise<Envelope<{ team: TeamRow }>> {
+export async function createTeam(dbClient: DbClient, org_uuid: string, name: string): Promise<Envelope<{ team: TeamRow }>> {
   const invalid = validateName(name)
   if (invalid) {
     return { success: false, message: invalid, status: 400 }
@@ -63,15 +58,9 @@ export async function createTeam(
  * @param {string} team_uuid - The team UUID.
  * @returns {Promise<Envelope<{ team: TeamRow }>>} `{ success: true, team, status: 200 }`, `{ success: false, message, status: 404 }`, or an error envelope.
  */
-export async function readTeam(
-  dbClient: DbClient,
-  team_uuid: string
-): Promise<Envelope<{ team: TeamRow }>> {
+export async function readTeam(dbClient: DbClient, team_uuid: string): Promise<Envelope<{ team: TeamRow }>> {
   try {
-    const result = await dbClient.query(
-      `SELECT ${TEAM_COLUMNS} FROM teams WHERE team_uuid = $1 LIMIT 1`,
-      [team_uuid]
-    )
+    const result = await dbClient.query(`SELECT ${TEAM_COLUMNS} FROM teams WHERE team_uuid = $1 LIMIT 1`, [team_uuid])
     if (result.rows.length === 0) {
       return { success: false, message: "Team not found.", status: 404 }
     }
@@ -94,20 +83,16 @@ export async function readTeam(
  * @param {string} name - New display name.
  * @returns {Promise<Envelope<{ team: TeamRow }>>} `{ success: true, team, status: 200 }`, `{ success: false, message, status: 400|404 }`, or an error envelope.
  */
-export async function updateTeam(
-  dbClient: DbClient,
-  team_uuid: string,
-  name: string
-): Promise<Envelope<{ team: TeamRow }>> {
+export async function updateTeam(dbClient: DbClient, team_uuid: string, name: string): Promise<Envelope<{ team: TeamRow }>> {
   const invalid = validateName(name)
   if (invalid) {
     return { success: false, message: invalid, status: 400 }
   }
   try {
-    const result = await dbClient.query(
-      `UPDATE teams SET team_name = $2 WHERE team_uuid = $1 RETURNING ${TEAM_COLUMNS}`,
-      [team_uuid, name.trim()]
-    )
+    const result = await dbClient.query(`UPDATE teams SET team_name = $2 WHERE team_uuid = $1 RETURNING ${TEAM_COLUMNS}`, [
+      team_uuid,
+      name.trim(),
+    ])
     if ((result.rowCount ?? 0) === 0) {
       return { success: false, message: "Team not found.", status: 404 }
     }
@@ -130,15 +115,9 @@ export async function updateTeam(
  * @param {string} team_uuid - The team UUID.
  * @returns {Promise<Envelope>} `{ success: true, status: 200 }`, `{ success: false, status: 404 }`, or an error envelope.
  */
-export async function deleteTeam(
-  dbClient: DbClient,
-  team_uuid: string
-): Promise<Envelope> {
+export async function deleteTeam(dbClient: DbClient, team_uuid: string): Promise<Envelope> {
   try {
-    const result = await dbClient.query(
-      "DELETE FROM teams WHERE team_uuid = $1 RETURNING team_uuid",
-      [team_uuid]
-    )
+    const result = await dbClient.query("DELETE FROM teams WHERE team_uuid = $1 RETURNING team_uuid", [team_uuid])
     if ((result.rowCount ?? 0) === 0) {
       return { success: false, message: "Team not found.", status: 404 }
     }
@@ -160,15 +139,9 @@ export async function deleteTeam(
  * @param {string} org_uuid - The organisation UUID.
  * @returns {Promise<Envelope<{ teams: TeamRow[] }>>} `{ success: true, teams, status: 200 }` or an error envelope.
  */
-export async function listTeams(
-  dbClient: DbClient,
-  org_uuid: string
-): Promise<Envelope<{ teams: TeamRow[] }>> {
+export async function listTeams(dbClient: DbClient, org_uuid: string): Promise<Envelope<{ teams: TeamRow[] }>> {
   try {
-    const result = await dbClient.query(
-      `SELECT ${TEAM_COLUMNS} FROM teams WHERE org_uuid = $1 ORDER BY team_name ASC`,
-      [org_uuid]
-    )
+    const result = await dbClient.query(`SELECT ${TEAM_COLUMNS} FROM teams WHERE org_uuid = $1 ORDER BY team_name ASC`, [org_uuid])
     return { success: true, teams: result.rows, status: 200 }
   } catch (error) {
     console.error("Error in listTeams:", error)

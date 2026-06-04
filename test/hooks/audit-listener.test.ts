@@ -46,14 +46,9 @@ describe("auditListener", () => {
     const db = new FakeDb()
     db.on(/INSERT INTO audit_events/, { rowCount: 1 })
 
-    await auditListener.handle(
-      db.client,
-      makeEvent({ event_metadata: { reason: "bad_password", attempts: 3 } })
-    )
+    await auditListener.handle(db.client, makeEvent({ event_metadata: { reason: "bad_password", attempts: 3 } }))
 
-    expect(db.calls[0].values[12]).toBe(
-      '{"reason":"bad_password","attempts":3}'
-    )
+    expect(db.calls[0].values[12]).toBe('{"reason":"bad_password","attempts":3}')
   })
 
   it("passes null metadata through unchanged", async () => {

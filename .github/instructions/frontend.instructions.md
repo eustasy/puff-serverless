@@ -38,19 +38,12 @@ Forms use these HTMX attributes:
 - `hx-include="[name='field1'], [name='field2']"` — explicitly include fields.
 
 ```html
-<form
-  hx-validate="true"
-  hx-post="/api/db/user/login"
-  hx-target="#login-result"
-  hx-disabled-elt=".btn-safe"
->
+<form hx-validate="true" hx-post="/api/db/user/login" hx-target="#login-result" hx-disabled-elt=".btn-safe">
   <div class="form-group">
     <label for="email">Email:</label>
     <input type="email" id="email" name="email" required />
   </div>
-  <button type="submit" class="btn-safe">
-    Log In <img class="htmx-indicator" src="/assets/bars.svg" />
-  </button>
+  <button type="submit" class="btn-safe">Log In <img class="htmx-indicator" src="/assets/bars.svg" /></button>
 </form>
 <div id="login-result" class="result-area"></div>
 ```
@@ -60,12 +53,7 @@ Forms use these HTMX attributes:
 Sections that load content on page load and refresh on server-triggered events:
 
 ```html
-<div
-  id="email-list-container"
-  hx-get="/api/db/auth/email/list"
-  hx-trigger="load, emailListChanged from:body"
-  hx-swap="innerHTML"
->
+<div id="email-list-container" hx-get="/api/db/auth/email/list" hx-trigger="load, emailListChanged from:body" hx-swap="innerHTML">
   <p>Loading email addresses...</p>
 </div>
 ```

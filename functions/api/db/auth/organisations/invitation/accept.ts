@@ -1,9 +1,5 @@
 import { acceptInvitation } from "../../../../../../src/invitations.js"
-import {
-  resultPositive,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../src/utilities/responses.js"
+import { resultPositive, resultNegative, methodNotAllowed } from "../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../src/hooks/events.js"
 
@@ -28,16 +24,9 @@ export const onRequestPost: Handler = async (context) => {
     return resultNegative("An invitation token is required.", 400)
   }
 
-  const result = await acceptInvitation(
-    context.data.dbClient!,
-    token,
-    context.data.user_uuid!
-  )
+  const result = await acceptInvitation(context.data.dbClient!, token, context.data.user_uuid!)
   if (!result.success) {
-    return resultNegative(
-      result.error ? "Could not accept the invitation." : result.message,
-      result.status
-    )
+    return resultNegative(result.error ? "Could not accept the invitation." : result.message, result.status)
   }
   await emitFromContext(context, {
     event_type: EVENTS.ORG_INVITATION_ACCEPTED,

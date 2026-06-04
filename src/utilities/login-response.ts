@@ -12,12 +12,7 @@ import type { UserLoginSuccess } from "../users.js"
 import { createLoginToken, createPasswordUpgradeToken } from "../tokens.js"
 import { readNext, clearNextCookie } from "./next.js"
 
-export async function loginOutcomeResponse(
-  dbClient: DbClient,
-  env: Env,
-  result: UserLoginSuccess,
-  request: Request
-): Promise<Response> {
+export async function loginOutcomeResponse(dbClient: DbClient, env: Env, result: UserLoginSuccess, request: Request): Promise<Response> {
   const sameSite = env.COOKIE_SAMESITE || "Lax"
   const secure = !!env.SECURE_COOKIE
 
@@ -27,10 +22,10 @@ export async function loginOutcomeResponse(
     const tokenResult = await createLoginToken(dbClient, result.user_uuid)
     if (tokenResult.error) {
       console.error("Error creating TOTP token:", tokenResult.message)
-      return new Response(
-        '<p class="result-negative">Error initiating 2FA. Please try again.</p>',
-        { status: 500, headers: { "Content-Type": "text/html" } }
-      )
+      return new Response('<p class="result-negative">Error initiating 2FA. Please try again.</p>', {
+        status: 500,
+        headers: { "Content-Type": "text/html" },
+      })
     }
     const cookie = [
       `totp_verification_token=${tokenResult.token_value}`,
@@ -51,19 +46,13 @@ export async function loginOutcomeResponse(
     // The password is correct but shorter than the current minimum. Issue a
     // short-lived token and send the user to the forced password-change page;
     // no session is granted until they set a compliant password.
-    const tokenResult = await createPasswordUpgradeToken(
-      dbClient,
-      result.user_uuid
-    )
+    const tokenResult = await createPasswordUpgradeToken(dbClient, result.user_uuid)
     if (tokenResult.error) {
-      console.error(
-        "Error creating password-upgrade token:",
-        tokenResult.message
-      )
-      return new Response(
-        '<p class="result-negative">Error initiating password upgrade. Please try again.</p>',
-        { status: 500, headers: { "Content-Type": "text/html" } }
-      )
+      console.error("Error creating password-upgrade token:", tokenResult.message)
+      return new Response('<p class="result-negative">Error initiating password upgrade. Please try again.</p>', {
+        status: 500,
+        headers: { "Content-Type": "text/html" },
+      })
     }
     const cookie = [
       `password_upgrade_token=${tokenResult.token_value}`,

@@ -47,10 +47,7 @@ export function readParams(source: URLSearchParams): ParsedRequest {
  * Used before redirect_uri is validated — once validated, errors go via
  * redirectToClient so the client app can handle them.
  */
-export function renderAuthorizeErrorPage(
-  message: string,
-  status = 400
-): Response {
+export function renderAuthorizeErrorPage(message: string, status = 400): Response {
   const body = `<!doctype html>
 <html lang="en">
   <head><meta charset="utf-8"><title>Authorization error</title></head>
@@ -99,12 +96,7 @@ export function buildConsentPage(opts: {
 }): Response {
   const { appName, scopes, params, orgs } = opts
   const scopeList = scopes
-    .map(
-      (s) =>
-        `<li><code>${escapeHtml(s)}</code> — ${escapeHtml(
-          SCOPE_DESCRIPTIONS[s] || "(unrecognised scope)"
-        )}</li>`
-    )
+    .map((s) => `<li><code>${escapeHtml(s)}</code> — ${escapeHtml(SCOPE_DESCRIPTIONS[s] || "(unrecognised scope)")}</li>`)
     .join("\n")
   const orgPicker =
     orgs && orgs.length > 1
@@ -137,20 +129,12 @@ export function buildConsentPage(opts: {
       ["org_uuid", params.org_uuid ?? ""],
     ] as const
   )
-    .map(
-      ([name, value]) =>
-        `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(
-          value
-        )}">`
-    )
+    .map(([name, value]) => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}">`)
     .join("\n")
 
   // When an org picker is rendered, the hidden `org_uuid` is omitted so the
   // radio choice is the authoritative submission.
-  const filteredHidden =
-    orgs && orgs.length > 1
-      ? hidden.replace(/<input type="hidden" name="org_uuid"[^>]*>\n?/, "")
-      : hidden
+  const filteredHidden = orgs && orgs.length > 1 ? hidden.replace(/<input type="hidden" name="org_uuid"[^>]*>\n?/, "") : hidden
   const body = `<!doctype html>
 <html lang="en">
   <head>
@@ -190,19 +174,13 @@ export interface ValidationContext {
  * either a Response (the validated request is bad — send the response back
  * directly) or `{ app, scopes }` on success.
  */
-export async function validateRequest(
-  dbClient: DbClient,
-  params: ParsedRequest
-): Promise<Response | ValidationContext> {
+export async function validateRequest(dbClient: DbClient, params: ParsedRequest): Promise<Response | ValidationContext> {
   if (!params.client_id) {
     return renderAuthorizeErrorPage("Missing client_id.")
   }
   const appResult = await readAppByClientId(dbClient, params.client_id)
   if (appResult.error) {
-    return renderAuthorizeErrorPage(
-      "Server error looking up the application.",
-      500
-    )
+    return renderAuthorizeErrorPage("Server error looking up the application.", 500)
   }
   if (!appResult.success) {
     return renderAuthorizeErrorPage("Unknown client_id.")
@@ -213,20 +191,13 @@ export async function validateRequest(
     return renderAuthorizeErrorPage("Missing redirect_uri.")
   }
   if (!app.redirect_uris.includes(params.redirect_uri)) {
-    return renderAuthorizeErrorPage(
-      "redirect_uri is not registered for this app."
-    )
+    return renderAuthorizeErrorPage("redirect_uri is not registered for this app.")
   }
 
   // From here onwards, redirect_uri is safe to redirect to.
   if (params.response_type !== "code") {
     return redirectToClient(
-      oauthRedirectErrorUrl(
-        params.redirect_uri,
-        "unsupported_response_type",
-        params.state,
-        'Only response_type="code" is supported.'
-      )
+      oauthRedirectErrorUrl(params.redirect_uri, "unsupported_response_type", params.state, 'Only response_type="code" is supported.')
     )
   }
   if (!params.code_challenge || params.code_challenge_method !== "S256") {
@@ -244,22 +215,12 @@ export async function validateRequest(
   const { supported, unsupported } = validateScopes(requested)
   if (unsupported.length > 0) {
     return redirectToClient(
-      oauthRedirectErrorUrl(
-        params.redirect_uri,
-        "invalid_scope",
-        params.state,
-        `Unsupported scopes: ${unsupported.join(", ")}`
-      )
+      oauthRedirectErrorUrl(params.redirect_uri, "invalid_scope", params.state, `Unsupported scopes: ${unsupported.join(", ")}`)
     )
   }
   if (supported.length === 0) {
     return redirectToClient(
-      oauthRedirectErrorUrl(
-        params.redirect_uri,
-        "invalid_scope",
-        params.state,
-        "At least one supported scope is required."
-      )
+      oauthRedirectErrorUrl(params.redirect_uri, "invalid_scope", params.state, "At least one supported scope is required.")
     )
   }
 
@@ -267,13 +228,8 @@ export async function validateRequest(
 }
 
 /** Returns the user_uuid from the session cookie, or null if the session is absent or invalid. */
-export async function authenticatedUserId(
-  context: Parameters<Handler>[0]
-): Promise<string | null> {
-  const cookie = await getCookie(
-    context.request.headers.get("Cookie"),
-    "session_token"
-  )
+export async function authenticatedUserId(context: Parameters<Handler>[0]): Promise<string | null> {
+  const cookie = await getCookie(context.request.headers.get("Cookie"), "session_token")
   if (!cookie) return null
   const dbClient = context.data.dbClient
   if (!dbClient) return null
@@ -311,12 +267,7 @@ export type OrgResolution =
  * isLicensed gate here only requires that a pool is configured (so the
  * caller might still be turned away then if the pool is full).
  */
-export async function resolveOrgContext(
-  dbClient: DbClient,
-  app: AppRow,
-  user_uuid: string,
-  params: ParsedRequest
-): Promise<OrgResolution> {
+export async function resolveOrgContext(dbClient: DbClient, app: AppRow, user_uuid: string, params: ParsedRequest): Promise<OrgResolution> {
   if (app.app_licensing_mode === "none") {
     return { kind: "no_org_needed", org_uuid: null }
   }
@@ -327,12 +278,7 @@ export async function resolveOrgContext(
       return {
         kind: "error",
         response: redirectToClient(
-          oauthRedirectErrorUrl(
-            params.redirect_uri,
-            "access_denied",
-            params.state,
-            "You are not a member of the requested organisation."
-          )
+          oauthRedirectErrorUrl(params.redirect_uri, "access_denied", params.state, "You are not a member of the requested organisation.")
         ),
       }
     }
@@ -363,12 +309,7 @@ export async function resolveOrgContext(
     return {
       kind: "error",
       response: redirectToClient(
-        oauthRedirectErrorUrl(
-          params.redirect_uri,
-          "server_error",
-          params.state,
-          "Could not resolve organisations."
-        )
+        oauthRedirectErrorUrl(params.redirect_uri, "server_error", params.state, "Could not resolve organisations.")
       ),
     }
   }
@@ -376,12 +317,7 @@ export async function resolveOrgContext(
     return {
       kind: "error",
       response: redirectToClient(
-        oauthRedirectErrorUrl(
-          params.redirect_uri,
-          "access_denied",
-          params.state,
-          "You have no entitlement for this application."
-        )
+        oauthRedirectErrorUrl(params.redirect_uri, "access_denied", params.state, "You have no entitlement for this application.")
       ),
     }
   }
@@ -412,12 +348,7 @@ export async function issueCodeAndRedirect(opts: {
   })
   if (code.error || !code.success) {
     return redirectToClient(
-      oauthRedirectErrorUrl(
-        opts.params.redirect_uri,
-        "server_error",
-        opts.params.state,
-        "Could not issue authorization code."
-      )
+      oauthRedirectErrorUrl(opts.params.redirect_uri, "server_error", opts.params.state, "Could not issue authorization code.")
     )
   }
   const url = new URL(opts.params.redirect_uri)

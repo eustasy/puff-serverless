@@ -11,11 +11,7 @@ import {
 
 describe("parseScope", () => {
   it("splits on any whitespace and de-duplicates", () => {
-    expect(parseScope("openid profile  email\topenid")).toEqual([
-      "openid",
-      "profile",
-      "email",
-    ])
+    expect(parseScope("openid profile  email\topenid")).toEqual(["openid", "profile", "email"])
   })
 
   it("returns an empty array for null/empty input", () => {
@@ -47,9 +43,7 @@ describe("verifyPkce (S256)", () => {
   })
 
   it("rejects a mismatched challenge", async () => {
-    expect(await verifyPkce("a".repeat(43), "wrong-challenge", "S256")).toBe(
-      false
-    )
+    expect(await verifyPkce("a".repeat(43), "wrong-challenge", "S256")).toBe(false)
   })
 
   it("rejects unsupported methods (plain is forbidden in OAuth 2.1)", async () => {
@@ -92,12 +86,7 @@ describe("oauthErrorResponse", () => {
 
 describe("oauthRedirectErrorUrl", () => {
   it("appends error + state to the redirect_uri's query string", () => {
-    const url = oauthRedirectErrorUrl(
-      "https://app.example/cb",
-      "access_denied",
-      "s-1",
-      "user said no"
-    )
+    const url = oauthRedirectErrorUrl("https://app.example/cb", "access_denied", "s-1", "user said no")
     const parsed = new URL(url)
     expect(parsed.searchParams.get("error")).toBe("access_denied")
     expect(parsed.searchParams.get("error_description")).toBe("user said no")
@@ -105,19 +94,14 @@ describe("oauthRedirectErrorUrl", () => {
   })
 
   it("preserves existing query params on the redirect_uri", () => {
-    const url = oauthRedirectErrorUrl(
-      "https://app.example/cb?return=1",
-      "server_error"
-    )
+    const url = oauthRedirectErrorUrl("https://app.example/cb?return=1", "server_error")
     const parsed = new URL(url)
     expect(parsed.searchParams.get("return")).toBe("1")
     expect(parsed.searchParams.get("error")).toBe("server_error")
   })
 
   it("omits state when none was provided", () => {
-    const parsed = new URL(
-      oauthRedirectErrorUrl("https://app.example/cb", "invalid_request")
-    )
+    const parsed = new URL(oauthRedirectErrorUrl("https://app.example/cb", "invalid_request"))
     expect(parsed.searchParams.has("state")).toBe(false)
   })
 })
@@ -139,14 +123,7 @@ describe("claimsForScopes", () => {
       includeProfile: false,
       includeEmail: true,
     })
-    expect(
-      claimsForScopes([
-        "openid",
-        "puff:memberships",
-        "puff:roles",
-        "puff:entitlements",
-      ])
-    ).toMatchObject({
+    expect(claimsForScopes(["openid", "puff:memberships", "puff:roles", "puff:entitlements"])).toMatchObject({
       includeMemberships: true,
       includeRoles: true,
       includeEntitlements: true,

@@ -16,8 +16,7 @@ import {
 const SPEC: KeyValueSpec = {
   table: "org_role_key_values",
   subjectColumns: ["org_uuid", "role"],
-  selectColumns:
-    "org_uuid, role, kv_key, kv_value, owner_user_uuid, owner_org_uuid, owner_app_uuid, owner_id, created_at, updated_at",
+  selectColumns: "org_uuid, role, kv_key, kv_value, owner_user_uuid, owner_org_uuid, owner_app_uuid, owner_id, created_at, updated_at",
   label: "org-role-keyvalues",
 }
 
@@ -53,12 +52,7 @@ export const readKeyValues = (
 ): Promise<Envelope<{ pairs: OrgRoleKeyValueRow[] }>> => {
   const rejected = rejectInvalidRole(role)
   if (rejected) return Promise.resolve(rejected)
-  return readKeyValuesGeneric<OrgRoleKeyValueRow>(
-    dbClient,
-    SPEC,
-    [org_uuid, role],
-    owner
-  )
+  return readKeyValuesGeneric<OrgRoleKeyValueRow>(dbClient, SPEC, [org_uuid, role], owner)
 }
 
 /** Substring-matches keys (LIKE wildcards in `pattern` are escaped). */
@@ -71,13 +65,7 @@ export const searchKeyValues = (
 ): Promise<Envelope<{ pairs: OrgRoleKeyValueRow[] }>> => {
   const rejected = rejectInvalidRole(role)
   if (rejected) return Promise.resolve(rejected)
-  return searchKeyValuesGeneric<OrgRoleKeyValueRow>(
-    dbClient,
-    SPEC,
-    [org_uuid, role],
-    owner,
-    pattern
-  )
+  return searchKeyValuesGeneric<OrgRoleKeyValueRow>(dbClient, SPEC, [org_uuid, role], owner, pattern)
 }
 
 /** Upsert (create or replace) a value for (org, role, owner, key). */
@@ -91,25 +79,11 @@ export const setKeyValue = (
 ): Promise<Envelope<{ created: boolean }>> => {
   const rejected = rejectInvalidRole(role)
   if (rejected) return Promise.resolve(rejected)
-  return upsertKeyValue(
-    dbClient,
-    SPEC.table,
-    SPEC.subjectColumns,
-    [org_uuid, role],
-    owner,
-    key,
-    value
-  )
+  return upsertKeyValue(dbClient, SPEC.table, SPEC.subjectColumns, [org_uuid, role], owner, key, value)
 }
 
 /** Removes (org, role, owner, key); 404 if no such row. */
-export const deleteKeyValue = (
-  dbClient: DbClient,
-  org_uuid: string,
-  role: string,
-  owner: Owner,
-  key: string
-): Promise<Envelope<{}>> => {
+export const deleteKeyValue = (dbClient: DbClient, org_uuid: string, role: string, owner: Owner, key: string): Promise<Envelope<{}>> => {
   const rejected = rejectInvalidRole(role)
   if (rejected) return Promise.resolve(rejected)
   return deleteKeyValueGeneric(dbClient, SPEC, [org_uuid, role], owner, key)

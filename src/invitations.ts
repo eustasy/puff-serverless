@@ -20,8 +20,7 @@ const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000
 // SQLSTATE for a foreign-key violation — the organisation does not exist.
 const FK_VIOLATION = "23503"
 
-const INVITATION_COLUMNS =
-  "invitation_token, org_uuid, email_address, roles, invited_by, created_at, expires_at, is_used"
+const INVITATION_COLUMNS = "invitation_token, org_uuid, email_address, roles, invited_by, created_at, expires_at, is_used"
 
 /** An invitation joined with its organisation's display name. */
 export interface InvitationDetail extends OrganisationInvitationRow {
@@ -67,14 +66,7 @@ export async function createInvitation(
       `INSERT INTO organisation_invitations (invitation_token, org_uuid, email_address, roles, invited_by, expires_at)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING ${INVITATION_COLUMNS}`,
-      [
-        invitation_token,
-        org_uuid,
-        email_address.trim(),
-        wanted,
-        invited_by,
-        expires_at,
-      ]
+      [invitation_token, org_uuid, email_address.trim(), wanted, invited_by, expires_at]
     )
     return { success: true, invitation: result.rows[0], status: 201 }
   } catch (error) {
@@ -99,10 +91,7 @@ export async function createInvitation(
  * @param {string} token - The invitation token.
  * @returns {Promise<Envelope<{ invitation: InvitationDetail }>>} `{ success: true, invitation, status: 200 }`, `{ success: false, message, status: 404 }`, or an error envelope.
  */
-export async function readInvitation(
-  dbClient: DbClient,
-  token: string
-): Promise<Envelope<{ invitation: InvitationDetail }>> {
+export async function readInvitation(dbClient: DbClient, token: string): Promise<Envelope<{ invitation: InvitationDetail }>> {
   try {
     const result = await dbClient.query(
       `SELECT i.invitation_token, i.org_uuid, i.email_address, i.roles, i.invited_by,
@@ -138,11 +127,7 @@ export async function readInvitation(
  * @param {string} user_uuid - The accepting (authenticated) user.
  * @returns {Promise<Envelope<{ org_uuid: string }>>} `{ success: true, org_uuid, status: 200 }`, `{ success: false, message, status: 400|404 }`, or an error envelope.
  */
-export async function acceptInvitation(
-  dbClient: DbClient,
-  token: string,
-  user_uuid: string
-): Promise<Envelope<{ org_uuid: string }>> {
+export async function acceptInvitation(dbClient: DbClient, token: string, user_uuid: string): Promise<Envelope<{ org_uuid: string }>> {
   type Result = Envelope<{ org_uuid: string }>
   try {
     return await runInTransaction(dbClient, async (): Promise<Result> => {
@@ -232,16 +217,12 @@ export async function listInvitations(
  * @param {string} token - The invitation token.
  * @returns {Promise<Envelope>} `{ success: true, status: 200 }`, `{ success: false, status: 404 }`, or an error envelope.
  */
-export async function revokeInvitation(
-  dbClient: DbClient,
-  org_uuid: string,
-  token: string
-): Promise<Envelope> {
+export async function revokeInvitation(dbClient: DbClient, org_uuid: string, token: string): Promise<Envelope> {
   try {
-    const result = await dbClient.query(
-      "DELETE FROM organisation_invitations WHERE invitation_token = $1 AND org_uuid = $2",
-      [token, org_uuid]
-    )
+    const result = await dbClient.query("DELETE FROM organisation_invitations WHERE invitation_token = $1 AND org_uuid = $2", [
+      token,
+      org_uuid,
+    ])
     if ((result.rowCount ?? 0) === 0) {
       return { success: false, message: "Invitation not found.", status: 404 }
     }

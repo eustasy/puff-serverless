@@ -1,10 +1,5 @@
 import { describe, it, expect, vi } from "vitest"
-import {
-  recordUsageEvent,
-  recomputeUsageRollups,
-  syncUsageRollups,
-  listUsageRollups,
-} from "../src/usage.js"
+import { recordUsageEvent, recomputeUsageRollups, syncUsageRollups, listUsageRollups } from "../src/usage.js"
 import type { BillingProvider } from "../src/billing.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
 
@@ -210,9 +205,7 @@ describe("recomputeUsageRollups", () => {
     const { text, values } = db.calls[0]
     expect(text).toContain("INSERT INTO usage_rollups")
     expect(text).toContain("SUM(quantity)")
-    expect(text).toContain(
-      "ON CONFLICT (app_uuid, org_uuid, metric, day) DO UPDATE"
-    )
+    expect(text).toContain("ON CONFLICT (app_uuid, org_uuid, metric, day) DO UPDATE")
     expect(text).toContain("synced_at")
     // Day value is passed as a parameter.
     expect(values[0]).toBe("2025-06-01")
@@ -222,10 +215,7 @@ describe("recomputeUsageRollups", () => {
     const db = new FakeDb()
     db.on(/INSERT INTO usage_rollups/, { rowCount: 0 })
 
-    const result = await recomputeUsageRollups(
-      db.client,
-      new Date("2025-06-15T00:00:00Z")
-    )
+    const result = await recomputeUsageRollups(db.client, new Date("2025-06-15T00:00:00Z"))
     expect(result.success).toBe(true)
     expect(db.calls[0].values[0]).toBe("2025-06-15")
   })
@@ -234,10 +224,7 @@ describe("recomputeUsageRollups", () => {
     const db = new FakeDb()
     db.on(/INSERT INTO usage_rollups/, { rowCount: 0 })
 
-    const result = await recomputeUsageRollups(
-      db.client,
-      "2025-06-15T23:59:59Z"
-    )
+    const result = await recomputeUsageRollups(db.client, "2025-06-15T23:59:59Z")
     expect(result.success).toBe(true)
     expect(db.calls[0].values[0]).toBe("2025-06-15")
   })
@@ -333,9 +320,7 @@ describe("syncUsageRollups", () => {
     const result = await syncUsageRollups(db.client, provider)
     expect(result).toMatchObject({ success: true, synced: 0 })
     // No UPDATE should have run for the failed row.
-    expect(
-      db.calls.some((c) => /UPDATE usage_rollups SET synced_at/.test(c.text))
-    ).toBe(false)
+    expect(db.calls.some((c) => /UPDATE usage_rollups SET synced_at/.test(c.text))).toBe(false)
   })
 
   it("returns synced 0 when there is nothing to push", async () => {

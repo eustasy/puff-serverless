@@ -32,9 +32,7 @@ describe("createStripeProvider", () => {
   })
 
   it("exposes the provider name", () => {
-    const provider = createStripeProvider(
-      fakeEnv({ STRIPE_SECRET_KEY: "sk_test" })
-    )
+    const provider = createStripeProvider(fakeEnv({ STRIPE_SECRET_KEY: "sk_test" }))
     expect(provider.name).toBe("stripe")
   })
 })
@@ -49,9 +47,7 @@ describe("verifyWebhookSignature", () => {
   )
 
   function sign(payload: string, t: number): string {
-    const sig = createHmac("sha256", signingSecret)
-      .update(`${t}.${payload}`)
-      .digest("hex")
+    const sig = createHmac("sha256", signingSecret).update(`${t}.${payload}`).digest("hex")
     return `t=${t},v1=${sig}`
   }
 

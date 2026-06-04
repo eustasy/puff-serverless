@@ -5,20 +5,8 @@
 // base64url-encoded. The ECDSA signature is the raw R || S concatenation
 // (64 bytes for P-256), which matches the JWA `ES256` spec — no DER unwrap.
 
-import {
-  JWT_ALG,
-  currentPublicJwk,
-  importVerificationKey,
-  loadSigningKey,
-  previousPublicJwk,
-  type PublicJwkWithKid,
-} from "./oauth-keys.js"
-import {
-  decodeBytes,
-  decodeJson,
-  encodeBytes,
-  encodeJson,
-} from "./utilities/base64url.js"
+import { JWT_ALG, currentPublicJwk, importVerificationKey, loadSigningKey, previousPublicJwk, type PublicJwkWithKid } from "./oauth-keys.js"
+import { decodeBytes, decodeJson, encodeBytes, encodeJson } from "./utilities/base64url.js"
 
 const ECDSA_SIGN = { name: "ECDSA", hash: "SHA-256" } as const
 
@@ -39,9 +27,7 @@ export interface JwtPayload {
   [claim: string]: unknown
 }
 
-export type VerifyResult =
-  | { success: true; payload: JwtPayload; kid: string }
-  | { success: false; message: string }
+export type VerifyResult = { success: true; payload: JwtPayload; kid: string } | { success: false; message: string }
 
 /**
  * Sign a JWT payload with the active signing key. The header `kid` is set to
@@ -49,24 +35,14 @@ export type VerifyResult =
  * match keys.
  */
 export async function signJwt(env: Env, payload: JwtPayload): Promise<string> {
-  const [key, publicJwk] = await Promise.all([
-    loadSigningKey(env),
-    currentPublicJwk(env),
-  ])
+  const [key, publicJwk] = await Promise.all([loadSigningKey(env), currentPublicJwk(env)])
   const header: JwtHeader = { alg: JWT_ALG, typ: "JWT", kid: publicJwk.kid }
   const signingInput = `${encodeJson(header)}.${encodeJson(payload)}`
-  const signature = await crypto.subtle.sign(
-    ECDSA_SIGN,
-    key,
-    new TextEncoder().encode(signingInput)
-  )
+  const signature = await crypto.subtle.sign(ECDSA_SIGN, key, new TextEncoder().encode(signingInput))
   return `${signingInput}.${encodeBytes(new Uint8Array(signature))}`
 }
 
-async function findVerificationKey(
-  env: Env,
-  kid: string
-): Promise<PublicJwkWithKid | null> {
+async function findVerificationKey(env: Env, kid: string): Promise<PublicJwkWithKid | null> {
   const current = await currentPublicJwk(env)
   if (current.kid === kid) return current
   const previous = await previousPublicJwk(env)
@@ -82,19 +58,12 @@ async function findVerificationKey(
  * `exp` / `nbf` claims are NOT validated here; the caller decides what
  * lifetime/clock-skew policy to apply to the returned payload.
  */
-export async function verifyJwt(
-  env: Env,
-  token: string
-): Promise<VerifyResult> {
+export async function verifyJwt(env: Env, token: string): Promise<VerifyResult> {
   const parts = token.split(".")
   if (parts.length !== 3) {
     return { success: false, message: "JWT must have three parts" }
   }
-  const [encodedHeader, encodedPayload, encodedSignature] = parts as [
-    string,
-    string,
-    string,
-  ]
+  const [encodedHeader, encodedPayload, encodedSignature] = parts as [string, string, string]
 
   let header: JwtHeader
   try {
@@ -117,12 +86,7 @@ export async function verifyJwt(
   const key = await importVerificationKey(matched)
   const signature = decodeBytes(encodedSignature)
   const signingInput = `${encodedHeader}.${encodedPayload}`
-  const ok = await crypto.subtle.verify(
-    ECDSA_SIGN,
-    key,
-    signature,
-    new TextEncoder().encode(signingInput)
-  )
+  const ok = await crypto.subtle.verify(ECDSA_SIGN, key, signature, new TextEncoder().encode(signingInput))
   if (!ok) {
     return { success: false, message: "JWT signature is invalid" }
   }

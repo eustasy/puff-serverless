@@ -23,8 +23,7 @@ export interface EmitInput {
 function normalise(input: EmitInput): HookEvent {
   return {
     event_type: input.event_type,
-    event_severity:
-      input.event_severity ?? DEFAULT_SEVERITY[input.event_type] ?? "info",
+    event_severity: input.event_severity ?? DEFAULT_SEVERITY[input.event_type] ?? "info",
     event_outcome: input.event_outcome ?? "success",
     actor_user_uuid: input.actor_user_uuid ?? null,
     actor_ip: input.actor_ip ?? null,
@@ -50,11 +49,7 @@ function normalise(input: EmitInput): HookEvent {
  * (cron, scripts, tests). In that case async listeners still run, but
  * inline; the dispatcher does not wait for them.
  */
-export async function emit(
-  dbClient: DbClient,
-  ctx: EmitContext | null,
-  input: EmitInput
-): Promise<void> {
+export async function emit(dbClient: DbClient, ctx: EmitContext | null, input: EmitInput): Promise<void> {
   const event = normalise(input)
   for (const listener of getListeners()) {
     if (listener.filter && !listener.filter(event)) continue
@@ -65,10 +60,7 @@ export async function emit(
     }
 
     const work = listener.handle(dbClient, event).catch((err: unknown) => {
-      console.error(
-        `Hook listener "${listener.name}" failed for event ${event.event_type}:`,
-        err
-      )
+      console.error(`Hook listener "${listener.name}" failed for event ${event.event_type}:`, err)
     })
     if (ctx) {
       ctx.waitUntil(work)
@@ -85,24 +77,16 @@ export async function emit(
  * `functions/api/db/auth/_middleware.ts`); pass `actor_user_uuid: null`
  * explicitly for pre-auth events such as failed logins.
  */
-export async function emitFromContext(
-  context: EmitContext,
-  input: EmitInput
-): Promise<void> {
+export async function emitFromContext(context: EmitContext, input: EmitInput): Promise<void> {
   const dbClient = context.data.dbClient
   if (!dbClient) {
-    console.error(
-      `emitFromContext: dbClient missing on context for event ${input.event_type}; skipping audit.`
-    )
+    console.error(`emitFromContext: dbClient missing on context for event ${input.event_type}; skipping audit.`)
     return
   }
   const headers = context.request.headers
   const enriched: EmitInput = {
     ...input,
-    actor_user_uuid:
-      input.actor_user_uuid !== undefined
-        ? input.actor_user_uuid
-        : (context.data.user_uuid ?? null),
+    actor_user_uuid: input.actor_user_uuid !== undefined ? input.actor_user_uuid : (context.data.user_uuid ?? null),
     actor_ip: input.actor_ip ?? headers.get("CF-Connecting-IP"),
     actor_user_agent: input.actor_user_agent ?? headers.get("User-Agent"),
   }

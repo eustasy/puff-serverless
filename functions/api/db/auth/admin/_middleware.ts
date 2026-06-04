@@ -19,10 +19,7 @@ const operatorAuthorise: Handler = async (context) => {
       "Admin endpoint blocked: OPERATOR_USER_UUIDS is empty. Set it to the " +
         "comma-separated UUIDs of trusted operators to unlock /api/db/auth/admin."
     )
-    return resultNegative(
-      "Admin endpoints are disabled (OPERATOR_USER_UUIDS not configured).",
-      503
-    )
+    return resultNegative("Admin endpoints are disabled (OPERATOR_USER_UUIDS not configured).", 503)
   }
   if (!user_uuid || !operators.has(user_uuid)) {
     return resultNegative("Not authorised.", 403)

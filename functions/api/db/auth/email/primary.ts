@@ -10,11 +10,7 @@ export const onRequestPost: Handler = async (context) => {
     const formData = await context.request.formData()
     const new_primary_email_address = formData.get("email_address")
 
-    if (
-      !new_primary_email_address ||
-      typeof new_primary_email_address !== "string" ||
-      !new_primary_email_address.includes("@")
-    ) {
+    if (!new_primary_email_address || typeof new_primary_email_address !== "string" || !new_primary_email_address.includes("@")) {
       return new Response(
         `<p class="result-negative">New primary email address is missing or invalid. You submitted "${escapeHtml(new_primary_email_address)}".</p>`,
         {
@@ -24,20 +20,13 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    const result = await setPrimaryEmail(
-      dbClient,
-      user_uuid,
-      new_primary_email_address
-    )
+    const result = await setPrimaryEmail(dbClient, user_uuid, new_primary_email_address)
 
     if (result.error) {
-      return new Response(
-        `<p class=\"result-negative\">${result.message}</p>`,
-        {
-          status: result.status || 500,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      return new Response(`<p class=\"result-negative\">${result.message}</p>`, {
+        status: result.status || 500,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
     await emitFromContext(context, {

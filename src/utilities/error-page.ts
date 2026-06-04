@@ -8,11 +8,7 @@ import { escapeHtml } from "./escape.js"
  * (error_description, exchange/fetch failure bodies, etc.) are safe by
  * default. `title` doubles as the visible heading.
  */
-export function renderErrorPage(opts: {
-  title: string
-  message: string
-  status?: number
-}): Response {
+export function renderErrorPage(opts: { title: string; message: string; status?: number }): Response {
   const status = opts.status ?? 400
   const title = escapeHtml(opts.title)
   const body = `<!doctype html>

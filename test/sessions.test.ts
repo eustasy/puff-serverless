@@ -30,9 +30,7 @@ describe("verifyTokenAndGetUser", () => {
       expires_at: future(),
       ip_country: "GB",
     })
-    expect(
-      await verifyTokenAndGetUser(db.client, "tok", "GB", "1.2.3.4")
-    ).toEqual({ success: true, user_uuid: "user-1", status: 200 })
+    expect(await verifyTokenAndGetUser(db.client, "tok", "GB", "1.2.3.4")).toEqual({ success: true, user_uuid: "user-1", status: 200 })
   })
 
   it("rejects an unknown session token with 401", async () => {
@@ -110,22 +108,14 @@ describe("createSession", () => {
 
   it("creates a 64-hex-char session lasting ~7 days and records the login", async () => {
     const db = ready()
-    const result = await createSession(
-      db.client,
-      "user-1",
-      "ua",
-      "1.2.3.4",
-      "GB"
-    )
+    const result = await createSession(db.client, "user-1", "ua", "1.2.3.4", "GB")
     expect(result.success).toBe(true)
     if (!result.success) throw new Error("expected success")
     expect(result.session_id).toMatch(/^[0-9a-f]{64}$/)
     const days = (result.expires_at.getTime() - Date.now()) / (24 * 3_600_000)
     expect(days).toBeCloseTo(7, 1)
     // INSERT then the updateLastLogin UPDATE.
-    expect(
-      db.calls.map((c) => c.text.split(" ").slice(0, 2).join(" "))
-    ).toEqual(["INSERT INTO", "UPDATE users"])
+    expect(db.calls.map((c) => c.text.split(" ").slice(0, 2).join(" "))).toEqual(["INSERT INTO", "UPDATE users"])
   })
 
   it("includes only the optional columns that were supplied", async () => {
@@ -177,9 +167,7 @@ describe("terminateAllOtherSessions", () => {
   it("reports how many sessions were ended", async () => {
     const db = new FakeDb()
     db.on(/UPDATE sessions SET is_active = FALSE/, { rowCount: 3 })
-    expect(
-      await terminateAllOtherSessions(db.client, "user-1", "keep-me")
-    ).toEqual({ success: true, deletedCount: 3, status: 200 })
+    expect(await terminateAllOtherSessions(db.client, "user-1", "keep-me")).toEqual({ success: true, deletedCount: 3, status: 200 })
     expect(db.calls[0].values).toEqual(["user-1", "keep-me"])
   })
 })

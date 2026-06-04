@@ -1,23 +1,15 @@
-import {
-  readKeyValues,
-  searchKeyValues,
-} from "../../../../../../../../../../../src/user-keyvalues.js"
+import { readKeyValues, searchKeyValues } from "../../../../../../../../../../../src/user-keyvalues.js"
 import { assertGranteeInOrg } from "../../../../../../../../../../../src/entitlements.js"
 import { can } from "../../../../../../../../../../../src/permissions.js"
 import { renderKeyValueTable } from "../../../../../../../../../../../src/utilities/keyvalues-endpoint.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-} from "../../../../../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative } from "../../../../../../../../../../../src/utilities/responses.js"
 
 /**
  * Lists user-subject entitlements granted by this org under this app's
  * owner namespace. The grantee must be a member of the org — apps are
  * global, but entitlement scope is per-org.
  */
-export const onRequestGet: Handler<
-  "app_uuid" | "org_uuid" | "user_uuid"
-> = async (context) => {
+export const onRequestGet: Handler<"app_uuid" | "org_uuid" | "user_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []
   if (!can(orgRoles, "org:entitlements:read")) {
     return resultNegative("You cannot view this data.", 403)
@@ -31,10 +23,7 @@ export const onRequestGet: Handler<
     user_uuid,
   })
   if (!inOrg.success) {
-    return resultNegative(
-      inOrg.message ?? "Grantee is not in this organisation.",
-      inOrg.status
-    )
+    return resultNegative(inOrg.message ?? "Grantee is not in this organisation.", inOrg.status)
   }
 
   const owner = { type: "app" as const, app_uuid: app.app_uuid }

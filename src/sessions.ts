@@ -16,10 +16,7 @@ export async function verifyTokenAndGetUser(
   token: string,
   ip_country: string | null,
   ip_address: string | null
-): Promise<
-  | { success: true; error?: never; user_uuid: string; status: 200 }
-  | { success?: never; error: string; status: number }
-> {
+): Promise<{ success: true; error?: never; user_uuid: string; status: 200 } | { success?: never; error: string; status: number }> {
   try {
     const sessionRecordResult = await dbClient.query(
       "SELECT user_uuid, expires_at, ip_country FROM sessions WHERE session_id = $1 AND is_active = TRUE",
@@ -38,14 +35,9 @@ export async function verifyTokenAndGetUser(
       return { error: "Session token expired.", status: 401 }
     }
 
-    if (
-      ip_country &&
-      sessionRecord.ip_country &&
-      ip_country !== sessionRecord.ip_country
-    ) {
+    if (ip_country && sessionRecord.ip_country && ip_country !== sessionRecord.ip_country) {
       return {
-        error:
-          "Session invalidated due to location change. Please log in again.",
+        error: "Session invalidated due to location change. Please log in again.",
         status: 401,
       }
     }
@@ -53,13 +45,11 @@ export async function verifyTokenAndGetUser(
     // Fire-and-forget last-access bookkeeping. Auth has already succeeded;
     // a failure to record the access shouldn't fail the request.
     dbClient
-      .query(
-        "UPDATE sessions SET last_accessed_at = CURRENT_TIMESTAMP, last_accessed_ip = $1 WHERE session_id = $2",
-        [ip_address || null, token]
-      )
-      .catch((err: unknown) =>
-        console.error("Error updating session last-accessed fields:", err)
-      )
+      .query("UPDATE sessions SET last_accessed_at = CURRENT_TIMESTAMP, last_accessed_ip = $1 WHERE session_id = $2", [
+        ip_address || null,
+        token,
+      ])
+      .catch((err: unknown) => console.error("Error updating session last-accessed fields:", err))
 
     return { success: true, user_uuid: sessionRecord.user_uuid, status: 200 }
   } catch (error) {
@@ -83,22 +73,12 @@ export async function verifyTokenAndGetUser(
  * @param {string | null} ip_address - The CF-Connecting-IP header value.
  * @returns {Promise<boolean>} true only if the session is currently valid.
  */
-export async function verifySessionToken(
-  env: Env,
-  token: string,
-  ip_country: string | null,
-  ip_address: string | null
-): Promise<boolean> {
+export async function verifySessionToken(env: Env, token: string, ip_country: string | null, ip_address: string | null): Promise<boolean> {
   if (!env.HYPERDRIVE || !env.HYPERDRIVE.connectionString) return false
   const client = new Client(env.HYPERDRIVE.connectionString)
   try {
     await client.connect()
-    const result = await verifyTokenAndGetUser(
-      client,
-      token,
-      ip_country,
-      ip_address
-    )
+    const result = await verifyTokenAndGetUser(client, token, ip_country, ip_address)
     return result.success === true
   } catch (error) {
     console.error("verifySessionToken: session check failed:", error)
@@ -205,10 +185,7 @@ export async function terminateSession(
   dbClient: DbClient,
   user_uuid: string,
   session_id: string
-): Promise<
-  | { error?: never; success: true; status: 200 }
-  | { success?: never; error: string; status: number }
-> {
+): Promise<{ error?: never; success: true; status: 200 } | { success?: never; error: string; status: number }> {
   try {
     const result = await dbClient.query(
       "UPDATE sessions SET is_active = FALSE WHERE session_id = $1 AND user_uuid = $2 AND is_active = TRUE RETURNING session_id",
@@ -217,9 +194,7 @@ export async function terminateSession(
     if ((result.rowCount ?? 0) > 0) {
       return { success: true, status: 200 }
     } else {
-      console.error(
-        `Session termination failed: session not found or not owned by user ${user_uuid}.`
-      )
+      console.error(`Session termination failed: session not found or not owned by user ${user_uuid}.`)
       return { error: "Session not found or already terminated.", status: 404 }
     }
   } catch (error) {
@@ -244,10 +219,7 @@ export async function terminateAllOtherSessions(
   dbClient: DbClient,
   user_uuid: string,
   session_id: string
-): Promise<
-  | { success: true; error?: never; deletedCount: number; status: 200 }
-  | { success?: never; error: string; status: number }
-> {
+): Promise<{ success: true; error?: never; deletedCount: number; status: 200 } | { success?: never; error: string; status: number }> {
   try {
     const result = await dbClient.query(
       "UPDATE sessions SET is_active = FALSE WHERE user_uuid = $1 AND session_id != $2 AND is_active = TRUE RETURNING session_id",
@@ -275,10 +247,7 @@ export async function terminateAllOtherSessions(
 export async function terminateAllSessions(
   dbClient: DbClient,
   user_uuid: string
-): Promise<
-  | { success: true; error?: never; deletedCount: number; status: 200 }
-  | { success?: never; error: string; status: number }
-> {
+): Promise<{ success: true; error?: never; deletedCount: number; status: 200 } | { success?: never; error: string; status: number }> {
   try {
     const result = await dbClient.query(
       "UPDATE sessions SET is_active = FALSE WHERE user_uuid = $1 AND is_active = TRUE RETURNING session_id",
@@ -304,10 +273,7 @@ export async function terminateAllSessions(
 export async function readSessions(
   dbClient: DbClient,
   user_uuid: string
-): Promise<
-  | { success: true; error?: never; sessions: SessionRow[]; status: 200 }
-  | { success?: never; error: string; status: number }
-> {
+): Promise<{ success: true; error?: never; sessions: SessionRow[]; status: 200 } | { success?: never; error: string; status: number }> {
   try {
     const result = await dbClient.query(
       "SELECT session_id, created_at, expires_at, is_active, user_agent, ip_address, ip_country FROM sessions WHERE user_uuid = $1 ORDER BY created_at DESC",

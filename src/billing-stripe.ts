@@ -10,13 +10,7 @@
 // keeps the provider interface returning plain DTOs and makes a fake provider
 // trivial to write in tests.
 
-import type {
-  BillingProvider,
-  ProviderCheckoutSession,
-  ProviderCustomer,
-  ProviderSubscription,
-  SubscriptionStatus,
-} from "./billing.js"
+import type { BillingProvider, ProviderCheckoutSession, ProviderCustomer, ProviderSubscription, SubscriptionStatus } from "./billing.js"
 
 const STRIPE_API_BASE = "https://api.stripe.com"
 // Pin the API version so response shapes are stable across Stripe upgrades.
@@ -81,17 +75,10 @@ async function stripeRequest(
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
 
-  const json = (await response.json().catch(() => ({}))) as Record<
-    string,
-    unknown
-  >
+  const json = (await response.json().catch(() => ({}))) as Record<string, unknown>
   if (!response.ok) {
     const err = (json.error ?? {}) as { message?: string; type?: string }
-    throw new StripeError(
-      err.message ?? `Stripe HTTP ${response.status}`,
-      response.status,
-      err.type
-    )
+    throw new StripeError(err.message ?? `Stripe HTTP ${response.status}`, response.status, err.type)
   }
   return json
 }
@@ -117,16 +104,12 @@ function mapStatus(stripeStatus: unknown): SubscriptionStatus {
 }
 
 function unixToDate(value: unknown): Date | null {
-  return typeof value === "number" && Number.isFinite(value)
-    ? new Date(value * 1000)
-    : null
+  return typeof value === "number" && Number.isFinite(value) ? new Date(value * 1000) : null
 }
 
 // Maps a raw Stripe Subscription object to our normalised shape. Exported so
 // the webhook handler can reuse the same field mapping.
-export function mapStripeSubscription(
-  raw: Record<string, unknown>
-): ProviderSubscription {
+export function mapStripeSubscription(raw: Record<string, unknown>): ProviderSubscription {
   return {
     id: String(raw.id),
     status: mapStatus(raw.status),
@@ -189,18 +172,8 @@ export async function verifyStripeSignature(input: {
   if (Math.abs(Date.now() / 1000 - ts) > tolerance) return false
 
   const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(signingSecret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  )
-  const signed = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    encoder.encode(`${timestamp}.${payload}`)
-  )
+  const key = await crypto.subtle.importKey("raw", encoder.encode(signingSecret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"])
+  const signed = await crypto.subtle.sign("HMAC", key, encoder.encode(`${timestamp}.${payload}`))
   const expected = bufferToHex(signed)
   return signatures.some((sig) => timingSafeEqual(expected, sig))
 }
@@ -225,25 +198,14 @@ export function createStripeProvider(env: Env): BillingProvider {
       if (input.email) body.email = input.email
       if (input.name) body.name = input.name
       if (input.locale) body.preferred_locales = [input.locale]
-      const raw = await stripeRequest(
-        secret,
-        "POST",
-        "/v1/customers",
-        body,
-        input.idempotencyKey
-      )
+      const raw = await stripeRequest(secret, "POST", "/v1/customers", body, input.idempotencyKey)
       return { id: String(raw.id) }
     },
 
     async updateCustomer(providerCustomerId, input): Promise<void> {
       // Stripe clears the email when sent empty; send a space-collapsed value
       // or empty string explicitly so a cleared override propagates.
-      await stripeRequest(
-        secret,
-        "POST",
-        `/v1/customers/${encodeURIComponent(providerCustomerId)}`,
-        { email: input.email ?? "" }
-      )
+      await stripeRequest(secret, "POST", `/v1/customers/${encodeURIComponent(providerCustomerId)}`, { email: input.email ?? "" })
     },
 
     async createSubscription(input): Promise<ProviderSubscription> {
@@ -255,50 +217,29 @@ export function createStripeProvider(env: Env): BillingProvider {
       if (input.trialDays && input.trialDays > 0) {
         body.trial_period_days = input.trialDays
       }
-      const raw = await stripeRequest(
-        secret,
-        "POST",
-        "/v1/subscriptions",
-        body,
-        input.idempotencyKey
-      )
+      const raw = await stripeRequest(secret, "POST", "/v1/subscriptions", body, input.idempotencyKey)
       return mapStripeSubscription(raw)
     },
 
-    async updateSubscription(
-      providerSubscriptionId,
-      input
-    ): Promise<ProviderSubscription> {
+    async updateSubscription(providerSubscriptionId, input): Promise<ProviderSubscription> {
       const body: Record<string, unknown> = {
         proration_behavior: input.prorationBehavior,
       }
       // Changing the price requires the existing subscription item id, so
       // read the subscription first and swap that item to the new price.
       if (input.priceId) {
-        const current = await stripeRequest(
-          secret,
-          "GET",
-          `/v1/subscriptions/${encodeURIComponent(providerSubscriptionId)}`
-        )
+        const current = await stripeRequest(secret, "GET", `/v1/subscriptions/${encodeURIComponent(providerSubscriptionId)}`)
         const items = (current.items ?? {}) as {
           data?: Array<{ id?: string }>
         }
         const itemId = items.data?.[0]?.id
         body.items = [{ id: itemId, price: input.priceId }]
       }
-      const raw = await stripeRequest(
-        secret,
-        "POST",
-        `/v1/subscriptions/${encodeURIComponent(providerSubscriptionId)}`,
-        body
-      )
+      const raw = await stripeRequest(secret, "POST", `/v1/subscriptions/${encodeURIComponent(providerSubscriptionId)}`, body)
       return mapStripeSubscription(raw)
     },
 
-    async cancelSubscription(
-      providerSubscriptionId,
-      input
-    ): Promise<ProviderSubscription> {
+    async cancelSubscription(providerSubscriptionId, input): Promise<ProviderSubscription> {
       const encoded = encodeURIComponent(providerSubscriptionId)
       const raw = input.immediately
         ? await stripeRequest(secret, "DELETE", `/v1/subscriptions/${encoded}`)
@@ -327,22 +268,15 @@ export function createStripeProvider(env: Env): BillingProvider {
         metadata: input.metadata,
         subscription_data: subscriptionData,
       }
-      const raw = await stripeRequest(
-        secret,
-        "POST",
-        "/v1/checkout/sessions",
-        body
-      )
+      const raw = await stripeRequest(secret, "POST", "/v1/checkout/sessions", body)
       return { id: String(raw.id), url: String(raw.url) }
     },
 
     async createBillingPortalSession(input): Promise<{ url: string }> {
-      const raw = await stripeRequest(
-        secret,
-        "POST",
-        "/v1/billing_portal/sessions",
-        { customer: input.customerId, return_url: input.returnUrl }
-      )
+      const raw = await stripeRequest(secret, "POST", "/v1/billing_portal/sessions", {
+        customer: input.customerId,
+        return_url: input.returnUrl,
+      })
       return { url: String(raw.url) }
     },
 
@@ -357,13 +291,7 @@ export function createStripeProvider(env: Env): BillingProvider {
       }
       if (input.timestamp) body.timestamp = input.timestamp
       // Idempotency-Key header + meter-event `identifier` both guard retries.
-      await stripeRequest(
-        secret,
-        "POST",
-        "/v1/billing/meter_events",
-        body,
-        input.identifier
-      )
+      await stripeRequest(secret, "POST", "/v1/billing/meter_events", body, input.identifier)
     },
 
     verifyWebhookSignature(input) {

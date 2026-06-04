@@ -1,11 +1,6 @@
 import { createSession, terminateAllSessions } from "./sessions.js"
 import { createEmail, existsEmail, readEmail } from "./emails.js"
-import {
-  createPassword,
-  verifyPassword,
-  isPasswordReused,
-  updatePassword,
-} from "./passwords.js"
+import { createPassword, verifyPassword, isPasswordReused, updatePassword } from "./passwords.js"
 import { has2fa } from "./2fa.js"
 import { sendVerificationEmail } from "./mailer.js"
 import { runInTransaction, Rollback } from "./utilities/transaction.js"
@@ -17,10 +12,7 @@ import { OWNER_ROLE } from "./permissions.js"
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<object>} - Envelope: `{ success: true, user, status: 200 }` on hit, `{ success: false, message, status: 404 }` on miss, `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function readUser(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<Envelope<{ user: UserRow }>> {
+export async function readUser(dbClient: DbClient, user_uuid: string): Promise<Envelope<{ user: UserRow }>> {
   try {
     const query =
       "SELECT user_uuid, user_name, user_created_at, user_last_login FROM users WHERE user_uuid = $1 AND user_active = TRUE LIMIT 1"
@@ -77,52 +69,31 @@ export async function registerUser(
 
     // Step 1. Register the user
     const uuid = crypto.randomUUID()
-    await dbClient.query(
-      "INSERT INTO users (user_uuid, user_name) VALUES ($1, $2)",
-      [uuid, name]
-    )
+    await dbClient.query("INSERT INTO users (user_uuid, user_name) VALUES ($1, $2)", [uuid, name])
 
     // Step 2. Register the email using createEmail function
     // createEmail will handle token generation internally
-    const createEmailResult = await createEmail(
-      dbClient,
-      uuid,
-      email,
-      true,
-      false
-    ) // true for is_primary, false for is_verified initially
+    const createEmailResult = await createEmail(dbClient, uuid, email, true, false) // true for is_primary, false for is_verified initially
     if (createEmailResult.error) {
       // If createEmail itself had an issue (e.g. unique constraint within its own logic if user already had it - though less likely here)
       // This part might need more robust error handling depending on how createEmail signals errors.
       // For now, re-throwing a generic error or createEmailResult.message
-      throw new Error(
-        createEmailResult.message ||
-          "Failed to add primary email during registration."
-      )
+      throw new Error(createEmailResult.message || "Failed to add primary email during registration.")
     }
     // Send the verification email. A delivery failure is non-fatal: the account
     // is already created, and the user can request a fresh link from the resend
     // flow — so we log and continue rather than aborting registration.
     if (createEmailResult.token_value) {
-      const mailResult = await sendVerificationEmail(
-        env,
-        email,
-        createEmailResult.token_value
-      )
+      const mailResult = await sendVerificationEmail(env, email, createEmailResult.token_value)
       if (mailResult.error) {
-        console.error(
-          "Failed to send verification email during registration:",
-          mailResult.message
-        )
+        console.error("Failed to send verification email during registration:", mailResult.message)
       }
     }
 
     // Step 3. Register the password using createPassword
     const createResult = await createPassword(dbClient, uuid, password)
     if (createResult.error || !createResult.success) {
-      throw new Error(
-        createResult.message || "Failed to create password during registration."
-      )
+      throw new Error(createResult.message || "Failed to create password during registration.")
     }
 
     return { success: true, user_uuid: uuid, email: email }
@@ -258,15 +229,11 @@ export async function loginUser(
     // generic failure and the disabled state is never revealed to anyone who
     // cannot already authenticate. A missing users row (should not happen —
     // emails has a foreign key) is treated as disabled, failing closed.
-    const activeResult = await dbClient.query(
-      "SELECT user_active FROM users WHERE user_uuid = $1 LIMIT 1",
-      [user_uuid]
-    )
+    const activeResult = await dbClient.query("SELECT user_active FROM users WHERE user_uuid = $1 LIMIT 1", [user_uuid])
     if (activeResult.rows[0]?.user_active !== true) {
       return {
         error: true,
-        message:
-          "This account has been disabled. Please contact support if you believe this is an error.",
+        message: "This account has been disabled. Please contact support if you believe this is an error.",
         status: 403,
       }
     }
@@ -296,9 +263,7 @@ export async function loginUser(
     if (verifyResult.needs_upgrade) {
       const upgradeResult = await updatePassword(dbClient, user_uuid, password)
       if (upgradeResult.error || !upgradeResult.success) {
-        console.error(
-          `Password-hash upgrade-on-login failed for user_uuid ${user_uuid}: ${upgradeResult.message}`
-        )
+        console.error(`Password-hash upgrade-on-login failed for user_uuid ${user_uuid}: ${upgradeResult.message}`)
       }
     }
 
@@ -325,13 +290,7 @@ export async function loginUser(
     }
 
     // If 2FA is not enabled, proceed to create a session
-    const session = await createSession(
-      dbClient,
-      user_uuid,
-      user_agent,
-      ip_address,
-      ip_country
-    )
+    const session = await createSession(dbClient, user_uuid, user_agent, ip_address, ip_country)
     if (!session.success) {
       return {
         error: true,
@@ -368,44 +327,35 @@ export async function loginUser(
  * @param {string} user_uuid - The UUID of the user to disable.
  * @returns {Promise<object>} Envelope: `{ success: true, terminated_sessions, status: 200 }` on hit, `{ success: false, message, status: 404 }` if no such user, `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function disableUser(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<Envelope<{ terminated_sessions: number }>> {
+export async function disableUser(dbClient: DbClient, user_uuid: string): Promise<Envelope<{ terminated_sessions: number }>> {
   try {
     // Flag flip and session purge are one unit: a user must never be left
     // marked inactive while still holding a live session, or vice versa.
     // runInTransaction retries the pair on a SERIALIZABLE serialization failure.
     type DisableResult = Envelope<{ terminated_sessions: number }>
-    return await runInTransaction(
-      dbClient,
-      async (): Promise<DisableResult> => {
-        const result = await dbClient.query(
-          "UPDATE users SET user_active = FALSE WHERE user_uuid = $1 RETURNING user_uuid",
-          [user_uuid]
-        )
-        if ((result.rowCount ?? 0) === 0) {
-          throw new Rollback<DisableResult>({
-            success: false,
-            message: "User not found.",
-            status: 404,
-          })
-        }
-        const sessions = await terminateAllSessions(dbClient, user_uuid)
-        if (!sessions.success) {
-          throw new Rollback<DisableResult>({
-            error: true,
-            message: sessions.error,
-            status: sessions.status,
-          })
-        }
-        return {
-          success: true,
-          terminated_sessions: sessions.deletedCount,
-          status: 200,
-        }
+    return await runInTransaction(dbClient, async (): Promise<DisableResult> => {
+      const result = await dbClient.query("UPDATE users SET user_active = FALSE WHERE user_uuid = $1 RETURNING user_uuid", [user_uuid])
+      if ((result.rowCount ?? 0) === 0) {
+        throw new Rollback<DisableResult>({
+          success: false,
+          message: "User not found.",
+          status: 404,
+        })
       }
-    )
+      const sessions = await terminateAllSessions(dbClient, user_uuid)
+      if (!sessions.success) {
+        throw new Rollback<DisableResult>({
+          error: true,
+          message: sessions.error,
+          status: sessions.status,
+        })
+      }
+      return {
+        success: true,
+        terminated_sessions: sessions.deletedCount,
+        status: 200,
+      }
+    })
   } catch (error) {
     console.error("Error in disableUser:", error)
     return {
@@ -425,15 +375,9 @@ export async function disableUser(
  * @param {string} user_uuid - The UUID of the user to enable.
  * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` on hit, `{ success: false, message, status: 404 }` if no such user, `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function enableUser(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<Envelope> {
+export async function enableUser(dbClient: DbClient, user_uuid: string): Promise<Envelope> {
   try {
-    const result = await dbClient.query(
-      "UPDATE users SET user_active = TRUE WHERE user_uuid = $1",
-      [user_uuid]
-    )
+    const result = await dbClient.query("UPDATE users SET user_active = TRUE WHERE user_uuid = $1", [user_uuid])
     if ((result.rowCount ?? 0) > 0) {
       return { success: true, status: 200 }
     }
@@ -469,10 +413,7 @@ export async function enableUser(
  * @param {string} user_uuid - The UUID of the user to delete.
  * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` on hit, `{ success: false, message, status: 404|409 }` if absent or a sole owner, `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function deleteUser(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<Envelope> {
+export async function deleteUser(dbClient: DbClient, user_uuid: string): Promise<Envelope> {
   try {
     return await runInTransaction(dbClient, async (): Promise<Envelope> => {
       // Organisations this user owns that have no other owner. Deleting the
@@ -494,17 +435,12 @@ export async function deleteUser(
         const names = soleOwned.rows.map((row) => row.org_name).join(", ")
         throw new Rollback<Envelope>({
           success: false,
-          message:
-            `This account is the only owner of: ${names}. ` +
-            `Transfer ownership or delete those organisations first.`,
+          message: `This account is the only owner of: ${names}. ` + `Transfer ownership or delete those organisations first.`,
           status: 409,
         })
       }
 
-      const result = await dbClient.query(
-        "DELETE FROM users WHERE user_uuid = $1 RETURNING user_uuid",
-        [user_uuid]
-      )
+      const result = await dbClient.query("DELETE FROM users WHERE user_uuid = $1 RETURNING user_uuid", [user_uuid])
       if ((result.rowCount ?? 0) === 0) {
         throw new Rollback<Envelope>({
           success: false,
@@ -531,15 +467,9 @@ export async function deleteUser(
  * @param {string} user_uuid - The UUID of the user to update.
  * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` if a row was updated, `{ success: false, message, status: 404 }` if not, `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function updateLastLogin(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<Envelope> {
+export async function updateLastLogin(dbClient: DbClient, user_uuid: string): Promise<Envelope> {
   try {
-    const result = await dbClient.query(
-      "UPDATE users SET user_last_login = NOW() WHERE user_uuid = $1",
-      [user_uuid]
-    )
+    const result = await dbClient.query("UPDATE users SET user_last_login = NOW() WHERE user_uuid = $1", [user_uuid])
     if ((result.rowCount ?? 0) > 0) {
       return { success: true, status: 200 }
     }

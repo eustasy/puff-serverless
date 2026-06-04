@@ -19,34 +19,26 @@ const COUNT_QUERY = /count\(\*\) FILTER/
 describe("addOrgMember", () => {
   it("rejects an unknown role with 400 before any query", async () => {
     const db = new FakeDb()
-    expect(
-      await addOrgMember(db.client, "org-1", "user-1", "superuser", "user-9")
-    ).toMatchObject({ success: false, status: 400 })
+    expect(await addOrgMember(db.client, "org-1", "user-1", "superuser", "user-9")).toMatchObject({ success: false, status: 400 })
     expect(db.calls).toHaveLength(0)
   })
 
   it("returns 201 when the role is newly granted", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO organisation_members/, { rowCount: 1 })
-    expect(
-      await addOrgMember(db.client, "org-1", "user-1", "admin", "user-9")
-    ).toEqual({ success: true, status: 201 })
+    expect(await addOrgMember(db.client, "org-1", "user-1", "admin", "user-9")).toEqual({ success: true, status: 201 })
   })
 
   it("is idempotent — returns 200 when the role was already held", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO organisation_members/, { rowCount: 0 })
-    expect(
-      await addOrgMember(db.client, "org-1", "user-1", "admin", "user-9")
-    ).toEqual({ success: true, status: 200 })
+    expect(await addOrgMember(db.client, "org-1", "user-1", "admin", "user-9")).toEqual({ success: true, status: 200 })
   })
 
   it("maps a foreign-key violation to 404", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO organisation_members/, pgError("23503"))
-    expect(
-      (await addOrgMember(db.client, "ghost", "user-1", "admin", null)).status
-    ).toBe(404)
+    expect((await addOrgMember(db.client, "ghost", "user-1", "admin", null)).status).toBe(404)
   })
 })
 
@@ -68,9 +60,7 @@ describe("removeOrgMember", () => {
     db.on(COUNT_QUERY, {
       rows: [{ owners: 1, target_owner: 0, target_rows: 0 }],
     })
-    expect((await removeOrgMember(db.client, "org-1", "user-1")).status).toBe(
-      404
-    )
+    expect((await removeOrgMember(db.client, "org-1", "user-1")).status).toBe(404)
   })
 
   it("refuses to remove the organisation's last owner with 409", async () => {
@@ -80,26 +70,20 @@ describe("removeOrgMember", () => {
     })
     const result = await removeOrgMember(db.client, "org-1", "user-1")
     expect(result).toMatchObject({ success: false, status: 409 })
-    expect(
-      db.calls.some((c) => c.text.includes("DELETE FROM organisation_members"))
-    ).toBe(false)
+    expect(db.calls.some((c) => c.text.includes("DELETE FROM organisation_members"))).toBe(false)
   })
 })
 
 describe("setOrgMemberRoles", () => {
   it("rejects an empty role set with 400", async () => {
     const db = new FakeDb()
-    expect(
-      await setOrgMemberRoles(db.client, "org-1", "user-1", [], "user-9")
-    ).toMatchObject({ success: false, status: 400 })
+    expect(await setOrgMemberRoles(db.client, "org-1", "user-1", [], "user-9")).toMatchObject({ success: false, status: 400 })
     expect(db.calls).toHaveLength(0)
   })
 
   it("rejects an unknown role with 400", async () => {
     const db = new FakeDb()
-    expect(
-      await setOrgMemberRoles(db.client, "org-1", "user-1", ["wizard"], null)
-    ).toMatchObject({ success: false, status: 400 })
+    expect(await setOrgMemberRoles(db.client, "org-1", "user-1", ["wizard"], null)).toMatchObject({ success: false, status: 400 })
   })
 
   it("replaces the role set", async () => {
@@ -107,27 +91,13 @@ describe("setOrgMemberRoles", () => {
     db.on(COUNT_QUERY, { rows: [{ owners: 2, target_owner: 0 }] })
     db.on(/DELETE FROM organisation_members/, { rowCount: 1 })
     db.on(/INSERT INTO organisation_members/, { rowCount: 1 })
-    expect(
-      await setOrgMemberRoles(
-        db.client,
-        "org-1",
-        "user-1",
-        ["admin", "billing"],
-        "user-9"
-      )
-    ).toEqual({ success: true, status: 200 })
+    expect(await setOrgMemberRoles(db.client, "org-1", "user-1", ["admin", "billing"], "user-9")).toEqual({ success: true, status: 200 })
   })
 
   it("refuses to demote the organisation's last owner with 409", async () => {
     const db = new FakeDb()
     db.on(COUNT_QUERY, { rows: [{ owners: 1, target_owner: 1 }] })
-    const result = await setOrgMemberRoles(
-      db.client,
-      "org-1",
-      "user-1",
-      ["admin"],
-      "user-9"
-    )
+    const result = await setOrgMemberRoles(db.client, "org-1", "user-1", ["admin"], "user-9")
     expect(result).toMatchObject({ success: false, status: 409 })
   })
 
@@ -136,15 +106,7 @@ describe("setOrgMemberRoles", () => {
     db.on(COUNT_QUERY, { rows: [{ owners: 1, target_owner: 1 }] })
     db.on(/DELETE FROM organisation_members/, { rowCount: 1 })
     db.on(/INSERT INTO organisation_members/, { rowCount: 1 })
-    expect(
-      await setOrgMemberRoles(
-        db.client,
-        "org-1",
-        "user-1",
-        ["owner", "billing"],
-        "user-9"
-      )
-    ).toEqual({ success: true, status: 200 })
+    expect(await setOrgMemberRoles(db.client, "org-1", "user-1", ["owner", "billing"], "user-9")).toEqual({ success: true, status: 200 })
   })
 })
 
@@ -171,25 +133,19 @@ describe("listOrgMembers", () => {
 describe("addTeamMember", () => {
   it("rejects an unknown team role with 400", async () => {
     const db = new FakeDb()
-    expect(
-      await addTeamMember(db.client, "team-1", "user-1", "owner", null)
-    ).toMatchObject({ success: false, status: 400 })
+    expect(await addTeamMember(db.client, "team-1", "user-1", "owner", null)).toMatchObject({ success: false, status: 400 })
   })
 
   it("returns 201 when the role is newly granted", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO team_members/, { rowCount: 1 })
-    expect(
-      await addTeamMember(db.client, "team-1", "user-1", "lead", "user-9")
-    ).toEqual({ success: true, status: 201 })
+    expect(await addTeamMember(db.client, "team-1", "user-1", "lead", "user-9")).toEqual({ success: true, status: 201 })
   })
 
   it("maps a foreign-key violation to 404", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO team_members/, pgError("23503"))
-    expect(
-      (await addTeamMember(db.client, "ghost", "user-1", "lead", null)).status
-    ).toBe(404)
+    expect((await addTeamMember(db.client, "ghost", "user-1", "lead", null)).status).toBe(404)
   })
 })
 
@@ -206,33 +162,21 @@ describe("removeTeamMember", () => {
   it("returns 404 when the user is not a team member", async () => {
     const db = new FakeDb()
     db.on(/DELETE FROM team_members/, { rowCount: 0 })
-    expect((await removeTeamMember(db.client, "team-1", "user-1")).status).toBe(
-      404
-    )
+    expect((await removeTeamMember(db.client, "team-1", "user-1")).status).toBe(404)
   })
 })
 
 describe("setTeamMemberRoles", () => {
   it("rejects an empty role set with 400", async () => {
     const db = new FakeDb()
-    expect(
-      await setTeamMemberRoles(db.client, "team-1", "user-1", [], null)
-    ).toMatchObject({ success: false, status: 400 })
+    expect(await setTeamMemberRoles(db.client, "team-1", "user-1", [], null)).toMatchObject({ success: false, status: 400 })
   })
 
   it("replaces the team role set", async () => {
     const db = new FakeDb()
     db.on(/DELETE FROM team_members/, { rowCount: 1 })
     db.on(/INSERT INTO team_members/, { rowCount: 1 })
-    expect(
-      await setTeamMemberRoles(
-        db.client,
-        "team-1",
-        "user-1",
-        ["lead"],
-        "user-9"
-      )
-    ).toEqual({ success: true, status: 200 })
+    expect(await setTeamMemberRoles(db.client, "team-1", "user-1", ["lead"], "user-9")).toEqual({ success: true, status: 200 })
   })
 })
 

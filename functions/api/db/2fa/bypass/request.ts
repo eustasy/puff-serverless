@@ -23,10 +23,7 @@ export const onRequestPost: Handler = async (context) => {
 
   // The pending-login cookie identifies who is mid-2FA. Without it there is
   // no login to bypass — send the user back to the start.
-  const pendingToken = await getCookie(
-    context.request.headers.get("Cookie"),
-    "totp_verification_token"
-  )
+  const pendingToken = await getCookie(context.request.headers.get("Cookie"), "totp_verification_token")
   if (!pendingToken) {
     return sessionExpired()
   }
@@ -36,12 +33,7 @@ export const onRequestPost: Handler = async (context) => {
     // retry must not burn the user's place in the login flow.
     const tokenResult = await readToken(dbClient, pendingToken)
     const pending = tokenResult.success ? tokenResult.token : null
-    if (
-      !pending ||
-      pending.token_type !== "totp_verification_pending" ||
-      pending.is_used ||
-      new Date(pending.expires_at) < new Date()
-    ) {
+    if (!pending || pending.token_type !== "totp_verification_pending" || pending.is_used || new Date(pending.expires_at) < new Date()) {
       return sessionExpired()
     }
 
@@ -70,9 +62,7 @@ export const onRequestPost: Handler = async (context) => {
     if (!target) {
       // Nothing we can safely send to. Stay generic; the user simply sees no
       // email arrive. Logged for operators.
-      console.warn(
-        `2FA bypass requested for user ${pending.user_uuid} with no verified email.`
-      )
+      console.warn(`2FA bypass requested for user ${pending.user_uuid} with no verified email.`)
       return new Response(GENERIC_OK, {
         status: 200,
         headers: { "Content-Type": "text/html" },
@@ -92,11 +82,7 @@ export const onRequestPost: Handler = async (context) => {
     // generic so it never reveals whether an address is on file. Fire-and-
     // forget via waitUntil so the response doesn't block on Mailtrap.
     context.waitUntil(
-      sendTwoFactorBypassEmail(
-        context.env,
-        target.email_address,
-        bypassToken.token_value
-      ).then((mailResult) => {
+      sendTwoFactorBypassEmail(context.env, target.email_address, bypassToken.token_value).then((mailResult) => {
         if (mailResult.error) {
           console.error("Failed to send 2FA bypass email:", mailResult.message)
         }
@@ -109,10 +95,10 @@ export const onRequestPost: Handler = async (context) => {
     })
   } catch (error) {
     console.error("Error during 2FA bypass request:", error)
-    return new Response(
-      '<p class="result-negative">An unexpected error occurred. Please try again.</p>',
-      { status: 500, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response('<p class="result-negative">An unexpected error occurred. Please try again.</p>', {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 }
 

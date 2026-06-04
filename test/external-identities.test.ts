@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest"
-import {
-  findByProvider,
-  linkExternalIdentity,
-  listExternalIdentities,
-  unlinkExternalIdentity,
-} from "../src/external-identities.js"
+import { findByProvider, linkExternalIdentity, listExternalIdentities, unlinkExternalIdentity } from "../src/external-identities.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
 
 describe("listExternalIdentities", () => {
@@ -30,9 +25,7 @@ describe("findByProvider", () => {
   it("returns the row when matched", async () => {
     const db = new FakeDb()
     db.on(/FROM external_identities[\s\S]*WHERE provider/, {
-      rows: [
-        { user_uuid: "u-1", provider: "github", provider_user_id: "gh-1" },
-      ],
+      rows: [{ user_uuid: "u-1", provider: "github", provider_user_id: "gh-1" }],
     })
     const r = await findByProvider(db.client, "github", "gh-1")
     expect(r.success).toBe(true)

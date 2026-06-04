@@ -56,19 +56,13 @@ export const onRequestPost: Handler = async (context) => {
     return resultNegative("Server error during signup.", 500)
   }
   if (exists.exists) {
-    return resultNegative(
-      "A Puff account already uses this email. Sign in first, then link this provider from your account page.",
-      409
-    )
+    return resultNegative("A Puff account already uses this email. Sign in first, then link this provider from your account page.", 409)
   }
 
   const username = deriveUsername(row.display_name, row.email)
   const user_uuid = crypto.randomUUID()
   try {
-    await dbClient.query(
-      "INSERT INTO users (user_uuid, user_name) VALUES ($1, $2)",
-      [user_uuid, username]
-    )
+    await dbClient.query("INSERT INTO users (user_uuid, user_name) VALUES ($1, $2)", [user_uuid, username])
   } catch (error) {
     console.error("federated-signup confirm: user insert failed:", error)
     return resultNegative("Could not create your account.", 500)
@@ -85,18 +79,9 @@ export const onRequestPost: Handler = async (context) => {
   // generates a verification token when `is_verified` is false; we send the
   // email so an unverified provider-supplied address still gets confirmed
   // through Puff's normal flow.
-  const emailResult = await createEmail(
-    dbClient,
-    user_uuid,
-    row.email,
-    true,
-    row.email_verified
-  )
+  const emailResult = await createEmail(dbClient, user_uuid, row.email, true, row.email_verified)
   if (emailResult.error) {
-    console.error(
-      "federated-signup confirm: email insert failed:",
-      emailResult.message
-    )
+    console.error("federated-signup confirm: email insert failed:", emailResult.message)
     return resultNegative("Could not save your email.", 500)
   }
   if (!row.email_verified && emailResult.token_value) {
@@ -104,16 +89,11 @@ export const onRequestPost: Handler = async (context) => {
     // regardless of whether the verification email lands; failures are
     // already non-fatal here and surface only in logs.
     context.waitUntil(
-      sendVerificationEmail(env, row.email, emailResult.token_value).then(
-        (mail) => {
-          if (mail.error) {
-            console.error(
-              "federated-signup confirm: verify email send failed:",
-              mail.message
-            )
-          }
+      sendVerificationEmail(env, row.email, emailResult.token_value).then((mail) => {
+        if (mail.error) {
+          console.error("federated-signup confirm: verify email send failed:", mail.message)
         }
-      )
+      })
     )
   }
 
@@ -125,10 +105,7 @@ export const onRequestPost: Handler = async (context) => {
     display_name: row.display_name,
   })
   if (link.error) {
-    return resultNegative(
-      "Could not link the provider to your new account.",
-      500
-    )
+    return resultNegative("Could not link the provider to your new account.", 500)
   }
   if (!link.success) {
     // Should not happen — we just created the user — but surface clearly.
@@ -163,10 +140,7 @@ export const onRequestPost: Handler = async (context) => {
     "Location": next || "/account",
     "Cache-Control": "no-store",
   })
-  headers.append(
-    "Set-Cookie",
-    buildSessionCookie(env, sessionResult.session_id)
-  )
+  headers.append("Set-Cookie", buildSessionCookie(env, sessionResult.session_id))
   if (next) headers.append("Set-Cookie", clearNextCookie(env))
   return new Response(null, { status: 303, headers })
 }

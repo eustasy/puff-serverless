@@ -9,16 +9,13 @@ export const onRequestGet: Handler = async (context) => {
 
   if (twoFactorStatus.error) {
     console.error("Error checking 2FA status:", twoFactorStatus.message)
-    return new Response(
-      "<p>Error: Could not retrieve 2FA status. Please try again later.</p>",
-      {
-        status: 500, // Internal Server Error
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Retarget": "#tfa-message-area",
-        },
-      }
-    )
+    return new Response("<p>Error: Could not retrieve 2FA status. Please try again later.</p>", {
+      status: 500, // Internal Server Error
+      headers: {
+        "Content-Type": "text/html",
+        "HX-Retarget": "#tfa-message-area",
+      },
+    })
   }
 
   let htmlResponse

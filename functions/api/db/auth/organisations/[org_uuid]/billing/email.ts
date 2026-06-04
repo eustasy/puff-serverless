@@ -2,11 +2,7 @@ import { setBillingEmailOverride } from "../../../../../../../src/billing.js"
 import { createStripeProvider } from "../../../../../../../src/billing-stripe.js"
 import { can } from "../../../../../../../src/permissions.js"
 import { escapeHtml } from "../../../../../../../src/utilities/escape.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-  resultPositive,
-} from "../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative, resultPositive } from "../../../../../../../src/utilities/responses.js"
 
 /**
  * Sets or clears the org's billing-email override and syncs it to the payment

@@ -3,22 +3,12 @@
 // short-lived cookie, and 302-redirect the user to the provider's
 // authorization URL. The provider returns the user to /login/[provider]/callback.
 
-import {
-  getProviderConfig,
-  getProviderCredentials,
-  isProviderName,
-  providerRedirectUri,
-} from "../../../src/oauth-providers.js"
+import { getProviderConfig, getProviderCredentials, isProviderName, providerRedirectUri } from "../../../src/oauth-providers.js"
 import { buildAuthorizeUrl } from "../../../src/oauth-outbound.js"
-import {
-  generatePkcePair,
-  generateState,
-  setOAuthStateCookie,
-} from "../../../src/utilities/oauth-state-cookie.js"
+import { generatePkcePair, generateState, setOAuthStateCookie } from "../../../src/utilities/oauth-state-cookie.js"
 import { renderErrorPage } from "../../../src/utilities/error-page.js"
 
-const errorPage = (message: string, status = 400) =>
-  renderErrorPage({ title: "Sign-in error", message, status })
+const errorPage = (message: string, status = 400) => renderErrorPage({ title: "Sign-in error", message, status })
 
 export const onRequestGet: Handler<"provider"> = async (context) => {
   const provider_name = String(context.params.provider)
@@ -31,10 +21,7 @@ export const onRequestGet: Handler<"provider"> = async (context) => {
   }
   const creds = getProviderCredentials(context.env, config)
   if (!creds) {
-    return errorPage(
-      "This sign-in provider is not configured on this deployment.",
-      404
-    )
+    return errorPage("This sign-in provider is not configured on this deployment.", 404)
   }
 
   const state = generateState()

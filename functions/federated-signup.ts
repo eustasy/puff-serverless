@@ -16,8 +16,7 @@ import { getProviderConfig } from "../src/oauth-providers.js"
 import { renderErrorPage } from "../src/utilities/error-page.js"
 import { deriveUsername } from "../src/utilities/federated-signup.js"
 
-const errorPage = (message: string, status = 400) =>
-  renderErrorPage({ title: "Sign-up", message, status })
+const errorPage = (message: string, status = 400) => renderErrorPage({ title: "Sign-up", message, status })
 
 export const onRequestGet: Handler = async (context) => {
   const url = new URL(context.request.url)
@@ -84,5 +83,4 @@ export const onRequestGet: Handler = async (context) => {
   }
 }
 
-export const onRequest: Handler = async () =>
-  new Response("Method Not Allowed", { status: 405, headers: { Allow: "GET" } })
+export const onRequest: Handler = async () => new Response("Method Not Allowed", { status: 405, headers: { Allow: "GET" } })

@@ -27,26 +27,14 @@ describe("createToken", () => {
     const db = new FakeDb()
     db.on("INSERT INTO tokens", { rows: [{ token_value: "ignored" }] })
 
-    const result = await createToken(
-      db.client,
-      "user-1",
-      "email_verification",
-      "2099-01-01T00:00:00.000Z",
-      "a@b.test"
-    )
+    const result = await createToken(db.client, "user-1", "email_verification", "2099-01-01T00:00:00.000Z", "a@b.test")
 
     expect(result).toMatchObject({ success: true })
     if (!result.success) throw new Error("expected success")
     expect(result.token_value).toMatch(UUID_RE)
     // The generated UUID is the value bound into the INSERT.
     expect(db.calls[0].values[2]).toBe(result.token_value)
-    expect(db.calls[0].values).toEqual([
-      "user-1",
-      "email_verification",
-      result.token_value,
-      "2099-01-01T00:00:00.000Z",
-      "a@b.test",
-    ])
+    expect(db.calls[0].values).toEqual(["user-1", "email_verification", result.token_value, "2099-01-01T00:00:00.000Z", "a@b.test"])
   })
 
   it("defaults email_address to null", async () => {
@@ -138,9 +126,7 @@ describe("consumeToken", () => {
   it("collapses missing/expired/used/wrong-type into one invalid-token error", async () => {
     const db = new FakeDb()
     db.on("UPDATE tokens SET is_used = TRUE", { rows: [] })
-    expect(
-      await consumeToken(db.client, "tok", "password_reset")
-    ).toMatchObject({
+    expect(await consumeToken(db.client, "tok", "password_reset")).toMatchObject({
       error: true,
       message: "Invalid, expired, or already-used token.",
     })
@@ -207,14 +193,6 @@ describe("createWebAuthnToken", () => {
   it("returns an error envelope when the insert affects no rows", async () => {
     const db = new FakeDb()
     db.on("INSERT INTO tokens", { rows: [] })
-    expect(
-      await createWebAuthnToken(
-        db.client,
-        "u",
-        "webauthn_authentication_challenge",
-        "c",
-        "2099-01-01"
-      )
-    ).toMatchObject({ error: true })
+    expect(await createWebAuthnToken(db.client, "u", "webauthn_authentication_challenge", "c", "2099-01-01")).toMatchObject({ error: true })
   })
 })

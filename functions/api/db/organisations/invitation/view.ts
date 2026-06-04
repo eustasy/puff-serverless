@@ -1,10 +1,6 @@
 import { readInvitation } from "../../../../../src/invitations.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
-import {
-  htmlResponse,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../src/utilities/responses.js"
+import { htmlResponse, resultNegative, methodNotAllowed } from "../../../../../src/utilities/responses.js"
 
 /**
  * Previews an invitation from its token — the organisation name and the roles

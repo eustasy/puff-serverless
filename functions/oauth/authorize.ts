@@ -40,24 +40,12 @@ export const onRequestGet: Handler = async (context) => {
     return redirectToLogin(env, request.url)
   }
 
-  const orgResolution = await resolveOrgContext(
-    dbClient,
-    app,
-    user_uuid,
-    params
-  )
+  const orgResolution = await resolveOrgContext(dbClient, app, user_uuid, params)
   if (orgResolution.kind === "error") return orgResolution.response
 
   const consent = await hasConsentFor(dbClient, user_uuid, app.app_uuid, scopes)
   if (consent.error) {
-    return redirectToClient(
-      oauthRedirectErrorUrl(
-        params.redirect_uri,
-        "server_error",
-        params.state,
-        "Consent check failed."
-      )
-    )
+    return redirectToClient(oauthRedirectErrorUrl(params.redirect_uri, "server_error", params.state, "Consent check failed."))
   }
 
   if (consent.success && consent.covered && orgResolution.kind !== "pick") {
@@ -106,22 +94,10 @@ export const onRequestPost: Handler = async (context) => {
   }
 
   if (decision !== "approve") {
-    return redirectToClient(
-      oauthRedirectErrorUrl(
-        params.redirect_uri,
-        "access_denied",
-        params.state,
-        "User denied the request."
-      )
-    )
+    return redirectToClient(oauthRedirectErrorUrl(params.redirect_uri, "access_denied", params.state, "User denied the request."))
   }
 
-  const orgResolution = await resolveOrgContext(
-    dbClient,
-    app,
-    user_uuid,
-    params
-  )
+  const orgResolution = await resolveOrgContext(dbClient, app, user_uuid, params)
   if (orgResolution.kind === "error") return orgResolution.response
   if (orgResolution.kind === "pick") {
     // The picker form failed to submit a choice — re-render it.
@@ -132,19 +108,11 @@ export const onRequestPost: Handler = async (context) => {
       orgs: orgResolution.orgs,
     })
   }
-  const bound_org_uuid =
-    orgResolution.kind === "bound" ? orgResolution.org_uuid : null
+  const bound_org_uuid = orgResolution.kind === "bound" ? orgResolution.org_uuid : null
 
   const consent = await upsertConsent(dbClient, user_uuid, app.app_uuid, scopes)
   if (consent.error) {
-    return redirectToClient(
-      oauthRedirectErrorUrl(
-        params.redirect_uri,
-        "server_error",
-        params.state,
-        "Could not record consent."
-      )
-    )
+    return redirectToClient(oauthRedirectErrorUrl(params.redirect_uri, "server_error", params.state, "Could not record consent."))
   }
 
   return issueCodeAndRedirect({

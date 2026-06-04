@@ -10,9 +10,7 @@ import { Client } from "pg"
 
 export const onRequest: Handler = async (context) => {
   if (!context?.env?.HYPERDRIVE?.connectionString) {
-    console.error(
-      "CRITICAL: Hyperdrive binding [HYPERDRIVE] not found in /api/billing middleware."
-    )
+    console.error("CRITICAL: Hyperdrive binding [HYPERDRIVE] not found in /api/billing middleware.")
     return new Response("Database not configured.", {
       status: 503,
       headers: { "Cache-Control": "no-store" },
@@ -27,10 +25,7 @@ export const onRequest: Handler = async (context) => {
     context.data.dbClient = client
     return await context.next()
   } catch (error) {
-    console.error(
-      "/api/billing middleware: connection or handler error:",
-      error
-    )
+    console.error("/api/billing middleware: connection or handler error:", error)
     return new Response("Internal error.", {
       status: 500,
       headers: { "Cache-Control": "no-store" },
@@ -40,10 +35,7 @@ export const onRequest: Handler = async (context) => {
       try {
         await context.data.dbClient.end()
       } catch (endError) {
-        console.error(
-          "/api/billing middleware: error closing client:",
-          endError
-        )
+        console.error("/api/billing middleware: error closing client:", endError)
       }
     }
   }

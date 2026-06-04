@@ -1,10 +1,6 @@
 import { updateOrganisation } from "../../../../../../src/organisations.js"
 import { can } from "../../../../../../src/permissions.js"
-import {
-  resultPositive,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../src/utilities/responses.js"
+import { resultPositive, resultNegative, methodNotAllowed } from "../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../src/hooks/events.js"
 
@@ -23,11 +19,7 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
     return resultNegative("Invalid request format. Expected form data.", 400)
   }
 
-  const result = await updateOrganisation(
-    context.data.dbClient!,
-    String(context.params.org_uuid),
-    name
-  )
+  const result = await updateOrganisation(context.data.dbClient!, String(context.params.org_uuid), name)
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }

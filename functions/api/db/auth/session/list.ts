@@ -1,8 +1,5 @@
 import { readSessions } from "../../../../../src/sessions.js"
-import {
-  getCookie,
-  parseUserAgent,
-} from "../../../../../src/utilities/headers.js"
+import { getCookie, parseUserAgent } from "../../../../../src/utilities/headers.js"
 
 export const onRequestGet: Handler = async (context) => {
   const dbClient = context.data.dbClient!
@@ -32,9 +29,7 @@ export const onRequestGet: Handler = async (context) => {
       result.sessions.forEach((session) => {
         const isCurrentSession = session.session_id === currentSessionToken
         const clientInfo = parseUserAgent(session.user_agent)
-        const location = session.ip_country
-          ? `${session.ip_address || "N/A"} (${session.ip_country})`
-          : session.ip_address || "N/A"
+        const location = session.ip_country ? `${session.ip_address || "N/A"} (${session.ip_country})` : session.ip_address || "N/A"
         html += `<tr id="session-${session.session_id}">
           <td>${clientInfo}</td>
           <td>${location}</td>
@@ -68,13 +63,10 @@ export const onRequestGet: Handler = async (context) => {
     })
   } catch (error) {
     console.error("Error listing active sessions:", error)
-    return new Response(
-      '<p class="result-negative">Failed to list sessions due to a server error.</p>',
-      {
-        status: 500,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
+    return new Response('<p class="result-negative">Failed to list sessions due to a server error.</p>', {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 }
 

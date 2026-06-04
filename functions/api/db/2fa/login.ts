@@ -11,22 +11,16 @@ export const onRequestPost: Handler = async (context) => {
   const dbClient = context.data.dbClient!
   // Step 1: Get the TOTP verification token from the cookie
   const cookieHeader = context.request.headers.get("Cookie")
-  const totpVerificationToken = await getCookie(
-    cookieHeader,
-    "totp_verification_token"
-  )
+  const totpVerificationToken = await getCookie(cookieHeader, "totp_verification_token")
 
   if (!totpVerificationToken) {
-    return new Response(
-      '<p class="result-negative">Error: Missing 2FA verification token. Please try logging in again.</p>',
-      {
-        status: 400,
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Retarget": "#message-area", // Assuming a similar message area on the /2fa page
-        },
-      }
-    )
+    return new Response('<p class="result-negative">Error: Missing 2FA verification token. Please try logging in again.</p>', {
+      status: 400,
+      headers: {
+        "Content-Type": "text/html",
+        "HX-Retarget": "#message-area", // Assuming a similar message area on the /2fa page
+      },
+    })
   }
 
   // Step 2: Parse form data for TOTP code
@@ -34,31 +28,25 @@ export const onRequestPost: Handler = async (context) => {
   try {
     formData = await context.request.formData()
   } catch (e) {
-    return new Response(
-      '<p class="result-negative">Error: Invalid request body.</p>',
-      {
-        status: 400,
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Retarget": "#message-area",
-        },
-      }
-    )
+    return new Response('<p class="result-negative">Error: Invalid request body.</p>', {
+      status: 400,
+      headers: {
+        "Content-Type": "text/html",
+        "HX-Retarget": "#message-area",
+      },
+    })
   }
   const totp_code = formData.get("otp")
 
   // Step 3: Input Validation for TOTP code
   if (!totp_code || typeof totp_code !== "string") {
-    return new Response(
-      '<p class="result-negative">Error: TOTP code is missing or invalid.</p>',
-      {
-        status: 400,
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Retarget": "#message-area",
-        },
-      }
-    )
+    return new Response('<p class="result-negative">Error: TOTP code is missing or invalid.</p>', {
+      status: 400,
+      headers: {
+        "Content-Type": "text/html",
+        "HX-Retarget": "#message-area",
+      },
+    })
   }
 
   try {
@@ -66,48 +54,39 @@ export const onRequestPost: Handler = async (context) => {
     const tokenDataResult = await readToken(dbClient, totpVerificationToken)
 
     if (!tokenDataResult.success) {
-      return new Response(
-        '<p class="result-negative">Error: Invalid or expired 2FA verification token. Please try logging in again.</p>',
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#message-area",
-          },
-        }
-      )
+      return new Response('<p class="result-negative">Error: Invalid or expired 2FA verification token. Please try logging in again.</p>', {
+        status: 400,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#message-area",
+        },
+      })
     }
 
     const { user_uuid, token_type, expires_at, is_used } = tokenDataResult.token
 
     if (token_type !== "totp_verification_pending") {
-      return new Response(
-        '<p class="result-negative">Error: Invalid token type. Please try logging in again.</p>',
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#message-area",
-          },
-        }
-      )
+      return new Response('<p class="result-negative">Error: Invalid token type. Please try logging in again.</p>', {
+        status: 400,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#message-area",
+        },
+      })
     }
 
     if (new Date(expires_at) < new Date()) {
-      return new Response(
-        '<p class="result-negative">Error: 2FA verification token has expired. Please try logging in again.</p>',
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#message-area",
-            // Clear the expired/invalid cookie
-            "Set-Cookie": `totp_verification_token=; HttpOnly; Path=/; Max-Age=0; SameSite=${
-              context.env.COOKIE_SAMESITE || "Lax"
-            }${context.env.SECURE_COOKIE ? "; Secure" : ""}`,
-          },
-        }
-      )
+      return new Response('<p class="result-negative">Error: 2FA verification token has expired. Please try logging in again.</p>', {
+        status: 400,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#message-area",
+          // Clear the expired/invalid cookie
+          "Set-Cookie": `totp_verification_token=; HttpOnly; Path=/; Max-Age=0; SameSite=${
+            context.env.COOKIE_SAMESITE || "Lax"
+          }${context.env.SECURE_COOKIE ? "; Secure" : ""}`,
+        },
+      })
     }
 
     if (is_used) {
@@ -130,48 +109,37 @@ export const onRequestPost: Handler = async (context) => {
     const twoFaResult = await read2fa(dbClient, user_uuid)
 
     if (!twoFaResult.success || !twoFaResult.twoFactor.secret_value) {
-      return new Response(
-        '<p class="result-negative">Error: 2FA is not configured for this account. Please contact support.</p>',
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#message-area",
-          },
-        }
-      )
+      return new Response('<p class="result-negative">Error: 2FA is not configured for this account. Please contact support.</p>', {
+        status: 400,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#message-area",
+        },
+      })
     }
 
     const twoFaData = twoFaResult.twoFactor
 
     if (twoFaData.is_enabled !== true) {
-      return new Response(
-        '<p class="result-negative">Error: 2FA is not enabled for this account. Please contact support.</p>',
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#message-area",
-          },
-        }
-      )
+      return new Response('<p class="result-negative">Error: 2FA is not enabled for this account. Please contact support.</p>', {
+        status: 400,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#message-area",
+        },
+      })
     }
 
     // "Decrypt" the secret_value
     if (!twoFaData.secret_value.startsWith("sim_encrypted::")) {
-      console.error(
-        `Invalid secret_value format for user ${user_uuid} of type 'totp_secret'.`
-      )
-      return new Response(
-        '<p class="result-negative">Error: Internal server error. Please try again or contact support.</p>',
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#message-area",
-          },
-        }
-      )
+      console.error(`Invalid secret_value format for user ${user_uuid} of type 'totp_secret'.`)
+      return new Response('<p class="result-negative">Error: Internal server error. Please try again or contact support.</p>', {
+        status: 500,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#message-area",
+        },
+      })
     }
     const storedSecret = twoFaData.secret_value.replace("sim_encrypted::", "")
 
@@ -184,16 +152,13 @@ export const onRequestPost: Handler = async (context) => {
 
     if (!verifyResult.valid) {
       // Optionally, implement a rate-limiter or attempt counter here
-      return new Response(
-        '<p class="result-negative">Error: Invalid TOTP code. Please try again.</p>',
-        {
-          status: 401, // Unauthorized
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#message-area",
-          },
-        }
-      )
+      return new Response('<p class="result-negative">Error: Invalid TOTP code. Please try again.</p>', {
+        status: 401, // Unauthorized
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#message-area",
+        },
+      })
     }
 
     // Step 7: Record code and update last-used timestamp. used2fa does an
@@ -224,25 +189,18 @@ export const onRequestPost: Handler = async (context) => {
     // UPDATE re-checks type/expiry/used, so a concurrent replay of the same
     // token cannot also reach session creation — exactly one consumer wins.
     // A failure is fatal (no longer swallowed): the user logs in again.
-    const consumeResult = await consumeToken(
-      dbClient,
-      totpVerificationToken,
-      "totp_verification_pending"
-    )
+    const consumeResult = await consumeToken(dbClient, totpVerificationToken, "totp_verification_pending")
     if (!consumeResult.success) {
-      return new Response(
-        '<p class="result-negative">Error: 2FA verification token is no longer valid. Please try logging in again.</p>',
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#message-area",
-            "Set-Cookie": `totp_verification_token=; HttpOnly; Path=/; Max-Age=0; SameSite=${
-              context.env.COOKIE_SAMESITE || "Lax"
-            }${context.env.SECURE_COOKIE ? "; Secure" : ""}`,
-          },
-        }
-      )
+      return new Response('<p class="result-negative">Error: 2FA verification token is no longer valid. Please try logging in again.</p>', {
+        status: 400,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#message-area",
+          "Set-Cookie": `totp_verification_token=; HttpOnly; Path=/; Max-Age=0; SameSite=${
+            context.env.COOKIE_SAMESITE || "Lax"
+          }${context.env.SECURE_COOKIE ? "; Secure" : ""}`,
+        },
+      })
     }
 
     // Step 9: Create a new session for the user
@@ -250,26 +208,17 @@ export const onRequestPost: Handler = async (context) => {
     const ip_address = context.request.headers.get("CF-Connecting-IP") || ""
     const ip_country = context.request.headers.get("CF-IPCountry") || ""
 
-    const sessionResult = await createSession(
-      dbClient,
-      user_uuid,
-      user_agent,
-      ip_address,
-      ip_country
-    )
+    const sessionResult = await createSession(dbClient, user_uuid, user_agent, ip_address, ip_country)
 
     if (!sessionResult.success) {
       console.error("Error creating session:", sessionResult.error)
-      return new Response(
-        '<p class="result-negative">Error creating session. Please try again.</p>',
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#message-area",
-          },
-        }
-      )
+      return new Response('<p class="result-negative">Error creating session. Please try again.</p>', {
+        status: 500,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#message-area",
+        },
+      })
     }
     await emitFromContext(context, {
       event_type: EVENTS.ACCOUNT_LOGIN_SUCCESS,
@@ -317,25 +266,19 @@ export const onRequestPost: Handler = async (context) => {
     }
     headers.append("Set-Cookie", clearTotpCookieOptions.join("; "))
 
-    return new Response(
-      '<p class="result-positive">Login successful! Redirecting...</p>',
-      {
-        status: 303, // See Other, appropriate for redirect after POST
-        headers: headers,
-      }
-    )
+    return new Response('<p class="result-positive">Login successful! Redirecting...</p>', {
+      status: 303, // See Other, appropriate for redirect after POST
+      headers: headers,
+    })
   } catch (error) {
     console.error("Error during 2FA login:", error)
-    return new Response(
-      '<p class="result-negative">An unexpected error occurred. Please try again.</p>',
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Retarget": "#message-area",
-        },
-      }
-    )
+    return new Response('<p class="result-negative">An unexpected error occurred. Please try again.</p>', {
+      status: 500,
+      headers: {
+        "Content-Type": "text/html",
+        "HX-Retarget": "#message-area",
+      },
+    })
   }
 }
 

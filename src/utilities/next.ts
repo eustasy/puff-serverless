@@ -43,9 +43,7 @@ export function sanitizeNext(value: string | null | undefined): string | null {
  * Returns null when absent or unsafe.
  */
 export async function readNext(request: Request): Promise<string | null> {
-  return sanitizeNext(
-    await getCookie(request.headers.get("Cookie"), NEXT_COOKIE)
-  )
+  return sanitizeNext(await getCookie(request.headers.get("Cookie"), NEXT_COOKIE))
 }
 
 /**
@@ -66,13 +64,7 @@ export function setNextCookie(env: Env, value: string): string {
 
 /** Builds a Set-Cookie value that clears the `login_next` cookie once used. */
 export function clearNextCookie(env: Env): string {
-  const parts = [
-    `${NEXT_COOKIE}=`,
-    "HttpOnly",
-    "Path=/",
-    "Max-Age=0",
-    `SameSite=${env.COOKIE_SAMESITE || "Lax"}`,
-  ]
+  const parts = [`${NEXT_COOKIE}=`, "HttpOnly", "Path=/", "Max-Age=0", `SameSite=${env.COOKIE_SAMESITE || "Lax"}`]
   if (env.SECURE_COOKIE) parts.push("Secure")
   return parts.join("; ")
 }

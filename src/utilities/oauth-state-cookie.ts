@@ -47,9 +47,7 @@ export function setOAuthStateCookie(env: Env, value: OAuthStateCookie): string {
 }
 
 /** Reads + parses the OAuth state cookie, or null if absent/malformed. */
-export async function readOAuthStateCookie(
-  cookieHeader: string | null
-): Promise<OAuthStateCookie | null> {
+export async function readOAuthStateCookie(cookieHeader: string | null): Promise<OAuthStateCookie | null> {
   if (!cookieHeader) return null
   // Reuse the existing cookie helper to extract the named cookie value.
   const { getCookie } = await import("./headers.js")
@@ -57,11 +55,7 @@ export async function readOAuthStateCookie(
   if (!raw) return null
   try {
     const parsed = JSON.parse(decodeString(raw)) as Partial<OAuthStateCookie>
-    if (
-      typeof parsed.provider === "string" &&
-      typeof parsed.state === "string" &&
-      typeof parsed.code_verifier === "string"
-    ) {
+    if (typeof parsed.provider === "string" && typeof parsed.state === "string" && typeof parsed.code_verifier === "string") {
       return parsed as OAuthStateCookie
     }
   } catch {
@@ -72,13 +66,7 @@ export async function readOAuthStateCookie(
 
 /** Cleared Set-Cookie value for after a successful or failed callback. */
 export function clearOAuthStateCookie(env: Env): string {
-  const parts = [
-    `${COOKIE_NAME}=`,
-    "HttpOnly",
-    "Path=/login",
-    "Max-Age=0",
-    "SameSite=Lax",
-  ]
+  const parts = [`${COOKIE_NAME}=`, "HttpOnly", "Path=/login", "Max-Age=0", "SameSite=Lax"]
   if (env.SECURE_COOKIE) parts.push("Secure")
   return parts.join("; ")
 }
@@ -103,10 +91,7 @@ export async function generatePkcePair(): Promise<{
   challenge: string
 }> {
   const verifier = randomBase64Url(64)
-  const hash = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(verifier)
-  )
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))
   const challenge = encodeBytes(new Uint8Array(hash))
   return { verifier, challenge }
 }

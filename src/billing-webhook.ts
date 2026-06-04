@@ -28,9 +28,7 @@ export interface StripeEvent {
 }
 
 function unixToDate(value: unknown): Date | null {
-  return typeof value === "number" && Number.isFinite(value)
-    ? new Date(value * 1000)
-    : null
+  return typeof value === "number" && Number.isFinite(value) ? new Date(value * 1000) : null
 }
 
 function metadataOf(object: Record<string, unknown>): Record<string, string> {
@@ -144,9 +142,7 @@ async function syncSubscription(
   const org_uuid = str(meta.org_uuid)
   const app_uuid = str(meta.app_uuid)
   if (!org_uuid || !app_uuid) {
-    console.error(
-      `syncSubscription: subscription ${String(object.id)} is missing org_uuid/app_uuid metadata; skipping.`
-    )
+    console.error(`syncSubscription: subscription ${String(object.id)} is missing org_uuid/app_uuid metadata; skipping.`)
     return
   }
   const tier = meta.tier ?? ""
@@ -192,10 +188,7 @@ async function syncSubscription(
     event = EVENTS.BILLING_SUBSCRIPTION_CREATED
   } else if (eventType === "customer.subscription.resumed") {
     event = EVENTS.BILLING_SUBSCRIPTION_RESUMED
-  } else if (
-    eventType === "customer.subscription.paused" ||
-    sub.status === "paused"
-  ) {
+  } else if (eventType === "customer.subscription.paused" || sub.status === "paused") {
     event = EVENTS.BILLING_SUBSCRIPTION_PAUSED
   }
 
@@ -208,11 +201,7 @@ async function syncSubscription(
   })
 }
 
-async function cancelSubscription(
-  dbClient: DbClient,
-  ctx: EmitContext | null,
-  object: Record<string, unknown>
-): Promise<void> {
+async function cancelSubscription(dbClient: DbClient, ctx: EmitContext | null, object: Record<string, unknown>): Promise<void> {
   const subId = str(object.id)
   if (!subId) return
   const meta = metadataOf(object)
@@ -259,9 +248,7 @@ async function recordInvoice(
         WHERE provider_subscription_id = $1 LIMIT 1`,
       [subId]
     )
-    const row = rows[0] as
-      | { subscription_uuid?: string; org_uuid?: string }
-      | undefined
+    const row = rows[0] as { subscription_uuid?: string; org_uuid?: string } | undefined
     org_uuid = row?.org_uuid ?? null
     subscription_uuid = row?.subscription_uuid ?? null
   }
@@ -281,12 +268,7 @@ async function recordInvoice(
   }
 
   const status = opts.status ?? str(object.status) ?? "open"
-  const amount =
-    typeof object.total === "number"
-      ? object.total
-      : typeof object.amount_due === "number"
-        ? object.amount_due
-        : 0
+  const amount = typeof object.total === "number" ? object.total : typeof object.amount_due === "number" ? object.amount_due : 0
   const currency = str(object.currency) ?? "usd"
 
   await dbClient.query(

@@ -1,12 +1,5 @@
 import { describe, it, expect } from "vitest"
-import {
-  listPasskeys,
-  getPasskeyByCredentialId,
-  savePasskey,
-  updatePasskeyCounter,
-  deletePasskey,
-  getRpConfig,
-} from "../src/passkeys.js"
+import { listPasskeys, getPasskeyByCredentialId, savePasskey, updatePasskeyCounter, deletePasskey, getRpConfig } from "../src/passkeys.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
 import { fakeEnv } from "./helpers/fake-env.js"
 
@@ -51,15 +44,7 @@ describe("savePasskey", () => {
   it("inserts the passkey, base64url-encoding the public key, and returns 201", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO passkeys/, { rowCount: 1 })
-    const result = await savePasskey(
-      db.client,
-      "user-1",
-      "cred-id",
-      new Uint8Array([1, 2, 3, 250]),
-      0,
-      ["internal"],
-      "My Laptop"
-    )
+    const result = await savePasskey(db.client, "user-1", "cred-id", new Uint8Array([1, 2, 3, 250]), 0, ["internal"], "My Laptop")
     expect(result).toMatchObject({ success: true, status: 201 })
     expect(db.calls[0].values[2]).toBe("cred-id")
     // Public key is stored base64url-encoded (no +, /, or = padding).
@@ -112,15 +97,11 @@ describe("deletePasskey", () => {
 
 describe("getRpConfig", () => {
   it("uses an explicit WEBAUTHN_RP_ID when set", () => {
-    expect(
-      getRpConfig(fakeEnv({ WEBAUTHN_RP_ID: "auth.example.com" }))
-    ).toMatchObject({ rpID: "auth.example.com" })
+    expect(getRpConfig(fakeEnv({ WEBAUTHN_RP_ID: "auth.example.com" }))).toMatchObject({ rpID: "auth.example.com" })
   })
 
   it("derives the RP ID from APP_URL's hostname", () => {
-    expect(
-      getRpConfig(fakeEnv({ APP_URL: "https://app.example.com/login" })).rpID
-    ).toBe("app.example.com")
+    expect(getRpConfig(fakeEnv({ APP_URL: "https://app.example.com/login" })).rpID).toBe("app.example.com")
   })
 
   it("falls back to localhost when nothing is configured", () => {
@@ -128,9 +109,7 @@ describe("getRpConfig", () => {
   })
 
   it("resolves the RP name from WEBAUTHN_RP_NAME, then APP_NAME, then a default", () => {
-    expect(getRpConfig(fakeEnv({ WEBAUTHN_RP_NAME: "Auth" })).rpName).toBe(
-      "Auth"
-    )
+    expect(getRpConfig(fakeEnv({ WEBAUTHN_RP_NAME: "Auth" })).rpName).toBe("Auth")
     expect(getRpConfig(fakeEnv({ APP_NAME: "Puff" })).rpName).toBe("Puff")
     expect(getRpConfig(fakeEnv()).rpName).toBe("puff")
   })

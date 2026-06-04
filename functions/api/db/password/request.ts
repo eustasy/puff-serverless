@@ -14,10 +14,10 @@ export const onRequestPost: Handler = async (context) => {
     formData = await context.request.formData()
     email = formData.get("email")
   } catch (e) {
-    return new Response(
-      '<p class="result-negative">Invalid request. Please provide an email.</p>',
-      { status: 400, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response('<p class="result-negative">Invalid request. Please provide an email.</p>', {
+      status: 400,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 
   // Step 2: Input Validation
@@ -45,17 +45,10 @@ export const onRequestPost: Handler = async (context) => {
     }
 
     // Step 4: Store Token using createPasswordToken
-    const tokenResult = await createPasswordToken(
-      dbClient,
-      user.email.user_uuid,
-      email
-    )
+    const tokenResult = await createPasswordToken(dbClient, user.email.user_uuid, email)
 
     if (tokenResult.error) {
-      console.error(
-        "Failed to create password reset token:",
-        tokenResult.message
-      )
+      console.error("Failed to create password reset token:", tokenResult.message)
       // Still return generic success to avoid leaking info, but log the error.
       return genericSuccessResponse
     }
@@ -73,16 +66,11 @@ export const onRequestPost: Handler = async (context) => {
     // revealing whether the email exists. Fire-and-forget via waitUntil so
     // the user gets the generic response without waiting on Mailtrap.
     context.waitUntil(
-      sendPasswordResetEmail(context.env, email, token_value).then(
-        (mailResult) => {
-          if (mailResult.error) {
-            console.error(
-              "Failed to send password reset email:",
-              mailResult.message
-            )
-          }
+      sendPasswordResetEmail(context.env, email, token_value).then((mailResult) => {
+        if (mailResult.error) {
+          console.error("Failed to send password reset email:", mailResult.message)
         }
-      )
+      })
     )
 
     // Step 6: Response (Always generic)
@@ -90,10 +78,10 @@ export const onRequestPost: Handler = async (context) => {
   } catch (error) {
     console.error("Error during password reset request:", error)
     // Return HTML error response
-    return new Response(
-      '<p class="result-negative">An unexpected error occurred. Please try again.</p>',
-      { status: 500, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response('<p class="result-negative">An unexpected error occurred. Please try again.</p>', {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 }
 

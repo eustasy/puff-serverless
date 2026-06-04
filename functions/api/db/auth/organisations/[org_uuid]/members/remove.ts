@@ -1,10 +1,6 @@
 import { removeOrgMember } from "../../../../../../../src/memberships.js"
 import { can } from "../../../../../../../src/permissions.js"
-import {
-  resultPositive,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../../src/utilities/responses.js"
+import { resultPositive, resultNegative, methodNotAllowed } from "../../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../../src/hooks/events.js"
 
@@ -26,16 +22,9 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
     return resultNegative("A user is required.", 400)
   }
 
-  const result = await removeOrgMember(
-    context.data.dbClient!,
-    String(context.params.org_uuid),
-    user_uuid
-  )
+  const result = await removeOrgMember(context.data.dbClient!, String(context.params.org_uuid), user_uuid)
   if (!result.success) {
-    return resultNegative(
-      result.error ? "Could not remove the member." : result.message,
-      result.status
-    )
+    return resultNegative(result.error ? "Could not remove the member." : result.message, result.status)
   }
   await emitFromContext(context, {
     event_type: EVENTS.ORG_MEMBER_REMOVED,

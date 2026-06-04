@@ -38,12 +38,8 @@ describe("createOrganisation", () => {
     expect(result).toMatchObject({ success: true, status: 201 })
     // The membership insert grants the creator the owner role, against the
     // same generated org UUID the organisation row was inserted with.
-    const orgInsert = db.calls.find((c) =>
-      c.text.includes("INSERT INTO organisations")
-    )
-    const memberInsert = db.calls.find((c) =>
-      c.text.includes("INSERT INTO organisation_members")
-    )
+    const orgInsert = db.calls.find((c) => c.text.includes("INSERT INTO organisations"))
+    const memberInsert = db.calls.find((c) => c.text.includes("INSERT INTO organisation_members"))
     expect(memberInsert?.values[0]).toBe(orgInsert?.values[0])
     expect(memberInsert?.values[1]).toBe("user-1")
     expect(memberInsert?.values[2]).toBe("owner")
@@ -52,9 +48,7 @@ describe("createOrganisation", () => {
   it("returns 500 when the insert throws", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO organisations/, pgError("08006"))
-    expect((await createOrganisation(db.client, "Acme", "user-1")).status).toBe(
-      500
-    )
+    expect((await createOrganisation(db.client, "Acme", "user-1")).status).toBe(500)
   })
 })
 
@@ -81,9 +75,7 @@ describe("updateOrganisation", () => {
   it("updates the name", async () => {
     const db = new FakeDb()
     db.on(/UPDATE organisations/, { rows: [orgRow({ org_name: "Acme Inc" })] })
-    expect(
-      await updateOrganisation(db.client, "org-1", "Acme Inc")
-    ).toMatchObject({ success: true, status: 200 })
+    expect(await updateOrganisation(db.client, "org-1", "Acme Inc")).toMatchObject({ success: true, status: 200 })
   })
 
   it("rejects an empty name with 400", async () => {
@@ -97,9 +89,7 @@ describe("updateOrganisation", () => {
   it("returns 404 when the organisation does not exist", async () => {
     const db = new FakeDb()
     db.on(/UPDATE organisations/, { rowCount: 0, rows: [] })
-    expect((await updateOrganisation(db.client, "org-1", "Acme")).status).toBe(
-      404
-    )
+    expect((await updateOrganisation(db.client, "org-1", "Acme")).status).toBe(404)
   })
 })
 
@@ -152,9 +142,7 @@ describe("deleteOrganisation", () => {
     const result = await deleteOrganisation(db.client, "org-1")
     expect(result).toMatchObject({ success: false, status: 409 })
     // The DELETE must not have run.
-    expect(db.calls.some((c) => /DELETE FROM organisations/.test(c.text))).toBe(
-      false
-    )
+    expect(db.calls.some((c) => /DELETE FROM organisations/.test(c.text))).toBe(false)
   })
 })
 
@@ -173,8 +161,6 @@ describe("listOrganisationsForUser", () => {
   it("returns 500 when the query throws", async () => {
     const db = new FakeDb()
     db.on(/FROM organisations o/, pgError("08006"))
-    expect((await listOrganisationsForUser(db.client, "user-1")).status).toBe(
-      500
-    )
+    expect((await listOrganisationsForUser(db.client, "user-1")).status).toBe(500)
   })
 })

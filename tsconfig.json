@@ -13,13 +13,6 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": false
   },
-  "include": [
-    "functions/**/*.ts",
-    "src/**/*.ts",
-    "test/**/*.ts",
-    "worker-configuration.d.ts",
-    "env.d.ts",
-    "types.d.ts"
-  ],
+  "include": ["functions/**/*.ts", "src/**/*.ts", "test/**/*.ts", "worker-configuration.d.ts", "env.d.ts", "types.d.ts"],
   "exclude": ["node_modules", "dist", ".wrangler"]
 }

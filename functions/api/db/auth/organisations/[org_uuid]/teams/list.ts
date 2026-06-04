@@ -1,11 +1,7 @@
 import { listTeams } from "../../../../../../../src/teams.js"
 import { can } from "../../../../../../../src/permissions.js"
 import { escapeHtml } from "../../../../../../../src/utilities/escape.js"
-import {
-  htmlResponse,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../../src/utilities/responses.js"
+import { htmlResponse, resultNegative, methodNotAllowed } from "../../../../../../../src/utilities/responses.js"
 
 /**
  * Lists an organisation's teams. Each row's "Manage" button loads that team's

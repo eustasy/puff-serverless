@@ -20,14 +20,7 @@
 // JWKS still serves both. The next cron tick re-rotates cleanly.
 
 import { Client } from "pg"
-import {
-  JWT_ALG,
-  _resetOAuthKeyCache,
-  jwkThumbprint,
-  type SigningJwk,
-  type StoredActiveKey,
-  type StoredRetiredKey,
-} from "./oauth-keys.js"
+import { JWT_ALG, _resetOAuthKeyCache, jwkThumbprint, type SigningJwk, type StoredActiveKey, type StoredRetiredKey } from "./oauth-keys.js"
 import { emit } from "./hooks/dispatch.js"
 import { EVENTS } from "./hooks/events.js"
 
@@ -73,10 +66,7 @@ export async function maybeRotateSigningKey(
   const intervalDays = parseIntervalDays(env.OAUTH_KEY_ROTATION_INTERVAL_DAYS)
   const minAgeMs = intervalDays * SECONDS_PER_DAY * 1000
 
-  const existing = await env.KV_OAUTH_KEYS.get<StoredActiveKey>(
-    KV_KEY_ACTIVE,
-    "json"
-  )
+  const existing = await env.KV_OAUTH_KEYS.get<StoredActiveKey>(KV_KEY_ACTIVE, "json")
   if (existing && existing.created_at) {
     const createdAt = Date.parse(existing.created_at)
     if (Number.isFinite(createdAt) && Date.now() - createdAt < minAgeMs) {
@@ -96,10 +86,7 @@ export async function maybeRotateSigningKey(
  * emits an audit event. Exposed separately from `maybeRotateSigningKey`
  * for the operator endpoint, which always rotates on demand.
  */
-export async function rotateSigningKey(
-  env: Env,
-  meta: { cron?: string; trigger?: "cron" | "manual" } = {}
-): Promise<RotationDecision> {
+export async function rotateSigningKey(env: Env, meta: { cron?: string; trigger?: "cron" | "manual" } = {}): Promise<RotationDecision> {
   if (!env.KV_OAUTH_KEYS) {
     throw new Error("rotateSigningKey: KV_OAUTH_KEYS binding missing")
   }
@@ -122,10 +109,7 @@ export async function rotateSigningKey(
   // new one. Crashing here leaves the old key still active — recoverable.
   // Crashing in the opposite order would leave a window with no usable
   // verification key for JWTs minted by the old signer.
-  const outgoing = await env.KV_OAUTH_KEYS.get<StoredActiveKey>(
-    KV_KEY_ACTIVE,
-    "json"
-  )
+  const outgoing = await env.KV_OAUTH_KEYS.get<StoredActiveKey>(KV_KEY_ACTIVE, "json")
   let retiredKid: string | undefined
   if (outgoing) {
     const outgoingPub: SigningJwk = {
@@ -184,10 +168,7 @@ export async function promoteRetiredKey(
   if (!env.KV_OAUTH_KEYS) {
     throw new Error("promoteRetiredKey: KV_OAUTH_KEYS binding missing")
   }
-  const retired = await env.KV_OAUTH_KEYS.get<StoredRetiredKey>(
-    KV_KEY_RETIRED,
-    "json"
-  )
+  const retired = await env.KV_OAUTH_KEYS.get<StoredRetiredKey>(KV_KEY_RETIRED, "json")
   if (!retired) {
     return { promoted: false, reason: "no retired key to promote" }
   }
@@ -200,10 +181,7 @@ export async function promoteRetiredKey(
     }
   }
 
-  const previousActive = await env.KV_OAUTH_KEYS.get<StoredActiveKey>(
-    KV_KEY_ACTIVE,
-    "json"
-  )
+  const previousActive = await env.KV_OAUTH_KEYS.get<StoredActiveKey>(KV_KEY_ACTIVE, "json")
   if (previousActive) {
     const pub: SigningJwk = {
       kty: previousActive.jwk.kty,
@@ -246,37 +224,20 @@ async function generateEs256Jwks(): Promise<{
   privateJwk: SigningJwk
   publicJwk: SigningJwk
 }> {
-  const pair = (await crypto.subtle.generateKey(ECDSA_PARAMS, true, [
-    "sign",
-    "verify",
-  ])) as CryptoKeyPair
-  const privateJwk = (await crypto.subtle.exportKey(
-    "jwk",
-    pair.privateKey
-  )) as SigningJwk
-  const publicJwk = (await crypto.subtle.exportKey(
-    "jwk",
-    pair.publicKey
-  )) as SigningJwk
+  const pair = (await crypto.subtle.generateKey(ECDSA_PARAMS, true, ["sign", "verify"])) as CryptoKeyPair
+  const privateJwk = (await crypto.subtle.exportKey("jwk", pair.privateKey)) as SigningJwk
+  const publicJwk = (await crypto.subtle.exportKey("jwk", pair.publicKey)) as SigningJwk
   return { privateJwk, publicJwk }
 }
 
-async function assertKeypairUsable(
-  privateJwk: SigningJwk,
-  publicJwk: SigningJwk
-): Promise<void> {
+async function assertKeypairUsable(privateJwk: SigningJwk, publicJwk: SigningJwk): Promise<void> {
   const [signingKey, verifyKey] = await Promise.all([
     crypto.subtle.importKey("jwk", privateJwk, ECDSA_PARAMS, false, ["sign"]),
     crypto.subtle.importKey("jwk", publicJwk, ECDSA_PARAMS, true, ["verify"]),
   ])
   const probe = new TextEncoder().encode("puff-key-rotation-probe")
   const signature = await crypto.subtle.sign(SIGN_ALG, signingKey, probe)
-  const verified = await crypto.subtle.verify(
-    SIGN_ALG,
-    verifyKey,
-    signature,
-    probe
-  )
+  const verified = await crypto.subtle.verify(SIGN_ALG, verifyKey, signature, probe)
   if (!verified) {
     throw new Error("Newly generated signing keypair failed self-verification")
   }
@@ -294,11 +255,7 @@ interface RotationMeta {
   trigger?: "cron" | "manual"
 }
 
-async function emitRotationSuccess(
-  env: Env,
-  meta: RotationMeta,
-  details: { new_kid: string; retired_kid: string | null }
-): Promise<void> {
+async function emitRotationSuccess(env: Env, meta: RotationMeta, details: { new_kid: string; retired_kid: string | null }): Promise<void> {
   await withAuditClient(env, async (dbClient) => {
     await emit(dbClient, null, {
       event_type: EVENTS.OAUTH_SIGNING_KEY_ROTATED,
@@ -313,11 +270,7 @@ async function emitRotationSuccess(
   })
 }
 
-async function emitRotationFailure(
-  env: Env,
-  meta: RotationMeta,
-  error: unknown
-): Promise<void> {
+async function emitRotationFailure(env: Env, meta: RotationMeta, error: unknown): Promise<void> {
   await withAuditClient(env, async (dbClient) => {
     await emit(dbClient, null, {
       event_type: EVENTS.OAUTH_SIGNING_KEY_ROTATION_FAILED,
@@ -335,10 +288,7 @@ async function emitRotationFailure(
  * Open a short-lived pg client, run `body` with it, and close it. Audit
  * write failures are logged — they must not mask the rotation outcome.
  */
-async function withAuditClient(
-  env: Env,
-  body: (dbClient: DbClient) => Promise<void>
-): Promise<void> {
+async function withAuditClient(env: Env, body: (dbClient: DbClient) => Promise<void>): Promise<void> {
   if (!env.HYPERDRIVE?.connectionString) {
     console.warn("OAuth key rotation: HYPERDRIVE missing, skipping audit emit.")
     return
@@ -353,10 +303,7 @@ async function withAuditClient(
     try {
       await client.end()
     } catch (endError) {
-      console.error(
-        "OAuth key rotation: error closing audit DB client:",
-        endError
-      )
+      console.error("OAuth key rotation: error closing audit DB client:", endError)
     }
   }
 }

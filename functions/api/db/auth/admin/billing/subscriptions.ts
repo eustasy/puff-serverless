@@ -1,8 +1,4 @@
-import {
-  htmlResponse,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../src/utilities/responses.js"
+import { htmlResponse, resultNegative, methodNotAllowed } from "../../../../../../src/utilities/responses.js"
 import { listAllSubscriptions } from "../../../../../../src/billing.js"
 import { escapeHtml } from "../../../../../../src/utilities/escape.js"
 

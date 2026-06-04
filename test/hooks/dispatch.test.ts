@@ -44,9 +44,7 @@ describe("emit", () => {
     listeners.push({ name: "audit-test", kind: "sync", handle })
 
     const db = new FakeDb()
-    await expect(
-      emit(db.client, null, { event_type: "account.login.success" })
-    ).rejects.toThrow("boom")
+    await expect(emit(db.client, null, { event_type: "account.login.success" })).rejects.toThrow("boom")
     expect(handle).toHaveBeenCalledTimes(1)
   })
 

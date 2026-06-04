@@ -13,15 +13,9 @@ import { validateDisplayName } from "./utilities/validation.js"
 /** Longest accepted organisation display name. */
 export const MAX_NAME_LENGTH = 128
 
-const ORG_COLUMNS =
-  "org_uuid, org_name, org_active, org_locale, org_created_at, org_created_by"
+const ORG_COLUMNS = "org_uuid, org_name, org_active, org_locale, org_created_at, org_created_by"
 
-const validateName = (name: string): string | null =>
-  validateDisplayName(
-    name,
-    "An organisation name is required.",
-    MAX_NAME_LENGTH
-  )
+const validateName = (name: string): string | null => validateDisplayName(name, "An organisation name is required.", MAX_NAME_LENGTH)
 
 /**
  * Creates an organisation and makes the creator its first `owner`, in one
@@ -51,10 +45,11 @@ export async function createOrganisation(
         [org_uuid, name.trim(), creator_uuid]
       )
       // The creator is the first owner; they added themselves.
-      await dbClient.query(
-        "INSERT INTO organisation_members (org_uuid, user_uuid, role, added_by) VALUES ($1, $2, $3, $2)",
-        [org_uuid, creator_uuid, OWNER_ROLE]
-      )
+      await dbClient.query("INSERT INTO organisation_members (org_uuid, user_uuid, role, added_by) VALUES ($1, $2, $3, $2)", [
+        org_uuid,
+        creator_uuid,
+        OWNER_ROLE,
+      ])
       return { success: true, organisation: insert.rows[0], status: 201 }
     })
   } catch (error) {
@@ -75,15 +70,9 @@ export async function createOrganisation(
  * @param {string} org_uuid - The organisation UUID.
  * @returns {Promise<Envelope<{ organisation: OrganisationRow }>>} `{ success: true, organisation, status: 200 }`, `{ success: false, message, status: 404 }`, or an error envelope.
  */
-export async function readOrganisation(
-  dbClient: DbClient,
-  org_uuid: string
-): Promise<Envelope<{ organisation: OrganisationRow }>> {
+export async function readOrganisation(dbClient: DbClient, org_uuid: string): Promise<Envelope<{ organisation: OrganisationRow }>> {
   try {
-    const result = await dbClient.query(
-      `SELECT ${ORG_COLUMNS} FROM organisations WHERE org_uuid = $1 LIMIT 1`,
-      [org_uuid]
-    )
+    const result = await dbClient.query(`SELECT ${ORG_COLUMNS} FROM organisations WHERE org_uuid = $1 LIMIT 1`, [org_uuid])
     if (result.rows.length === 0) {
       return { success: false, message: "Organisation not found.", status: 404 }
     }
@@ -116,10 +105,10 @@ export async function updateOrganisation(
     return { success: false, message: invalid, status: 400 }
   }
   try {
-    const result = await dbClient.query(
-      `UPDATE organisations SET org_name = $2 WHERE org_uuid = $1 RETURNING ${ORG_COLUMNS}`,
-      [org_uuid, name.trim()]
-    )
+    const result = await dbClient.query(`UPDATE organisations SET org_name = $2 WHERE org_uuid = $1 RETURNING ${ORG_COLUMNS}`, [
+      org_uuid,
+      name.trim(),
+    ])
     if ((result.rowCount ?? 0) === 0) {
       return { success: false, message: "Organisation not found.", status: 404 }
     }
@@ -136,16 +125,12 @@ export async function updateOrganisation(
 }
 
 /** Flips `org_active`. Shared by disableOrganisation / enableOrganisation. */
-async function setOrganisationActive(
-  dbClient: DbClient,
-  org_uuid: string,
-  active: boolean
-): Promise<Envelope> {
+async function setOrganisationActive(dbClient: DbClient, org_uuid: string, active: boolean): Promise<Envelope> {
   try {
-    const result = await dbClient.query(
-      "UPDATE organisations SET org_active = $2 WHERE org_uuid = $1 RETURNING org_uuid",
-      [org_uuid, active]
-    )
+    const result = await dbClient.query("UPDATE organisations SET org_active = $2 WHERE org_uuid = $1 RETURNING org_uuid", [
+      org_uuid,
+      active,
+    ])
     if ((result.rowCount ?? 0) === 0) {
       return { success: false, message: "Organisation not found.", status: 404 }
     }
@@ -168,10 +153,7 @@ async function setOrganisationActive(
  * @param {string} org_uuid - The organisation UUID.
  * @returns {Promise<Envelope>} `{ success: true, status: 200 }`, `{ success: false, status: 404 }`, or an error envelope.
  */
-export async function disableOrganisation(
-  dbClient: DbClient,
-  org_uuid: string
-): Promise<Envelope> {
+export async function disableOrganisation(dbClient: DbClient, org_uuid: string): Promise<Envelope> {
   return setOrganisationActive(dbClient, org_uuid, false)
 }
 
@@ -181,10 +163,7 @@ export async function disableOrganisation(
  * @param {string} org_uuid - The organisation UUID.
  * @returns {Promise<Envelope>} `{ success: true, status: 200 }`, `{ success: false, status: 404 }`, or an error envelope.
  */
-export async function enableOrganisation(
-  dbClient: DbClient,
-  org_uuid: string
-): Promise<Envelope> {
+export async function enableOrganisation(dbClient: DbClient, org_uuid: string): Promise<Envelope> {
   return setOrganisationActive(dbClient, org_uuid, true)
 }
 
@@ -200,10 +179,7 @@ export async function enableOrganisation(
  * @param {string} org_uuid - The organisation UUID.
  * @returns {Promise<Envelope>} `{ success: true, status: 200 }`, `{ success: false, status: 404|409 }`, or an error envelope.
  */
-export async function deleteOrganisation(
-  dbClient: DbClient,
-  org_uuid: string
-): Promise<Envelope> {
+export async function deleteOrganisation(dbClient: DbClient, org_uuid: string): Promise<Envelope> {
   try {
     const balance = await dbClient.query(
       `SELECT 1 FROM invoices
@@ -213,16 +189,12 @@ export async function deleteOrganisation(
     if ((balance.rowCount ?? 0) > 0) {
       return {
         success: false,
-        message:
-          "Cannot delete an organisation with an outstanding balance. Settle or void its open invoices first.",
+        message: "Cannot delete an organisation with an outstanding balance. Settle or void its open invoices first.",
         status: 409,
       }
     }
 
-    const result = await dbClient.query(
-      "DELETE FROM organisations WHERE org_uuid = $1 RETURNING org_uuid",
-      [org_uuid]
-    )
+    const result = await dbClient.query("DELETE FROM organisations WHERE org_uuid = $1 RETURNING org_uuid", [org_uuid])
     if ((result.rowCount ?? 0) === 0) {
       return { success: false, message: "Organisation not found.", status: 404 }
     }

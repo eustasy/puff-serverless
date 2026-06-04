@@ -1,21 +1,13 @@
-import {
-  readKeyValues,
-  searchKeyValues,
-} from "../../../../../../../../../src/user-keyvalues.js"
+import { readKeyValues, searchKeyValues } from "../../../../../../../../../src/user-keyvalues.js"
 import { can } from "../../../../../../../../../src/permissions.js"
 import { renderKeyValueTable } from "../../../../../../../../../src/utilities/keyvalues-endpoint.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-} from "../../../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative } from "../../../../../../../../../src/utilities/responses.js"
 
 /**
  * Lists user-subject KV rows owned by this organisation (data the org has
  * attached to a specific user). Optional `?key=` substring filter.
  */
-export const onRequestGet: Handler<"org_uuid" | "user_uuid"> = async (
-  context
-) => {
+export const onRequestGet: Handler<"org_uuid" | "user_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []
   if (!can(orgRoles, "org:keyvalues:read")) {
     return resultNegative("You cannot view this data.", 403)

@@ -20,12 +20,8 @@ afterEach(() => vi.unstubAllGlobals())
 describe("minPasswordLength", () => {
   it("falls back to the floor when unset, non-numeric or below the floor", () => {
     expect(minPasswordLength(fakeEnv())).toBe(DEFAULT_MIN_PASSWORD_LENGTH)
-    expect(minPasswordLength(fakeEnv({ MIN_PASSWORD_LENGTH: "abc" }))).toBe(
-      DEFAULT_MIN_PASSWORD_LENGTH
-    )
-    expect(minPasswordLength(fakeEnv({ MIN_PASSWORD_LENGTH: "4" }))).toBe(
-      DEFAULT_MIN_PASSWORD_LENGTH
-    )
+    expect(minPasswordLength(fakeEnv({ MIN_PASSWORD_LENGTH: "abc" }))).toBe(DEFAULT_MIN_PASSWORD_LENGTH)
+    expect(minPasswordLength(fakeEnv({ MIN_PASSWORD_LENGTH: "4" }))).toBe(DEFAULT_MIN_PASSWORD_LENGTH)
   })
 
   it("raises the minimum when configured above the floor", () => {
@@ -68,9 +64,7 @@ describe("passwordRequirements", () => {
   })
 
   it("enforces character-class rules when configured", async () => {
-    const cfg = passwordConfig(
-      fakeEnv({ REQUIRE_NUMBER: "true", REQUIRE_CAPITAL: "true" })
-    )
+    const cfg = passwordConfig(fakeEnv({ REQUIRE_NUMBER: "true", REQUIRE_CAPITAL: "true" }))
     expect(await passwordRequirements("abcdefghijkl", cfg)).toBe(false)
     expect(await passwordRequirements("Abcdefghijk1", cfg)).toBe(true)
   })
@@ -107,9 +101,7 @@ describe("createPassword", () => {
   it("returns 500 when the insert throws", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO secrets/, pgError("08006"))
-    expect((await createPassword(db.client, "u", "abcdefghijkl")).status).toBe(
-      500
-    )
+    expect((await createPassword(db.client, "u", "abcdefghijkl")).status).toBe(500)
   })
 })
 
@@ -117,9 +109,7 @@ describe("readPassword", () => {
   it("returns the active secret value and parsed algorithm", async () => {
     const db = new FakeDb()
     db.on(/secret_value, secret_type/, {
-      rows: [
-        { secret_value: "hash:salt", secret_type: "puff_password_SHA-384" },
-      ],
+      rows: [{ secret_value: "hash:salt", secret_type: "puff_password_SHA-384" }],
     })
     db.on(/UPDATE secrets/, { rowCount: 1 })
     expect(await readPassword(db.client, "user-1")).toEqual({
@@ -199,22 +189,16 @@ describe("verifyPassword", () => {
   it("reports verified: false (not an error) when no password is set", async () => {
     const db = new FakeDb()
     db.on(/secret_value, secret_type/, { rows: [] })
-    expect(await verifyPassword(db.client, "user-1", "anything")).toMatchObject(
-      {
-        success: true,
-        verified: false,
-      }
-    )
+    expect(await verifyPassword(db.client, "user-1", "anything")).toMatchObject({
+      success: true,
+      verified: false,
+    })
   })
 })
 
 describe("isPasswordReused", () => {
   it("detects a candidate matching any historical password", async () => {
-    const { hash, salt } = await puff_hashing_password(
-      "old password",
-      "s1",
-      "SHA-384"
-    )
+    const { hash, salt } = await puff_hashing_password("old password", "s1", "SHA-384")
     const db = new FakeDb()
     db.on(/secret_type, secret_value/, {
       rows: [
@@ -224,25 +208,19 @@ describe("isPasswordReused", () => {
         },
       ],
     })
-    expect(await isPasswordReused(db.client, "user-1", "old password")).toEqual(
-      {
-        success: true,
-        reused: true,
-        status: 200,
-      }
-    )
+    expect(await isPasswordReused(db.client, "user-1", "old password")).toEqual({
+      success: true,
+      reused: true,
+      status: 200,
+    })
   })
 
   it("returns reused: false when nothing matches", async () => {
     const db = new FakeDb()
     db.on(/secret_type, secret_value/, {
-      rows: [
-        { secret_type: "puff_password_SHA-384", secret_value: "deadbeef:s1" },
-      ],
+      rows: [{ secret_type: "puff_password_SHA-384", secret_value: "deadbeef:s1" }],
     })
-    expect(
-      await isPasswordReused(db.client, "user-1", "a different password")
-    ).toMatchObject({ reused: false })
+    expect(await isPasswordReused(db.client, "user-1", "a different password")).toMatchObject({ reused: false })
   })
 })
 

@@ -60,9 +60,7 @@ describe("checkoutFloatingSeat", () => {
     expect(result.success).toBe(true)
     if (result.success) expect(result.allocated).toBe("existing")
     // Pool size should NOT have been queried — existing seats bypass the gate.
-    expect(
-      db.calls.some((c) => /FROM organisation_key_values/.test(c.text))
-    ).toBe(false)
+    expect(db.calls.some((c) => /FROM organisation_key_values/.test(c.text))).toBe(false)
   })
 
   it("checks pool size and inserts a new row when free slots remain", async () => {

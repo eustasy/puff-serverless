@@ -37,9 +37,7 @@ export function encodeString(input: string): string {
 
 /** Decode base64url to a binary-safe string. Throws on malformed input. */
 export function decodeString(input: string): string {
-  const padded =
-    input.replace(/-/g, "+").replace(/_/g, "/") +
-    "===".slice((input.length + 3) % 4)
+  const padded = input.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((input.length + 3) % 4)
   return atob(padded)
 }
 

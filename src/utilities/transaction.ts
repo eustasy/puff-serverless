@@ -17,15 +17,10 @@ const SERIALIZATION_FAILURE = "40001"
 const MAX_ATTEMPTS = 5
 
 function isRetryable(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    (error as { code?: unknown }).code === SERIALIZATION_FAILURE
-  )
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === SERIALIZATION_FAILURE
 }
 
-const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms))
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
  * Thrown from within a `runInTransaction` callback to abort the transaction
@@ -54,10 +49,7 @@ export class Rollback<T> {
  * @param dbClient - An active pg.Client instance.
  * @param work - The transaction body. Its return value is resolved on COMMIT.
  */
-export async function runInTransaction<T>(
-  dbClient: DbClient,
-  work: () => Promise<T>
-): Promise<T> {
+export async function runInTransaction<T>(dbClient: DbClient, work: () => Promise<T>): Promise<T> {
   let lastError: unknown
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     await dbClient.query("BEGIN")

@@ -14,10 +14,7 @@ export type ProviderName = (typeof PROVIDERS)[number]
 
 /** Type guard: returns true when value is one of the known provider name strings. */
 export function isProviderName(value: unknown): value is ProviderName {
-  return (
-    typeof value === "string" &&
-    (PROVIDERS as readonly string[]).includes(value)
-  )
+  return typeof value === "string" && (PROVIDERS as readonly string[]).includes(value)
 }
 
 /** Normalised identity Puff stores in `external_identities`. */
@@ -47,11 +44,7 @@ export interface ProviderConfig {
    * separate URL, and the raw `id_token` string from the token endpoint
    * for providers (Microsoft) where the issuing tenant decides verification.
    */
-  normaliseUserinfo: (
-    userinfo: unknown,
-    emails?: unknown,
-    idToken?: string
-  ) => NormalisedIdentity | null
+  normaliseUserinfo: (userinfo: unknown, emails?: unknown, idToken?: string) => NormalisedIdentity | null
   /**
    * Optional: providers (GitHub) require a separate fetch to discover the
    * primary verified email when /user does not surface one.
@@ -80,9 +73,7 @@ function readIdTokenTenant(idToken: string): string | null {
   const parts = idToken.split(".")
   if (parts.length !== 3) return null
   try {
-    const padded =
-      parts[1]!.replace(/-/g, "+").replace(/_/g, "/") +
-      "===".slice((parts[1]!.length + 3) % 4)
+    const padded = parts[1]!.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((parts[1]!.length + 3) % 4)
     const json = atob(padded)
     const payload = JSON.parse(json) as { tid?: unknown }
     return typeof payload.tid === "string" ? payload.tid : null
@@ -115,10 +106,7 @@ function coerceProviderField(value: unknown): string | null {
   return null
 }
 
-function extractGitHub(
-  userinfo: unknown,
-  emails?: unknown
-): NormalisedIdentity | null {
+function extractGitHub(userinfo: unknown, emails?: unknown): NormalisedIdentity | null {
   if (!isObject(userinfo)) return null
   const u = userinfo as unknown as GitHubUser
   const id = coerceProviderField(u.id)
@@ -176,11 +164,7 @@ interface MicrosoftUser {
   name?: string | null
 }
 
-function extractMicrosoft(
-  userinfo: unknown,
-  _emails?: unknown,
-  idToken?: string
-): NormalisedIdentity | null {
+function extractMicrosoft(userinfo: unknown, _emails?: unknown, idToken?: string): NormalisedIdentity | null {
   if (!isObject(userinfo)) return null
   const u = userinfo as MicrosoftUser
   if (typeof u.sub !== "string" || u.sub === "") return null
@@ -235,8 +219,7 @@ const REGISTRY: Record<ProviderName, ProviderConfig> = {
   microsoft: {
     name: "microsoft",
     display_name: "Microsoft",
-    authorize_url:
-      "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    authorize_url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
     token_url: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
     userinfo_url: "https://graph.microsoft.com/oidc/userinfo",
     scopes: ["openid", "email", "profile"],
@@ -257,16 +240,9 @@ export function getProviderConfig(name: string): ProviderConfig | null {
  * null when either env var is missing — the caller treats that as "this
  * provider is not configured on this deployment" and 404s the request.
  */
-export function getProviderCredentials(
-  env: Env,
-  config: ProviderConfig
-): { client_id: string; client_secret: string } | null {
-  const client_id = (env as unknown as Record<string, string | undefined>)[
-    config.client_id_env
-  ]
-  const client_secret = (env as unknown as Record<string, string | undefined>)[
-    config.client_secret_env
-  ]
+export function getProviderCredentials(env: Env, config: ProviderConfig): { client_id: string; client_secret: string } | null {
+  const client_id = (env as unknown as Record<string, string | undefined>)[config.client_id_env]
+  const client_secret = (env as unknown as Record<string, string | undefined>)[config.client_secret_env]
   if (!client_id || !client_secret) return null
   return { client_id, client_secret }
 }
@@ -276,9 +252,7 @@ export function getProviderCredentials(
  * Used by the /login page to decide which provider buttons to render.
  */
 export function listConfiguredProviders(env: Env): ProviderConfig[] {
-  return PROVIDERS.map((name) => REGISTRY[name]).filter(
-    (config) => getProviderCredentials(env, config) !== null
-  )
+  return PROVIDERS.map((name) => REGISTRY[name]).filter((config) => getProviderCredentials(env, config) !== null)
 }
 
 /** Builds the redirect_uri the provider should return the user to. */

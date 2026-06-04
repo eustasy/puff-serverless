@@ -55,18 +55,14 @@ function serializeCredential(cred) {
   }
 
   if (response.attestationObject) {
-    obj.response.attestationObject = bufferToBase64url(
-      response.attestationObject
-    )
+    obj.response.attestationObject = bufferToBase64url(response.attestationObject)
     if (typeof response.getTransports === "function") {
       obj.response.transports = response.getTransports()
     }
   }
 
   if (response.authenticatorData) {
-    obj.response.authenticatorData = bufferToBase64url(
-      response.authenticatorData
-    )
+    obj.response.authenticatorData = bufferToBase64url(response.authenticatorData)
     obj.response.signature = bufferToBase64url(response.signature)
     if (response.userHandle) {
       obj.response.userHandle = bufferToBase64url(response.userHandle)
@@ -94,12 +90,8 @@ function readLastLogin() {
 function rememberLogin(email, viaPasskey) {
   try {
     const prev = readLastLogin()
-    const usedPasskey =
-      viaPasskey || (prev && prev.email === email && prev.usedPasskey === true)
-    localStorage.setItem(
-      LAST_LOGIN_KEY,
-      JSON.stringify({ email, usedPasskey: !!usedPasskey })
-    )
+    const usedPasskey = viaPasskey || (prev && prev.email === email && prev.usedPasskey === true)
+    localStorage.setItem(LAST_LOGIN_KEY, JSON.stringify({ email, usedPasskey: !!usedPasskey }))
   } catch {
     // localStorage unavailable (private mode / disabled) — feature degrades.
   }
@@ -121,9 +113,7 @@ async function registerPasskey() {
     }
     startData = await startRes.json()
   } catch (err) {
-    if (msgArea)
-      msgArea.innerHTML =
-        '<p class="result-negative">Could not start passkey registration. Please try again.</p>'
+    if (msgArea) msgArea.innerHTML = '<p class="result-negative">Could not start passkey registration. Please try again.</p>'
     return
   }
 
@@ -133,9 +123,7 @@ async function registerPasskey() {
       publicKey: prepareCreationOptions(startData.options),
     })
   } catch (err) {
-    if (msgArea)
-      msgArea.innerHTML =
-        '<p class="result-negative">Passkey creation was cancelled or failed.</p>'
+    if (msgArea) msgArea.innerHTML = '<p class="result-negative">Passkey creation was cancelled or failed.</p>'
     return
   }
 
@@ -151,9 +139,7 @@ async function registerPasskey() {
       htmx.trigger(document.body, "passkeysChanged")
     }
   } catch (err) {
-    if (msgArea)
-      msgArea.innerHTML =
-        '<p class="result-negative">Failed to complete passkey registration.</p>'
+    if (msgArea) msgArea.innerHTML = '<p class="result-negative">Failed to complete passkey registration.</p>'
   }
 }
 
@@ -165,9 +151,7 @@ async function authenticateWithPasskey() {
   const emailInput = document.getElementById("email")
   const email = emailInput ? emailInput.value.trim() : ""
   if (!email) {
-    if (resultArea)
-      resultArea.innerHTML =
-        '<p class="result-negative">Please enter your email address.</p>'
+    if (resultArea) resultArea.innerHTML = '<p class="result-negative">Please enter your email address.</p>'
     return
   }
 
@@ -184,9 +168,7 @@ async function authenticateWithPasskey() {
     }
     options = await startRes.json()
   } catch (err) {
-    if (resultArea)
-      resultArea.innerHTML =
-        '<p class="result-negative">Could not start passkey authentication. Please try again.</p>'
+    if (resultArea) resultArea.innerHTML = '<p class="result-negative">Could not start passkey authentication. Please try again.</p>'
     return
   }
 
@@ -196,9 +178,7 @@ async function authenticateWithPasskey() {
       publicKey: prepareRequestOptions(options),
     })
   } catch (err) {
-    if (resultArea)
-      resultArea.innerHTML =
-        '<p class="result-negative">Passkey authentication was cancelled or failed.</p>'
+    if (resultArea) resultArea.innerHTML = '<p class="result-negative">Passkey authentication was cancelled or failed.</p>'
     return
   }
 
@@ -220,9 +200,7 @@ async function authenticateWithPasskey() {
     const html = await completeRes.text()
     if (resultArea) resultArea.innerHTML = html
   } catch (err) {
-    if (resultArea)
-      resultArea.innerHTML =
-        '<p class="result-negative">Passkey authentication failed.</p>'
+    if (resultArea) resultArea.innerHTML = '<p class="result-negative">Passkey authentication failed.</p>'
   }
 }
 
@@ -257,9 +235,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Don't auto-offer a passkey right after a deliberate logout (the logout
     // endpoint redirects here with ?code=logout_success); the email is still
     // pre-filled and the manual button still works.
-    const justLoggedOut =
-      new URLSearchParams(window.location.search).get("code") ===
-      "logout_success"
+    const justLoggedOut = new URLSearchParams(window.location.search).get("code") === "logout_success"
 
     const last = readLastLogin()
     if (last && last.email) {

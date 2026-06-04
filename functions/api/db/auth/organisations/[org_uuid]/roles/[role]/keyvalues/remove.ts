@@ -1,11 +1,7 @@
 import { deleteKeyValue } from "../../../../../../../../../src/org-role-keyvalues.js"
 import { can } from "../../../../../../../../../src/permissions.js"
 import { parseKeyForm } from "../../../../../../../../../src/utilities/keyvalues-endpoint.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-  resultPositive,
-} from "../../../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative, resultPositive } from "../../../../../../../../../src/utilities/responses.js"
 
 /** Removes an org-role-subject KV row owned by this organisation. */
 export const onRequestPost: Handler<"org_uuid" | "role"> = async (context) => {
@@ -18,13 +14,7 @@ export const onRequestPost: Handler<"org_uuid" | "role"> = async (context) => {
 
   const org_uuid = String(context.params.org_uuid)
   const role = String(context.params.role)
-  const result = await deleteKeyValue(
-    context.data.dbClient!,
-    org_uuid,
-    role,
-    { type: "org", org_uuid },
-    parsed.key
-  )
+  const result = await deleteKeyValue(context.data.dbClient!, org_uuid, role, { type: "org", org_uuid }, parsed.key)
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }

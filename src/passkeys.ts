@@ -1,10 +1,7 @@
 import { isoBase64URL } from "@simplewebauthn/server/helpers"
 
 /** Returns all enabled passkeys for the user, ordered by creation date. */
-export async function listPasskeys(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<Envelope<{ passkeys: PasskeyRow[] }>> {
+export async function listPasskeys(dbClient: DbClient, user_uuid: string): Promise<Envelope<{ passkeys: PasskeyRow[] }>> {
   try {
     const result = await dbClient.query(
       "SELECT passkey_uuid, user_uuid, credential_id, public_key, counter, transports, passkey_name, created_at, last_used_at, is_enabled FROM passkeys WHERE user_uuid = $1 AND is_enabled = TRUE ORDER BY created_at ASC",
@@ -23,10 +20,7 @@ export async function listPasskeys(
 }
 
 /** Looks up an enabled passkey by its WebAuthn credential_id; used during authentication to find the public key. */
-export async function getPasskeyByCredentialId(
-  dbClient: DbClient,
-  credentialId: string
-): Promise<Envelope<{ passkey: PasskeyRow }>> {
+export async function getPasskeyByCredentialId(dbClient: DbClient, credentialId: string): Promise<Envelope<{ passkey: PasskeyRow }>> {
   try {
     const result = await dbClient.query(
       "SELECT passkey_uuid, user_uuid, credential_id, public_key, counter, transports, passkey_name, created_at, last_used_at, is_enabled FROM passkeys WHERE credential_id = $1 AND is_enabled = TRUE LIMIT 1",
@@ -59,20 +53,10 @@ export async function savePasskey(
 ): Promise<Envelope> {
   try {
     const passkey_uuid = crypto.randomUUID()
-    const publicKey = isoBase64URL.fromBuffer(
-      publicKeyBytes as Uint8Array<ArrayBuffer>
-    )
+    const publicKey = isoBase64URL.fromBuffer(publicKeyBytes as Uint8Array<ArrayBuffer>)
     await dbClient.query(
       "INSERT INTO passkeys (passkey_uuid, user_uuid, credential_id, public_key, counter, transports, passkey_name) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-      [
-        passkey_uuid,
-        user_uuid,
-        credentialId,
-        publicKey,
-        counter,
-        transports ?? null,
-        name,
-      ]
+      [passkey_uuid, user_uuid, credentialId, publicKey, counter, transports ?? null, name]
     )
     return { success: true, status: 201 }
   } catch (error) {
@@ -87,16 +71,9 @@ export async function savePasskey(
 }
 
 /** Updates the signature counter and last_used_at after a successful WebAuthn assertion; guards against cloned authenticators. */
-export async function updatePasskeyCounter(
-  dbClient: DbClient,
-  passkey_uuid: string,
-  counter: number
-): Promise<Envelope> {
+export async function updatePasskeyCounter(dbClient: DbClient, passkey_uuid: string, counter: number): Promise<Envelope> {
   try {
-    await dbClient.query(
-      "UPDATE passkeys SET counter = $1, last_used_at = NOW() WHERE passkey_uuid = $2",
-      [counter, passkey_uuid]
-    )
+    await dbClient.query("UPDATE passkeys SET counter = $1, last_used_at = NOW() WHERE passkey_uuid = $2", [counter, passkey_uuid])
     return { success: true, status: 200 }
   } catch (error) {
     console.error("Error in updatePasskeyCounter:", error)
@@ -110,16 +87,12 @@ export async function updatePasskeyCounter(
 }
 
 /** Hard-deletes a passkey row; scoped by user_uuid so users cannot delete each other's passkeys. */
-export async function deletePasskey(
-  dbClient: DbClient,
-  passkey_uuid: string,
-  user_uuid: string
-): Promise<Envelope> {
+export async function deletePasskey(dbClient: DbClient, passkey_uuid: string, user_uuid: string): Promise<Envelope> {
   try {
-    const result = await dbClient.query(
-      "DELETE FROM passkeys WHERE passkey_uuid = $1 AND user_uuid = $2 RETURNING passkey_uuid",
-      [passkey_uuid, user_uuid]
-    )
+    const result = await dbClient.query("DELETE FROM passkeys WHERE passkey_uuid = $1 AND user_uuid = $2 RETURNING passkey_uuid", [
+      passkey_uuid,
+      user_uuid,
+    ])
     if ((result.rowCount ?? 0) > 0) {
       return { success: true, status: 200 }
     }

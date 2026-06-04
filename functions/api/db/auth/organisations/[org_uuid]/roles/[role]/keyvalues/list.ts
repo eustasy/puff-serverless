@@ -1,13 +1,7 @@
-import {
-  readKeyValues,
-  searchKeyValues,
-} from "../../../../../../../../../src/org-role-keyvalues.js"
+import { readKeyValues, searchKeyValues } from "../../../../../../../../../src/org-role-keyvalues.js"
 import { can } from "../../../../../../../../../src/permissions.js"
 import { renderKeyValueTable } from "../../../../../../../../../src/utilities/keyvalues-endpoint.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-} from "../../../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative } from "../../../../../../../../../src/utilities/responses.js"
 
 /**
  * Lists org-role-subject KV rows owned by this organisation — the perm/data
@@ -25,13 +19,7 @@ export const onRequestGet: Handler<"org_uuid" | "role"> = async (context) => {
   const search = (url.searchParams.get("key") ?? "").trim()
 
   const result = search
-    ? await searchKeyValues(
-        context.data.dbClient!,
-        org_uuid,
-        role,
-        owner,
-        search
-      )
+    ? await searchKeyValues(context.data.dbClient!, org_uuid, role, owner, search)
     : await readKeyValues(context.data.dbClient!, org_uuid, role, owner)
   if (!result.success) {
     return resultNegative(result.message, result.status)

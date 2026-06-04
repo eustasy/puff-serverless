@@ -25,10 +25,7 @@ export const MAX_VALUE_LENGTH = 4096
 export const MAX_KEYS_PER_OWNER_SUBJECT = 256
 
 /** First-class owner. Exactly one variant per row. */
-export type Owner =
-  | { type: "user"; user_uuid: string }
-  | { type: "org"; org_uuid: string }
-  | { type: "app"; app_uuid: string }
+export type Owner = { type: "user"; user_uuid: string } | { type: "org"; org_uuid: string } | { type: "app"; app_uuid: string }
 
 /**
  * SQL fragment + parameter values for filtering a query to a specific owner.
@@ -38,10 +35,7 @@ export type Owner =
  * `{ sql: "owner_org_uuid = $2", values: ["..."] }` — append `values` to the
  * caller's parameter array, splice `sql` into the WHERE clause.
  */
-export function ownerFilter(
-  owner: Owner,
-  paramIndex: number
-): { sql: string; values: [string] } {
+export function ownerFilter(owner: Owner, paramIndex: number): { sql: string; values: [string] } {
   if (owner.type === "user") {
     return {
       sql: `owner_user_uuid = $${paramIndex}`,
@@ -59,9 +53,7 @@ export function ownerFilter(
  * for INSERT statements. Exactly one is the owner's UUID; the others are
  * `null`.
  */
-export function ownerInsertValues(
-  owner: Owner
-): [string | null, string | null, string | null] {
+export function ownerInsertValues(owner: Owner): [string | null, string | null, string | null] {
   if (owner.type === "user") {
     return [owner.user_uuid, null, null]
   }
@@ -131,9 +123,7 @@ export async function readKeyValueGeneric(
     return { success: false, message: invalid, status: 400 }
   }
   try {
-    const subjectWhere = spec.subjectColumns
-      .map((col, i) => `${col} = $${i + 1}`)
-      .join(" AND ")
+    const subjectWhere = spec.subjectColumns.map((col, i) => `${col} = $${i + 1}`).join(" AND ")
     const ownerParamIndex = spec.subjectColumns.length + 1
     const ownerWhere = ownerFilter(owner, ownerParamIndex)
     const keyParamIndex = ownerParamIndex + 1
@@ -164,9 +154,7 @@ export async function readKeyValuesGeneric<RowT>(
   owner: Owner
 ): Promise<Envelope<{ pairs: RowT[] }>> {
   try {
-    const subjectWhere = spec.subjectColumns
-      .map((col, i) => `${col} = $${i + 1}`)
-      .join(" AND ")
+    const subjectWhere = spec.subjectColumns.map((col, i) => `${col} = $${i + 1}`).join(" AND ")
     const ownerParamIndex = spec.subjectColumns.length + 1
     const ownerWhere = ownerFilter(owner, ownerParamIndex)
     const result = await dbClient.query(
@@ -201,19 +189,13 @@ export async function searchKeyValuesGeneric<RowT>(
     }
   }
   try {
-    const subjectWhere = spec.subjectColumns
-      .map((col, i) => `${col} = $${i + 1}`)
-      .join(" AND ")
+    const subjectWhere = spec.subjectColumns.map((col, i) => `${col} = $${i + 1}`).join(" AND ")
     const ownerParamIndex = spec.subjectColumns.length + 1
     const ownerWhere = ownerFilter(owner, ownerParamIndex)
     const patternParamIndex = ownerParamIndex + 1
     const result = await dbClient.query(
       `SELECT ${spec.selectColumns} FROM ${spec.table} WHERE ${subjectWhere} AND ${ownerWhere.sql} AND kv_key LIKE $${patternParamIndex} ESCAPE '\\' ORDER BY kv_key ASC`,
-      [
-        ...subjectValues,
-        ...ownerWhere.values,
-        `%${escapeLikePattern(pattern)}%`,
-      ]
+      [...subjectValues, ...ownerWhere.values, `%${escapeLikePattern(pattern)}%`]
     )
     return { success: true, pairs: result.rows, status: 200 }
   } catch (error) {
@@ -240,9 +222,7 @@ export async function deleteKeyValueGeneric(
     return { success: false, message: invalid, status: 400 }
   }
   try {
-    const subjectWhere = spec.subjectColumns
-      .map((col, i) => `${col} = $${i + 1}`)
-      .join(" AND ")
+    const subjectWhere = spec.subjectColumns.map((col, i) => `${col} = $${i + 1}`).join(" AND ")
     const ownerParamIndex = spec.subjectColumns.length + 1
     const ownerWhere = ownerFilter(owner, ownerParamIndex)
     const keyParamIndex = ownerParamIndex + 1
@@ -280,22 +260,8 @@ function buildUpsertQuery(
   value: string
 ): { sql: string; values: unknown[] } {
   const [ownerUser, ownerOrg, ownerApp] = ownerInsertValues(owner)
-  const columns = [
-    ...subjectColumns,
-    "kv_key",
-    "kv_value",
-    "owner_user_uuid",
-    "owner_org_uuid",
-    "owner_app_uuid",
-  ]
-  const values: unknown[] = [
-    ...subjectValues,
-    key,
-    value,
-    ownerUser,
-    ownerOrg,
-    ownerApp,
-  ]
+  const columns = [...subjectColumns, "kv_key", "kv_value", "owner_user_uuid", "owner_org_uuid", "owner_app_uuid"]
+  const values: unknown[] = [...subjectValues, key, value, ownerUser, ownerOrg, ownerApp]
   const placeholders = values.map((_, i) => `$${i + 1}`).join(", ")
   // The conflict target uses `owner_id` (the generated COALESCE column), so a
   // row with the same subject + owner + key gets UPDATEd regardless of which
@@ -330,9 +296,7 @@ export async function upsertKeyValue(
   try {
     type SetResult = Envelope<{ created: boolean }>
     return await runInTransaction(dbClient, async (): Promise<SetResult> => {
-      const subjectWhere = subjectColumns
-        .map((col, i) => `${col} = $${i + 1}`)
-        .join(" AND ")
+      const subjectWhere = subjectColumns.map((col, i) => `${col} = $${i + 1}`).join(" AND ")
       const ownerParamIndex = subjectColumns.length + 1
       const ownerWhere = ownerFilter(owner, ownerParamIndex)
       const checkParams = [...subjectValues, ...ownerWhere.values]
@@ -357,14 +321,7 @@ export async function upsertKeyValue(
         }
       }
 
-      const upsert = buildUpsertQuery(
-        table,
-        subjectColumns,
-        subjectValues,
-        owner,
-        key,
-        value
-      )
+      const upsert = buildUpsertQuery(table, subjectColumns, subjectValues, owner, key, value)
       await dbClient.query(upsert.sql, upsert.values)
       return { success: true, created: isNewKey, status: isNewKey ? 201 : 200 }
     })

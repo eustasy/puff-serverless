@@ -1,9 +1,4 @@
-import {
-  passwordConfig,
-  passwordRequirements,
-  isPasswordReused,
-  updatePassword,
-} from "../../../../src/passwords.js"
+import { passwordConfig, passwordRequirements, isPasswordReused, updatePassword } from "../../../../src/passwords.js"
 import { consumeToken, readToken } from "../../../../src/tokens.js"
 import { emitFromContext } from "../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../src/hooks/events.js"
@@ -18,47 +13,32 @@ export const onRequestPost: Handler = async (context) => {
     token = formData.get("token")
     new_password = formData.get("pw")
   } catch (e) {
-    return new Response(
-      '<p class="result-negative">Invalid request data.</p>',
-      {
-        status: 400,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
+    return new Response('<p class="result-negative">Invalid request data.</p>', {
+      status: 400,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 
   if (!token || typeof token !== "string") {
-    return new Response(
-      '<p class="result-negative">Reset token is missing or invalid.</p>',
-      {
-        status: 400,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
+    return new Response('<p class="result-negative">Reset token is missing or invalid.</p>', {
+      status: 400,
+      headers: { "Content-Type": "text/html" },
+    })
   }
   if (!new_password || typeof new_password !== "string") {
-    return new Response(
-      '<p class="result-negative">New password is missing or invalid.</p>',
-      {
-        status: 400,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
+    return new Response('<p class="result-negative">New password is missing or invalid.</p>', {
+      status: 400,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 
   try {
-    const passwordCheckResult = await passwordRequirements(
-      new_password,
-      passwordConfig(context.env)
-    )
+    const passwordCheckResult = await passwordRequirements(new_password, passwordConfig(context.env))
     if (!passwordCheckResult) {
-      return new Response(
-        '<p class="result-negative">New password does not meet requirements.</p>',
-        {
-          status: 400,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      return new Response('<p class="result-negative">New password does not meet requirements.</p>', {
+        status: 400,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
     // Validate the reset token WITHOUT consuming it first, so that a rejected
@@ -67,45 +47,27 @@ export const onRequestPost: Handler = async (context) => {
     // single-use gate; this read only resolves the user for the reuse check.
     const tokenRead = await readToken(dbClient, token)
     const pending = tokenRead.success ? tokenRead.token : null
-    if (
-      !pending ||
-      pending.token_type !== "password_reset" ||
-      pending.is_used ||
-      new Date(pending.expires_at) < new Date()
-    ) {
-      return new Response(
-        '<p class="result-negative">Invalid or expired password reset token.</p>',
-        {
-          status: 400,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+    if (!pending || pending.token_type !== "password_reset" || pending.is_used || new Date(pending.expires_at) < new Date()) {
+      return new Response('<p class="result-negative">Invalid or expired password reset token.</p>', {
+        status: 400,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
     // Reject reuse of any current or previous password (issue #22). Done
     // before the token is consumed — see the comment above.
-    const reuseResult = await isPasswordReused(
-      dbClient,
-      pending.user_uuid,
-      new_password
-    )
+    const reuseResult = await isPasswordReused(dbClient, pending.user_uuid, new_password)
     if (reuseResult.error) {
-      return new Response(
-        '<p class="result-negative">Could not check password history. Please try again.</p>',
-        {
-          status: 500,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      return new Response('<p class="result-negative">Could not check password history. Please try again.</p>', {
+        status: 500,
+        headers: { "Content-Type": "text/html" },
+      })
     }
     if (reuseResult.reused) {
-      return new Response(
-        '<p class="result-negative">You cannot reuse a previous password. Please choose a new one.</p>',
-        {
-          status: 400,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      return new Response('<p class="result-negative">You cannot reuse a previous password. Please choose a new one.</p>', {
+        status: 400,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
     // Atomically consume the reset token. consumeToken marks it used and
@@ -116,13 +78,10 @@ export const onRequestPost: Handler = async (context) => {
     const tokenResult = await consumeToken(dbClient, token, "password_reset")
 
     if (!tokenResult.success) {
-      return new Response(
-        '<p class="result-negative">Invalid or expired password reset token.</p>',
-        {
-          status: 400,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      return new Response('<p class="result-negative">Invalid or expired password reset token.</p>', {
+        status: 400,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
     const user_uuid = tokenResult.token.user_uuid
@@ -130,13 +89,10 @@ export const onRequestPost: Handler = async (context) => {
     const updateResult = await updatePassword(dbClient, user_uuid, new_password)
 
     if (updateResult.error || !updateResult.success) {
-      return new Response(
-        `<p class="result-negative">${updateResult.message || "Failed to update password."}</p>`,
-        {
-          status: updateResult.status || 500,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      return new Response(`<p class="result-negative">${updateResult.message || "Failed to update password."}</p>`, {
+        status: updateResult.status || 500,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
     await emitFromContext(context, {
@@ -156,13 +112,10 @@ export const onRequestPost: Handler = async (context) => {
     })
   } catch (error) {
     console.error("Error during password reset:", error)
-    return new Response(
-      '<p class="result-negative">Failed to reset password due to a server error.</p>',
-      {
-        status: 500,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
+    return new Response('<p class="result-negative">Failed to reset password due to a server error.</p>', {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 }
 

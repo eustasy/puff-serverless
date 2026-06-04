@@ -21,13 +21,7 @@ export async function create2fa(
     VALUES ($1, $2, $3, $4, $5, FALSE)
     RETURNING *;
   `
-  const values = [
-    secret_uuid,
-    user_uuid,
-    SECRET_TYPE,
-    secret_value,
-    secret_name,
-  ]
+  const values = [secret_uuid, user_uuid, SECRET_TYPE, secret_value, secret_name]
   try {
     const { rows } = await dbClient.query(query, values)
     if (rows && rows.length > 0) {
@@ -55,10 +49,7 @@ export async function create2fa(
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<Envelope<{ twoFactor: TwoFactorRow }>>} `{ success: true, twoFactor }`, `{ success: false }` when not configured, or an error envelope.
  */
-export async function read2fa(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<Envelope<{ twoFactor: TwoFactorRow }>> {
+export async function read2fa(dbClient: DbClient, user_uuid: string): Promise<Envelope<{ twoFactor: TwoFactorRow }>> {
   const query = `
     SELECT user_uuid, secret_type, secret_value, secret_name, is_enabled, secret_created_at, secret_last_used
     FROM secrets
@@ -91,10 +82,7 @@ export async function read2fa(
 export async function delete2fa(
   dbClient: DbClient,
   user_uuid: string
-): Promise<
-  | { success: true; error?: never; rowCount: number; status: 200 }
-  | { success?: never; error: string; status: number }
-> {
+): Promise<{ success: true; error?: never; rowCount: number; status: 200 } | { success?: never; error: string; status: number }> {
   const query = `
     DELETE FROM secrets
     WHERE user_uuid = $1 AND secret_type = $2
@@ -209,11 +197,7 @@ export async function enable2fa(
  * @param {string} totp_code - The 6-digit TOTP code that was accepted.
  * @returns {Promise<Envelope>} `{ success: true }`, `{ success: false }` on replay, or an error envelope.
  */
-export async function used2fa(
-  dbClient: DbClient,
-  user_uuid: string,
-  totp_code: string
-): Promise<Envelope<{}>> {
+export async function used2fa(dbClient: DbClient, user_uuid: string, totp_code: string): Promise<Envelope<{}>> {
   try {
     const insertResult = await dbClient.query({
       text: "INSERT INTO totp_used_codes (user_uuid, totp_code, used_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING",

@@ -1,14 +1,8 @@
-import {
-  ensureCustomer,
-  startSubscriptionCheckout,
-} from "../../../../../../../../src/billing.js"
+import { ensureCustomer, startSubscriptionCheckout } from "../../../../../../../../src/billing.js"
 import { createStripeProvider } from "../../../../../../../../src/billing-stripe.js"
 import { readOrganisation } from "../../../../../../../../src/organisations.js"
 import { can } from "../../../../../../../../src/permissions.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-} from "../../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative } from "../../../../../../../../src/utilities/responses.js"
 
 /**
  * Begins a self-serve subscription checkout for an app. Creates (or reuses) a
@@ -19,9 +13,7 @@ import {
  * Form fields:
  *   tier — required; the pricing tier to subscribe to.
  */
-export const onRequestPost: Handler<"org_uuid" | "app_uuid"> = async (
-  context
-) => {
+export const onRequestPost: Handler<"org_uuid" | "app_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []
   if (!can(orgRoles, "org:billing:write")) {
     return resultNegative("You do not have permission to manage billing.", 403)
@@ -66,10 +58,7 @@ export const onRequestPost: Handler<"org_uuid" | "app_uuid"> = async (
     locale: org.org_locale ?? null,
   })
   if (customerResult.error) {
-    return resultNegative(
-      "Could not set up billing customer.",
-      customerResult.status
-    )
+    return resultNegative("Could not set up billing customer.", customerResult.status)
   }
   if (!customerResult.success) {
     return resultNegative(customerResult.message, customerResult.status)

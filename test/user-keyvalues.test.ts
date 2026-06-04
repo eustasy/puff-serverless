@@ -17,18 +17,14 @@ const orgOwner = { type: "org" as const, org_uuid: "org-1" }
 describe("user-keyvalues readKeyValue", () => {
   it("rejects an empty key with 400 before any query", async () => {
     const db = new FakeDb()
-    expect(
-      await readKeyValue(db.client, "u-target", userOwner, "  ")
-    ).toMatchObject({ success: false, status: 400 })
+    expect(await readKeyValue(db.client, "u-target", userOwner, "  ")).toMatchObject({ success: false, status: 400 })
     expect(db.calls).toHaveLength(0)
   })
 
   it("rejects a key over the length limit with 400", async () => {
     const db = new FakeDb()
     const tooLong = "x".repeat(MAX_KEY_LENGTH + 1)
-    expect(
-      (await readKeyValue(db.client, "u-target", userOwner, tooLong)).status
-    ).toBe(400)
+    expect((await readKeyValue(db.client, "u-target", userOwner, tooLong)).status).toBe(400)
     expect(db.calls).toHaveLength(0)
   })
 
@@ -37,9 +33,7 @@ describe("user-keyvalues readKeyValue", () => {
     db.on(/SELECT kv_value FROM user_key_values/, {
       rows: [{ kv_value: "v1" }],
     })
-    expect(
-      await readKeyValue(db.client, "u-target", userOwner, "theme")
-    ).toEqual({ success: true, value: "v1", status: 200 })
+    expect(await readKeyValue(db.client, "u-target", userOwner, "theme")).toEqual({ success: true, value: "v1", status: 200 })
     // SELECT bound to (user_uuid, owner_user_uuid, key)
     expect(db.calls[0].values).toEqual(["u-target", "u-1", "theme"])
   })
@@ -47,26 +41,20 @@ describe("user-keyvalues readKeyValue", () => {
   it("filters by org owner when owner.type === 'org'", async () => {
     const db = new FakeDb()
     db.on(/owner_org_uuid = \$2/, { rows: [{ kv_value: "license-A" }] })
-    expect(
-      await readKeyValue(db.client, "u-target", orgOwner, "license")
-    ).toMatchObject({ success: true, value: "license-A" })
+    expect(await readKeyValue(db.client, "u-target", orgOwner, "license")).toMatchObject({ success: true, value: "license-A" })
     expect(db.calls[0].values).toEqual(["u-target", "org-1", "license"])
   })
 
   it("returns 404 when the row is absent", async () => {
     const db = new FakeDb()
     db.on(/SELECT kv_value FROM user_key_values/, { rows: [] })
-    expect(
-      (await readKeyValue(db.client, "u-target", userOwner, "theme")).status
-    ).toBe(404)
+    expect((await readKeyValue(db.client, "u-target", userOwner, "theme")).status).toBe(404)
   })
 
   it("returns 500 when the query throws", async () => {
     const db = new FakeDb()
     db.on(/SELECT kv_value FROM user_key_values/, pgError("08006"))
-    expect(
-      (await readKeyValue(db.client, "u-target", userOwner, "theme")).status
-    ).toBe(500)
+    expect((await readKeyValue(db.client, "u-target", userOwner, "theme")).status).toBe(500)
   })
 })
 
@@ -89,18 +77,14 @@ describe("user-keyvalues readKeyValues", () => {
   it("returns 500 on query error", async () => {
     const db = new FakeDb()
     db.on(/SELECT user_uuid, kv_key, kv_value/, pgError("XXX"))
-    expect((await readKeyValues(db.client, "u-target", userOwner)).status).toBe(
-      500
-    )
+    expect((await readKeyValues(db.client, "u-target", userOwner)).status).toBe(500)
   })
 })
 
 describe("user-keyvalues searchKeyValues", () => {
   it("rejects an empty pattern with 400", async () => {
     const db = new FakeDb()
-    expect(
-      (await searchKeyValues(db.client, "u-target", userOwner, "   ")).status
-    ).toBe(400)
+    expect((await searchKeyValues(db.client, "u-target", userOwner, "   ")).status).toBe(400)
     expect(db.calls).toHaveLength(0)
   })
 
@@ -115,18 +99,13 @@ describe("user-keyvalues searchKeyValues", () => {
 describe("user-keyvalues setKeyValue", () => {
   it("rejects an empty key", async () => {
     const db = new FakeDb()
-    expect(
-      (await setKeyValue(db.client, "u-target", userOwner, "  ", "v")).status
-    ).toBe(400)
+    expect((await setKeyValue(db.client, "u-target", userOwner, "  ", "v")).status).toBe(400)
   })
 
   it("rejects an over-long value", async () => {
     const db = new FakeDb()
     const bigValue = "x".repeat(MAX_VALUE_LENGTH + 1)
-    expect(
-      (await setKeyValue(db.client, "u-target", userOwner, "k", bigValue))
-        .status
-    ).toBe(400)
+    expect((await setKeyValue(db.client, "u-target", userOwner, "k", bigValue)).status).toBe(400)
   })
 
   it("upserts a new row (created=true, status 201)", async () => {
@@ -134,37 +113,18 @@ describe("user-keyvalues setKeyValue", () => {
     db.on(/SELECT 1 FROM user_key_values/, { rows: [] }) // not exists
     db.on(/SELECT count\(\*\)/, { rows: [{ count: 5 }] })
     db.on(/INSERT INTO user_key_values/, { rowCount: 1 })
-    const result = await setKeyValue(
-      db.client,
-      "u-target",
-      userOwner,
-      "theme",
-      "dark"
-    )
+    const result = await setKeyValue(db.client, "u-target", userOwner, "theme", "dark")
     expect(result).toMatchObject({ success: true, created: true, status: 201 })
     // INSERT carries the user owner in the right slot and null in the org/app slots.
     const insert = db.calls.find((c) => c.text.startsWith("INSERT"))!
-    expect(insert.values).toEqual([
-      "u-target",
-      "theme",
-      "dark",
-      "u-1",
-      null,
-      null,
-    ])
+    expect(insert.values).toEqual(["u-target", "theme", "dark", "u-1", null, null])
   })
 
   it("upserts an existing row (created=false, status 200)", async () => {
     const db = new FakeDb()
     db.on(/SELECT 1 FROM user_key_values/, { rows: [{ "?column?": 1 }] })
     db.on(/INSERT INTO user_key_values/, { rowCount: 1 })
-    const result = await setKeyValue(
-      db.client,
-      "u-target",
-      userOwner,
-      "theme",
-      "dark"
-    )
+    const result = await setKeyValue(db.client, "u-target", userOwner, "theme", "dark")
     expect(result).toMatchObject({ success: true, created: false, status: 200 })
   })
 
@@ -195,17 +155,13 @@ describe("user-keyvalues deleteKeyValue", () => {
   it("returns 404 when no row was deleted", async () => {
     const db = new FakeDb()
     db.on(/DELETE FROM user_key_values/, { rowCount: 0 })
-    expect(
-      (await deleteKeyValue(db.client, "u-target", userOwner, "k")).status
-    ).toBe(404)
+    expect((await deleteKeyValue(db.client, "u-target", userOwner, "k")).status).toBe(404)
   })
 
   it("returns 200 when a row was deleted", async () => {
     const db = new FakeDb()
     db.on(/DELETE FROM user_key_values/, { rowCount: 1 })
-    expect(
-      (await deleteKeyValue(db.client, "u-target", userOwner, "k")).success
-    ).toBe(true)
+    expect((await deleteKeyValue(db.client, "u-target", userOwner, "k")).success).toBe(true)
   })
 
   it("uses org owner column when owner.type === 'org'", async () => {

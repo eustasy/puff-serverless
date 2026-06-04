@@ -19,18 +19,15 @@ export const onRequestPost: Handler = async (context) => {
   }
 
   if (!passkey_uuid) {
-    return new Response(
-      '<p class="result-negative">Passkey ID is required.</p>',
-      { status: 400, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response('<p class="result-negative">Passkey ID is required.</p>', { status: 400, headers: { "Content-Type": "text/html" } })
   }
 
   const result = await deletePasskey(dbClient, passkey_uuid, user_uuid)
   if (result.error) {
-    return new Response(
-      '<p class="result-negative">Could not remove passkey. Please try again.</p>',
-      { status: 500, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response('<p class="result-negative">Could not remove passkey. Please try again.</p>', {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
   if (!result.success) {
     return new Response('<p class="result-negative">Passkey not found.</p>', {

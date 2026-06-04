@@ -1,8 +1,4 @@
-import {
-  htmlResponse,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../src/utilities/responses.js"
+import { htmlResponse, resultNegative, methodNotAllowed } from "../../../../../../src/utilities/responses.js"
 import { listUsageRollups } from "../../../../../../src/usage.js"
 import { escapeHtml } from "../../../../../../src/utilities/escape.js"
 
@@ -30,10 +26,7 @@ export const onRequestGet: Handler = async (context) => {
     </tr></thead><tbody>`
   if (result.rollups.length > 0) {
     for (const row of result.rollups) {
-      const day =
-        row.day instanceof Date
-          ? row.day.toISOString().slice(0, 10)
-          : String(row.day).slice(0, 10)
+      const day = row.day instanceof Date ? row.day.toISOString().slice(0, 10) : String(row.day).slice(0, 10)
       html += `<tr>
         <td>${escapeHtml(day)}</td>
         <td>${escapeHtml(row.org_uuid)}</td>

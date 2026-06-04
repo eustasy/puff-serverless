@@ -17,11 +17,7 @@ import { recordUsageEvent } from "../../../../src/usage.js"
 import { emitFromContext } from "../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../src/hooks/events.js"
 
-function json(
-  body: unknown,
-  status: number,
-  headers: HeadersInit = {}
-): Response {
+function json(body: unknown, status: number, headers: HeadersInit = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json", ...headers },
@@ -39,11 +35,7 @@ export const onRequestPost: Handler<"app_uuid"> = async (context) => {
       "WWW-Authenticate": 'Basic realm="billing"',
     })
   }
-  const creds = await verifyAppCredentials(
-    dbClient,
-    basic.client_id,
-    basic.client_secret
-  )
+  const creds = await verifyAppCredentials(dbClient, basic.client_id, basic.client_secret)
   if (creds.error || !creds.success || !creds.verified || !creds.app) {
     return json({ error: "invalid client credentials" }, 401, {
       "WWW-Authenticate": 'Basic realm="billing"',
@@ -64,18 +56,14 @@ export const onRequestPost: Handler<"app_uuid"> = async (context) => {
 
   const org_uuid = typeof body.org_uuid === "string" ? body.org_uuid : ""
   const metric = typeof body.metric === "string" ? body.metric : ""
-  const idempotency_key =
-    typeof body.idempotency_key === "string" ? body.idempotency_key : ""
-  const quantity =
-    typeof body.quantity === "number" ? body.quantity : Number(body.quantity)
-  const occurred_at =
-    typeof body.occurred_at === "string" ? body.occurred_at : ""
+  const idempotency_key = typeof body.idempotency_key === "string" ? body.idempotency_key : ""
+  const quantity = typeof body.quantity === "number" ? body.quantity : Number(body.quantity)
+  const occurred_at = typeof body.occurred_at === "string" ? body.occurred_at : ""
   const user_uuid = typeof body.user_uuid === "string" ? body.user_uuid : null
 
   if (!org_uuid) return json({ error: "org_uuid is required" }, 400)
   if (!metric) return json({ error: "metric is required" }, 400)
-  if (!idempotency_key)
-    return json({ error: "idempotency_key is required" }, 400)
+  if (!idempotency_key) return json({ error: "idempotency_key is required" }, 400)
   if (!occurred_at) return json({ error: "occurred_at is required" }, 400)
 
   // --- The org must have a subscription for this app ---

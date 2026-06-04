@@ -1,17 +1,11 @@
 import { describe, it, expect } from "vitest"
-import {
-  handleStripeWebhookEvent,
-  type StripeEvent,
-} from "../src/billing-webhook.js"
+import { handleStripeWebhookEvent, type StripeEvent } from "../src/billing-webhook.js"
 import { FakeDb } from "./helpers/fake-db.js"
 
 const PERIOD_START = 1_746_057_600 // 2025-05-01 unix
 const PERIOD_END = 1_748_736_000
 
-function subscriptionEvent(
-  type: string,
-  over: Record<string, unknown> = {}
-): StripeEvent {
+function subscriptionEvent(type: string, over: Record<string, unknown> = {}): StripeEvent {
   return {
     id: "evt_1",
     type,
@@ -41,16 +35,10 @@ describe("handleStripeWebhookEvent", () => {
     const db = new FakeDb()
     // Dedup insert hits the unique constraint -> rowCount 0 -> already handled.
     db.on(/INSERT INTO billing_webhook_events/, { rows: [], rowCount: 0 })
-    const result = await handleStripeWebhookEvent(
-      db.client,
-      null,
-      subscriptionEvent("customer.subscription.updated")
-    )
+    const result = await handleStripeWebhookEvent(db.client, null, subscriptionEvent("customer.subscription.updated"))
     expect(result).toEqual({ status: 200 })
     // No subscription upsert should have been attempted.
-    expect(db.calls.some((c) => /INSERT INTO subscriptions/.test(c.text))).toBe(
-      false
-    )
+    expect(db.calls.some((c) => /INSERT INTO subscriptions/.test(c.text))).toBe(false)
   })
 
   it("upserts a subscription and emits created on subscription.created", async () => {
@@ -59,11 +47,7 @@ describe("handleStripeWebhookEvent", () => {
     db.on(/INSERT INTO subscriptions/, { rows: [], rowCount: 1 })
     db.on(/INSERT INTO audit_events/, { rows: [], rowCount: 1 })
 
-    const result = await handleStripeWebhookEvent(
-      db.client,
-      null,
-      subscriptionEvent("customer.subscription.created")
-    )
+    const result = await handleStripeWebhookEvent(db.client, null, subscriptionEvent("customer.subscription.created"))
     expect(result).toEqual({ status: 200 })
 
     const audit = db.calls.find((c) => /INSERT INTO audit_events/.test(c.text))
@@ -78,11 +62,7 @@ describe("handleStripeWebhookEvent", () => {
     db.on(/INSERT INTO subscriptions/, { rows: [], rowCount: 1 })
     db.on(/INSERT INTO audit_events/, { rows: [], rowCount: 1 })
 
-    const result = await handleStripeWebhookEvent(
-      db.client,
-      null,
-      subscriptionEvent("customer.subscription.resumed")
-    )
+    const result = await handleStripeWebhookEvent(db.client, null, subscriptionEvent("customer.subscription.resumed"))
     expect(result).toEqual({ status: 200 })
     const audit = db.calls.find((c) => /INSERT INTO audit_events/.test(c.text))
     expect(audit?.values[1]).toBe("billing.subscription.resumed")
@@ -94,11 +74,7 @@ describe("handleStripeWebhookEvent", () => {
     db.on(/INSERT INTO subscriptions/, { rows: [], rowCount: 1 })
     db.on(/INSERT INTO audit_events/, { rows: [], rowCount: 1 })
 
-    const result = await handleStripeWebhookEvent(
-      db.client,
-      null,
-      subscriptionEvent("customer.subscription.paused", { status: "paused" })
-    )
+    const result = await handleStripeWebhookEvent(db.client, null, subscriptionEvent("customer.subscription.paused", { status: "paused" }))
     expect(result).toEqual({ status: 200 })
     const audit = db.calls.find((c) => /INSERT INTO audit_events/.test(c.text))
     expect(audit?.values[1]).toBe("billing.subscription.paused")
@@ -107,15 +83,9 @@ describe("handleStripeWebhookEvent", () => {
   it("skips a subscription event missing org/app metadata", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO billing_webhook_events/, { rows: [], rowCount: 1 })
-    const result = await handleStripeWebhookEvent(
-      db.client,
-      null,
-      subscriptionEvent("customer.subscription.updated", { metadata: {} })
-    )
+    const result = await handleStripeWebhookEvent(db.client, null, subscriptionEvent("customer.subscription.updated", { metadata: {} }))
     expect(result).toEqual({ status: 200 })
-    expect(db.calls.some((c) => /INSERT INTO subscriptions/.test(c.text))).toBe(
-      false
-    )
+    expect(db.calls.some((c) => /INSERT INTO subscriptions/.test(c.text))).toBe(false)
   })
 
   it("records a paid invoice attributed via its subscription", async () => {
@@ -190,20 +160,14 @@ describe("handleStripeWebhookEvent", () => {
     }
     const result = await handleStripeWebhookEvent(db.client, null, event)
     expect(result).toEqual({ status: 200 })
-    expect(db.calls.some((c) => /INSERT INTO invoices/.test(c.text))).toBe(
-      false
-    )
+    expect(db.calls.some((c) => /INSERT INTO invoices/.test(c.text))).toBe(false)
   })
 
   it("returns 500 when a dispatch query fails (so the provider retries)", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO billing_webhook_events/, { rows: [], rowCount: 1 })
     db.on(/INSERT INTO subscriptions/, new Error("boom"))
-    const result = await handleStripeWebhookEvent(
-      db.client,
-      null,
-      subscriptionEvent("customer.subscription.created")
-    )
+    const result = await handleStripeWebhookEvent(db.client, null, subscriptionEvent("customer.subscription.created"))
     expect(result).toEqual({ status: 500 })
   })
 })

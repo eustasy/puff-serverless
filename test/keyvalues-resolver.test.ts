@@ -165,9 +165,7 @@ describe("resolveKeyValue", () => {
     })
     expect(result).toMatchObject({ source: "org", values: ["org-val"] })
     // Confirm no team-tier query ran.
-    expect(db.calls.some((c) => /team_(role_)?key_values/.test(c.text))).toBe(
-      false
-    )
+    expect(db.calls.some((c) => /team_(role_)?key_values/.test(c.text))).toBe(false)
   })
 
   it("skips org tiers when no org_uuid is given", async () => {
@@ -182,11 +180,7 @@ describe("resolveKeyValue", () => {
       team_uuid: "team-1",
     })
     expect(result).toMatchObject({ success: true, values: [], source: null })
-    expect(
-      db.calls.some((c) =>
-        /org_role_key_values|organisation_key_values/.test(c.text)
-      )
-    ).toBe(false)
+    expect(db.calls.some((c) => /org_role_key_values|organisation_key_values/.test(c.text))).toBe(false)
   })
 
   it("filters every tier by the owner namespace", async () => {

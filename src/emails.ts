@@ -7,10 +7,7 @@ import { runInTransaction, Rollback } from "./utilities/transaction.js"
  * @param {string} email_address - The email address to check.
  * @returns {Promise<object>} - An object with { success: true, exists: boolean } or { error: true, message: string }.
  */
-export async function existsEmail(
-  dbClient: DbClient,
-  email_address: string
-): Promise<TokenEnvelope<{ exists: boolean }>> {
+export async function existsEmail(dbClient: DbClient, email_address: string): Promise<TokenEnvelope<{ exists: boolean }>> {
   try {
     const query = {
       text: "SELECT 1 FROM emails WHERE email_address = $1 LIMIT 1",
@@ -75,10 +72,7 @@ export async function readEmail(
  * @returns {Promise<Array<object>>} - An array of email objects or an empty array if none found.
  * @throws Will throw an error if the database query fails.
  */
-export async function readEmails(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<EmailRow[]> {
+export async function readEmails(dbClient: DbClient, user_uuid: string): Promise<EmailRow[]> {
   try {
     // Sort: primary first (regardless of verification — a freshly registered
     // user has an unverified primary until they click the verification link);
@@ -141,8 +135,7 @@ export async function createEmail(
       if (existingEmailResult.email.user_uuid === user_uuid) {
         return {
           error: true,
-          message:
-            "This email address is already associated with your account.",
+          message: "This email address is already associated with your account.",
           status: 409,
         }
       }
@@ -163,13 +156,7 @@ export async function createEmail(
     // means a conflict happened; treat it the same as the upfront branch.
     const insertEmailQuery = {
       text: "INSERT INTO emails (user_uuid, email_address, is_primary, is_verified, verified_at) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (email_address) DO NOTHING RETURNING email_address",
-      values: [
-        user_uuid,
-        email_address,
-        is_primary,
-        is_verified,
-        is_verified ? new Date().toISOString() : null,
-      ],
+      values: [user_uuid, email_address, is_primary, is_verified, is_verified ? new Date().toISOString() : null],
     }
     const insertResult = await dbClient.query(insertEmailQuery)
 
@@ -185,17 +172,10 @@ export async function createEmail(
 
     let token_value: string | null = null
     if (!is_verified) {
-      const createTokenResult = await createEmailToken(
-        dbClient,
-        user_uuid,
-        email_address
-      )
+      const createTokenResult = await createEmailToken(dbClient, user_uuid, email_address)
 
       if (createTokenResult.error) {
-        console.error(
-          "Failed to create verification token:",
-          createTokenResult.message
-        )
+        console.error("Failed to create verification token:", createTokenResult.message)
         return {
           error: true,
           message: "Email added, but failed to create verification token.",
@@ -248,11 +228,7 @@ export async function verifyEmailByToken(
     // and validates type/expiry/used in one statement, so concurrent
     // verifications of the same token cannot both proceed. A missing,
     // wrong-type, expired, or already-used token all collapse here.
-    const consumeResult = await consumeToken(
-      dbClient,
-      token_value,
-      "email_verification"
-    )
+    const consumeResult = await consumeToken(dbClient, token_value, "email_verification")
 
     if (!consumeResult.success) {
       return {
@@ -279,9 +255,7 @@ export async function verifyEmailByToken(
     if (!emailReadResult.success) {
       // Token is valid but email doesn't exist for user, or read failed.
       // The token is already spent — a fresh one is requested on retry.
-      const message = emailReadResult.error
-        ? emailReadResult.message
-        : "Email address not found for this user, though token was valid."
+      const message = emailReadResult.error ? emailReadResult.message : "Email address not found for this user, though token was valid."
       return {
         error: true,
         message,
@@ -353,8 +327,7 @@ export async function setPrimaryEmail(
   user_uuid: string,
   new_primary_email: string
 ): Promise<
-  | { success: true; error?: never; message: string; status: 200 }
-  | { success?: never; error: true; message: string; status: number }
+  { success: true; error?: never; message: string; status: 200 } | { success?: never; error: true; message: string; status: number }
 > {
   try {
     const emailReadResult = await readEmail(dbClient, new_primary_email)
@@ -380,8 +353,7 @@ export async function setPrimaryEmail(
     if (!targetEmailRecord.is_verified) {
       return {
         error: true,
-        message:
-          "This email address must be verified before it can be made primary.",
+        message: "This email address must be verified before it can be made primary.",
         status: 400,
       }
     }
@@ -392,37 +364,31 @@ export async function setPrimaryEmail(
     type SetPrimaryResult =
       | { success: true; error?: never; message: string; status: 200 }
       | { success?: never; error: true; message: string; status: number }
-    return await runInTransaction(
-      dbClient,
-      async (): Promise<SetPrimaryResult> => {
-        // Demote all current primary emails for this user
-        await dbClient.query(
-          "UPDATE emails SET is_primary = FALSE WHERE user_uuid = $1 AND is_primary = TRUE",
-          [user_uuid]
-        )
+    return await runInTransaction(dbClient, async (): Promise<SetPrimaryResult> => {
+      // Demote all current primary emails for this user
+      await dbClient.query("UPDATE emails SET is_primary = FALSE WHERE user_uuid = $1 AND is_primary = TRUE", [user_uuid])
 
-        // Promote new primary
-        const promoteResult = await dbClient.query(
-          "UPDATE emails SET is_primary = TRUE WHERE user_uuid = $1 AND email_address = $2",
-          [user_uuid, new_primary_email]
-        )
+      // Promote new primary
+      const promoteResult = await dbClient.query("UPDATE emails SET is_primary = TRUE WHERE user_uuid = $1 AND email_address = $2", [
+        user_uuid,
+        new_primary_email,
+      ])
 
-        if ((promoteResult.rowCount ?? 0) > 0) {
-          return {
-            success: true,
-            message: "Primary email changed successfully.",
-            status: 200,
-          }
+      if ((promoteResult.rowCount ?? 0) > 0) {
+        return {
+          success: true,
+          message: "Primary email changed successfully.",
+          status: 200,
         }
-
-        // This case should ideally not be reached given the checks above.
-        throw new Rollback<SetPrimaryResult>({
-          error: true,
-          message: "Failed to change primary email due to an unexpected issue.",
-          status: 500,
-        })
       }
-    )
+
+      // This case should ideally not be reached given the checks above.
+      throw new Rollback<SetPrimaryResult>({
+        error: true,
+        message: "Failed to change primary email due to an unexpected issue.",
+        status: 500,
+      })
+    })
   } catch (error) {
     console.error("Error in setPrimaryEmail:", error)
     throw error
@@ -442,8 +408,7 @@ export async function deleteEmail(
   user_uuid: string,
   email_to_remove: string
 ): Promise<
-  | { success: true; error?: never; message: string; status: 200 }
-  | { success?: never; error: true; message: string; status: number }
+  { success: true; error?: never; message: string; status: 200 } | { success?: never; error: true; message: string; status: number }
 > {
   try {
     const emailReadResult = await readEmail(dbClient, email_to_remove)
@@ -469,24 +434,22 @@ export async function deleteEmail(
     if (emailRecord.is_primary) {
       return {
         error: true,
-        message:
-          "Cannot remove the primary email address. Please set another email as primary first.",
+        message: "Cannot remove the primary email address. Please set another email as primary first.",
         status: 400,
       }
     }
 
     // Perform the delete operation
-    const deleteResult = await dbClient.query(
-      "DELETE FROM emails WHERE user_uuid = $1 AND email_address = $2 AND is_primary = FALSE",
-      [user_uuid, email_to_remove]
-    )
+    const deleteResult = await dbClient.query("DELETE FROM emails WHERE user_uuid = $1 AND email_address = $2 AND is_primary = FALSE", [
+      user_uuid,
+      email_to_remove,
+    ])
 
     if ((deleteResult.rowCount ?? 0) === 0) {
       // Should not happen if previous checks passed, unless race condition or already deleted
       return {
         error: true,
-        message:
-          "Failed to remove email. It might have been already removed or was primary.",
+        message: "Failed to remove email. It might have been already removed or was primary.",
         status: 404, // Or 500 if unexpected
       }
     }

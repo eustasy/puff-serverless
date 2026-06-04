@@ -6,10 +6,10 @@ export const onRequestGet: Handler = async (context) => {
   const token_value = searchParams.get("token")
 
   if (!token_value) {
-    return new Response(
-      '<p class="result-negative">Verification token is missing.</p>',
-      { status: 400, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response('<p class="result-negative">Verification token is missing.</p>', {
+      status: 400,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 
   try {
@@ -33,16 +33,14 @@ export const onRequestGet: Handler = async (context) => {
     const isHtmxRequest = context.request.headers.get("HX-Request") === "true"
     return new Response(null, {
       status: 303,
-      headers: isHtmxRequest
-        ? { "HX-Redirect": redirectTarget }
-        : { Location: redirectTarget },
+      headers: isHtmxRequest ? { "HX-Redirect": redirectTarget } : { Location: redirectTarget },
     })
   } catch (error) {
     console.error("Error in verify email endpoint:", error)
-    return new Response(
-      '<p class="result-negative">An internal server error occurred during email verification.</p>',
-      { status: 500, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response('<p class="result-negative">An internal server error occurred during email verification.</p>', {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 }
 

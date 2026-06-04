@@ -10,11 +10,7 @@ import { readUser } from "../../src/users.js"
 import { readEmails } from "../../src/emails.js"
 import { claimsForScopes, parseScope } from "../../src/oauth.js"
 import { readAppByClientId } from "../../src/apps.js"
-import {
-  buildEntitlementsClaim,
-  buildMembershipsClaim,
-  buildRolesClaim,
-} from "../../src/oauth-claims.js"
+import { buildEntitlementsClaim, buildMembershipsClaim, buildRolesClaim } from "../../src/oauth-claims.js"
 import { bearerError } from "../../src/utilities/oauth-userinfo.js"
 
 export const onRequestGet: Handler = async (context) => {
@@ -52,9 +48,7 @@ export const onRequestGet: Handler = async (context) => {
   }
   const user = userResult.user
 
-  const scopes = parseScope(
-    typeof payload.scope === "string" ? payload.scope : null
-  )
+  const scopes = parseScope(typeof payload.scope === "string" ? payload.scope : null)
   const flags = claimsForScopes(scopes)
 
   const claims: Record<string, unknown> = { sub: user.user_uuid }
@@ -65,9 +59,7 @@ export const onRequestGet: Handler = async (context) => {
     try {
       const emails = await readEmails(dbClient, user.user_uuid)
       // Prefer the primary verified address; fall back to any verified one.
-      const primary =
-        emails.find((e) => e.is_primary && e.is_verified) ||
-        emails.find((e) => e.is_verified)
+      const primary = emails.find((e) => e.is_primary && e.is_verified) || emails.find((e) => e.is_verified)
       if (primary) {
         claims.email = primary.email_address
         claims.email_verified = true
@@ -90,19 +82,12 @@ export const onRequestGet: Handler = async (context) => {
     // The access token's `client_id` + `org_uuid` claims tell us which app
     // and org this entitlements claim should be resolved against. Without
     // both, there's nothing meaningful to emit.
-    const tokenClientId =
-      typeof payload.client_id === "string" ? payload.client_id : null
-    const tokenOrgUuid =
-      typeof payload.org_uuid === "string" ? payload.org_uuid : null
+    const tokenClientId = typeof payload.client_id === "string" ? payload.client_id : null
+    const tokenOrgUuid = typeof payload.org_uuid === "string" ? payload.org_uuid : null
     if (tokenClientId && tokenOrgUuid) {
       const appLookup = await readAppByClientId(dbClient, tokenClientId)
       if (appLookup.success) {
-        const e = await buildEntitlementsClaim(
-          dbClient,
-          appLookup.app,
-          user.user_uuid,
-          tokenOrgUuid
-        )
+        const e = await buildEntitlementsClaim(dbClient, appLookup.app, user.user_uuid, tokenOrgUuid)
         if (e.success && e.entitlements) {
           claims["puff:entitlements"] = e.entitlements
         }
@@ -118,5 +103,4 @@ export const onRequestGet: Handler = async (context) => {
   })
 }
 
-export const onRequest: Handler = async () =>
-  new Response("Method Not Allowed", { status: 405, headers: { Allow: "GET" } })
+export const onRequest: Handler = async () => new Response("Method Not Allowed", { status: 405, headers: { Allow: "GET" } })

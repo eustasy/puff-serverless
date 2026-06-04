@@ -1,19 +1,11 @@
 import { describe, it, expect } from "vitest"
-import {
-  sanitizeNext,
-  readNext,
-  setNextCookie,
-  clearNextCookie,
-  NEXT_COOKIE,
-} from "../../src/utilities/next.js"
+import { sanitizeNext, readNext, setNextCookie, clearNextCookie, NEXT_COOKIE } from "../../src/utilities/next.js"
 import { fakeEnv } from "../helpers/fake-env.js"
 
 describe("sanitizeNext", () => {
   it("accepts a same-origin absolute path", () => {
     expect(sanitizeNext("/account")).toBe("/account")
-    expect(sanitizeNext("/account/settings?tab=2fa")).toBe(
-      "/account/settings?tab=2fa"
-    )
+    expect(sanitizeNext("/account/settings?tab=2fa")).toBe("/account/settings?tab=2fa")
   })
 
   it("rejects empty, null and undefined input", () => {
@@ -46,8 +38,7 @@ describe("sanitizeNext", () => {
 })
 
 describe("readNext", () => {
-  const requestWithCookie = (cookie: string): Request =>
-    new Request("https://app.example/", { headers: { Cookie: cookie } })
+  const requestWithCookie = (cookie: string): Request => new Request("https://app.example/", { headers: { Cookie: cookie } })
 
   it("returns the sanitized destination from the login_next cookie", async () => {
     const request = requestWithCookie(`${NEXT_COOKIE}=%2Faccount`)
@@ -59,9 +50,7 @@ describe("readNext", () => {
   })
 
   it("returns null when the stored destination is unsafe", async () => {
-    const request = requestWithCookie(
-      `${NEXT_COOKIE}=${encodeURIComponent("https://evil.example")}`
-    )
+    const request = requestWithCookie(`${NEXT_COOKIE}=${encodeURIComponent("https://evil.example")}`)
     expect(await readNext(request)).toBeNull()
   })
 })
@@ -77,10 +66,7 @@ describe("setNextCookie", () => {
   })
 
   it("honours COOKIE_SAMESITE and adds Secure when SECURE_COOKIE is set", () => {
-    const cookie = setNextCookie(
-      fakeEnv({ COOKIE_SAMESITE: "Strict", SECURE_COOKIE: "true" }),
-      "/account"
-    )
+    const cookie = setNextCookie(fakeEnv({ COOKIE_SAMESITE: "Strict", SECURE_COOKIE: "true" }), "/account")
     expect(cookie).toContain("SameSite=Strict")
     expect(cookie).toContain("Secure")
   })

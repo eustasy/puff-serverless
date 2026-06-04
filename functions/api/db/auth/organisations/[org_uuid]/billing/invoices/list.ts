@@ -1,11 +1,7 @@
 import { listInvoices } from "../../../../../../../../src/billing.js"
 import { can } from "../../../../../../../../src/permissions.js"
 import { escapeHtml } from "../../../../../../../../src/utilities/escape.js"
-import {
-  htmlResponse,
-  methodNotAllowed,
-  resultNegative,
-} from "../../../../../../../../src/utilities/responses.js"
+import { htmlResponse, methodNotAllowed, resultNegative } from "../../../../../../../../src/utilities/responses.js"
 
 /**
  * Returns an HTML fragment listing all invoices for this organisation:
@@ -32,9 +28,7 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
   const { invoices } = result
 
   if (invoices.length === 0) {
-    return htmlResponse(
-      `<p class="result-neutral">No invoices found for this organisation.</p>`
-    )
+    return htmlResponse(`<p class="result-neutral">No invoices found for this organisation.</p>`)
   }
 
   const formatAmount = (cents: number, currency: string): string => {

@@ -22,16 +22,10 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
   const { request, env } = context
   const org_uuid = String(context.params.org_uuid)
 
-  const sessionToken = await getCookie(
-    request.headers.get("Cookie"),
-    "session_token"
-  )
+  const sessionToken = await getCookie(request.headers.get("Cookie"), "session_token")
   if (!sessionToken) {
     const headers = new Headers({ Location: "/login" })
-    headers.append(
-      "Set-Cookie",
-      setNextCookie(env, new URL(request.url).pathname)
-    )
+    headers.append("Set-Cookie", setNextCookie(env, new URL(request.url).pathname))
     return new Response(null, { status: 302, headers })
   }
 

@@ -1,17 +1,11 @@
 import { updateTeam } from "../../../../../../../../src/teams.js"
 import { can } from "../../../../../../../../src/permissions.js"
-import {
-  resultPositive,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../../../src/utilities/responses.js"
+import { resultPositive, resultNegative, methodNotAllowed } from "../../../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../../../src/hooks/events.js"
 
 /** Updates a team's name. */
-export const onRequestPost: Handler<"org_uuid" | "team_uuid"> = async (
-  context
-) => {
+export const onRequestPost: Handler<"org_uuid" | "team_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []
   const teamRoles = context.data.teamRoles ?? []
   if (!can(teamRoles, "team:update") && !can(orgRoles, "org:teams:manage")) {
@@ -26,11 +20,7 @@ export const onRequestPost: Handler<"org_uuid" | "team_uuid"> = async (
     return resultNegative("Invalid request format. Expected form data.", 400)
   }
 
-  const result = await updateTeam(
-    context.data.dbClient!,
-    String(context.params.team_uuid),
-    name
-  )
+  const result = await updateTeam(context.data.dbClient!, String(context.params.team_uuid), name)
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }

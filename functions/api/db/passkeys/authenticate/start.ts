@@ -21,13 +21,10 @@ export const onRequestPost: Handler = async (context) => {
   }
 
   if (!email) {
-    return new Response(
-      JSON.stringify({ error: "An email address is required." }),
-      {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      }
-    )
+    return new Response(JSON.stringify({ error: "An email address is required." }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   const { rpID } = getRpConfig(context.env)
@@ -56,13 +53,7 @@ export const onRequestPost: Handler = async (context) => {
     }
 
     const expires_at = new Date(Date.now() + 5 * 60 * 1000).toISOString()
-    const tokenResult = await createWebAuthnToken(
-      dbClient,
-      user_uuid,
-      "webauthn_authentication_challenge",
-      challenge,
-      expires_at
-    )
+    const tokenResult = await createWebAuthnToken(dbClient, user_uuid, "webauthn_authentication_challenge", challenge, expires_at)
     if (tokenResult.error) {
       return new Response(
         JSON.stringify({
@@ -87,13 +78,7 @@ export const onRequestPost: Handler = async (context) => {
 
   const sameSite = context.env.COOKIE_SAMESITE || "Lax"
   const secure = !!context.env.SECURE_COOKIE
-  const challengeCookie = [
-    `webauthn_challenge_token=${challenge}`,
-    "HttpOnly",
-    "Path=/",
-    `SameSite=${sameSite}`,
-    "Max-Age=300",
-  ]
+  const challengeCookie = [`webauthn_challenge_token=${challenge}`, "HttpOnly", "Path=/", `SameSite=${sameSite}`, "Max-Age=300"]
   if (secure) challengeCookie.push("Secure")
 
   return new Response(JSON.stringify(options), {

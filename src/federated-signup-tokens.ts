@@ -20,10 +20,7 @@ interface CreateInput {
 }
 
 /** Issues a fresh signup token carrying the provider data. */
-export async function createFederatedSignupToken(
-  dbClient: DbClient,
-  input: CreateInput
-): Promise<Envelope<{ token: string }>> {
+export async function createFederatedSignupToken(dbClient: DbClient, input: CreateInput): Promise<Envelope<{ token: string }>> {
   try {
     const token = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, "")
     await dbClient.query(
@@ -57,10 +54,7 @@ export async function createFederatedSignupToken(
  * Read-only lookup — does not consume. Used by the signup confirmation page
  * to preview the proposed account. Consume happens in the POST handler.
  */
-export async function readFederatedSignupToken(
-  dbClient: DbClient,
-  token: string
-): Promise<Envelope<{ row: FederatedSignupTokenRow }>> {
+export async function readFederatedSignupToken(dbClient: DbClient, token: string): Promise<Envelope<{ row: FederatedSignupTokenRow }>> {
   try {
     const { rows } = await dbClient.query(
       `SELECT token_value, provider, provider_user_id, email, email_verified, display_name, expires_at, created_at, is_used
@@ -92,10 +86,7 @@ export async function readFederatedSignupToken(
  * Atomic single-use consume (mirrors `consumeToken` in src/tokens.ts). The
  * UPDATE collapses used / expired / missing into a single negative envelope.
  */
-export async function consumeFederatedSignupToken(
-  dbClient: DbClient,
-  token: string
-): Promise<Envelope<{ row: FederatedSignupTokenRow }>> {
+export async function consumeFederatedSignupToken(dbClient: DbClient, token: string): Promise<Envelope<{ row: FederatedSignupTokenRow }>> {
   try {
     const { rows } = await dbClient.query(
       `UPDATE federated_signup_tokens

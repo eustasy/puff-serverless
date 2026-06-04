@@ -1,12 +1,5 @@
 import { describe, it, expect } from "vitest"
-import {
-  create2fa,
-  read2fa,
-  delete2fa,
-  has2fa,
-  enable2fa,
-  used2fa,
-} from "../src/2fa.js"
+import { create2fa, read2fa, delete2fa, has2fa, enable2fa, used2fa } from "../src/2fa.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
 
 describe("create2fa", () => {
@@ -123,9 +116,7 @@ describe("used2fa", () => {
       status: 200,
     })
     // The replay-guard insert, then the last-used stamp.
-    expect(
-      db.calls.map((c) => c.text.split(" ").slice(0, 2).join(" "))
-    ).toEqual(["INSERT INTO", "UPDATE secrets"])
+    expect(db.calls.map((c) => c.text.split(" ").slice(0, 2).join(" "))).toEqual(["INSERT INTO", "UPDATE secrets"])
   })
 
   it("rejects a replayed code (insert conflict) without stamping last-used", async () => {

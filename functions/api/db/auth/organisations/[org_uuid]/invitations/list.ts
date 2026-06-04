@@ -1,11 +1,7 @@
 import { listInvitations } from "../../../../../../../src/invitations.js"
 import { can } from "../../../../../../../src/permissions.js"
 import { escapeHtml } from "../../../../../../../src/utilities/escape.js"
-import {
-  htmlResponse,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../../src/utilities/responses.js"
+import { htmlResponse, resultNegative, methodNotAllowed } from "../../../../../../../src/utilities/responses.js"
 
 /** Lists an organisation's pending invitations, each with a revoke button. */
 export const onRequestGet: Handler<"org_uuid"> = async (context) => {
@@ -24,12 +20,9 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
   }
 
   const base = `/api/db/auth/organisations/${encodeURIComponent(org_uuid)}`
-  let html =
-    "<table><thead><tr><th>Email</th><th>Roles</th><th>Expires</th><th>Actions</th></tr></thead><tbody>"
+  let html = "<table><thead><tr><th>Email</th><th>Roles</th><th>Expires</th><th>Actions</th></tr></thead><tbody>"
   for (const invitation of result.invitations) {
-    const revokeVals = escapeHtml(
-      JSON.stringify({ token: invitation.invitation_token })
-    )
+    const revokeVals = escapeHtml(JSON.stringify({ token: invitation.invitation_token }))
     html += `<tr>
       <td>${escapeHtml(invitation.email_address)}</td>
       <td>${escapeHtml(invitation.roles.join(", "))}</td>

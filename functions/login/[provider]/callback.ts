@@ -11,22 +11,10 @@
 //   - Anyone else gets a federated_signup_token and lands on
 //     /federated-signup?token=… to confirm account creation.
 
-import {
-  getProviderConfig,
-  getProviderCredentials,
-  isProviderName,
-  providerRedirectUri,
-} from "../../../src/oauth-providers.js"
+import { getProviderConfig, getProviderCredentials, isProviderName, providerRedirectUri } from "../../../src/oauth-providers.js"
 import { exchangeCode, fetchUserIdentity } from "../../../src/oauth-outbound.js"
-import {
-  clearOAuthStateCookie,
-  readOAuthStateCookie,
-} from "../../../src/utilities/oauth-state-cookie.js"
-import {
-  findByProvider,
-  linkExternalIdentity,
-  updateLastUsed,
-} from "../../../src/external-identities.js"
+import { clearOAuthStateCookie, readOAuthStateCookie } from "../../../src/utilities/oauth-state-cookie.js"
+import { findByProvider, linkExternalIdentity, updateLastUsed } from "../../../src/external-identities.js"
 import { createFederatedSignupToken } from "../../../src/federated-signup-tokens.js"
 import { createSession, verifyTokenAndGetUser } from "../../../src/sessions.js"
 import { getCookie } from "../../../src/utilities/headers.js"
@@ -37,8 +25,7 @@ import { buildSessionCookie } from "../../../src/utilities/session-cookie.js"
 import { redirectWithCookies } from "../../../src/utilities/login-provider-callback.js"
 import { renderErrorPage } from "../../../src/utilities/error-page.js"
 
-const errorPage = (message: string, status = 400) =>
-  renderErrorPage({ title: "Sign-in error", message, status })
+const errorPage = (message: string, status = 400) => renderErrorPage({ title: "Sign-in error", message, status })
 
 export const onRequestGet: Handler<"provider"> = async (context) => {
   const { request, env, data } = context
@@ -54,8 +41,7 @@ export const onRequestGet: Handler<"provider"> = async (context) => {
   const url = new URL(request.url)
   const error = url.searchParams.get("error")
   if (error) {
-    const description =
-      url.searchParams.get("error_description") || "The provider declined."
+    const description = url.searchParams.get("error_description") || "The provider declined."
     const page = errorPage(`Provider error: ${description}`, 400)
     page.headers.append("Set-Cookie", clearOAuthStateCookie(env))
     return page
@@ -69,18 +55,12 @@ export const onRequestGet: Handler<"provider"> = async (context) => {
 
   const cookie = await readOAuthStateCookie(request.headers.get("Cookie"))
   if (!cookie || cookie.provider !== provider_name || cookie.state !== state) {
-    return errorPage(
-      "Sign-in session expired or was tampered with. Please try again.",
-      400
-    )
+    return errorPage("Sign-in session expired or was tampered with. Please try again.", 400)
   }
 
   const creds = getProviderCredentials(env, config)
   if (!creds) {
-    return errorPage(
-      "This sign-in provider is not configured on this deployment.",
-      404
-    )
+    return errorPage("This sign-in provider is not configured on this deployment.", 404)
   }
 
   const exchanged = await exchangeCode({
@@ -95,22 +75,14 @@ export const onRequestGet: Handler<"provider"> = async (context) => {
     return errorPage(exchanged.message, exchanged.status)
   }
 
-  const fetched = await fetchUserIdentity(
-    config,
-    exchanged.access_token,
-    exchanged.id_token
-  )
+  const fetched = await fetchUserIdentity(config, exchanged.access_token, exchanged.id_token)
   if (!fetched.success) {
     return errorPage(fetched.message, fetched.status)
   }
   const identity = fetched.identity
 
   // 1) Existing link → log in directly.
-  const linked = await findByProvider(
-    dbClient,
-    provider_name,
-    identity.provider_user_id
-  )
+  const linked = await findByProvider(dbClient, provider_name, identity.provider_user_id)
   if (linked.error) {
     return errorPage("Lookup failed.", 500)
   }
@@ -134,19 +106,13 @@ export const onRequestGet: Handler<"provider"> = async (context) => {
     })
 
     const next = await readNext(request)
-    const setCookies = [
-      clearOAuthStateCookie(env),
-      buildSessionCookie(env, sessionResult.session_id),
-    ]
+    const setCookies = [clearOAuthStateCookie(env), buildSessionCookie(env, sessionResult.session_id)]
     if (next) setCookies.push(clearNextCookie(env))
     return redirectWithCookies(next || "/account", setCookies)
   }
 
   // 2) Authenticated caller → link the identity.
-  const sessionCookieValue = await getCookie(
-    request.headers.get("Cookie"),
-    "session_token"
-  )
+  const sessionCookieValue = await getCookie(request.headers.get("Cookie"), "session_token")
   if (sessionCookieValue) {
     const verified = await verifyTokenAndGetUser(
       dbClient,
@@ -189,10 +155,7 @@ export const onRequestGet: Handler<"provider"> = async (context) => {
   if (!signupToken.success) {
     return errorPage("Could not start your signup.", 500)
   }
-  return redirectWithCookies(
-    `/federated-signup?token=${encodeURIComponent(signupToken.token)}`,
-    [clearOAuthStateCookie(env)]
-  )
+  return redirectWithCookies(`/federated-signup?token=${encodeURIComponent(signupToken.token)}`, [clearOAuthStateCookie(env)])
 }
 
 export const onRequest: Handler = async () =>

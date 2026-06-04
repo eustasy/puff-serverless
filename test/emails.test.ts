@@ -1,13 +1,5 @@
 import { describe, it, expect } from "vitest"
-import {
-  existsEmail,
-  readEmail,
-  readEmails,
-  createEmail,
-  verifyEmailByToken,
-  setPrimaryEmail,
-  deleteEmail,
-} from "../src/emails.js"
+import { existsEmail, readEmail, readEmails, createEmail, verifyEmailByToken, setPrimaryEmail, deleteEmail } from "../src/emails.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
 
 // readEmail's single-record lookup, distinct from existsEmail's `SELECT 1`.
@@ -110,13 +102,7 @@ describe("createEmail", () => {
     const db = new FakeDb()
     db.on(READ_EMAIL, { rows: [] })
     db.on(/INSERT INTO emails/, { rows: [{ email_address: "a@b.test" }] })
-    const result = await createEmail(
-      db.client,
-      "user-1",
-      "a@b.test",
-      true,
-      true
-    )
+    const result = await createEmail(db.client, "user-1", "a@b.test", true, true)
     expect(result).toMatchObject({ success: true, token_value: null })
   })
 })
@@ -164,17 +150,13 @@ describe("setPrimaryEmail", () => {
       rows: [emailRow({ user_uuid: "user-1", is_verified: true })],
     })
     db.on(/UPDATE emails SET is_primary/, { rowCount: 1 })
-    expect(
-      await setPrimaryEmail(db.client, "user-1", "a@b.test")
-    ).toMatchObject({ success: true, status: 200 })
+    expect(await setPrimaryEmail(db.client, "user-1", "a@b.test")).toMatchObject({ success: true, status: 200 })
   })
 
   it("rejects an address owned by another user with 403", async () => {
     const db = new FakeDb()
     db.on(READ_EMAIL, { rows: [emailRow({ user_uuid: "someone-else" })] })
-    expect(
-      (await setPrimaryEmail(db.client, "user-1", "a@b.test")).status
-    ).toBe(403)
+    expect((await setPrimaryEmail(db.client, "user-1", "a@b.test")).status).toBe(403)
   })
 
   it("rejects an unverified address with 400", async () => {
@@ -182,9 +164,7 @@ describe("setPrimaryEmail", () => {
     db.on(READ_EMAIL, {
       rows: [emailRow({ user_uuid: "user-1", is_verified: false })],
     })
-    expect(
-      (await setPrimaryEmail(db.client, "user-1", "a@b.test")).status
-    ).toBe(400)
+    expect((await setPrimaryEmail(db.client, "user-1", "a@b.test")).status).toBe(400)
   })
 })
 
@@ -206,16 +186,12 @@ describe("deleteEmail", () => {
     db.on(READ_EMAIL, {
       rows: [emailRow({ user_uuid: "user-1", is_primary: true })],
     })
-    expect((await deleteEmail(db.client, "user-1", "a@b.test")).status).toBe(
-      400
-    )
+    expect((await deleteEmail(db.client, "user-1", "a@b.test")).status).toBe(400)
   })
 
   it("rejects an address owned by another user with 403", async () => {
     const db = new FakeDb()
     db.on(READ_EMAIL, { rows: [emailRow({ user_uuid: "someone-else" })] })
-    expect((await deleteEmail(db.client, "user-1", "a@b.test")).status).toBe(
-      403
-    )
+    expect((await deleteEmail(db.client, "user-1", "a@b.test")).status).toBe(403)
   })
 })

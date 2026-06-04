@@ -47,31 +47,19 @@ const sessionAuthWithCookie: Handler = async (context) => {
     const sessionToken = await getCookie(cookieHeader, "session_token")
 
     if (!sessionToken) {
-      return unauthorizedResponse(
-        env,
-        isHtmx,
-        "Authentication Required",
-        "No session token provided."
-      )
+      return unauthorizedResponse(env, isHtmx, "Authentication Required", "No session token provided.")
     }
 
     const ip_country = request.headers.get("CF-IPCountry")
     const ip_address = request.headers.get("CF-Connecting-IP")
-    const authResult = await verifyTokenAndGetUser(
-      dbClient,
-      sessionToken,
-      ip_country,
-      ip_address
-    )
+    const authResult = await verifyTokenAndGetUser(dbClient, sessionToken, ip_country, ip_address)
 
     if (!authResult.success) {
       // 401s here are normal user state (expired/invalid/geo-changed cookie)
       // and are surfaced to the client — no need to spam server logs. Only
       // log truly unexpected statuses (e.g. 500 from token verification).
       if (authResult.status >= 500) {
-        console.error(
-          `sessionAuthWithCookie: ${authResult.error}, Status: ${authResult.status}`
-        )
+        console.error(`sessionAuthWithCookie: ${authResult.error}, Status: ${authResult.status}`)
         return new Response(
           `<h1 class="result-negative">Server Error</h1>
           <p>${authResult.error}</p>`,
@@ -81,21 +69,13 @@ const sessionAuthWithCookie: Handler = async (context) => {
           }
         )
       }
-      return unauthorizedResponse(
-        env,
-        isHtmx,
-        "Authentication Failed",
-        authResult.error
-      )
+      return unauthorizedResponse(env, isHtmx, "Authentication Failed", authResult.error)
     }
 
     data.user_uuid = authResult.user_uuid // Set user_uuid in context.data for downstream handlers
     return next() // Authentication successful, proceed
   } catch (error) {
-    console.error(
-      "sessionAuthWithCookie: Error during session authentication:",
-      error
-    )
+    console.error("sessionAuthWithCookie: Error during session authentication:", error)
     return new Response(
       `<h1 class="result-negative">Server Error</h1>
       <p>An unexpected error occurred during authentication. Please try again later.</p>`,

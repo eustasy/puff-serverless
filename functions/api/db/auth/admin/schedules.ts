@@ -1,8 +1,4 @@
-import {
-  htmlResponse,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../src/utilities/responses.js"
+import { htmlResponse, resultNegative, methodNotAllowed } from "../../../../../src/utilities/responses.js"
 import { showSchedules } from "../../../../../src/schedules.js"
 import { renderScheduleCell } from "../../../../../src/utilities/admin-schedules.js"
 

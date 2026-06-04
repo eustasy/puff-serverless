@@ -11,11 +11,7 @@
 //
 // Usage:  node scripts/generate-oauth-key.mjs
 
-const { publicKey, privateKey } = await crypto.subtle.generateKey(
-  { name: "ECDSA", namedCurve: "P-256" },
-  true,
-  ["sign", "verify"]
-)
+const { publicKey, privateKey } = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"])
 
 const privateJwk = await crypto.subtle.exportKey("jwk", privateKey)
 const publicJwk = await crypto.subtle.exportKey("jwk", publicKey)
@@ -35,10 +31,7 @@ const canonical = JSON.stringify({
   x: publicJwk.x,
   y: publicJwk.y,
 })
-const hash = await crypto.subtle.digest(
-  "SHA-256",
-  new TextEncoder().encode(canonical)
-)
+const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical))
 const kid = base64UrlEncode(new Uint8Array(hash))
 
 const privateJwkCompact = JSON.stringify({
@@ -77,20 +70,14 @@ console.log(
     kid +
     '\\", \\"created_at\\": \\"$NOW\\"}" | \\'
 )
-console.log(
-  "    npx wrangler kv key put --binding=KV_OAUTH_KEYS oauth:keys:active --pipe"
-)
+console.log("    npx wrangler kv key put --binding=KV_OAUTH_KEYS oauth:keys:active --pipe")
 console.log("")
 console.log("To seed the legacy Wrangler secret (migration / fallback):")
 console.log("")
 console.log("  echo '" + privateJwkCompact + "' \\")
 console.log("    | npx wrangler secret put OAUTH_SIGNING_KEY_PRIVATE")
 console.log("")
-console.log(
-  "For local development add the same JSON to `.env` as OAUTH_SIGNING_KEY_PRIVATE."
-)
+console.log("For local development add the same JSON to `.env` as OAUTH_SIGNING_KEY_PRIVATE.")
 console.log("")
-console.log(
-  "Rotation in production is automatic (weekly, via the cron in src/cron.ts). To"
-)
+console.log("Rotation in production is automatic (weekly, via the cron in src/cron.ts). To")
 console.log("rotate on demand, POST to /api/db/auth/admin/oauth-keys/rotate.")

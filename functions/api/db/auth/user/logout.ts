@@ -11,13 +11,10 @@ export const onRequestPost: Handler = async (context) => {
   const token = await getCookie(cookieHeader, "session_token")
 
   if (!token) {
-    return new Response(
-      '<p class="result-negative">Session token is missing in request cookie.</p>',
-      {
-        status: 400,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
+    return new Response('<p class="result-negative">Session token is missing in request cookie.</p>', {
+      status: 400,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 
   try {
@@ -57,13 +54,10 @@ export const onRequestPost: Handler = async (context) => {
     })
   } catch (error) {
     console.error("Error during logout process:", error)
-    return new Response(
-      '<p class="result-negative">Logout failed due to a server error.</p>',
-      {
-        status: 500,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
+    return new Response('<p class="result-negative">Logout failed due to a server error.</p>', {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 }
 

@@ -139,10 +139,7 @@ interface CreateRefreshTokenInput {
  * null; on rotation it points at the previously-consumed refresh token so
  * reuse detection can walk the chain.
  */
-export async function createRefreshToken(
-  dbClient: DbClient,
-  input: CreateRefreshTokenInput
-): Promise<Envelope<{ token: string }>> {
+export async function createRefreshToken(dbClient: DbClient, input: CreateRefreshTokenInput): Promise<Envelope<{ token: string }>> {
   try {
     const token = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, "")
     const query = `
@@ -228,10 +225,7 @@ export async function consumeRefreshToken(
  * to `is_used = TRUE`. Best-effort; failures are logged but don't change the
  * caller's response (the suspected reuse is already grounds for rejection).
  */
-export async function revokeRefreshTokenChain(
-  dbClient: DbClient,
-  token: string
-): Promise<Envelope<{ revoked: number }>> {
+export async function revokeRefreshTokenChain(dbClient: DbClient, token: string): Promise<Envelope<{ revoked: number }>> {
   try {
     const query = `
       WITH RECURSIVE chain AS (

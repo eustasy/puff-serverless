@@ -1,14 +1,9 @@
 function HextoUint8(hexString: string) {
-  return Uint8Array.from(
-    (hexString.match(/.{1,2}/g) ?? []).map((byte) => parseInt(byte, 16))
-  )
+  return Uint8Array.from((hexString.match(/.{1,2}/g) ?? []).map((byte) => parseInt(byte, 16)))
 }
 
 function Uint8toHex(bytes: Uint8Array) {
-  return bytes.reduce(
-    (str: string, byte: number) => str + byte.toString(16).padStart(2, "0"),
-    ""
-  )
+  return bytes.reduce((str: string, byte: number) => str + byte.toString(16).padStart(2, "0"), "")
 }
 
 /** Hashes pw with the given Web Crypto algorithm name (e.g. "SHA-256", "SHA-384", "SHA-1") and returns the hex digest. */
@@ -39,11 +34,7 @@ export function passwordNeedsUpgrade(algo: string) {
 // example:
 // const { hash, salt } = await puff_hashing_password("myPassword123", "", "SHA-384")
 // returns { hash: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z", salt: "random-uuid" }
-export async function puff_hashing_password(
-  pw: string,
-  salt = "",
-  algo = PREFERRED_PASSWORD_ALGO
-) {
+export async function puff_hashing_password(pw: string, salt = "", algo = PREFERRED_PASSWORD_ALGO) {
   if (salt.length === 0) {
     salt = crypto.randomUUID()
   }

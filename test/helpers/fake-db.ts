@@ -21,10 +21,7 @@ interface FakeResult {
 
 // A rule's response: a fixed result, an Error to reject with, or a function of
 // the query's bound values returning either.
-type Responder =
-  | FakeResult
-  | Error
-  | ((values: unknown[]) => FakeResult | Error)
+type Responder = FakeResult | Error | ((values: unknown[]) => FakeResult | Error)
 
 interface Rule {
   match: RegExp
@@ -65,14 +62,9 @@ export class FakeDb {
     return this.addRule(match, responder, true)
   }
 
-  private addRule(
-    match: string | RegExp,
-    responder: Responder,
-    once: boolean
-  ): this {
+  private addRule(match: string | RegExp, responder: Responder, once: boolean): this {
     this.rules.push({
-      match:
-        typeof match === "string" ? new RegExp(escapeRegExp(match)) : match,
+      match: typeof match === "string" ? new RegExp(escapeRegExp(match)) : match,
       responder,
       once,
       used: false,
@@ -89,18 +81,12 @@ export class FakeDb {
 
   private async query(args: unknown[]): Promise<FakeResult> {
     const [first, second] = args
-    const text =
-      typeof first === "string" ? first : (first as { text: string }).text
-    const values =
-      typeof first === "string"
-        ? ((second as unknown[]) ?? [])
-        : ((first as { values?: unknown[] }).values ?? [])
+    const text = typeof first === "string" ? first : (first as { text: string }).text
+    const values = typeof first === "string" ? ((second as unknown[]) ?? []) : ((first as { values?: unknown[] }).values ?? [])
 
     this.calls.push({ text, values })
 
-    const rule = this.rules.find(
-      (r) => !(r.once && r.used) && r.match.test(text)
-    )
+    const rule = this.rules.find((r) => !(r.once && r.used) && r.match.test(text))
     if (!rule) {
       if (/^\s*(BEGIN|COMMIT|ROLLBACK)/i.test(text)) {
         return { rows: [], rowCount: 0 }
@@ -109,10 +95,7 @@ export class FakeDb {
     }
     rule.used = true
 
-    const resolved =
-      typeof rule.responder === "function"
-        ? rule.responder(values)
-        : rule.responder
+    const resolved = typeof rule.responder === "function" ? rule.responder(values) : rule.responder
     if (resolved instanceof Error) throw resolved
 
     return {

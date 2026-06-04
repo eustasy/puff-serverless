@@ -5,10 +5,7 @@
  * @param {string} cookieName - The name of the cookie to find.
  * @returns {string | null} The value of the cookie, or null if not found.
  */
-export async function getCookie(
-  cookieString: string | null,
-  cookieName: string
-) {
+export async function getCookie(cookieString: string | null, cookieName: string) {
   if (!cookieString) {
     return null
   }
@@ -40,13 +37,8 @@ export function parseUserAgent(userAgentString: string | null) {
   // order narrows from most-specific to most-generic: dedicated builds (Firefox,
   // Samsung, Opera) → Chromium derivatives (Edge) → Chrome → bare Safari.
   if (userAgentString.includes("Firefox/")) browser = "Firefox"
-  else if (userAgentString.includes("SamsungBrowser/"))
-    browser = "Samsung Browser"
-  else if (
-    userAgentString.includes("Opera/") ||
-    userAgentString.includes("OPR/")
-  )
-    browser = "Opera"
+  else if (userAgentString.includes("SamsungBrowser/")) browser = "Samsung Browser"
+  else if (userAgentString.includes("Opera/") || userAgentString.includes("OPR/")) browser = "Opera"
   else if (userAgentString.includes("Edge/")) browser = "Edge (Legacy)"
   else if (userAgentString.includes("Edg/")) browser = "Edge (Chromium)"
   else if (userAgentString.includes("Chrome/")) browser = "Chrome"
@@ -61,11 +53,7 @@ export function parseUserAgent(userAgentString: string | null) {
   else if (userAgentString.includes("Windows NT 5.1")) os = "Windows XP"
   else if (userAgentString.includes("Macintosh; Intel Mac OS X")) os = "macOS"
   else if (userAgentString.includes("Android")) os = "Android"
-  else if (
-    userAgentString.includes("iPhone") ||
-    userAgentString.includes("iPad")
-  )
-    os = "iOS"
+  else if (userAgentString.includes("iPhone") || userAgentString.includes("iPad")) os = "iOS"
   else if (userAgentString.includes("Linux")) os = "Linux"
 
   if (browser !== "Unknown Browser" && os !== "Unknown OS") {
@@ -78,7 +66,5 @@ export function parseUserAgent(userAgentString: string | null) {
 
   // Fallback for less common UAs, return a shortened version or N/A
   const maxLength = 30 // Max length for unknown UAs
-  return userAgentString.length > maxLength
-    ? userAgentString.substring(0, maxLength) + "..."
-    : userAgentString
+  return userAgentString.length > maxLength ? userAgentString.substring(0, maxLength) + "..." : userAgentString
 }

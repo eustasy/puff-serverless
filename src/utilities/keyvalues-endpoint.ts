@@ -29,16 +29,11 @@ export function renderKeyValueTable(
   }
 ): Response {
   if (pairs.length === 0) {
-    const message = options.search
-      ? `No keys match "${escapeHtml(options.search)}".`
-      : "No stored keys yet."
+    const message = options.search ? `No keys match "${escapeHtml(options.search)}".` : "No stored keys yet."
     return htmlResponse(`<p>${message}</p>`)
   }
 
-  let html =
-    "<table><thead><tr><th>Key</th><th>Value</th>" +
-    (options.canWrite ? "<th>Actions</th>" : "") +
-    "</tr></thead><tbody>"
+  let html = "<table><thead><tr><th>Key</th><th>Value</th>" + (options.canWrite ? "<th>Actions</th>" : "") + "</tr></thead><tbody>"
   for (const pair of pairs) {
     html += `<tr>
         <td>${escapeHtml(pair.kv_key)}</td>
@@ -68,9 +63,7 @@ export function renderKeyValueTable(
  * either `{ key, value }` or a `Response` that the handler should return
  * unchanged. Keeps the per-endpoint set handlers small.
  */
-export async function parseSetForm(
-  request: Request
-): Promise<{ key: string; value: string } | Response> {
+export async function parseSetForm(request: Request): Promise<{ key: string; value: string } | Response> {
   let formData: FormData
   try {
     formData = await request.formData()
@@ -87,24 +80,16 @@ export async function parseSetForm(
   }
   const key = rawKey.trim()
   if (key.length > MAX_KEY_LENGTH) {
-    return resultNegative(
-      `Keys cannot be longer than ${MAX_KEY_LENGTH} characters.`,
-      400
-    )
+    return resultNegative(`Keys cannot be longer than ${MAX_KEY_LENGTH} characters.`, 400)
   }
   if (rawValue.length > MAX_VALUE_LENGTH) {
-    return resultNegative(
-      `Values cannot be longer than ${MAX_VALUE_LENGTH} characters.`,
-      400
-    )
+    return resultNegative(`Values cannot be longer than ${MAX_VALUE_LENGTH} characters.`, 400)
   }
   return { key, value: rawValue }
 }
 
 /** Same shape as parseSetForm but for the remove handlers (key only). */
-export async function parseKeyForm(
-  request: Request
-): Promise<{ key: string } | Response> {
+export async function parseKeyForm(request: Request): Promise<{ key: string } | Response> {
   let formData: FormData
   try {
     formData = await request.formData()

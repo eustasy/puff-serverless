@@ -5,10 +5,7 @@
 //
 // All three builders are read-only: they do not write or mutate anything.
 
-import {
-  listEntitlementsForToken,
-  type EntitlementClaim,
-} from "./entitlements.js"
+import { listEntitlementsForToken, type EntitlementClaim } from "./entitlements.js"
 import { listOrganisationsForUser } from "./organisations.js"
 import type { AppLicensingMode } from "./apps.js"
 
@@ -30,16 +27,11 @@ export interface RolesClaim {
  * orgs are filtered out so consumers can treat the claim as "currently
  * active memberships".
  */
-export async function buildMembershipsClaim(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<Envelope<{ memberships: MembershipClaim[] }>> {
+export async function buildMembershipsClaim(dbClient: DbClient, user_uuid: string): Promise<Envelope<{ memberships: MembershipClaim[] }>> {
   try {
     const result = await listOrganisationsForUser(dbClient, user_uuid)
     if (!result.success) return result
-    const memberships = result.organisations
-      .filter((o) => o.org_active)
-      .map((o) => ({ org_uuid: o.org_uuid, org_name: o.org_name }))
+    const memberships = result.organisations.filter((o) => o.org_active).map((o) => ({ org_uuid: o.org_uuid, org_name: o.org_name }))
     return { success: true, memberships, status: 200 }
   } catch (error) {
     console.error("Error in buildMembershipsClaim:", error)
@@ -58,10 +50,7 @@ export async function buildMembershipsClaim(
  * `MembershipClaim` but adds the role arrays so an app can authorise on
  * `puff:roles` without re-querying.
  */
-export async function buildRolesClaim(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<Envelope<{ roles: RolesClaim[] }>> {
+export async function buildRolesClaim(dbClient: DbClient, user_uuid: string): Promise<Envelope<{ roles: RolesClaim[] }>> {
   try {
     const orgs = await listOrganisationsForUser(dbClient, user_uuid)
     if (!orgs.success) return orgs
@@ -75,10 +64,7 @@ export async function buildRolesClaim(
       [user_uuid]
     )
 
-    const teamsByOrg = new Map<
-      string,
-      Map<string, { team_uuid: string; team_name: string; roles: string[] }>
-    >()
+    const teamsByOrg = new Map<string, Map<string, { team_uuid: string; team_name: string; roles: string[] }>>()
     for (const row of teamRoleRows) {
       if (!teamsByOrg.has(row.org_uuid)) {
         teamsByOrg.set(row.org_uuid, new Map())
@@ -128,12 +114,7 @@ export async function buildEntitlementsClaim(
   if (!org_uuid) {
     return { success: true, entitlements: null, status: 200 }
   }
-  const result = await listEntitlementsForToken(
-    dbClient,
-    app,
-    user_uuid,
-    org_uuid
-  )
+  const result = await listEntitlementsForToken(dbClient, app, user_uuid, org_uuid)
   if (!result.success) return result
   return { success: true, entitlements: result.claim, status: 200 }
 }

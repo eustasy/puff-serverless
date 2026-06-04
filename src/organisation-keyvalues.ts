@@ -15,69 +15,26 @@ import {
 const SPEC: KeyValueSpec = {
   table: "organisation_key_values",
   subjectColumns: ["org_uuid"],
-  selectColumns:
-    "org_uuid, kv_key, kv_value, owner_user_uuid, owner_org_uuid, owner_app_uuid, owner_id, created_at, updated_at",
+  selectColumns: "org_uuid, kv_key, kv_value, owner_user_uuid, owner_org_uuid, owner_app_uuid, owner_id, created_at, updated_at",
   label: "organisation-keyvalues",
 }
 
 /** Reads a single value for (org, owner, key). */
-export const readKeyValue = (
-  dbClient: DbClient,
-  org_uuid: string,
-  owner: Owner,
-  key: string
-) => readKeyValueGeneric(dbClient, SPEC, [org_uuid], owner, key)
+export const readKeyValue = (dbClient: DbClient, org_uuid: string, owner: Owner, key: string) =>
+  readKeyValueGeneric(dbClient, SPEC, [org_uuid], owner, key)
 
 /** Reads every (key, value) row a single owner has stored against an organisation. */
-export const readKeyValues = (
-  dbClient: DbClient,
-  org_uuid: string,
-  owner: Owner
-) =>
-  readKeyValuesGeneric<OrganisationKeyValueRow>(
-    dbClient,
-    SPEC,
-    [org_uuid],
-    owner
-  )
+export const readKeyValues = (dbClient: DbClient, org_uuid: string, owner: Owner) =>
+  readKeyValuesGeneric<OrganisationKeyValueRow>(dbClient, SPEC, [org_uuid], owner)
 
 /** Substring-matches keys (LIKE wildcards in `pattern` are escaped). */
-export const searchKeyValues = (
-  dbClient: DbClient,
-  org_uuid: string,
-  owner: Owner,
-  pattern: string
-) =>
-  searchKeyValuesGeneric<OrganisationKeyValueRow>(
-    dbClient,
-    SPEC,
-    [org_uuid],
-    owner,
-    pattern
-  )
+export const searchKeyValues = (dbClient: DbClient, org_uuid: string, owner: Owner, pattern: string) =>
+  searchKeyValuesGeneric<OrganisationKeyValueRow>(dbClient, SPEC, [org_uuid], owner, pattern)
 
 /** Upsert (create or replace) a value for (org, owner, key). */
-export const setKeyValue = (
-  dbClient: DbClient,
-  org_uuid: string,
-  owner: Owner,
-  key: string,
-  value: string
-) =>
-  upsertKeyValue(
-    dbClient,
-    SPEC.table,
-    SPEC.subjectColumns,
-    [org_uuid],
-    owner,
-    key,
-    value
-  )
+export const setKeyValue = (dbClient: DbClient, org_uuid: string, owner: Owner, key: string, value: string) =>
+  upsertKeyValue(dbClient, SPEC.table, SPEC.subjectColumns, [org_uuid], owner, key, value)
 
 /** Removes (org, owner, key); 404 if no such row. */
-export const deleteKeyValue = (
-  dbClient: DbClient,
-  org_uuid: string,
-  owner: Owner,
-  key: string
-) => deleteKeyValueGeneric(dbClient, SPEC, [org_uuid], owner, key)
+export const deleteKeyValue = (dbClient: DbClient, org_uuid: string, owner: Owner, key: string) =>
+  deleteKeyValueGeneric(dbClient, SPEC, [org_uuid], owner, key)

@@ -8,10 +8,7 @@
 // passwords (see src/passwords.ts) using the project-wide preferred algorithm,
 // so the hashing utilities transfer over directly.
 
-import {
-  PREFERRED_PASSWORD_ALGO,
-  puff_hashing_password,
-} from "./utilities/hashing.js"
+import { PREFERRED_PASSWORD_ALGO, puff_hashing_password } from "./utilities/hashing.js"
 
 /**
  * The four licensing modes an app can declare. `none` skips all license
@@ -26,10 +23,7 @@ export type AppLicensingMode = (typeof LICENSING_MODES)[number]
 
 /** Type guard for user-supplied licensing mode strings. */
 export function isAppLicensingMode(value: unknown): value is AppLicensingMode {
-  return (
-    typeof value === "string" &&
-    (LICENSING_MODES as readonly string[]).includes(value)
-  )
+  return typeof value === "string" && (LICENSING_MODES as readonly string[]).includes(value)
 }
 
 /**
@@ -52,10 +46,7 @@ const APP_COLUMNS =
  * of view — its tokens are rejected without leaking that the registration
  * still exists.
  */
-export async function readApp(
-  dbClient: DbClient,
-  app_uuid: string
-): Promise<Envelope<{ app: AppRow }>> {
+export async function readApp(dbClient: DbClient, app_uuid: string): Promise<Envelope<{ app: AppRow }>> {
   try {
     const query = `
       SELECT ${APP_COLUMNS}
@@ -84,10 +75,7 @@ export async function readApp(
  * /oauth/authorize and /oauth/token to resolve the request to a registered
  * app. Same active-only filter as readApp.
  */
-export async function readAppByClientId(
-  dbClient: DbClient,
-  client_id: string
-): Promise<Envelope<{ app: AppRow }>> {
+export async function readAppByClientId(dbClient: DbClient, client_id: string): Promise<Envelope<{ app: AppRow }>> {
   try {
     const query = `
       SELECT ${APP_COLUMNS}
@@ -140,11 +128,7 @@ export async function verifyAppCredentials(
     }
     const stored_hash = stored.slice(0, sep)
     const salt = stored.slice(sep + 1)
-    const { hash: candidate_hash } = await puff_hashing_password(
-      client_secret,
-      salt,
-      PREFERRED_PASSWORD_ALGO
-    )
+    const { hash: candidate_hash } = await puff_hashing_password(client_secret, salt, PREFERRED_PASSWORD_ALGO)
     return {
       success: true,
       verified: candidate_hash === stored_hash,
@@ -166,9 +150,7 @@ export async function verifyAppCredentials(
  * List all apps (active and disabled). Intended for the future operator
  * management UI, not the OAuth endpoints.
  */
-export async function listApps(
-  dbClient: DbClient
-): Promise<Envelope<{ apps: AppRow[] }>> {
+export async function listApps(dbClient: DbClient): Promise<Envelope<{ apps: AppRow[] }>> {
   try {
     const query = `
       SELECT ${APP_COLUMNS}
@@ -193,9 +175,7 @@ export async function listApps(
  * algorithm and storage format (`hash:salt`). Exposed so the operator
  * registration flow (direct DB or future UI) can produce a valid secret row.
  */
-export async function hashClientSecret(
-  client_secret: string
-): Promise<{ stored: string; algo: string }> {
+export async function hashClientSecret(client_secret: string): Promise<{ stored: string; algo: string }> {
   const { hash, salt, algo } = await puff_hashing_password(client_secret)
   return { stored: `${hash}:${salt}`, algo }
 }
@@ -207,10 +187,7 @@ export async function hashClientSecret(
  * granted in `license:tier`), the value is the human-readable label or
  * description. Returns an empty list when the app has not declared any.
  */
-export async function listAppTiers(
-  dbClient: DbClient,
-  app_uuid: string
-): Promise<Envelope<{ tiers: { name: string; label: string }[] }>> {
+export async function listAppTiers(dbClient: DbClient, app_uuid: string): Promise<Envelope<{ tiers: { name: string; label: string }[] }>> {
   try {
     const { rows } = await dbClient.query(
       `SELECT kv_key, kv_value FROM app_key_values WHERE app_uuid = $1 AND owner_app_uuid = $1 AND kv_key LIKE $2 ESCAPE '\\' ORDER BY kv_key ASC`,

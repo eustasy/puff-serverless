@@ -1,15 +1,7 @@
-import {
-  getSubscription,
-  updateSubscription,
-  type ProrationBehavior,
-} from "../../../../../../../../../src/billing.js"
+import { getSubscription, updateSubscription, type ProrationBehavior } from "../../../../../../../../../src/billing.js"
 import { createStripeProvider } from "../../../../../../../../../src/billing-stripe.js"
 import { can } from "../../../../../../../../../src/permissions.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-  resultPositive,
-} from "../../../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative, resultPositive } from "../../../../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../../../../src/hooks/events.js"
 
@@ -22,9 +14,7 @@ import { EVENTS } from "../../../../../../../../../src/hooks/events.js"
  *   tier        — required; the new tier name.
  *   proration   — optional; pass "always_invoice" to charge immediately.
  */
-export const onRequestPost: Handler<"org_uuid" | "subscription_uuid"> = async (
-  context
-) => {
+export const onRequestPost: Handler<"org_uuid" | "subscription_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []
   if (!can(orgRoles, "org:billing:write")) {
     return resultNegative("You do not have permission to manage billing.", 403)
@@ -38,8 +28,7 @@ export const onRequestPost: Handler<"org_uuid" | "subscription_uuid"> = async (
     return resultNegative("tier is required.", 400)
   }
 
-  const prorationBehavior: ProrationBehavior =
-    prorationRaw === "always_invoice" ? "always_invoice" : "create_prorations"
+  const prorationBehavior: ProrationBehavior = prorationRaw === "always_invoice" ? "always_invoice" : "create_prorations"
 
   const dbClient = context.data.dbClient!
   const org_uuid = String(context.params.org_uuid)

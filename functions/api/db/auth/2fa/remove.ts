@@ -24,21 +24,14 @@ export const onRequestPost: Handler = async (context) => {
   const totp_code = formData.get("totp_code")
 
   // Step 3: Input Validation
-  if (
-    !totp_code ||
-    typeof totp_code !== "string" ||
-    !/^\d{6}$/.test(totp_code)
-  ) {
-    return new Response(
-      "<p>Error: TOTP code is missing or invalid. It must be a 6-digit number.</p>",
-      {
-        status: 400,
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Retarget": "#tfa-message-area",
-        },
-      }
-    )
+  if (!totp_code || typeof totp_code !== "string" || !/^\d{6}$/.test(totp_code)) {
+    return new Response("<p>Error: TOTP code is missing or invalid. It must be a 6-digit number.</p>", {
+      status: 400,
+      headers: {
+        "Content-Type": "text/html",
+        "HX-Retarget": "#tfa-message-area",
+      },
+    })
   }
 
   try {
@@ -46,33 +39,24 @@ export const onRequestPost: Handler = async (context) => {
     const secretResult = await read2fa(dbClient, user_uuid)
 
     if (secretResult.error) {
-      console.error(
-        "Error reading 2FA secret for removal:",
-        secretResult.message
-      )
-      return new Response(
-        "<p>Error: Could not retrieve 2FA status due to a server error.</p>",
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#tfa-message-area",
-          },
-        }
-      )
+      console.error("Error reading 2FA secret for removal:", secretResult.message)
+      return new Response("<p>Error: Could not retrieve 2FA status due to a server error.</p>", {
+        status: 500,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#tfa-message-area",
+        },
+      })
     }
 
     if (!secretResult.success || !secretResult.twoFactor.is_enabled) {
-      return new Response(
-        "<p>Error: 2FA is not currently enabled for this account.</p>",
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#tfa-message-area",
-          },
-        }
-      )
+      return new Response("<p>Error: 2FA is not currently enabled for this account.</p>", {
+        status: 400,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#tfa-message-area",
+        },
+      })
     }
 
     const secretRecord = secretResult.twoFactor
@@ -87,19 +71,14 @@ export const onRequestPost: Handler = async (context) => {
     }
 
     if (!storedSecret) {
-      console.error(
-        `Missing secret_value for user ${user_uuid} of type 'totp_secret' during 2FA removal, despite being enabled.`
-      )
-      return new Response(
-        "<p>Error: Internal error with 2FA configuration. Secret not found.</p>",
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#tfa-message-area",
-          },
-        }
-      )
+      console.error(`Missing secret_value for user ${user_uuid} of type 'totp_secret' during 2FA removal, despite being enabled.`)
+      return new Response("<p>Error: Internal error with 2FA configuration. Secret not found.</p>", {
+        status: 500,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#tfa-message-area",
+        },
+      })
     }
 
     const verifyResult = await verify({
@@ -122,16 +101,13 @@ export const onRequestPost: Handler = async (context) => {
 
     if (deletionResult.error) {
       console.error("Error during 2FA secret deletion:", deletionResult.error)
-      return new Response(
-        "<p>Error: Could not disable 2FA due to a server error.</p>",
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "text/html",
-            "HX-Retarget": "#tfa-message-area",
-          },
-        }
-      )
+      return new Response("<p>Error: Could not disable 2FA due to a server error.</p>", {
+        status: 500,
+        headers: {
+          "Content-Type": "text/html",
+          "HX-Retarget": "#tfa-message-area",
+        },
+      })
     }
 
     await emitFromContext(context, {
@@ -140,29 +116,23 @@ export const onRequestPost: Handler = async (context) => {
     })
 
     // Success
-    return new Response(
-      '<p class="result-positive">2FA has been successfully removed from your account.</p>',
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Retarget": "#tfa-message-area",
-          "HX-Trigger": "tfaStatusChanged",
-        },
-      }
-    )
+    return new Response('<p class="result-positive">2FA has been successfully removed from your account.</p>', {
+      status: 200,
+      headers: {
+        "Content-Type": "text/html",
+        "HX-Retarget": "#tfa-message-area",
+        "HX-Trigger": "tfaStatusChanged",
+      },
+    })
   } catch (error) {
     console.error("Unexpected error during 2FA removal:", error)
-    return new Response(
-      "<p>Error: An unexpected error occurred while removing 2FA.</p>",
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "text/html",
-          "HX-Retarget": "#tfa-message-area",
-        },
-      }
-    )
+    return new Response("<p>Error: An unexpected error occurred while removing 2FA.</p>", {
+      status: 500,
+      headers: {
+        "Content-Type": "text/html",
+        "HX-Retarget": "#tfa-message-area",
+      },
+    })
   }
 }
 

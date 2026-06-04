@@ -1,11 +1,7 @@
 import { readOrganisation } from "../../../../../../src/organisations.js"
 import { can, ORG_ROLES } from "../../../../../../src/permissions.js"
 import { escapeHtml } from "../../../../../../src/utilities/escape.js"
-import {
-  htmlResponse,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../src/utilities/responses.js"
+import { htmlResponse, resultNegative, methodNotAllowed } from "../../../../../../src/utilities/responses.js"
 
 /**
  * Renders an organisation's management panel: details and an edit form, the
@@ -27,9 +23,7 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
   }
   const org = result.organisation
   const base = `/api/db/auth/organisations/${encodeURIComponent(org_uuid)}`
-  const roleOptions = ORG_ROLES.map(
-    (role) => `<option value="${role}">${role}</option>`
-  ).join("")
+  const roleOptions = ORG_ROLES.map((role) => `<option value="${role}">${role}</option>`).join("")
 
   let html = `<section class="organisation-panel">
   <h3>${escapeHtml(org.org_name)}${org.org_active ? "" : " (disabled)"}</h3>

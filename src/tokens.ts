@@ -56,13 +56,9 @@ export async function createToken(
  * @param {string} token_value - The value of the token to read.
  * @returns {Promise<object|null>} - The token record if found and valid, null otherwise, or an error object.
  */
-export async function readToken(
-  dbClient: DbClient,
-  token_value: string
-): Promise<TokenEnvelope<{ token: TokenRow }>> {
+export async function readToken(dbClient: DbClient, token_value: string): Promise<TokenEnvelope<{ token: TokenRow }>> {
   try {
-    let queryString =
-      "SELECT user_uuid, email_address, token_type, expires_at, is_used FROM tokens WHERE token_value = $1"
+    let queryString = "SELECT user_uuid, email_address, token_type, expires_at, is_used FROM tokens WHERE token_value = $1"
     const queryParams = [token_value]
 
     const query = {
@@ -95,10 +91,7 @@ export async function readToken(
 export async function usedToken(
   dbClient: DbClient,
   token_value: string
-): Promise<
-  | { success: boolean; error?: never; rowCount: number }
-  | { success?: never; error: true; message: string; details?: unknown }
-> {
+): Promise<{ success: boolean; error?: never; rowCount: number } | { success?: never; error: true; message: string; details?: unknown }> {
   try {
     // For now, we only support updating is_used. This can be expanded later.
     const query = {
@@ -176,13 +169,9 @@ export async function deleteToken(
   dbClient: DbClient,
   user_uuid: string,
   token_value: string
-): Promise<
-  | { success: true; error?: never; rowCount: number }
-  | { success?: never; error: true; message: string; details?: unknown }
-> {
+): Promise<{ success: true; error?: never; rowCount: number } | { success?: never; error: true; message: string; details?: unknown }> {
   try {
-    let queryString =
-      "DELETE FROM tokens WHERE user_uuid = $1 AND token_value = $2"
+    let queryString = "DELETE FROM tokens WHERE user_uuid = $1 AND token_value = $2"
     const queryParams = [user_uuid, token_value]
 
     const query = {
@@ -218,13 +207,7 @@ export async function createEmailToken(
     const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
     // Call createToken to insert the email token
-    return await createToken(
-      dbClient,
-      user_uuid,
-      token_type,
-      expires_at,
-      email_address
-    )
+    return await createToken(dbClient, user_uuid, token_type, expires_at, email_address)
   } catch (error) {
     console.error("Error in createEmailToken:", error)
     return {
@@ -252,13 +235,7 @@ export async function createPasswordToken(
     const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
     // Call createToken to insert the email token
-    return await createToken(
-      dbClient,
-      user_uuid,
-      token_type,
-      expires_at,
-      email_address
-    )
+    return await createToken(dbClient, user_uuid, token_type, expires_at, email_address)
   } catch (error) {
     console.error("Error in createPasswordToken:", error)
     return {
@@ -275,10 +252,7 @@ export async function createPasswordToken(
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
-export async function createLoginToken(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<TokenEnvelope<{ token_value: string }>> {
+export async function createLoginToken(dbClient: DbClient, user_uuid: string): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_type = "totp_verification_pending"
     const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString()
@@ -304,10 +278,7 @@ export async function createLoginToken(
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
-export async function createPasswordUpgradeToken(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<TokenEnvelope<{ token_value: string }>> {
+export async function createPasswordUpgradeToken(dbClient: DbClient, user_uuid: string): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_type = "password_upgrade"
     const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString()
@@ -332,10 +303,7 @@ export async function createPasswordUpgradeToken(
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
-export async function createBypassToken(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<TokenEnvelope<{ token_value: string }>> {
+export async function createBypassToken(dbClient: DbClient, user_uuid: string): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_type = "totp_bypass"
     const expires_at = new Date(Date.now() + 60 * 60 * 1000).toISOString()
@@ -366,9 +334,7 @@ export async function createBypassToken(
 export async function createWebAuthnToken(
   dbClient: DbClient,
   user_uuid: string,
-  token_type:
-    | "webauthn_registration_challenge"
-    | "webauthn_authentication_challenge",
+  token_type: "webauthn_registration_challenge" | "webauthn_authentication_challenge",
   challenge: string,
   expires_at: string
 ): Promise<TokenEnvelope<{ token_value: string }>> {
@@ -397,10 +363,7 @@ export async function createWebAuthnToken(
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
-export async function createSudoToken(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<TokenEnvelope<{ token_value: string }>> {
+export async function createSudoToken(dbClient: DbClient, user_uuid: string): Promise<TokenEnvelope<{ token_value: string }>> {
   try {
     const token_type = "sudo_elevation"
     const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString()

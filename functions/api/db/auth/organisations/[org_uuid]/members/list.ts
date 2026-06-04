@@ -1,11 +1,7 @@
 import { listOrgMembers } from "../../../../../../../src/memberships.js"
 import { can, ORG_ROLES } from "../../../../../../../src/permissions.js"
 import { escapeHtml } from "../../../../../../../src/utilities/escape.js"
-import {
-  htmlResponse,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../../src/utilities/responses.js"
+import { htmlResponse, resultNegative, methodNotAllowed } from "../../../../../../../src/utilities/responses.js"
 
 /**
  * Lists an organisation's members as a table. Each row carries a collapsible
@@ -27,16 +23,13 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
   const canEditRoles = can(orgRoles, "org:members:roles")
   const canRemove = can(orgRoles, "org:members:remove")
 
-  let html =
-    "<table><thead><tr><th>Member</th><th>Roles</th><th>Actions</th></tr></thead><tbody>"
+  let html = "<table><thead><tr><th>Member</th><th>Roles</th><th>Actions</th></tr></thead><tbody>"
   for (const member of result.members) {
     let actions = ""
     if (canEditRoles) {
       const checkboxes = ORG_ROLES.map(
         (role) =>
-          `<label><input type="checkbox" name="roles" value="${role}" ${
-            member.roles.includes(role) ? "checked" : ""
-          } /> ${role}</label>`
+          `<label><input type="checkbox" name="roles" value="${role}" ${member.roles.includes(role) ? "checked" : ""} /> ${role}</label>`
       ).join(" ")
       actions += `<details><summary>Edit roles</summary>
         <form hx-post="${base}/members/roles" hx-target="#org-message-area" hx-swap="innerHTML">
@@ -46,9 +39,7 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
         </form></details>`
     }
     if (canRemove) {
-      const removeVals = escapeHtml(
-        JSON.stringify({ user_uuid: member.user_uuid })
-      )
+      const removeVals = escapeHtml(JSON.stringify({ user_uuid: member.user_uuid }))
       actions += `<button class="btn-danger" hx-post="${base}/members/remove" hx-vals='${removeVals}' hx-target="#org-message-area" hx-swap="innerHTML" hx-confirm="Remove this member from the organisation?">Remove</button>`
     }
     html += `<tr>

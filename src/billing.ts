@@ -14,22 +14,12 @@
 //     (`billing-webhook.ts`) is the layer that synchronises provider state
 //     back into these rows.
 
-export const SUBSCRIPTION_STATUSES = [
-  "trialing",
-  "active",
-  "past_due",
-  "canceled",
-  "paused",
-  "incomplete",
-] as const
+export const SUBSCRIPTION_STATUSES = ["trialing", "active", "past_due", "canceled", "paused", "incomplete"] as const
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number]
 
 // Statuses under which an app counts as licensed. Payment-up-front, zero
 // grace: only `active` and `trialing` are entitled. See `entitlements.ts`.
-export const ENTITLED_STATUSES: readonly SubscriptionStatus[] = [
-  "active",
-  "trialing",
-]
+export const ENTITLED_STATUSES: readonly SubscriptionStatus[] = ["active", "trialing"]
 
 // --- Provider adapter interface -------------------------------------------
 
@@ -72,10 +62,7 @@ export interface BillingProvider {
   }): Promise<ProviderCustomer>
 
   /** Updates mutable fields on an existing provider customer (e.g. the email). */
-  updateCustomer(
-    providerCustomerId: string,
-    input: { email: string | null }
-  ): Promise<void>
+  updateCustomer(providerCustomerId: string, input: { email: string | null }): Promise<void>
 
   createSubscription(input: {
     customerId: string
@@ -93,10 +80,7 @@ export interface BillingProvider {
     }
   ): Promise<ProviderSubscription>
 
-  cancelSubscription(
-    providerSubscriptionId: string,
-    input: { immediately: boolean }
-  ): Promise<ProviderSubscription>
+  cancelSubscription(providerSubscriptionId: string, input: { immediately: boolean }): Promise<ProviderSubscription>
 
   createCheckoutSession(input: {
     customerId: string
@@ -111,22 +95,13 @@ export interface BillingProvider {
    * Creates a provider-hosted customer portal session for self-serve payment
    * method / billing management, returning the URL to redirect the user to.
    */
-  createBillingPortalSession(input: {
-    customerId: string
-    returnUrl: string
-  }): Promise<{ url: string }>
+  createBillingPortalSession(input: { customerId: string; returnUrl: string }): Promise<{ url: string }>
 
   /**
    * Reports a usage total to the provider's metering API. `identifier` makes
    * the call idempotent so a retried rollup sync does not double-bill.
    */
-  recordMeterEvent(input: {
-    eventName: string
-    customerId: string
-    value: number
-    identifier: string
-    timestamp?: number
-  }): Promise<void>
+  recordMeterEvent(input: { eventName: string; customerId: string; value: number; identifier: string; timestamp?: number }): Promise<void>
 
   /**
    * Verifies a webhook payload against the signature header using the signing
@@ -142,8 +117,7 @@ export interface BillingProvider {
 
 // --- Column lists ----------------------------------------------------------
 
-const CUSTOMER_COLUMNS =
-  "org_uuid, provider, provider_customer_id, default_payment_method_id, tax_id, billing_email, synced_email"
+const CUSTOMER_COLUMNS = "org_uuid, provider, provider_customer_id, default_payment_method_id, tax_id, billing_email, synced_email"
 
 const SUBSCRIPTION_COLUMNS =
   "subscription_uuid, org_uuid, app_uuid, provider, provider_subscription_id, status, tier, current_period_start, current_period_end, cancel_at, canceled_at, trial_end, created_at"
@@ -151,8 +125,7 @@ const SUBSCRIPTION_COLUMNS =
 const INVOICE_COLUMNS =
   "invoice_uuid, org_uuid, subscription_uuid, provider, provider_invoice_id, status, amount_cents, currency, period_start, period_end, due_at, paid_at, hosted_invoice_url, created_at"
 
-const PRICING_COLUMNS =
-  "pricing_uuid, app_uuid, tier, price_cents, currency, billing_interval, provider_price_id"
+const PRICING_COLUMNS = "pricing_uuid, app_uuid, tier, price_cents, currency, billing_interval, provider_price_id"
 
 // The error-only envelope variant, assignable to any `Envelope<T>`.
 type ErrorEnvelope = {
@@ -176,10 +149,7 @@ function providerError(fn: string, error: unknown): ErrorEnvelope {
 // --- Pricing catalog -------------------------------------------------------
 
 /** All pricing rows for an app, cheapest interval first then tier name. */
-export async function listPricing(
-  dbClient: DbClient,
-  app_uuid: string
-): Promise<Envelope<{ pricing: BillingPricingRow[] }>> {
+export async function listPricing(dbClient: DbClient, app_uuid: string): Promise<Envelope<{ pricing: BillingPricingRow[] }>> {
   try {
     const { rows } = await dbClient.query(
       `SELECT ${PRICING_COLUMNS} FROM billing_pricing
@@ -237,10 +207,7 @@ export async function getPricing(
  * Members without a verified primary email are skipped so the result is always
  * a deliverable address.
  */
-export async function resolveBillingEmail(
-  dbClient: DbClient,
-  org_uuid: string
-): Promise<Envelope<{ email: string | null }>> {
+export async function resolveBillingEmail(dbClient: DbClient, org_uuid: string): Promise<Envelope<{ email: string | null }>> {
   try {
     const { rows } = await dbClient.query(
       `WITH member_roles AS (
@@ -283,10 +250,7 @@ export async function resolveBillingEmail(
 }
 
 /** The billing-customer row for an org, or null if the org has none yet. */
-export async function getCustomer(
-  dbClient: DbClient,
-  org_uuid: string
-): Promise<Envelope<{ customer: BillingCustomerRow | null }>> {
+export async function getCustomer(dbClient: DbClient, org_uuid: string): Promise<Envelope<{ customer: BillingCustomerRow | null }>> {
   try {
     const { rows } = await dbClient.query(
       `SELECT ${CUSTOMER_COLUMNS} FROM billing_customers
@@ -360,9 +324,7 @@ export async function ensureCustomer(
 
     // Lost a race: another request inserted first. Our provider customer is
     // now orphaned — log it and return the row that won.
-    console.error(
-      `ensureCustomer: race for org ${input.org_uuid}; orphaned provider customer ${created.id}.`
-    )
+    console.error(`ensureCustomer: race for org ${input.org_uuid}; orphaned provider customer ${created.id}.`)
     const winner = await getCustomer(dbClient, input.org_uuid)
     if (!winner.success) return winner
     if (!winner.customer) {
@@ -407,8 +369,7 @@ export async function setBillingEmailOverride(
       }
     }
     const customer = customerRes.customer
-    const override =
-      input.email && input.email.trim() ? input.email.trim() : null
+    const override = input.email && input.email.trim() ? input.email.trim() : null
 
     let effective: string | null = override
     if (!effective) {
@@ -417,10 +378,7 @@ export async function setBillingEmailOverride(
       effective = resolved.email
     }
 
-    await dbClient.query(
-      `UPDATE billing_customers SET billing_email = $2 WHERE org_uuid = $1`,
-      [input.org_uuid, override]
-    )
+    await dbClient.query(`UPDATE billing_customers SET billing_email = $2 WHERE org_uuid = $1`, [input.org_uuid, override])
 
     if (effective !== customer.synced_email) {
       try {
@@ -430,10 +388,7 @@ export async function setBillingEmailOverride(
       } catch (error) {
         return providerError("setBillingEmailOverride", error)
       }
-      await dbClient.query(
-        `UPDATE billing_customers SET synced_email = $2 WHERE org_uuid = $1`,
-        [input.org_uuid, effective]
-      )
+      await dbClient.query(`UPDATE billing_customers SET synced_email = $2 WHERE org_uuid = $1`, [input.org_uuid, effective])
     }
 
     return { success: true, email: effective, status: 200 }
@@ -480,16 +435,10 @@ export async function reconcileBillingEmails(
         await provider.updateCustomer(customer.provider_customer_id, {
           email: effective,
         })
-        await dbClient.query(
-          `UPDATE billing_customers SET synced_email = $2 WHERE org_uuid = $1`,
-          [customer.org_uuid, effective]
-        )
+        await dbClient.query(`UPDATE billing_customers SET synced_email = $2 WHERE org_uuid = $1`, [customer.org_uuid, effective])
         reconciled++
       } catch (error) {
-        console.error(
-          `reconcileBillingEmails: failed for org ${customer.org_uuid}:`,
-          error
-        )
+        console.error(`reconcileBillingEmails: failed for org ${customer.org_uuid}:`, error)
       }
     }
     return { success: true, reconciled, status: 200 }
@@ -507,10 +456,7 @@ export async function reconcileBillingEmails(
 // --- Subscriptions ---------------------------------------------------------
 
 /** All subscriptions for an org, newest first. */
-export async function listSubscriptions(
-  dbClient: DbClient,
-  org_uuid: string
-): Promise<Envelope<{ subscriptions: SubscriptionRow[] }>> {
+export async function listSubscriptions(dbClient: DbClient, org_uuid: string): Promise<Envelope<{ subscriptions: SubscriptionRow[] }>> {
   try {
     const { rows } = await dbClient.query(
       `SELECT ${SUBSCRIPTION_COLUMNS} FROM subscriptions
@@ -641,11 +587,7 @@ export async function createSubscription(
   }
 ): Promise<Envelope<{ subscription: SubscriptionRow }>> {
   try {
-    const existing = await getSubscriptionForApp(
-      dbClient,
-      input.org_uuid,
-      input.app_uuid
-    )
+    const existing = await getSubscriptionForApp(dbClient, input.org_uuid, input.app_uuid)
     if (!existing.success) return existing
     if (existing.subscription) {
       return {
@@ -852,11 +794,7 @@ export async function startSubscriptionCheckout(
   }
 ): Promise<Envelope<{ checkoutUrl: string; sessionId: string }>> {
   try {
-    const existing = await getSubscriptionForApp(
-      dbClient,
-      input.org_uuid,
-      input.app_uuid
-    )
+    const existing = await getSubscriptionForApp(dbClient, input.org_uuid, input.app_uuid)
     if (!existing.success) return existing
     if (existing.subscription) {
       return {
@@ -957,10 +895,7 @@ export async function openBillingPortal(
 // --- Invoices --------------------------------------------------------------
 
 /** All invoices for an org, newest first. */
-export async function listInvoices(
-  dbClient: DbClient,
-  org_uuid: string
-): Promise<Envelope<{ invoices: InvoiceRow[] }>> {
+export async function listInvoices(dbClient: DbClient, org_uuid: string): Promise<Envelope<{ invoices: InvoiceRow[] }>> {
   try {
     const { rows } = await dbClient.query(
       `SELECT ${INVOICE_COLUMNS} FROM invoices

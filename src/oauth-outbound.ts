@@ -75,9 +75,7 @@ export async function exchangeCode(opts: {
     })
     if (!response.ok) {
       const text = await response.text()
-      console.error(
-        `oauth-outbound exchangeCode (${opts.provider.name}): ${response.status} ${text.slice(0, 200)}`
-      )
+      console.error(`oauth-outbound exchangeCode (${opts.provider.name}): ${response.status} ${text.slice(0, 200)}`)
       return {
         success: false,
         message: "Could not exchange the authorization code.",
@@ -98,10 +96,7 @@ export async function exchangeCode(opts: {
     return {
       success: true,
       access_token: parsed.access_token,
-      id_token:
-        typeof parsed.id_token === "string" && parsed.id_token !== ""
-          ? parsed.id_token
-          : null,
+      id_token: typeof parsed.id_token === "string" && parsed.id_token !== "" ? parsed.id_token : null,
       status: 200,
     }
   } catch (error) {
@@ -137,9 +132,7 @@ export async function fetchUserIdentity(
       signal: AbortSignal.timeout(10_000),
     })
     if (!userinfoRes.ok) {
-      console.error(
-        `oauth-outbound fetchUserIdentity (${provider.name}): userinfo ${userinfoRes.status}`
-      )
+      console.error(`oauth-outbound fetchUserIdentity (${provider.name}): userinfo ${userinfoRes.status}`)
       return {
         success: false,
         message: "Could not read your profile from the provider.",
@@ -162,18 +155,11 @@ export async function fetchUserIdentity(
         // The userinfo response is enough to identify the user; the emails
         // endpoint is supplementary. Logging without aborting matches the
         // resend-on-failure pattern elsewhere.
-        console.error(
-          `oauth-outbound fetchUserIdentity (${provider.name}): emails fetch failed:`,
-          error
-        )
+        console.error(`oauth-outbound fetchUserIdentity (${provider.name}): emails fetch failed:`, error)
       }
     }
 
-    const identity = provider.normaliseUserinfo(
-      userinfo,
-      emails,
-      id_token ?? undefined
-    )
+    const identity = provider.normaliseUserinfo(userinfo, emails, id_token ?? undefined)
     if (!identity) {
       return {
         success: false,

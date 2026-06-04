@@ -1,11 +1,7 @@
 import { listSubscriptions } from "../../../../../../../src/billing.js"
 import { can } from "../../../../../../../src/permissions.js"
 import { escapeHtml } from "../../../../../../../src/utilities/escape.js"
-import {
-  htmlResponse,
-  methodNotAllowed,
-  resultNegative,
-} from "../../../../../../../src/utilities/responses.js"
+import { htmlResponse, methodNotAllowed, resultNegative } from "../../../../../../../src/utilities/responses.js"
 
 /**
  * Returns an HTML fragment summarising all subscriptions for this organisation:
@@ -32,9 +28,7 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
   const { subscriptions } = result
 
   if (subscriptions.length === 0) {
-    return htmlResponse(
-      `<p class="result-neutral">No subscriptions found for this organisation.</p>`
-    )
+    return htmlResponse(`<p class="result-neutral">No subscriptions found for this organisation.</p>`)
   }
 
   const rows = subscriptions

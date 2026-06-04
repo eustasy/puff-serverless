@@ -1,11 +1,7 @@
 import { listOrganisationsForUser } from "../../../../../src/organisations.js"
 import { can } from "../../../../../src/permissions.js"
 import { escapeHtml } from "../../../../../src/utilities/escape.js"
-import {
-  htmlResponse,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../src/utilities/responses.js"
+import { htmlResponse, resultNegative, methodNotAllowed } from "../../../../../src/utilities/responses.js"
 
 /**
  * Lists the organisations the authenticated user belongs to, with the roles
@@ -14,10 +10,7 @@ import {
  * `org:billing:read` a Billing link is also shown.
  */
 export const onRequestGet: Handler = async (context) => {
-  const result = await listOrganisationsForUser(
-    context.data.dbClient!,
-    context.data.user_uuid!
-  )
+  const result = await listOrganisationsForUser(context.data.dbClient!, context.data.user_uuid!)
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }
@@ -29,9 +22,7 @@ export const onRequestGet: Handler = async (context) => {
   for (const org of result.organisations) {
     const disabled = org.org_active ? "" : " (disabled)"
     const pagePath = `/organisations/${encodeURIComponent(org.org_uuid)}`
-    const billingLink = can(org.roles, "org:billing:read")
-      ? ` <a class="btn-safe" href="${pagePath}/billing">Billing</a>`
-      : ""
+    const billingLink = can(org.roles, "org:billing:read") ? ` <a class="btn-safe" href="${pagePath}/billing">Billing</a>` : ""
     html += `<li>
       <strong>${escapeHtml(org.org_name)}</strong>${disabled}
       — ${escapeHtml(org.roles.join(", "))}

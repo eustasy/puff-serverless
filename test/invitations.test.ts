@@ -1,16 +1,8 @@
 import { describe, it, expect } from "vitest"
-import {
-  createInvitation,
-  readInvitation,
-  acceptInvitation,
-  listInvitations,
-  revokeInvitation,
-} from "../src/invitations.js"
+import { createInvitation, readInvitation, acceptInvitation, listInvitations, revokeInvitation } from "../src/invitations.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
 
-const invitationRow = (
-  over: Partial<OrganisationInvitationRow> = {}
-): OrganisationInvitationRow => ({
+const invitationRow = (over: Partial<OrganisationInvitationRow> = {}): OrganisationInvitationRow => ({
   invitation_token: "tok-1",
   org_uuid: "org-1",
   email_address: "invitee@example.com",
@@ -25,42 +17,27 @@ const invitationRow = (
 describe("createInvitation", () => {
   it("rejects an empty email with 400 before any query", async () => {
     const db = new FakeDb()
-    expect(
-      await createInvitation(db.client, "org-1", "  ", ["member"], "user-9")
-    ).toMatchObject({ success: false, status: 400 })
+    expect(await createInvitation(db.client, "org-1", "  ", ["member"], "user-9")).toMatchObject({ success: false, status: 400 })
     expect(db.calls).toHaveLength(0)
   })
 
   it("rejects an empty or unknown role set with 400", async () => {
     const db = new FakeDb()
-    expect(
-      await createInvitation(db.client, "org-1", "a@b.test", [], "user-9")
-    ).toMatchObject({ success: false, status: 400 })
-    expect(
-      await createInvitation(db.client, "org-1", "a@b.test", ["wizard"], null)
-    ).toMatchObject({ success: false, status: 400 })
+    expect(await createInvitation(db.client, "org-1", "a@b.test", [], "user-9")).toMatchObject({ success: false, status: 400 })
+    expect(await createInvitation(db.client, "org-1", "a@b.test", ["wizard"], null)).toMatchObject({ success: false, status: 400 })
   })
 
   it("creates an invitation", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO organisation_invitations/, { rows: [invitationRow()] })
-    const result = await createInvitation(
-      db.client,
-      "org-1",
-      "invitee@example.com",
-      ["member", "billing"],
-      "user-9"
-    )
+    const result = await createInvitation(db.client, "org-1", "invitee@example.com", ["member", "billing"], "user-9")
     expect(result).toMatchObject({ success: true, status: 201 })
   })
 
   it("maps a missing organisation (FK violation) to 404", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO organisation_invitations/, pgError("23503"))
-    expect(
-      (await createInvitation(db.client, "ghost", "a@b.test", ["member"], null))
-        .status
-    ).toBe(404)
+    expect((await createInvitation(db.client, "ghost", "a@b.test", ["member"], null)).status).toBe(404)
   })
 })
 
@@ -87,17 +64,13 @@ describe("acceptInvitation", () => {
   it("spends the invitation and grants every offered role", async () => {
     const db = new FakeDb()
     db.on(/UPDATE organisation_invitations/, {
-      rows: [
-        { org_uuid: "org-1", roles: ["member", "admin"], invited_by: "user-9" },
-      ],
+      rows: [{ org_uuid: "org-1", roles: ["member", "admin"], invited_by: "user-9" }],
     })
     db.on(/INSERT INTO organisation_members/, { rowCount: 1 })
     const result = await acceptInvitation(db.client, "tok-1", "user-1")
     expect(result).toEqual({ success: true, org_uuid: "org-1", status: 200 })
     // One membership insert per offered role.
-    const inserts = db.calls.filter((c) =>
-      c.text.includes("INSERT INTO organisation_members")
-    )
+    const inserts = db.calls.filter((c) => c.text.includes("INSERT INTO organisation_members"))
     expect(inserts).toHaveLength(2)
   })
 
@@ -106,9 +79,7 @@ describe("acceptInvitation", () => {
     db.on(/UPDATE organisation_invitations/, { rows: [] })
     const result = await acceptInvitation(db.client, "tok-1", "user-1")
     expect(result).toMatchObject({ success: false, status: 400 })
-    expect(
-      db.calls.some((c) => c.text.includes("INSERT INTO organisation_members"))
-    ).toBe(false)
+    expect(db.calls.some((c) => c.text.includes("INSERT INTO organisation_members"))).toBe(false)
   })
 })
 
@@ -146,8 +117,6 @@ describe("revokeInvitation", () => {
   it("returns 404 when the invitation does not exist", async () => {
     const db = new FakeDb()
     db.on(/DELETE FROM organisation_invitations/, { rowCount: 0 })
-    expect((await revokeInvitation(db.client, "org-1", "tok-1")).status).toBe(
-      404
-    )
+    expect((await revokeInvitation(db.client, "org-1", "tok-1")).status).toBe(404)
   })
 })

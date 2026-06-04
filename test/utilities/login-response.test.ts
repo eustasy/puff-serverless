@@ -37,28 +37,16 @@ describe("loginOutcomeResponse — 2FA required", () => {
   it("issues a pending token cookie and redirects to /2fa", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO tokens/, { rows: [{ token_value: "tok" }] })
-    const response = await loginOutcomeResponse(
-      db.client,
-      fakeEnv(),
-      totpResult,
-      request()
-    )
+    const response = await loginOutcomeResponse(db.client, fakeEnv(), totpResult, request())
     expect(response.status).toBe(303)
     expect(response.headers.get("HX-Redirect")).toBe("/2fa")
-    expect(response.headers.get("Set-Cookie")).toContain(
-      "totp_verification_token="
-    )
+    expect(response.headers.get("Set-Cookie")).toContain("totp_verification_token=")
   })
 
   it("returns 500 when the pending token cannot be created", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO tokens/, { rows: [] })
-    const response = await loginOutcomeResponse(
-      db.client,
-      fakeEnv(),
-      totpResult,
-      request()
-    )
+    const response = await loginOutcomeResponse(db.client, fakeEnv(), totpResult, request())
     expect(response.status).toBe(500)
   })
 })
@@ -67,44 +55,25 @@ describe("loginOutcomeResponse — password upgrade required", () => {
   it("issues an upgrade token cookie and redirects to /password-upgrade", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO tokens/, { rows: [{ token_value: "tok" }] })
-    const response = await loginOutcomeResponse(
-      db.client,
-      fakeEnv(),
-      upgradeResult,
-      request()
-    )
+    const response = await loginOutcomeResponse(db.client, fakeEnv(), upgradeResult, request())
     expect(response.status).toBe(303)
     expect(response.headers.get("HX-Redirect")).toBe("/password-upgrade")
-    expect(response.headers.get("Set-Cookie")).toContain(
-      "password_upgrade_token="
-    )
+    expect(response.headers.get("Set-Cookie")).toContain("password_upgrade_token=")
   })
 })
 
 describe("loginOutcomeResponse — session granted", () => {
   it("sets the session cookie and redirects to /account by default", async () => {
     const db = new FakeDb()
-    const response = await loginOutcomeResponse(
-      db.client,
-      fakeEnv(),
-      sessionResult,
-      request()
-    )
+    const response = await loginOutcomeResponse(db.client, fakeEnv(), sessionResult, request())
     expect(response.status).toBe(303)
     expect(response.headers.get("HX-Redirect")).toBe("/account")
-    expect(response.headers.get("Set-Cookie")).toContain(
-      "session_token=sess-abc"
-    )
+    expect(response.headers.get("Set-Cookie")).toContain("session_token=sess-abc")
   })
 
   it("redirects to a safe login_next destination and clears that cookie", async () => {
     const db = new FakeDb()
-    const response = await loginOutcomeResponse(
-      db.client,
-      fakeEnv(),
-      sessionResult,
-      request("login_next=%2Fdashboard")
-    )
+    const response = await loginOutcomeResponse(db.client, fakeEnv(), sessionResult, request("login_next=%2Fdashboard"))
     expect(response.headers.get("HX-Redirect")).toBe("/dashboard")
     // Two Set-Cookie headers: the session cookie and the next-cookie clear.
     const cookies = response.headers.getSetCookie()
@@ -125,12 +94,7 @@ describe("loginOutcomeResponse — session granted", () => {
 
   it("adds Secure to the session cookie when SECURE_COOKIE is set", async () => {
     const db = new FakeDb()
-    const response = await loginOutcomeResponse(
-      db.client,
-      fakeEnv({ SECURE_COOKIE: "true" }),
-      sessionResult,
-      request()
-    )
+    const response = await loginOutcomeResponse(db.client, fakeEnv({ SECURE_COOKIE: "true" }), sessionResult, request())
     expect(response.headers.get("Set-Cookie")).toContain("Secure")
   })
 })

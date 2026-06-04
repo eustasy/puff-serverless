@@ -2,11 +2,7 @@ import { createInvitation } from "../../../../../../../src/invitations.js"
 import { readOrganisation } from "../../../../../../../src/organisations.js"
 import { sendOrganisationInvitationEmail } from "../../../../../../../src/mailer.js"
 import { can, DEFAULT_ORG_ROLE } from "../../../../../../../src/permissions.js"
-import {
-  resultPositive,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../../src/utilities/responses.js"
+import { resultPositive, resultNegative, methodNotAllowed } from "../../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../../src/hooks/events.js"
 
@@ -26,9 +22,7 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
   try {
     const formData = await context.request.formData()
     email = String(formData.get("email") ?? "").trim()
-    roles = formData
-      .getAll("roles")
-      .filter((value): value is string => typeof value === "string")
+    roles = formData.getAll("roles").filter((value): value is string => typeof value === "string")
   } catch {
     return resultNegative("Invalid request format. Expected form data.", 400)
   }
@@ -39,13 +33,7 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
   const dbClient = context.data.dbClient!
   const org_uuid = String(context.params.org_uuid)
 
-  const invitation = await createInvitation(
-    dbClient,
-    org_uuid,
-    email,
-    roles,
-    context.data.user_uuid!
-  )
+  const invitation = await createInvitation(dbClient, org_uuid, email, roles, context.data.user_uuid!)
   if (!invitation.success) {
     return resultNegative(invitation.message, invitation.status)
   }
@@ -61,19 +49,12 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
   const org = await readOrganisation(dbClient, org_uuid)
   const orgName = org.success ? org.organisation.org_name : "an organisation"
 
-  const sent = await sendOrganisationInvitationEmail(
-    context.env,
-    email,
-    invitation.invitation.invitation_token,
-    orgName
-  )
+  const sent = await sendOrganisationInvitationEmail(context.env, email, invitation.invitation.invitation_token, orgName)
   if (!sent.success) {
     // The invitation row exists; it can be revoked and re-sent.
-    return resultNegative(
-      "The invitation was created but the email could not be delivered.",
-      502,
-      { "HX-Trigger": "organisationInvitationsChanged" }
-    )
+    return resultNegative("The invitation was created but the email could not be delivered.", 502, {
+      "HX-Trigger": "organisationInvitationsChanged",
+    })
   }
   return resultPositive(`Invitation sent to ${email}.`, 201, {
     "HX-Trigger": "organisationInvitationsChanged",

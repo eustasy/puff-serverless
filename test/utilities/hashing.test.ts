@@ -10,9 +10,7 @@ import {
 describe("hashWithAlgo", () => {
   it('produces the known SHA-1 digest of "password"', async () => {
     // 5baa61e4... is the canonical SHA-1 of the string "password".
-    expect(await hashWithAlgo("password", "SHA-1")).toBe(
-      "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8"
-    )
+    expect(await hashWithAlgo("password", "SHA-1")).toBe("5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8")
   })
 
   it("returns a lower-case hex digest of the algorithm's width", async () => {
@@ -26,9 +24,7 @@ describe("hashWithAlgo", () => {
 describe("puff_hashing_password", () => {
   it("generates a random UUID salt when none is supplied", async () => {
     const result = await puff_hashing_password("hunter2")
-    expect(result.salt).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-    )
+    expect(result.salt).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
     expect(result.algo).toBe(PREFERRED_PASSWORD_ALGO)
     expect(result.hash).toMatch(/^[0-9a-f]{96}$/)
   })
@@ -53,11 +49,7 @@ describe("puff_hashing_password", () => {
   })
 
   it("honours an explicit algorithm", async () => {
-    const result = await puff_hashing_password(
-      "hunter2",
-      "fixed-salt",
-      "SHA-256"
-    )
+    const result = await puff_hashing_password("hunter2", "fixed-salt", "SHA-256")
     expect(result.algo).toBe("SHA-256")
     expect(result.hash).toMatch(/^[0-9a-f]{64}$/)
   })

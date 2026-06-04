@@ -6,25 +6,20 @@ export const onRequestGet: Handler = async (context) => {
 
   const result = await listPasskeys(dbClient, user_uuid)
   if (result.error || !result.success) {
-    return new Response(
-      '<p class="result-negative">Could not load passkeys.</p>',
-      { status: 500, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response('<p class="result-negative">Could not load passkeys.</p>', {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 
   if (result.passkeys.length === 0) {
-    return new Response(
-      '<p class="result-info">No passkeys registered yet.</p>',
-      { status: 200, headers: { "Content-Type": "text/html" } }
-    )
+    return new Response('<p class="result-info">No passkeys registered yet.</p>', { status: 200, headers: { "Content-Type": "text/html" } })
   }
 
   const rows = result.passkeys
     .map((pk: PasskeyRow) => {
       const created = new Date(pk.created_at).toLocaleDateString()
-      const lastUsed = pk.last_used_at
-        ? new Date(pk.last_used_at).toLocaleDateString()
-        : "Never"
+      const lastUsed = pk.last_used_at ? new Date(pk.last_used_at).toLocaleDateString() : "Never"
       const name = pk.passkey_name ?? "Passkey"
       return `<div class="grid-container passkey-row">
         <div class="grid-item"><strong>${name}</strong><br/><small>Added ${created} &middot; Last used ${lastUsed}</small></div>

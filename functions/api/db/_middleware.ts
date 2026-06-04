@@ -38,13 +38,12 @@ const crossOriginWriteGuard: Handler = (context) => {
     if (blocked) {
       const { pathname } = new URL(request.url)
       console.warn(
-        `Blocked cross-origin ${request.method} ${pathname} ` +
-          `(Sec-Fetch-Site=${secFetchSite ?? "absent"}, Origin=${origin ?? "absent"})`
+        `Blocked cross-origin ${request.method} ${pathname} ` + `(Sec-Fetch-Site=${secFetchSite ?? "absent"}, Origin=${origin ?? "absent"})`
       )
-      return new Response(
-        '<p class="result-negative">Request blocked: cross-origin requests are not allowed.</p>',
-        { status: 403, headers: { "Content-Type": "text/html" } }
-      )
+      return new Response('<p class="result-negative">Request blocked: cross-origin requests are not allowed.</p>', {
+        status: 403,
+        headers: { "Content-Type": "text/html" },
+      })
     }
   }
 
@@ -60,12 +59,7 @@ const crossOriginWriteGuard: Handler = (context) => {
  */
 const databaseConnectionMiddleware: Handler = async (context) => {
   // 1. Configuration Check
-  if (
-    !context ||
-    !context.env ||
-    !context.env.HYPERDRIVE ||
-    !context.env.HYPERDRIVE.connectionString
-  ) {
+  if (!context || !context.env || !context.env.HYPERDRIVE || !context.env.HYPERDRIVE.connectionString) {
     console.error(
       "CRITICAL: Hyperdrive binding [HYPERDRIVE] not found in middleware. " +
         "Ensure it is configured in your wrangler.toml and Cloudflare Pages project settings."
@@ -95,10 +89,7 @@ const databaseConnectionMiddleware: Handler = async (context) => {
     const response = await context.next()
     return response
   } catch (error) {
-    console.error(
-      "Middleware: Error during database client connection or downstream handler:",
-      error
-    )
+    console.error("Middleware: Error during database client connection or downstream handler:", error)
     // If an error occurs, ensure the client is ended if it was created/connected.
     // This catch block is for errors during client.connect() or from context.next().
     // The finally block will also attempt to end the client.
@@ -118,10 +109,7 @@ const databaseConnectionMiddleware: Handler = async (context) => {
         await context.data.dbClient.end()
         // console.log("Middleware: Database client closed successfully.");
       } catch (endError) {
-        console.error(
-          "Middleware: Error while closing database client:",
-          endError
-        )
+        console.error("Middleware: Error while closing database client:", endError)
       }
     }
   }

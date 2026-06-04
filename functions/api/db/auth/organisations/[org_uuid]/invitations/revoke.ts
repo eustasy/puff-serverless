@@ -1,10 +1,6 @@
 import { revokeInvitation } from "../../../../../../../src/invitations.js"
 import { can } from "../../../../../../../src/permissions.js"
-import {
-  resultPositive,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../../src/utilities/responses.js"
+import { resultPositive, resultNegative, methodNotAllowed } from "../../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../../src/hooks/events.js"
 
@@ -26,18 +22,9 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
     return resultNegative("An invitation is required.", 400)
   }
 
-  const result = await revokeInvitation(
-    context.data.dbClient!,
-    String(context.params.org_uuid),
-    token
-  )
+  const result = await revokeInvitation(context.data.dbClient!, String(context.params.org_uuid), token)
   if (!result.success) {
-    return resultNegative(
-      result.error
-        ? "Could not revoke the invitation."
-        : "Invitation not found.",
-      result.status
-    )
+    return resultNegative(result.error ? "Could not revoke the invitation." : "Invitation not found.", result.status)
   }
   await emitFromContext(context, {
     event_type: EVENTS.ORG_INVITATION_REVOKED,

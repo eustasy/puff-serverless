@@ -13,8 +13,7 @@ export const onRequestGet: Handler = async (context) => {
       })
     }
 
-    let html =
-      "<table><thead><tr><th>Email Address</th><th>Status</th><th>Actions</th></tr></thead><tbody>"
+    let html = "<table><thead><tr><th>Email Address</th><th>Status</th><th>Actions</th></tr></thead><tbody>"
     for (const email of emails) {
       html += `<tr>
         <td>${escapeHtml(email.email_address)}</td>
@@ -70,13 +69,10 @@ export const onRequestGet: Handler = async (context) => {
     })
   } catch (error) {
     console.error("Error in onRequestGet for /api/db/auth/email/list:", error)
-    return new Response(
-      '<p class="result-negative">Failed to load email addresses due to a server error.</p>',
-      {
-        status: 500,
-        headers: { "Content-Type": "text/html" },
-      }
-    )
+    return new Response('<p class="result-negative">Failed to load email addresses due to a server error.</p>', {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 }
 

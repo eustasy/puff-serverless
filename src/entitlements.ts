@@ -9,12 +9,7 @@
 // those live in `app_floating_sessions` because their state changes per
 // request (allocate / heartbeat / release), which a KV table cannot model.
 
-import {
-  LICENSE_PERMS_PREFIX,
-  LICENSE_TIER_KEY,
-  PERM_PREFIX,
-  type AppLicensingMode,
-} from "./apps.js"
+import { LICENSE_PERMS_PREFIX, LICENSE_TIER_KEY, PERM_PREFIX, type AppLicensingMode } from "./apps.js"
 import { resolveKeyValue } from "./keyvalues-resolver.js"
 import { listAppPermissions } from "./apps.js"
 import { ENTITLED_STATUSES, getSubscriptionForApp } from "./billing.js"
@@ -26,11 +21,7 @@ import { ENTITLED_STATUSES, getSubscriptionForApp } from "./billing.js"
  * The role does not matter — a guest still counts; this is the
  * "are they attached to this org at all" check.
  */
-export async function isUserInOrg(
-  dbClient: DbClient,
-  org_uuid: string,
-  user_uuid: string
-): Promise<Envelope<{ member: boolean }>> {
+export async function isUserInOrg(dbClient: DbClient, org_uuid: string, user_uuid: string): Promise<Envelope<{ member: boolean }>> {
   try {
     const { rowCount } = await dbClient.query(
       `SELECT 1 FROM organisation_members
@@ -50,16 +41,9 @@ export async function isUserInOrg(
 }
 
 /** True if `team_uuid` belongs to `org_uuid`. */
-export async function isTeamInOrg(
-  dbClient: DbClient,
-  org_uuid: string,
-  team_uuid: string
-): Promise<Envelope<{ belongs: boolean }>> {
+export async function isTeamInOrg(dbClient: DbClient, org_uuid: string, team_uuid: string): Promise<Envelope<{ belongs: boolean }>> {
   try {
-    const { rowCount } = await dbClient.query(
-      `SELECT 1 FROM teams WHERE team_uuid = $1 AND org_uuid = $2 LIMIT 1`,
-      [team_uuid, org_uuid]
-    )
+    const { rowCount } = await dbClient.query(`SELECT 1 FROM teams WHERE team_uuid = $1 AND org_uuid = $2 LIMIT 1`, [team_uuid, org_uuid])
     return { success: true, belongs: (rowCount ?? 0) > 0, status: 200 }
   } catch (error) {
     console.error("Error in isTeamInOrg:", error)
@@ -81,9 +65,7 @@ export async function isTeamInOrg(
 export async function assertGranteeInOrg(
   dbClient: DbClient,
   org_uuid: string,
-  grantee:
-    | { type: "user"; user_uuid: string }
-    | { type: "team"; team_uuid: string }
+  grantee: { type: "user"; user_uuid: string } | { type: "team"; team_uuid: string }
 ): Promise<Envelope> {
   if (grantee.type === "user") {
     const check = await isUserInOrg(dbClient, org_uuid, grantee.user_uuid)
@@ -149,16 +131,9 @@ export async function isLicensed(
     // Billed modes require the org to hold an active/trialing subscription for
     // the app before any per-user entitlement is honoured. No grace window,
     // no implicit free tier.
-    const subscription = await getSubscriptionForApp(
-      dbClient,
-      org_uuid,
-      app.app_uuid
-    )
+    const subscription = await getSubscriptionForApp(dbClient, org_uuid, app.app_uuid)
     if (!subscription.success) return subscription
-    if (
-      !subscription.subscription ||
-      !ENTITLED_STATUSES.includes(subscription.subscription.status)
-    ) {
+    if (!subscription.subscription || !ENTITLED_STATUSES.includes(subscription.subscription.status)) {
       return { success: true, licensed: false, tier: null, status: 200 }
     }
 
@@ -391,8 +366,7 @@ export async function summariseLicensing(
       [org_uuid, app.app_uuid]
     )
     const maxValue = max.rows[0]?.kv_value
-    const parsedMax =
-      maxValue === undefined ? null : Number.parseInt(maxValue, 10)
+    const parsedMax = maxValue === undefined ? null : Number.parseInt(maxValue, 10)
     return {
       success: true,
       mode: "floating",

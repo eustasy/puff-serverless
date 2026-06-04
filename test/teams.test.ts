@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest"
-import {
-  createTeam,
-  readTeam,
-  updateTeam,
-  deleteTeam,
-  listTeams,
-} from "../src/teams.js"
+import { createTeam, readTeam, updateTeam, deleteTeam, listTeams } from "../src/teams.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
 
 const teamRow = (over: Partial<TeamRow> = {}): TeamRow => ({
@@ -36,9 +30,7 @@ describe("createTeam", () => {
   it("maps a missing organisation (FK violation) to 404", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO teams/, pgError("23503"))
-    expect((await createTeam(db.client, "ghost-org", "Platform")).status).toBe(
-      404
-    )
+    expect((await createTeam(db.client, "ghost-org", "Platform")).status).toBe(404)
   })
 })
 

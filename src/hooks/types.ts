@@ -1,13 +1,7 @@
 // Shape of an event passed to listeners. Field names mirror `audit_events`
 // columns 1:1 so the default listener can persist without remapping.
 
-export type HookSeverity =
-  | "debug"
-  | "info"
-  | "notice"
-  | "warning"
-  | "alert"
-  | "critical"
+export type HookSeverity = "debug" | "info" | "notice" | "warning" | "alert" | "critical"
 
 export type HookOutcome = "success" | "failure" | "attempt"
 

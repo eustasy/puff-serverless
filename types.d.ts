@@ -310,13 +310,7 @@ declare global {
     app_uuid: string
     provider: string
     provider_subscription_id: string
-    status:
-      | "trialing"
-      | "active"
-      | "past_due"
-      | "canceled"
-      | "paused"
-      | "incomplete"
+    status: "trialing" | "active" | "past_due" | "canceled" | "paused" | "incomplete"
     tier: string
     current_period_start: Date
     current_period_end: Date
@@ -377,13 +371,7 @@ declare global {
   interface AuditEventRow {
     event_uuid: string
     event_type: string
-    event_severity:
-      | "debug"
-      | "info"
-      | "notice"
-      | "warning"
-      | "alert"
-      | "critical"
+    event_severity: "debug" | "info" | "notice" | "warning" | "alert" | "critical"
     event_outcome: "success" | "failure" | "attempt"
     actor_user_uuid: string | null
     actor_ip: string | null

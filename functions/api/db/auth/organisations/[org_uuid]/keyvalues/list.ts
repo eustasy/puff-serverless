@@ -1,13 +1,7 @@
-import {
-  readKeyValues,
-  searchKeyValues,
-} from "../../../../../../../src/organisation-keyvalues.js"
+import { readKeyValues, searchKeyValues } from "../../../../../../../src/organisation-keyvalues.js"
 import { can } from "../../../../../../../src/permissions.js"
 import { renderKeyValueTable } from "../../../../../../../src/utilities/keyvalues-endpoint.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-} from "../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative } from "../../../../../../../src/utilities/responses.js"
 
 /**
  * Lists org-subject KV rows owned by this organisation. Optional `?key=`

@@ -85,10 +85,7 @@ interface LinkInput {
  * (provider, provider_user_id) that already belongs to a different user
  * returns 409.
  */
-export async function linkExternalIdentity(
-  dbClient: DbClient,
-  input: LinkInput
-): Promise<Envelope<{ linked: "created" | "updated" }>> {
+export async function linkExternalIdentity(dbClient: DbClient, input: LinkInput): Promise<Envelope<{ linked: "created" | "updated" }>> {
   try {
     const { rows } = await dbClient.query(
       `INSERT INTO external_identities
@@ -99,13 +96,7 @@ export async function linkExternalIdentity(
               display_name = EXCLUDED.display_name
           WHERE external_identities.user_uuid = EXCLUDED.user_uuid
         RETURNING (xmax = 0) AS inserted`,
-      [
-        input.user_uuid,
-        input.provider,
-        input.provider_user_id,
-        input.email,
-        input.display_name,
-      ]
+      [input.user_uuid, input.provider, input.provider_user_id, input.email, input.display_name]
     )
     if (rows.length === 0) {
       // The ON CONFLICT WHERE clause filtered out a row owned by a different
@@ -169,13 +160,11 @@ export async function unlinkExternalIdentity(
         [user_uuid, provider, provider_user_id]
       )
       const row = counts.rows[0]
-      const remaining =
-        row.password_count + row.passkey_count + row.other_identity_count
+      const remaining = row.password_count + row.passkey_count + row.other_identity_count
       if (remaining <= 0) {
         throw new Rollback<Envelope>({
           success: false,
-          message:
-            "Unlinking this provider would leave you with no way to sign in. Set a password or add a passkey first.",
+          message: "Unlinking this provider would leave you with no way to sign in. Set a password or add a passkey first.",
           status: 409,
         })
       }
@@ -206,11 +195,7 @@ export async function unlinkExternalIdentity(
 }
 
 /** Bumps `last_used_at` on a successful federated login. Non-fatal. */
-export async function updateLastUsed(
-  dbClient: DbClient,
-  provider: string,
-  provider_user_id: string
-): Promise<void> {
+export async function updateLastUsed(dbClient: DbClient, provider: string, provider_user_id: string): Promise<void> {
   try {
     await dbClient.query(
       `UPDATE external_identities

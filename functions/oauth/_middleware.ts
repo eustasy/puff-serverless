@@ -7,15 +7,8 @@
 import { Client } from "pg"
 
 export const onRequest: Handler = async (context) => {
-  if (
-    !context ||
-    !context.env ||
-    !context.env.HYPERDRIVE ||
-    !context.env.HYPERDRIVE.connectionString
-  ) {
-    console.error(
-      "CRITICAL: Hyperdrive binding [HYPERDRIVE] not found in /oauth middleware."
-    )
+  if (!context || !context.env || !context.env.HYPERDRIVE || !context.env.HYPERDRIVE.connectionString) {
+    console.error("CRITICAL: Hyperdrive binding [HYPERDRIVE] not found in /oauth middleware.")
     return new Response(
       JSON.stringify({
         error: "server_error",

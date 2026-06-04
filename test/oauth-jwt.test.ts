@@ -1,29 +1,18 @@
 import { describe, it, expect, beforeAll, beforeEach } from "vitest"
 import { signJwt, verifyJwt } from "../src/oauth-jwt.js"
-import {
-  JWT_ALG,
-  _resetOAuthKeyCache,
-  currentPublicJwk,
-} from "../src/oauth-keys.js"
+import { JWT_ALG, _resetOAuthKeyCache, currentPublicJwk } from "../src/oauth-keys.js"
 import { fakeEnv } from "./helpers/fake-env.js"
 
 async function generateEs256Jwk(): Promise<{
   privateJwkJson: string
   publicJwkJson: string
 }> {
-  const { publicKey, privateKey } = (await crypto.subtle.generateKey(
-    { name: "ECDSA", namedCurve: "P-256" },
-    true,
-    ["sign", "verify"]
-  )) as CryptoKeyPair
-  const privateJwk = (await crypto.subtle.exportKey(
-    "jwk",
-    privateKey
-  )) as JsonWebKey
-  const publicJwk = (await crypto.subtle.exportKey(
-    "jwk",
-    publicKey
-  )) as JsonWebKey
+  const { publicKey, privateKey } = (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
+    "sign",
+    "verify",
+  ])) as CryptoKeyPair
+  const privateJwk = (await crypto.subtle.exportKey("jwk", privateKey)) as JsonWebKey
+  const publicJwk = (await crypto.subtle.exportKey("jwk", publicKey)) as JsonWebKey
   return {
     privateJwkJson: JSON.stringify({
       kty: privateJwk.kty,
@@ -67,9 +56,7 @@ describe("signJwt", () => {
     const token = await signJwt(env, { sub: "user-1" })
     const parts = token.split(".")
     expect(parts).toHaveLength(3)
-    const header = JSON.parse(
-      Buffer.from(parts[0]!, "base64url").toString("utf8")
-    )
+    const header = JSON.parse(Buffer.from(parts[0]!, "base64url").toString("utf8"))
     const pub = await currentPublicJwk(env)
     expect(header.alg).toBe(JWT_ALG)
     expect(header.typ).toBe("JWT")
@@ -85,9 +72,7 @@ describe("signJwt", () => {
       scope: ["openid", "profile"],
     }
     const token = await signJwt(env, payload)
-    const decoded = JSON.parse(
-      Buffer.from(token.split(".")[1]!, "base64url").toString("utf8")
-    )
+    const decoded = JSON.parse(Buffer.from(token.split(".")[1]!, "base64url").toString("utf8"))
     expect(decoded).toEqual(payload)
   })
 })
@@ -139,9 +124,7 @@ describe("verifyJwt — rejections", () => {
     const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: currentPriv })
     const token = await signJwt(env, { sub: "user-1" })
     const [h, , s] = token.split(".") as [string, string, string]
-    const tampered = `${h}.${Buffer.from('{"sub":"admin"}').toString(
-      "base64url"
-    )}.${s}`
+    const tampered = `${h}.${Buffer.from('{"sub":"admin"}').toString("base64url")}.${s}`
     const result = await verifyJwt(env, tampered)
     expect(result.success).toBe(false)
     if (!result.success) {
@@ -157,12 +140,8 @@ describe("verifyJwt — rejections", () => {
 
   it("rejects a token with an unsupported alg", async () => {
     const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: currentPriv })
-    const header = Buffer.from(
-      JSON.stringify({ alg: "HS256", typ: "JWT", kid: "x" })
-    ).toString("base64url")
-    const payload = Buffer.from(JSON.stringify({ sub: "x" })).toString(
-      "base64url"
-    )
+    const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT", kid: "x" })).toString("base64url")
+    const payload = Buffer.from(JSON.stringify({ sub: "x" })).toString("base64url")
     const result = await verifyJwt(env, `${header}.${payload}.sig`)
     expect(result.success).toBe(false)
     if (!result.success) {

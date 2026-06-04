@@ -90,29 +90,19 @@ export function validateScopes(scopes: string[]): {
  *
  * Returns true on a match, false on any mismatch or unsupported method.
  */
-export async function verifyPkce(
-  code_verifier: string,
-  code_challenge: string,
-  code_challenge_method: string
-): Promise<boolean> {
+export async function verifyPkce(code_verifier: string, code_challenge: string, code_challenge_method: string): Promise<boolean> {
   if (code_challenge_method !== "S256") return false
   // RFC 7636: code_verifier is 43–128 chars from the unreserved set.
   if (code_verifier.length < 43 || code_verifier.length > 128) return false
   if (!/^[A-Za-z0-9._~-]+$/.test(code_verifier)) return false
 
-  const hash = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(code_verifier)
-  )
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(code_verifier))
   const bytes = new Uint8Array(hash)
   let binary = ""
   for (let i = 0; i < bytes.byteLength; i++) {
     binary += String.fromCharCode(bytes[i]!)
   }
-  const derived = btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "")
+  const derived = btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
   return derived === code_challenge
 }
 

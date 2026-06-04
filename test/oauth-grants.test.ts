@@ -78,12 +78,7 @@ describe("consumeAuthorizationCode", () => {
       is_used: true,
     }
     db.on(/UPDATE oauth_grants/, { rows: [row] })
-    const result = await consumeAuthorizationCode(
-      db.client,
-      "c-1",
-      "a-1",
-      "https://app.example/cb"
-    )
+    const result = await consumeAuthorizationCode(db.client, "c-1", "a-1", "https://app.example/cb")
     expect(result.success).toBe(true)
     if (result.success) expect(result.grant.user_uuid).toBe("u-1")
   })
@@ -91,12 +86,7 @@ describe("consumeAuthorizationCode", () => {
   it("collapses missing/used/expired/wrong-redirect into a single 400", async () => {
     const db = new FakeDb()
     db.on(/UPDATE oauth_grants/, { rows: [] })
-    const result = await consumeAuthorizationCode(
-      db.client,
-      "c-?",
-      "a-1",
-      "https://app.example/cb"
-    )
+    const result = await consumeAuthorizationCode(db.client, "c-?", "a-1", "https://app.example/cb")
     expect(result.success).toBe(false)
     expect(result.status).toBe(400)
   })
@@ -146,9 +136,7 @@ describe("consumeRefreshToken", () => {
   it("returns 400 when the token is missing/used/expired/wrong-app", async () => {
     const db = new FakeDb()
     db.on(/UPDATE oauth_grants/, { rows: [] })
-    expect((await consumeRefreshToken(db.client, "rt-?", "a-1")).status).toBe(
-      400
-    )
+    expect((await consumeRefreshToken(db.client, "rt-?", "a-1")).status).toBe(400)
   })
 })
 

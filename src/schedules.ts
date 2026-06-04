@@ -47,10 +47,7 @@ function asIso(value: unknown): string | null {
  */
 export async function showSchedules(
   dbClient: DbClient
-): Promise<
-  | { success: true; error?: never; schedules: ScheduleSummary[] }
-  | { success?: never; error: string; status: number }
-> {
+): Promise<{ success: true; error?: never; schedules: ScheduleSummary[] } | { success?: never; error: string; status: number }> {
   try {
     const result = await dbClient.query(
       `WITH s AS (SHOW SCHEDULES)
@@ -77,9 +74,7 @@ export async function showSchedules(
   } catch (error) {
     console.error("Error listing database schedules:", error)
     return {
-      error:
-        "Failed to list database schedules. The database user may lack the " +
-        "privilege required to run SHOW SCHEDULES.",
+      error: "Failed to list database schedules. The database user may lack the " + "privilege required to run SHOW SCHEDULES.",
       status: 500,
     }
   }

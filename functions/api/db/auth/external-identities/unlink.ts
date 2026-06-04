@@ -1,9 +1,5 @@
 import { unlinkExternalIdentity } from "../../../../../src/external-identities.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-  resultPositive,
-} from "../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative, resultPositive } from "../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../src/hooks/events.js"
 
@@ -29,12 +25,7 @@ export const onRequestPost: Handler = async (context) => {
     return resultNegative("Missing provider or provider_user_id.", 400)
   }
 
-  const result = await unlinkExternalIdentity(
-    dbClient,
-    user_uuid,
-    provider,
-    provider_user_id
-  )
+  const result = await unlinkExternalIdentity(dbClient, user_uuid, provider, provider_user_id)
   if (!result.success) {
     return resultNegative(result.message ?? "Could not unlink.", result.status)
   }

@@ -126,10 +126,7 @@ export async function jwkThumbprint(jwk: SigningJwk): Promise<string> {
     x: jwk.x,
     y: jwk.y,
   })
-  const hash = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(canonical)
-  )
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical))
   return encodeBytes(new Uint8Array(hash))
 }
 
@@ -139,11 +136,7 @@ async function readActiveStored(env: Env): Promise<StoredActiveKey | null> {
   // memoising. The env-var fallback is a cheap in-memory JSON.parse, so it
   // is read fresh every time; caching it would also be wrong, since two
   // different envs share this module-level cache.
-  if (
-    env.KV_OAUTH_KEYS &&
-    activeCache &&
-    now - activeCache.fetched_at < CACHE_TTL_MS
-  ) {
+  if (env.KV_OAUTH_KEYS && activeCache && now - activeCache.fetched_at < CACHE_TTL_MS) {
     return activeCache.value
   }
   let value: StoredActiveKey | null = null
@@ -151,10 +144,7 @@ async function readActiveStored(env: Env): Promise<StoredActiveKey | null> {
   // KV is the source of truth. Try it first; tolerate a missing binding so
   // local-dev without KV still works on the env-var fallback below.
   if (env.KV_OAUTH_KEYS) {
-    const stored = await env.KV_OAUTH_KEYS.get<StoredActiveKey>(
-      KV_KEY_ACTIVE,
-      "json"
-    )
+    const stored = await env.KV_OAUTH_KEYS.get<StoredActiveKey>(KV_KEY_ACTIVE, "json")
     if (stored) {
       const jwk = parseSigningJwk(stored.jwk, `${KV_KEY_ACTIVE}.jwk`)
       if (typeof jwk.d !== "string") {
@@ -167,14 +157,9 @@ async function readActiveStored(env: Env): Promise<StoredActiveKey | null> {
   // Migration fallback: until the operator seeds KV from the secret, the
   // Worker keeps signing with the env-var key.
   if (!value && env.OAUTH_SIGNING_KEY_PRIVATE) {
-    const jwk = parseSigningJwk(
-      env.OAUTH_SIGNING_KEY_PRIVATE,
-      "OAUTH_SIGNING_KEY_PRIVATE"
-    )
+    const jwk = parseSigningJwk(env.OAUTH_SIGNING_KEY_PRIVATE, "OAUTH_SIGNING_KEY_PRIVATE")
     if (typeof jwk.d !== "string") {
-      throw new Error(
-        "OAUTH_SIGNING_KEY_PRIVATE is missing the private scalar `d`"
-      )
+      throw new Error("OAUTH_SIGNING_KEY_PRIVATE is missing the private scalar `d`")
     }
     value = {
       jwk,
@@ -190,20 +175,13 @@ async function readActiveStored(env: Env): Promise<StoredActiveKey | null> {
 async function readRetiredStored(env: Env): Promise<StoredRetiredKey | null> {
   const now = Date.now()
   // Cached only on the KV path — see `readActiveStored` for the rationale.
-  if (
-    env.KV_OAUTH_KEYS &&
-    retiredCache &&
-    now - retiredCache.fetched_at < CACHE_TTL_MS
-  ) {
+  if (env.KV_OAUTH_KEYS && retiredCache && now - retiredCache.fetched_at < CACHE_TTL_MS) {
     return retiredCache.value
   }
   let value: StoredRetiredKey | null = null
 
   if (env.KV_OAUTH_KEYS) {
-    const stored = await env.KV_OAUTH_KEYS.get<StoredRetiredKey>(
-      KV_KEY_RETIRED,
-      "json"
-    )
+    const stored = await env.KV_OAUTH_KEYS.get<StoredRetiredKey>(KV_KEY_RETIRED, "json")
     if (stored) {
       const jwk = parseSigningJwk(stored.jwk, `${KV_KEY_RETIRED}.jwk`)
       value = { ...stored, jwk, kid: stored.kid ?? (await jwkThumbprint(jwk)) }
@@ -234,26 +212,17 @@ async function readRetiredStored(env: Env): Promise<StoredRetiredKey | null> {
 export async function loadSigningKey(env: Env): Promise<CryptoKey> {
   const stored = await readActiveStored(env)
   if (!stored) {
-    throw new Error(
-      "No active signing key found (KV_OAUTH_KEYS:oauth:keys:active and " +
-        "OAUTH_SIGNING_KEY_PRIVATE both empty)"
-    )
+    throw new Error("No active signing key found (KV_OAUTH_KEYS:oauth:keys:active and " + "OAUTH_SIGNING_KEY_PRIVATE both empty)")
   }
-  return crypto.subtle.importKey("jwk", stored.jwk, ECDSA_PARAMS, false, [
-    "sign",
-  ])
+  return crypto.subtle.importKey("jwk", stored.jwk, ECDSA_PARAMS, false, ["sign"])
 }
 
 /**
  * Import a public JWK as a CryptoKey for signature verification.
  */
-export async function importVerificationKey(
-  jwk: SigningJwk | PublicJwkWithKid
-): Promise<CryptoKey> {
+export async function importVerificationKey(jwk: SigningJwk | PublicJwkWithKid): Promise<CryptoKey> {
   const publicOnly = publicJwkFields(jwk as SigningJwk)
-  return crypto.subtle.importKey("jwk", publicOnly, ECDSA_PARAMS, true, [
-    "verify",
-  ])
+  return crypto.subtle.importKey("jwk", publicOnly, ECDSA_PARAMS, true, ["verify"])
 }
 
 /**
@@ -263,10 +232,7 @@ export async function importVerificationKey(
 export async function currentPublicJwk(env: Env): Promise<PublicJwkWithKid> {
   const stored = await readActiveStored(env)
   if (!stored) {
-    throw new Error(
-      "No active signing key found (KV_OAUTH_KEYS:oauth:keys:active and " +
-        "OAUTH_SIGNING_KEY_PRIVATE both empty)"
-    )
+    throw new Error("No active signing key found (KV_OAUTH_KEYS:oauth:keys:active and " + "OAUTH_SIGNING_KEY_PRIVATE both empty)")
   }
   return {
     ...publicJwkFields(stored.jwk),
@@ -281,9 +247,7 @@ export async function currentPublicJwk(env: Env): Promise<PublicJwkWithKid> {
  * `use`, `alg` populated. Returns null when no retired key is held in KV
  * and the env-var fallback is empty.
  */
-export async function previousPublicJwk(
-  env: Env
-): Promise<PublicJwkWithKid | null> {
+export async function previousPublicJwk(env: Env): Promise<PublicJwkWithKid | null> {
   const stored = await readRetiredStored(env)
   if (!stored) return null
   return {

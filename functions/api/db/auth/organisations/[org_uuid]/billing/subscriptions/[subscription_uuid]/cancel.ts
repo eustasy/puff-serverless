@@ -1,14 +1,7 @@
-import {
-  getSubscription,
-  cancelSubscription,
-} from "../../../../../../../../../src/billing.js"
+import { getSubscription, cancelSubscription } from "../../../../../../../../../src/billing.js"
 import { createStripeProvider } from "../../../../../../../../../src/billing-stripe.js"
 import { can } from "../../../../../../../../../src/permissions.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-  resultPositive,
-} from "../../../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative, resultPositive } from "../../../../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../../../../src/hooks/events.js"
 
@@ -20,9 +13,7 @@ import { EVENTS } from "../../../../../../../../../src/hooks/events.js"
  *   immediately — optional; pass "true" to cancel immediately rather than at
  *                 the end of the current billing period.
  */
-export const onRequestPost: Handler<"org_uuid" | "subscription_uuid"> = async (
-  context
-) => {
+export const onRequestPost: Handler<"org_uuid" | "subscription_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []
   if (!can(orgRoles, "org:billing:write")) {
     return resultNegative("You do not have permission to manage billing.", 403)
@@ -74,9 +65,7 @@ export const onRequestPost: Handler<"org_uuid" | "subscription_uuid"> = async (
   })
 
   return resultPositive(
-    immediately
-      ? "Subscription cancelled immediately."
-      : "Subscription will cancel at the end of the current billing period.",
+    immediately ? "Subscription cancelled immediately." : "Subscription will cancel at the end of the current billing period.",
     200
   )
 }

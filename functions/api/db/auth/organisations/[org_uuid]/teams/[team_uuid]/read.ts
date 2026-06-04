@@ -1,20 +1,14 @@
 import { readTeam } from "../../../../../../../../src/teams.js"
 import { can, TEAM_ROLES } from "../../../../../../../../src/permissions.js"
 import { escapeHtml } from "../../../../../../../../src/utilities/escape.js"
-import {
-  htmlResponse,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../../../src/utilities/responses.js"
+import { htmlResponse, resultNegative, methodNotAllowed } from "../../../../../../../../src/utilities/responses.js"
 
 /**
  * Renders a team's management panel — edit form, delete, and the members
  * sub-section — loaded into `#team-detail`. Controls appear when the caller
  * holds the team role or the organisation-level `org:teams:manage`.
  */
-export const onRequestGet: Handler<"org_uuid" | "team_uuid"> = async (
-  context
-) => {
+export const onRequestGet: Handler<"org_uuid" | "team_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []
   const teamRoles = context.data.teamRoles ?? []
   const manage = can(orgRoles, "org:teams:manage")
@@ -29,12 +23,8 @@ export const onRequestGet: Handler<"org_uuid" | "team_uuid"> = async (
     return resultNegative(result.message, result.status)
   }
   const team = result.team
-  const base = `/api/db/auth/organisations/${encodeURIComponent(
-    org_uuid
-  )}/teams/${encodeURIComponent(team_uuid)}`
-  const roleOptions = TEAM_ROLES.map(
-    (role) => `<option value="${role}">${role}</option>`
-  ).join("")
+  const base = `/api/db/auth/organisations/${encodeURIComponent(org_uuid)}/teams/${encodeURIComponent(team_uuid)}`
+  const roleOptions = TEAM_ROLES.map((role) => `<option value="${role}">${role}</option>`).join("")
 
   let html = `<section class="team-panel">
   <h4>${escapeHtml(team.team_name)}</h4>

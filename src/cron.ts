@@ -50,11 +50,7 @@ const AUDIT_LOW_SEVERITY_RETENTION = "90 days"
  * via `worker.ts`. Dispatches by cron expression so adding a future trigger
  * is just one more branch.
  */
-export async function scheduled(
-  controller: ScheduledController,
-  env: Env,
-  ctx: ExecutionContext
-): Promise<void> {
+export async function scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
   ctx.waitUntil(runScheduledWork(env, controller.cron))
 }
 
@@ -86,9 +82,7 @@ async function runScheduledWork(env: Env, cron: string): Promise<void> {
 async function runBillingEmailReconcile(env: Env): Promise<void> {
   if (!env.STRIPE_SECRET_KEY) return
   if (!env.HYPERDRIVE?.connectionString) {
-    console.error(
-      "Billing-email reconcile: HYPERDRIVE binding missing; skipping."
-    )
+    console.error("Billing-email reconcile: HYPERDRIVE binding missing; skipping.")
     return
   }
 
@@ -98,9 +92,7 @@ async function runBillingEmailReconcile(env: Env): Promise<void> {
     const provider = createStripeProvider(env)
     const result = await reconcileBillingEmails(client, provider)
     if (result.success) {
-      console.log(
-        `Billing-email reconcile: updated ${result.reconciled} customers.`
-      )
+      console.log(`Billing-email reconcile: updated ${result.reconciled} customers.`)
     } else {
       console.error("Billing-email reconcile failed:", result.message)
     }
@@ -110,10 +102,7 @@ async function runBillingEmailReconcile(env: Env): Promise<void> {
     try {
       await client.end()
     } catch (endError) {
-      console.error(
-        "Billing-email reconcile: error closing DB client:",
-        endError
-      )
+      console.error("Billing-email reconcile: error closing DB client:", endError)
     }
   }
 }
@@ -147,26 +136,16 @@ async function runDailyUsageRollup(env: Env): Promise<void> {
 
     const yResult = await recomputeUsageRollups(client, yesterdayStr)
     if (yResult.success) {
-      console.log(
-        `Daily usage rollup: upserted ${yResult.upserted} rows for ${yesterdayStr}.`
-      )
+      console.log(`Daily usage rollup: upserted ${yResult.upserted} rows for ${yesterdayStr}.`)
     } else {
-      console.error(
-        `Daily usage rollup: failed for ${yesterdayStr}:`,
-        yResult.message
-      )
+      console.error(`Daily usage rollup: failed for ${yesterdayStr}:`, yResult.message)
     }
 
     const tResult = await recomputeUsageRollups(client, todayStr)
     if (tResult.success) {
-      console.log(
-        `Daily usage rollup: upserted ${tResult.upserted} rows for ${todayStr}.`
-      )
+      console.log(`Daily usage rollup: upserted ${tResult.upserted} rows for ${todayStr}.`)
     } else {
-      console.error(
-        `Daily usage rollup: failed for ${todayStr}:`,
-        tResult.message
-      )
+      console.error(`Daily usage rollup: failed for ${todayStr}:`, tResult.message)
     }
 
     // Push freshly-computed rollups to the billing provider as metered usage.
@@ -176,14 +155,9 @@ async function runDailyUsageRollup(env: Env): Promise<void> {
         const provider = createStripeProvider(env)
         const syncResult = await syncUsageRollups(client, provider)
         if (syncResult.success) {
-          console.log(
-            `Daily usage rollup: synced ${syncResult.synced} rollups to the provider.`
-          )
+          console.log(`Daily usage rollup: synced ${syncResult.synced} rollups to the provider.`)
         } else {
-          console.error(
-            "Daily usage rollup: provider sync failed:",
-            syncResult.message
-          )
+          console.error("Daily usage rollup: provider sync failed:", syncResult.message)
         }
       } catch (syncError) {
         console.error("Daily usage rollup: provider sync error:", syncError)
@@ -221,23 +195,15 @@ export async function runScheduledCleanup(env: Env): Promise<void> {
   try {
     await client.connect()
 
-    const totp = await client.query(
-      "DELETE FROM totp_used_codes WHERE used_at < NOW() - $1::INTERVAL",
-      [TOTP_RETENTION]
-    )
-    const floating = await client.query(
-      "DELETE FROM app_floating_sessions WHERE expires_at <= NOW()"
-    )
+    const totp = await client.query("DELETE FROM totp_used_codes WHERE used_at < NOW() - $1::INTERVAL", [TOTP_RETENTION])
+    const floating = await client.query("DELETE FROM app_floating_sessions WHERE expires_at <= NOW()")
     const sessions = await client.query(
       `DELETE FROM sessions
          WHERE created_at < NOW() - $1::INTERVAL
            AND (is_active = FALSE OR (expires_at IS NOT NULL AND expires_at < NOW()))`,
       [AUDIT_RETENTION]
     )
-    const tokens = await client.query(
-      "DELETE FROM tokens WHERE created_at < NOW() - $1::INTERVAL",
-      [AUDIT_RETENTION]
-    )
+    const tokens = await client.query("DELETE FROM tokens WHERE created_at < NOW() - $1::INTERVAL", [AUDIT_RETENTION])
     const auditEvents = await client.query(
       `DELETE FROM audit_events
          WHERE event_severity IN ('debug', 'info')

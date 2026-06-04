@@ -1,9 +1,5 @@
 import { createOrganisation } from "../../../../../src/organisations.js"
-import {
-  resultPositive,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../src/utilities/responses.js"
+import { resultPositive, resultNegative, methodNotAllowed } from "../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../src/hooks/events.js"
 
@@ -20,11 +16,7 @@ export const onRequestPost: Handler = async (context) => {
     return resultNegative("Invalid request format. Expected form data.", 400)
   }
 
-  const result = await createOrganisation(
-    context.data.dbClient!,
-    name,
-    context.data.user_uuid!
-  )
+  const result = await createOrganisation(context.data.dbClient!, name, context.data.user_uuid!)
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }
@@ -33,11 +25,7 @@ export const onRequestPost: Handler = async (context) => {
     target_org_uuid: result.organisation.org_uuid,
     target_label: result.organisation.org_name,
   })
-  return resultPositive(
-    `Organisation "${result.organisation.org_name}" created.`,
-    result.status,
-    { "HX-Trigger": "organisationsChanged" }
-  )
+  return resultPositive(`Organisation "${result.organisation.org_name}" created.`, result.status, { "HX-Trigger": "organisationsChanged" })
 }
 
 export const onRequest: Handler = async () => methodNotAllowed("POST")

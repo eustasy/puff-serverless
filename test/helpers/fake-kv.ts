@@ -30,18 +30,11 @@ export function fakeKv(initial: Record<string, unknown> = {}): FakeKV {
     async get(key: string, typeOrOpts?: unknown) {
       const record = store.get(key)
       if (!record) return null
-      const type =
-        typeof typeOrOpts === "string"
-          ? typeOrOpts
-          : ((typeOrOpts as { type?: string })?.type ?? "text")
+      const type = typeof typeOrOpts === "string" ? typeOrOpts : ((typeOrOpts as { type?: string })?.type ?? "text")
       if (type === "json") return JSON.parse(record.value)
       return record.value
     },
-    async put(
-      key: string,
-      value: string,
-      options?: { expirationTtl?: number }
-    ) {
+    async put(key: string, value: string, options?: { expirationTtl?: number }) {
       store.set(key, { value, expirationTtl: options?.expirationTtl })
       calls.put.push({ key, value, options })
     },

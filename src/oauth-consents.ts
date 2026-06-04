@@ -14,9 +14,7 @@ export async function readConsent(
   dbClient: DbClient,
   user_uuid: string,
   app_uuid: string
-): Promise<
-  Envelope<{ exists: true; consent: OAuthConsentRow } | { exists: false }>
-> {
+): Promise<Envelope<{ exists: true; consent: OAuthConsentRow } | { exists: false }>> {
   try {
     const query = `
       SELECT user_uuid, app_uuid, scopes, granted_at
@@ -83,11 +81,7 @@ export async function upsertConsent(
  * Withdraw the user's consent for this app. Safe to call when no consent
  * exists — returns `revoked: false` in that case rather than erroring.
  */
-export async function revokeConsent(
-  dbClient: DbClient,
-  user_uuid: string,
-  app_uuid: string
-): Promise<Envelope<{ revoked: boolean }>> {
+export async function revokeConsent(dbClient: DbClient, user_uuid: string, app_uuid: string): Promise<Envelope<{ revoked: boolean }>> {
   try {
     const query = `
       DELETE FROM oauth_consents

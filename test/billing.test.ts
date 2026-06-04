@@ -136,9 +136,7 @@ describe("ensureCustomer", () => {
     expect(result).toMatchObject({ success: true, status: 201 })
     expect(provider.createCustomer).toHaveBeenCalledOnce()
     // The resolved billing-contact email is what we send to the provider.
-    expect(provider.createCustomer).toHaveBeenCalledWith(
-      expect.objectContaining({ email: "billing@acme.test" })
-    )
+    expect(provider.createCustomer).toHaveBeenCalledWith(expect.objectContaining({ email: "billing@acme.test" }))
   })
 })
 

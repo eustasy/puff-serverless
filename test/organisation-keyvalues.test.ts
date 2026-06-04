@@ -23,13 +23,6 @@ describe("organisation-keyvalues", () => {
     await setKeyValue(db.client, "org-1", orgOwner, "billing_plan", "pro")
     const insert = db.calls.find((c) => c.text.startsWith("INSERT"))!
     // org-owned data attached to org itself
-    expect(insert.values).toEqual([
-      "org-1",
-      "billing_plan",
-      "pro",
-      null,
-      "org-1",
-      null,
-    ])
+    expect(insert.values).toEqual(["org-1", "billing_plan", "pro", null, "org-1", null])
   })
 })

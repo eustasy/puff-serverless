@@ -1,12 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { fakeEnv } from "./helpers/fake-env.js"
 import { fakeKv } from "./helpers/fake-kv.js"
-import {
-  _resetOAuthKeyCache,
-  jwkThumbprint,
-  type StoredActiveKey,
-  type StoredRetiredKey,
-} from "../src/oauth-keys.js"
+import { _resetOAuthKeyCache, jwkThumbprint, type StoredActiveKey, type StoredRetiredKey } from "../src/oauth-keys.js"
 
 // Mock the audit dispatcher so a rotation test doesn't try to open a real
 // pg client. The rotation module opens its own short-lived `Client` inside
@@ -24,8 +19,7 @@ vi.mock("pg", () => ({
   },
 }))
 
-const { maybeRotateSigningKey, rotateSigningKey, promoteRetiredKey } =
-  await import("../src/oauth-keys-rotation.js")
+const { maybeRotateSigningKey, rotateSigningKey, promoteRetiredKey } = await import("../src/oauth-keys-rotation.js")
 
 beforeEach(() => {
   _resetOAuthKeyCache()
@@ -48,10 +42,7 @@ describe("rotateSigningKey", () => {
     expect(result.new_kid).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(result.retired_kid).toBeUndefined()
 
-    const active = (await kv.get(
-      "oauth:keys:active",
-      "json"
-    )) as StoredActiveKey
+    const active = (await kv.get("oauth:keys:active", "json")) as StoredActiveKey
     expect(active.kid).toBe(result.new_kid)
     expect(typeof active.jwk.d).toBe("string")
     expect(Date.parse(active.created_at)).toBeGreaterThan(0)
@@ -72,25 +63,15 @@ describe("rotateSigningKey", () => {
 
     expect(second.retired_kid).toBe(first.new_kid)
 
-    const retiredCall = kv._calls.put.find(
-      (c) => c.key === "oauth:keys:retired"
-    )
+    const retiredCall = kv._calls.put.find((c) => c.key === "oauth:keys:retired")
     expect(retiredCall).toBeDefined()
-    expect(
-      (retiredCall!.options as { expirationTtl?: number }).expirationTtl
-    ).toBe(7200)
+    expect((retiredCall!.options as { expirationTtl?: number }).expirationTtl).toBe(7200)
 
-    const retired = (await kv.get(
-      "oauth:keys:retired",
-      "json"
-    )) as StoredRetiredKey
+    const retired = (await kv.get("oauth:keys:retired", "json")) as StoredRetiredKey
     expect(retired.jwk.d).toBeUndefined()
     expect(retired.kid).toBe(first.new_kid)
 
-    const active = (await kv.get(
-      "oauth:keys:active",
-      "json"
-    )) as StoredActiveKey
+    const active = (await kv.get("oauth:keys:active", "json")) as StoredActiveKey
     expect(active.kid).toBe(second.new_kid)
     expect(active.kid).not.toBe(first.new_kid)
   })
@@ -103,9 +84,7 @@ describe("rotateSigningKey", () => {
 
     await rotateSigningKey(env, { trigger: "manual" })
 
-    const auditInserts = queryMock.mock.calls.filter((c) =>
-      String(c[0]).includes("INSERT INTO audit_events")
-    )
+    const auditInserts = queryMock.mock.calls.filter((c) => String(c[0]).includes("INSERT INTO audit_events"))
     expect(auditInserts.length).toBe(1)
     const params = auditInserts[0]![1] as unknown[]
     expect(params[1]).toBe("oauth.signing_key.rotated")
@@ -116,9 +95,7 @@ describe("rotateSigningKey", () => {
     const env = fakeEnv({
       HYPERDRIVE: { connectionString: "postgres://localhost/test" },
     })
-    await expect(rotateSigningKey(env)).rejects.toThrow(
-      /KV_OAUTH_KEYS binding missing/
-    )
+    await expect(rotateSigningKey(env)).rejects.toThrow(/KV_OAUTH_KEYS binding missing/)
   })
 })
 
@@ -145,9 +122,7 @@ describe("maybeRotateSigningKey", () => {
     const result = await maybeRotateSigningKey(env)
     expect(result.rotated).toBe(false)
     expect(result.reason).toMatch(/below interval/)
-    const auditInserts = queryMock.mock.calls.filter((c) =>
-      String(c[0]).includes("INSERT INTO audit_events")
-    )
+    const auditInserts = queryMock.mock.calls.filter((c) => String(c[0]).includes("INSERT INTO audit_events"))
     expect(auditInserts.length).toBe(0)
   })
 
@@ -161,10 +136,7 @@ describe("maybeRotateSigningKey", () => {
     await rotateSigningKey(env)
 
     // Backdate the active key by 31 days.
-    const stored = (await kv.get(
-      "oauth:keys:active",
-      "json"
-    )) as StoredActiveKey
+    const stored = (await kv.get("oauth:keys:active", "json")) as StoredActiveKey
     stored.created_at = new Date(Date.now() - 31 * 86_400 * 1000).toISOString()
     await kv.put("oauth:keys:active", JSON.stringify(stored))
 
@@ -212,16 +184,8 @@ describe("promoteRetiredKey", () => {
 
   it("swaps active and retired when the retired entry has a private scalar", async () => {
     // Generate two real keypairs so the import in `oauth-keys.ts` succeeds.
-    const pair1 = (await crypto.subtle.generateKey(
-      { name: "ECDSA", namedCurve: "P-256" },
-      true,
-      ["sign", "verify"]
-    )) as CryptoKeyPair
-    const pair2 = (await crypto.subtle.generateKey(
-      { name: "ECDSA", namedCurve: "P-256" },
-      true,
-      ["sign", "verify"]
-    )) as CryptoKeyPair
+    const pair1 = (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"])) as CryptoKeyPair
+    const pair2 = (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"])) as CryptoKeyPair
     const exportPriv = async (k: CryptoKey) => {
       const jwk = (await crypto.subtle.exportKey("jwk", k)) as JsonWebKey
       return {
@@ -258,22 +222,14 @@ describe("promoteRetiredKey", () => {
     expect(result.promoted).toBe(true)
     expect(result.new_kid).toBe(retiredKid)
 
-    const newActive = (await kv.get(
-      "oauth:keys:active",
-      "json"
-    )) as StoredActiveKey
+    const newActive = (await kv.get("oauth:keys:active", "json")) as StoredActiveKey
     expect(newActive.kid).toBe(retiredKid)
-    const newRetired = (await kv.get(
-      "oauth:keys:retired",
-      "json"
-    )) as StoredRetiredKey
+    const newRetired = (await kv.get("oauth:keys:retired", "json")) as StoredRetiredKey
     expect(newRetired.kid).toBe(activeKid)
     // The replacement retired entry is public-only.
     expect(newRetired.jwk.d).toBeUndefined()
 
-    const auditInserts = queryMock.mock.calls.filter((c) =>
-      String(c[0]).includes("INSERT INTO audit_events")
-    )
+    const auditInserts = queryMock.mock.calls.filter((c) => String(c[0]).includes("INSERT INTO audit_events"))
     expect(auditInserts.length).toBe(1)
     expect(auditInserts[0]![1][1]).toBe("oauth.signing_key.retired.promoted")
   })

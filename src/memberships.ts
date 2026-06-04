@@ -77,11 +77,7 @@ export async function addOrgMember(
  * @param {string} user_uuid - The user being removed.
  * @returns {Promise<Envelope>} `{ success: true, status: 200 }`, `{ success: false, message, status: 404|409 }`, or an error envelope.
  */
-export async function removeOrgMember(
-  dbClient: DbClient,
-  org_uuid: string,
-  user_uuid: string
-): Promise<Envelope> {
+export async function removeOrgMember(dbClient: DbClient, org_uuid: string, user_uuid: string): Promise<Envelope> {
   try {
     return await runInTransaction(dbClient, async (): Promise<Envelope> => {
       const counts = await dbClient.query(
@@ -107,10 +103,7 @@ export async function removeOrgMember(
           status: 409,
         })
       }
-      await dbClient.query(
-        "DELETE FROM organisation_members WHERE org_uuid = $1 AND user_uuid = $2",
-        [org_uuid, user_uuid]
-      )
+      await dbClient.query("DELETE FROM organisation_members WHERE org_uuid = $1 AND user_uuid = $2", [org_uuid, user_uuid])
       return { success: true, status: 200 }
     })
   } catch (error) {
@@ -175,15 +168,14 @@ export async function setOrgMemberRoles(
           status: 409,
         })
       }
-      await dbClient.query(
-        "DELETE FROM organisation_members WHERE org_uuid = $1 AND user_uuid = $2",
-        [org_uuid, user_uuid]
-      )
+      await dbClient.query("DELETE FROM organisation_members WHERE org_uuid = $1 AND user_uuid = $2", [org_uuid, user_uuid])
       for (const role of wanted) {
-        await dbClient.query(
-          "INSERT INTO organisation_members (org_uuid, user_uuid, role, added_by) VALUES ($1, $2, $3, $4)",
-          [org_uuid, user_uuid, role, added_by]
-        )
+        await dbClient.query("INSERT INTO organisation_members (org_uuid, user_uuid, role, added_by) VALUES ($1, $2, $3, $4)", [
+          org_uuid,
+          user_uuid,
+          role,
+          added_by,
+        ])
       }
       return { success: true, status: 200 }
     })
@@ -219,10 +211,7 @@ export interface ScopeMember {
  * @param {string} org_uuid - The organisation UUID.
  * @returns {Promise<Envelope<{ members: ScopeMember[] }>>} `{ success: true, members, status: 200 }` or an error envelope.
  */
-export async function listOrgMembers(
-  dbClient: DbClient,
-  org_uuid: string
-): Promise<Envelope<{ members: ScopeMember[] }>> {
+export async function listOrgMembers(dbClient: DbClient, org_uuid: string): Promise<Envelope<{ members: ScopeMember[] }>> {
   try {
     const result = await dbClient.query(
       `SELECT m.user_uuid, u.user_name,
@@ -298,16 +287,9 @@ export async function addTeamMember(
  * @param {string} user_uuid - The user being removed.
  * @returns {Promise<Envelope>} `{ success: true, status: 200 }`, `{ success: false, message, status: 404 }`, or an error envelope.
  */
-export async function removeTeamMember(
-  dbClient: DbClient,
-  team_uuid: string,
-  user_uuid: string
-): Promise<Envelope> {
+export async function removeTeamMember(dbClient: DbClient, team_uuid: string, user_uuid: string): Promise<Envelope> {
   try {
-    const result = await dbClient.query(
-      "DELETE FROM team_members WHERE team_uuid = $1 AND user_uuid = $2",
-      [team_uuid, user_uuid]
-    )
+    const result = await dbClient.query("DELETE FROM team_members WHERE team_uuid = $1 AND user_uuid = $2", [team_uuid, user_uuid])
     if ((result.rowCount ?? 0) === 0) {
       return {
         success: false,
@@ -357,15 +339,14 @@ export async function setTeamMemberRoles(
   }
   try {
     return await runInTransaction(dbClient, async (): Promise<Envelope> => {
-      await dbClient.query(
-        "DELETE FROM team_members WHERE team_uuid = $1 AND user_uuid = $2",
-        [team_uuid, user_uuid]
-      )
+      await dbClient.query("DELETE FROM team_members WHERE team_uuid = $1 AND user_uuid = $2", [team_uuid, user_uuid])
       for (const role of wanted) {
-        await dbClient.query(
-          "INSERT INTO team_members (team_uuid, user_uuid, role, added_by) VALUES ($1, $2, $3, $4)",
-          [team_uuid, user_uuid, role, added_by]
-        )
+        await dbClient.query("INSERT INTO team_members (team_uuid, user_uuid, role, added_by) VALUES ($1, $2, $3, $4)", [
+          team_uuid,
+          user_uuid,
+          role,
+          added_by,
+        ])
       }
       return { success: true, status: 200 }
     })
@@ -389,10 +370,7 @@ export async function setTeamMemberRoles(
  * @param {string} team_uuid - The team UUID.
  * @returns {Promise<Envelope<{ members: ScopeMember[] }>>} `{ success: true, members, status: 200 }` or an error envelope.
  */
-export async function listTeamMembers(
-  dbClient: DbClient,
-  team_uuid: string
-): Promise<Envelope<{ members: ScopeMember[] }>> {
+export async function listTeamMembers(dbClient: DbClient, team_uuid: string): Promise<Envelope<{ members: ScopeMember[] }>> {
   try {
     const result = await dbClient.query(
       `SELECT m.user_uuid, u.user_name,
@@ -428,16 +406,12 @@ export async function listTeamMembers(
  * @param {string} user_uuid - The user UUID.
  * @returns {Promise<Envelope<{ roles: string[] }>>} `{ success: true, roles, status: 200 }` or an error envelope.
  */
-export async function getOrgRoles(
-  dbClient: DbClient,
-  org_uuid: string,
-  user_uuid: string
-): Promise<Envelope<{ roles: string[] }>> {
+export async function getOrgRoles(dbClient: DbClient, org_uuid: string, user_uuid: string): Promise<Envelope<{ roles: string[] }>> {
   try {
-    const result = await dbClient.query(
-      "SELECT role FROM organisation_members WHERE org_uuid = $1 AND user_uuid = $2",
-      [org_uuid, user_uuid]
-    )
+    const result = await dbClient.query("SELECT role FROM organisation_members WHERE org_uuid = $1 AND user_uuid = $2", [
+      org_uuid,
+      user_uuid,
+    ])
     return {
       success: true,
       roles: result.rows.map((row) => row.role),
@@ -461,16 +435,9 @@ export async function getOrgRoles(
  * @param {string} user_uuid - The user UUID.
  * @returns {Promise<Envelope<{ roles: string[] }>>} `{ success: true, roles, status: 200 }` or an error envelope.
  */
-export async function getTeamRoles(
-  dbClient: DbClient,
-  team_uuid: string,
-  user_uuid: string
-): Promise<Envelope<{ roles: string[] }>> {
+export async function getTeamRoles(dbClient: DbClient, team_uuid: string, user_uuid: string): Promise<Envelope<{ roles: string[] }>> {
   try {
-    const result = await dbClient.query(
-      "SELECT role FROM team_members WHERE team_uuid = $1 AND user_uuid = $2",
-      [team_uuid, user_uuid]
-    )
+    const result = await dbClient.query("SELECT role FROM team_members WHERE team_uuid = $1 AND user_uuid = $2", [team_uuid, user_uuid])
     return {
       success: true,
       roles: result.rows.map((row) => row.role),

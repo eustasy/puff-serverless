@@ -30,12 +30,8 @@ interface RecordUsageEventInput {
  *
  * Does not emit audit events; the ingest endpoint handles that.
  */
-export async function recordUsageEvent(
-  dbClient: DbClient,
-  input: RecordUsageEventInput
-): Promise<Envelope<{ event_uuid: string }>> {
-  const { app_uuid, org_uuid, user_uuid, metric, quantity, idempotency_key } =
-    input
+export async function recordUsageEvent(dbClient: DbClient, input: RecordUsageEventInput): Promise<Envelope<{ event_uuid: string }>> {
+  const { app_uuid, org_uuid, user_uuid, metric, quantity, idempotency_key } = input
 
   // --- Input validation ---
   if (!app_uuid) {
@@ -91,16 +87,7 @@ export async function recordUsageEvent(
       ON CONFLICT (app_uuid, idempotency_key) DO NOTHING
       RETURNING event_uuid
     `
-    const values = [
-      event_uuid,
-      app_uuid,
-      org_uuid,
-      user_uuid ?? null,
-      metric,
-      quantity,
-      occurred_at_parsed,
-      idempotency_key,
-    ]
+    const values = [event_uuid, app_uuid, org_uuid, user_uuid ?? null, metric, quantity, occurred_at_parsed, idempotency_key]
 
     const result = await dbClient.query(query, values)
 
@@ -146,10 +133,7 @@ export async function recordUsageEvent(
  * @param day - The UTC date to aggregate. Accepts a `Date` or ISO date string
  *              (`"YYYY-MM-DD"`). Normalised to midnight UTC.
  */
-export async function recomputeUsageRollups(
-  dbClient: DbClient,
-  day: Date | string
-): Promise<Envelope<{ upserted: number }>> {
+export async function recomputeUsageRollups(dbClient: DbClient, day: Date | string): Promise<Envelope<{ upserted: number }>> {
   // Normalise to a UTC-date string ("YYYY-MM-DD") so CockroachDB's DATE
   // arithmetic is unambiguous regardless of JS's local timezone.
   let dayStr: string
@@ -276,10 +260,7 @@ export async function syncUsageRollups(
 
     let synced = 0
     for (const row of rows) {
-      const dayStr =
-        row.day instanceof Date
-          ? row.day.toISOString().slice(0, 10)
-          : String(row.day).slice(0, 10)
+      const dayStr = row.day instanceof Date ? row.day.toISOString().slice(0, 10) : String(row.day).slice(0, 10)
       try {
         await provider.recordMeterEvent({
           eventName: row.metric,
@@ -295,10 +276,7 @@ export async function syncUsageRollups(
         synced++
       } catch (pushError) {
         // Leave the row unsynced; the next run retries it.
-        console.error(
-          `syncUsageRollups: failed to push ${row.app_uuid}/${row.org_uuid}/${row.metric}/${dayStr}:`,
-          pushError
-        )
+        console.error(`syncUsageRollups: failed to push ${row.app_uuid}/${row.org_uuid}/${row.metric}/${dayStr}:`, pushError)
       }
     }
 

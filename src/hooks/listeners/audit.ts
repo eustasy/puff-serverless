@@ -7,8 +7,7 @@ import type { HookEvent, HookListener } from "../types.js"
 
 async function handle(dbClient: DbClient, event: HookEvent): Promise<void> {
   const event_uuid = crypto.randomUUID()
-  const event_metadata =
-    event.event_metadata === null ? null : JSON.stringify(event.event_metadata)
+  const event_metadata = event.event_metadata === null ? null : JSON.stringify(event.event_metadata)
 
   await dbClient.query(
     `INSERT INTO audit_events (

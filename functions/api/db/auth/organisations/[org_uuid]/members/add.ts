@@ -1,11 +1,7 @@
 import { addOrgMember } from "../../../../../../../src/memberships.js"
 import { getUserByEmail } from "../../../../../../../src/users.js"
 import { can, DEFAULT_ORG_ROLE } from "../../../../../../../src/permissions.js"
-import {
-  resultPositive,
-  resultNegative,
-  methodNotAllowed,
-} from "../../../../../../../src/utilities/responses.js"
+import { resultPositive, resultNegative, methodNotAllowed } from "../../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../../src/hooks/events.js"
 
@@ -39,19 +35,10 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
     return resultNegative("Could not look up that user.", 500)
   }
   if (!user.success) {
-    return resultNegative(
-      "No account found for that email address — send an invitation instead.",
-      404
-    )
+    return resultNegative("No account found for that email address — send an invitation instead.", 404)
   }
 
-  const result = await addOrgMember(
-    dbClient,
-    String(context.params.org_uuid),
-    user.user_uuid,
-    role,
-    context.data.user_uuid!
-  )
+  const result = await addOrgMember(dbClient, String(context.params.org_uuid), user.user_uuid, role, context.data.user_uuid!)
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }
@@ -61,11 +48,7 @@ export const onRequestPost: Handler<"org_uuid"> = async (context) => {
     target_user_uuid: user.user_uuid,
     target_label: role,
   })
-  return resultPositive(
-    `${user.user_name} added to the organisation.`,
-    result.status,
-    { "HX-Trigger": "organisationMembersChanged" }
-  )
+  return resultPositive(`${user.user_name} added to the organisation.`, result.status, { "HX-Trigger": "organisationMembersChanged" })
 }
 
 export const onRequest: Handler = async () => methodNotAllowed("POST")

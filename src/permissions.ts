@@ -22,13 +22,7 @@
  * from `team_members` rows as usual; the org role itself grants nothing beyond
  * visibility of the organisation's existence.
  */
-export const ORG_ROLES = [
-  "owner",
-  "admin",
-  "member",
-  "billing",
-  "guest",
-] as const
+export const ORG_ROLES = ["owner", "admin", "member", "billing", "guest"] as const
 export type OrgRole = (typeof ORG_ROLES)[number]
 
 /** Team-scoped roles, stored in `team_members.role`. */
@@ -124,13 +118,7 @@ const ORG_ROLE_ACTIONS: Record<OrgRole, readonly OrgAction[]> = {
     "org:entitlements:write",
   ],
   member: ["org:view", "org:members:view", "org:keyvalues:read"],
-  billing: [
-    "org:view",
-    "org:billing:read",
-    "org:billing:write",
-    "org:keyvalues:read",
-    "org:entitlements:read",
-  ],
+  billing: ["org:view", "org:billing:read", "org:billing:write", "org:keyvalues:read", "org:entitlements:read"],
   guest: ["org:view"],
 }
 
@@ -148,12 +136,8 @@ const TEAM_ROLE_ACTIONS: Record<TeamRole, readonly TeamAction[]> = {
   member: ["team:view", "team:keyvalues:read"],
 }
 
-function toCapabilitySets(
-  matrix: Record<string, readonly string[]>
-): Map<string, ReadonlySet<string>> {
-  return new Map(
-    Object.entries(matrix).map(([role, actions]) => [role, new Set(actions)])
-  )
+function toCapabilitySets(matrix: Record<string, readonly string[]>): Map<string, ReadonlySet<string>> {
+  return new Map(Object.entries(matrix).map(([role, actions]) => [role, new Set(actions)]))
 }
 
 const ORG_CAPABILITIES = toCapabilitySets(ORG_ROLE_ACTIONS)
@@ -172,13 +156,8 @@ const TEAM_CAPABILITIES = toCapabilitySets(TEAM_ROLE_ACTIONS)
  * should also be allowed to perform is the caller's job to compose, e.g.
  * `can(orgRoles, "org:teams:manage") || can(teamRoles, "team:update")`.
  */
-export function can(
-  roles: readonly string[],
-  action: OrgAction | TeamAction
-): boolean {
-  const capabilities = action.startsWith("team:")
-    ? TEAM_CAPABILITIES
-    : ORG_CAPABILITIES
+export function can(roles: readonly string[], action: OrgAction | TeamAction): boolean {
+  const capabilities = action.startsWith("team:") ? TEAM_CAPABILITIES : ORG_CAPABILITIES
   return roles.some((role) => capabilities.get(role)?.has(action) ?? false)
 }
 
@@ -188,16 +167,10 @@ export function can(
 
 /** Type guard: `value` is a valid organisation role. */
 export function isOrgRole(value: unknown): value is OrgRole {
-  return (
-    typeof value === "string" &&
-    (ORG_ROLES as readonly string[]).includes(value)
-  )
+  return typeof value === "string" && (ORG_ROLES as readonly string[]).includes(value)
 }
 
 /** Type guard: `value` is a valid team role. */
 export function isTeamRole(value: unknown): value is TeamRole {
-  return (
-    typeof value === "string" &&
-    (TEAM_ROLES as readonly string[]).includes(value)
-  )
+  return typeof value === "string" && (TEAM_ROLES as readonly string[]).includes(value)
 }

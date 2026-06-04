@@ -2,18 +2,12 @@ import { deleteKeyValue } from "../../../../../../../../../../../src/team-keyval
 import { assertGranteeInOrg } from "../../../../../../../../../../../src/entitlements.js"
 import { can } from "../../../../../../../../../../../src/permissions.js"
 import { parseKeyForm } from "../../../../../../../../../../../src/utilities/entitlements-endpoint.js"
-import {
-  methodNotAllowed,
-  resultNegative,
-  resultPositive,
-} from "../../../../../../../../../../../src/utilities/responses.js"
+import { methodNotAllowed, resultNegative, resultPositive } from "../../../../../../../../../../../src/utilities/responses.js"
 import { emitFromContext } from "../../../../../../../../../../../src/hooks/dispatch.js"
 import { EVENTS } from "../../../../../../../../../../../src/hooks/events.js"
 
 /** Removes a team-subject entitlement under the app's owner namespace. */
-export const onRequestPost: Handler<
-  "app_uuid" | "org_uuid" | "team_uuid"
-> = async (context) => {
+export const onRequestPost: Handler<"app_uuid" | "org_uuid" | "team_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []
   if (!can(orgRoles, "org:entitlements:write")) {
     return resultNegative("You cannot modify this data.", 403)
@@ -30,18 +24,10 @@ export const onRequestPost: Handler<
     team_uuid,
   })
   if (!inOrg.success) {
-    return resultNegative(
-      inOrg.message ?? "Team is not in this organisation.",
-      inOrg.status
-    )
+    return resultNegative(inOrg.message ?? "Team is not in this organisation.", inOrg.status)
   }
 
-  const result = await deleteKeyValue(
-    context.data.dbClient!,
-    team_uuid,
-    { type: "app", app_uuid: app.app_uuid },
-    parsed.key
-  )
+  const result = await deleteKeyValue(context.data.dbClient!, team_uuid, { type: "app", app_uuid: app.app_uuid }, parsed.key)
   if (!result.success) {
     return resultNegative(result.message, result.status)
   }

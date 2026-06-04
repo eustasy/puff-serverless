@@ -1,8 +1,4 @@
-import {
-  puffHashSha1Hibp,
-  puff_hashing_password,
-  passwordNeedsUpgrade,
-} from "./utilities/hashing.js"
+import { puffHashSha1Hibp, puff_hashing_password, passwordNeedsUpgrade } from "./utilities/hashing.js"
 import zxcvbn from "zxcvbn"
 import { escapeHtml } from "./utilities/escape.js"
 import { runInTransaction, Rollback } from "./utilities/transaction.js"
@@ -14,11 +10,7 @@ import { runInTransaction, Rollback } from "./utilities/transaction.js"
  * @param {string} password - The plain text password.
  * @returns {Promise<Envelope>} `{ success: true, status: 200 }`, `{ success: false, message, status: 400 }` on validation failure, or an error envelope.
  */
-export async function createPassword(
-  dbClient: DbClient,
-  user_uuid: string,
-  password: string
-): Promise<Envelope> {
+export async function createPassword(dbClient: DbClient, user_uuid: string, password: string): Promise<Envelope> {
   try {
     // Validate password requirements
     const isValid = await passwordRequirements(password)
@@ -41,12 +33,7 @@ export async function createPassword(
       VALUES ($1, $2, $3, $4, TRUE)
       RETURNING user_uuid;
     `
-    const result = await dbClient.query(query, [
-      secret_uuid,
-      user_uuid,
-      current_secret_type,
-      secret_value,
-    ])
+    const result = await dbClient.query(query, [secret_uuid, user_uuid, current_secret_type, secret_value])
     if (result.rows.length > 0) {
       return { success: true, status: 200 }
     }
@@ -72,10 +59,7 @@ export async function createPassword(
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<object>} Envelope: `{ success: true, secret_value, algo, status: 200 }` on hit, `{ success: false, message, status: 404 }` on miss, `{ error: true, message, details, status: 500 }` on DB error.
  */
-export async function readPassword(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<Envelope<{ secret_value: string; algo: string }>> {
+export async function readPassword(dbClient: DbClient, user_uuid: string): Promise<Envelope<{ secret_value: string; algo: string }>> {
   try {
     const query = `
       SELECT secret_value, secret_type
@@ -122,10 +106,7 @@ export async function readPassword(
  * @param {string} user_uuid - The UUID of the user.
  * @returns {Promise<Envelope<{ disabled: boolean }>>} `{ success: true, disabled }` where `disabled` is false when no active password was found, or an error envelope.
  */
-export async function disablePassword(
-  dbClient: DbClient,
-  user_uuid: string
-): Promise<Envelope<{ disabled: boolean }>> {
+export async function disablePassword(dbClient: DbClient, user_uuid: string): Promise<Envelope<{ disabled: boolean }>> {
   try {
     const query = `
       UPDATE secrets
@@ -158,11 +139,7 @@ export async function disablePassword(
  * @param {string} newPassword - The new plain text password.
  * @returns {Promise<Envelope>} `{ success: true, status: 200 }` or an error envelope.
  */
-export async function updatePassword(
-  dbClient: DbClient,
-  user_uuid: string,
-  newPassword: string
-): Promise<Envelope> {
+export async function updatePassword(dbClient: DbClient, user_uuid: string, newPassword: string): Promise<Envelope> {
   try {
     // Atomic disable-then-create so a failure between the two doesn't leave
     // the user with no enabled password. runInTransaction retries the whole
@@ -172,11 +149,7 @@ export async function updatePassword(
       if (disableResult.error) {
         throw new Rollback<Envelope>(disableResult)
       }
-      const createResult = await createPassword(
-        dbClient,
-        user_uuid,
-        newPassword
-      )
+      const createResult = await createPassword(dbClient, user_uuid, newPassword)
       if (createResult.error || !createResult.success) {
         // Propagate the inner envelope: validation failures keep their 400,
         // DB errors keep their 500. Either way roll back the disable.
@@ -228,8 +201,7 @@ export async function verifyPassword(
     if (passwordResult.error) {
       return {
         error: true,
-        message:
-          passwordResult.message || "Error during password verification.",
+        message: passwordResult.message || "Error during password verification.",
         details: passwordResult.details,
         status: 500,
       }
@@ -239,9 +211,7 @@ export async function verifyPassword(
       // No active password found for the user — treat as a "verification ran,
       // answer is no" rather than an error, so the caller can decide whether
       // to expose this or fold it into a generic 401.
-      console.warn(
-        `Password verification failed: No active password found for user_uuid ${user_uuid}`
-      )
+      console.warn(`Password verification failed: No active password found for user_uuid ${user_uuid}`)
       return {
         success: true,
         verified: false,
@@ -350,9 +320,7 @@ export const DEFAULT_MIN_PASSWORD_LENGTH = 12
  */
 export function minPasswordLength(env: Env): number {
   const parsed = parseInt(env.MIN_PASSWORD_LENGTH ?? "", 10)
-  return Number.isInteger(parsed) && parsed > DEFAULT_MIN_PASSWORD_LENGTH
-    ? parsed
-    : DEFAULT_MIN_PASSWORD_LENGTH
+  return Number.isInteger(parsed) && parsed > DEFAULT_MIN_PASSWORD_LENGTH ? parsed : DEFAULT_MIN_PASSWORD_LENGTH
 }
 
 /**
@@ -415,10 +383,7 @@ export function passwordConfig(env: Env): PasswordConfig {
 // comfortably under the data's effective freshness.
 async function hibpBreachCount(pw: string): Promise<number> {
   const pwSha1 = await puffHashSha1Hibp(pw)
-  const response = await fetch(
-    "https://api.pwnedpasswords.com/range/" + pwSha1.f5,
-    { cf: { cacheTtl: 86400, cacheEverything: true } }
-  )
+  const response = await fetch("https://api.pwnedpasswords.com/range/" + pwSha1.f5, { cf: { cacheTtl: 86400, cacheEverything: true } })
   const text = await response.text()
   for (const line of text.split("\n")) {
     if (line.slice(0, 35) === pwSha1.l35.toUpperCase()) {
@@ -441,10 +406,7 @@ async function hibpBreachCount(pw: string): Promise<number> {
  * @param {PasswordConfig | number} config - Policy config or minimum length.
  * @returns {Promise<boolean>} True if all requirements are met, false otherwise.
  */
-export async function passwordRequirements(
-  pw: string,
-  config: PasswordConfig | number = DEFAULT_MIN_PASSWORD_LENGTH
-): Promise<boolean> {
+export async function passwordRequirements(pw: string, config: PasswordConfig | number = DEFAULT_MIN_PASSWORD_LENGTH): Promise<boolean> {
   const cfg = typeof config === "number" ? minLengthOnlyConfig(config) : config
 
   if (pw.length < cfg.minLength) return false
@@ -479,10 +441,7 @@ const ZXCVBN_LABELS = ["Too weak", "Weak", "Fair", "Strong", "Very strong"]
  * @param {PasswordConfig | number} config - Policy config or minimum length.
  * @returns {Promise<string>} HTML fragment with per-criterion pass/fail indicators.
  */
-export async function passwordRequirementsHtml(
-  pw: string,
-  config: PasswordConfig | number = DEFAULT_MIN_PASSWORD_LENGTH
-): Promise<string> {
+export async function passwordRequirementsHtml(pw: string, config: PasswordConfig | number = DEFAULT_MIN_PASSWORD_LENGTH): Promise<string> {
   const cfg = typeof config === "number" ? minLengthOnlyConfig(config) : config
 
   let html = "<h3>Password Requirements</h3><ul>"
@@ -512,9 +471,7 @@ export async function passwordRequirementsHtml(
     const est = zxcvbn(pw)
     const passing = est.score >= 3
     const label = ZXCVBN_LABELS[est.score]
-    const prefix = cfg.requireZxcvbn
-      ? "<strong>Must</strong> be strong enough — "
-      : "Password strength: "
+    const prefix = cfg.requireZxcvbn ? "<strong>Must</strong> be strong enough — " : "Password strength: "
     html += `<li class="${passing ? "result-positive" : "result-negative"}">${prefix}${escapeHtml(label)}`
     if (est.feedback.warning) {
       html += ` — ${escapeHtml(est.feedback.warning)}`

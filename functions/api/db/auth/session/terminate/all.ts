@@ -10,21 +10,15 @@ export const onRequestPost: Handler = async (context) => {
   const currentSessionToken = await getCookie(cookieHeader, "session_token")
 
   if (!currentSessionToken) {
-    console.error(
-      `Current session token could not be identified from cookie for user ${user_uuid} during terminate_all_sessions.`
-    )
-    return new Response(
-      "<p>Error: Could not identify current session to preserve. Your session might be invalid.</p>",
-      { status: 400, headers: { "Content-Type": "text/html" } }
-    )
+    console.error(`Current session token could not be identified from cookie for user ${user_uuid} during terminate_all_sessions.`)
+    return new Response("<p>Error: Could not identify current session to preserve. Your session might be invalid.</p>", {
+      status: 400,
+      headers: { "Content-Type": "text/html" },
+    })
   }
 
   // Step 3: Terminate Other Sessions using the helper function
-  const terminationResult = await terminateAllOtherSessions(
-    dbClient,
-    user_uuid,
-    currentSessionToken
-  )
+  const terminationResult = await terminateAllOtherSessions(dbClient, user_uuid, currentSessionToken)
 
   if (!terminationResult.success) {
     return new Response(`<p>Error: ${terminationResult.error}</p>`, {

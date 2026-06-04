@@ -10,11 +10,7 @@ export const onRequestPost: Handler = async (context) => {
     const formData = await context.request.formData()
     const email_address_to_remove = formData.get("email_address")
 
-    if (
-      !email_address_to_remove ||
-      typeof email_address_to_remove !== "string" ||
-      !email_address_to_remove.includes("@")
-    ) {
+    if (!email_address_to_remove || typeof email_address_to_remove !== "string" || !email_address_to_remove.includes("@")) {
       return new Response(
         `<p class="result-negative">Email address is missing or invalid. You submitted "${escapeHtml(email_address_to_remove)}".</p>`,
         {
@@ -24,20 +20,13 @@ export const onRequestPost: Handler = async (context) => {
       )
     }
 
-    const result = await deleteEmail(
-      dbClient,
-      user_uuid,
-      email_address_to_remove
-    )
+    const result = await deleteEmail(dbClient, user_uuid, email_address_to_remove)
 
     if (result.error) {
-      return new Response(
-        `<p class=\"result-negative\">${result.message}</p>`,
-        {
-          status: result.status || 500,
-          headers: { "Content-Type": "text/html" },
-        }
-      )
+      return new Response(`<p class=\"result-negative\">${result.message}</p>`, {
+        status: result.status || 500,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
     await emitFromContext(context, {
