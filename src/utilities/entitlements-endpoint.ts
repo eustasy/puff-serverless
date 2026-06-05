@@ -138,7 +138,7 @@ export function createGranteeEntitlementSetHandler(config: GranteeSetConfig): {
         grantee_uuid,
         { type: "app", app_uuid: app.app_uuid },
         parsed.key,
-        parsed.value,
+        parsed.value
       )
       if (!result.success) {
         return resultNegative(result.message, result.status)
@@ -187,7 +187,7 @@ export function createGranteeEntitlementRemoveHandler(config: GranteeRemoveConfi
         context.data.dbClient!,
         grantee_uuid,
         { type: "app", app_uuid: app.app_uuid },
-        parsed.key,
+        parsed.key
       )
       if (!result.success) {
         return resultNegative(result.message, result.status)
