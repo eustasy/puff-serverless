@@ -1,4 +1,9 @@
+import { verify } from "otplib"
+import { readToken, consumeToken } from "./tokens.js"
+
 const SECRET_TYPE = "totp_secret"
+const TOTP_TOKEN_TYPE = "totp_verification_pending"
+const SIM_ENCRYPTION_PREFIX = "sim_encrypted::"
 
 /**
  * Creates a pending (disabled) TOTP secret for a user. The secret is stored
@@ -224,4 +229,73 @@ export async function used2fa(dbClient: DbClient, user_uuid: string, totp_code: 
       status: 500,
     }
   }
+}
+
+/**
+ * Validates a TOTP pending-login token, verifies the submitted code, and
+ * atomically consumes the token. Returns the user UUID on success.
+ *
+ * Returns 401 specifically for a wrong TOTP code so callers can distinguish
+ * "try again" (token still live) from "re-authenticate" (token invalid/expired).
+ */
+export async function verifyTotpLogin(
+  dbClient: DbClient,
+  totpToken: string,
+  totpCode: string,
+): Promise<Envelope<{ user_uuid: string }>> {
+  // Non-consuming read so a wrong code does not burn the pending-login token.
+  const tokenData = await readToken(dbClient, totpToken)
+  if (!tokenData.success) {
+    return { success: false, message: "Invalid or expired 2FA session. Please log in again.", status: 400 }
+  }
+  const { user_uuid, token_type, expires_at, is_used } = tokenData.token
+  if (token_type !== TOTP_TOKEN_TYPE) {
+    return { success: false, message: "Invalid 2FA session. Please log in again.", status: 400 }
+  }
+  if (new Date(expires_at) < new Date()) {
+    return { success: false, message: "2FA session expired. Please log in again.", status: 400 }
+  }
+  if (is_used) {
+    return { success: false, message: "2FA session already used. Please log in again.", status: 400 }
+  }
+
+  const twoFaResult = await read2fa(dbClient, user_uuid)
+  if (!twoFaResult.success) {
+    return { success: false, message: "2FA is not configured for this account. Please contact support.", status: 400 }
+  }
+  const { secret_value, is_enabled } = twoFaResult.twoFactor
+  if (!is_enabled) {
+    return { success: false, message: "2FA is not enabled for this account. Please contact support.", status: 400 }
+  }
+  if (!secret_value?.startsWith(SIM_ENCRYPTION_PREFIX)) {
+    console.error(`verifyTotpLogin: unexpected secret format for user ${user_uuid}`)
+    return { error: true, message: "Internal server error. Please try again.", details: "unexpected secret format", status: 500 }
+  }
+  const storedSecret = secret_value.slice(SIM_ENCRYPTION_PREFIX.length)
+
+  // Wrong code returns 401 so the caller knows the token is still valid and
+  // the user can retry without restarting the login flow.
+  const verifyResult = await verify({ token: totpCode, secret: storedSecret, epochTolerance: 30 })
+  if (!verifyResult.valid) {
+    return { success: false, message: "Invalid TOTP code. Please try again.", status: 401 }
+  }
+
+  // Record the code before consuming the token to prevent a concurrent replay
+  // from racing through both checks.
+  const usedResult = await used2fa(dbClient, user_uuid, totpCode)
+  if (!usedResult.success) {
+    if (usedResult.error) {
+      return { error: true, message: "An unexpected error occurred. Please try again.", details: "replay prevention", status: 500 }
+    }
+    return { success: false, message: "TOTP code already used. Please wait for the next code.", status: 400 }
+  }
+
+  // Atomic consume: WHERE clause re-checks type/expiry/used so a concurrent
+  // replay cannot also reach session creation.
+  const consumed = await consumeToken(dbClient, totpToken, TOTP_TOKEN_TYPE)
+  if (!consumed.success) {
+    return { success: false, message: "2FA session no longer valid. Please log in again.", status: 400 }
+  }
+
+  return { success: true, user_uuid, status: 200 }
 }
