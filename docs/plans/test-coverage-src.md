@@ -26,18 +26,18 @@ missing `*.test.ts` files using patterns this repo already uses elsewhere.
 
 ## Baseline
 
-```
+```text
 TOTAL lines: 1820/2801 = 64.97%   (981 missed)
 Statements : 63.87%   Branches : 50.51%   Functions : 74.67%
 ```
 
 By directory:
 
-| Area              | Lines  | Note                                                    |
-| ----------------- | ------ | ------------------------------------------------------- |
-| `src/`            | 74.02% | domain modules — partial gaps                            |
-| `src/utilities/`  | 35.82% | **the main drag** — 14 of 31 files at 0%                 |
-| `src/hooks/`      | 100%   | done                                                     |
+| Area | Lines | Note |
+| ---- | ------ | ------------- |
+| `src/` | 74.02% | domain modules — partial gaps |
+| `src/utilities/` | 35.82% | **the main drag** — 14 of 31 files at 0% |
+| `src/hooks/` | 100% | done |
 
 ## Why this is mostly mechanical
 
