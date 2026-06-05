@@ -102,14 +102,33 @@ export async function sendEmail(env: Env, message: EmailMessage): Promise<Envelo
   }
 }
 
+interface EmailContent {
+  subject: string
+  text: string
+  html: string
+}
+
 /**
- * Sends an email-verification message containing an absolute verification link.
+ * Shared body of the token-link senders below. Resolves the origin, builds the
+ * absolute `${origin}${path}?token=...` link, renders the template, and hands
+ * off to {@link sendEmail}. Returns the unconfigured (500) envelope when
+ * APP_URL is missing, since a relative link is useless in an email client.
  * @param {Env} env - The Worker environment bindings.
  * @param {string} to - Recipient email address.
- * @param {string} token - The email-verification token value.
+ * @param {string} path - Origin-relative link path (e.g. "/reset/set").
+ * @param {string} token - The token value, appended as the `token` query param.
+ * @param {(link: string) => EmailContent} buildContent - Template renderer.
+ * @param {string} category - Mailtrap category tag.
  * @returns {Promise<Envelope>} Result of the underlying {@link sendEmail} call.
  */
-export async function sendVerificationEmail(env: Env, to: string, token: string): Promise<Envelope> {
+async function sendTokenLinkEmail(
+  env: Env,
+  to: string,
+  path: string,
+  token: string,
+  buildContent: (link: string) => EmailContent,
+  category: string
+): Promise<Envelope> {
   const origin = appOrigin(env)
   if (!origin) {
     return {
@@ -119,15 +138,26 @@ export async function sendVerificationEmail(env: Env, to: string, token: string)
     }
   }
 
-  const link = `${origin}/api/db/email/verify?token=${encodeURIComponent(token)}`
-  const content = verificationEmail(link)
+  const link = `${origin}${path}?token=${encodeURIComponent(token)}`
+  const content = buildContent(link)
   return sendEmail(env, {
     to,
     subject: content.subject,
     text: content.text,
     html: content.html,
-    category: "Email Verification",
+    category,
   })
+}
+
+/**
+ * Sends an email-verification message containing an absolute verification link.
+ * @param {Env} env - The Worker environment bindings.
+ * @param {string} to - Recipient email address.
+ * @param {string} token - The email-verification token value.
+ * @returns {Promise<Envelope>} Result of the underlying {@link sendEmail} call.
+ */
+export async function sendVerificationEmail(env: Env, to: string, token: string): Promise<Envelope> {
+  return sendTokenLinkEmail(env, to, "/api/db/email/verify", token, verificationEmail, "Email Verification")
 }
 
 /**
@@ -138,24 +168,7 @@ export async function sendVerificationEmail(env: Env, to: string, token: string)
  * @returns {Promise<Envelope>} Result of the underlying {@link sendEmail} call.
  */
 export async function sendPasswordResetEmail(env: Env, to: string, token: string): Promise<Envelope> {
-  const origin = appOrigin(env)
-  if (!origin) {
-    return {
-      error: true,
-      message: "Email delivery is not configured.",
-      status: 500,
-    }
-  }
-
-  const link = `${origin}/reset/set?token=${encodeURIComponent(token)}`
-  const content = passwordResetEmail(link)
-  return sendEmail(env, {
-    to,
-    subject: content.subject,
-    text: content.text,
-    html: content.html,
-    category: "Password Reset",
-  })
+  return sendTokenLinkEmail(env, to, "/reset/set", token, passwordResetEmail, "Password Reset")
 }
 
 /**
@@ -166,24 +179,7 @@ export async function sendPasswordResetEmail(env: Env, to: string, token: string
  * @returns {Promise<Envelope>} Result of the underlying {@link sendEmail} call.
  */
 export async function sendTwoFactorBypassEmail(env: Env, to: string, token: string): Promise<Envelope> {
-  const origin = appOrigin(env)
-  if (!origin) {
-    return {
-      error: true,
-      message: "Email delivery is not configured.",
-      status: 500,
-    }
-  }
-
-  const link = `${origin}/api/db/2fa/bypass/verify?token=${encodeURIComponent(token)}`
-  const content = twoFactorBypassEmail(link)
-  return sendEmail(env, {
-    to,
-    subject: content.subject,
-    text: content.text,
-    html: content.html,
-    category: "2FA Bypass",
-  })
+  return sendTokenLinkEmail(env, to, "/api/db/2fa/bypass/verify", token, twoFactorBypassEmail, "2FA Bypass")
 }
 
 /**
@@ -195,22 +191,12 @@ export async function sendTwoFactorBypassEmail(env: Env, to: string, token: stri
  * @returns {Promise<Envelope>} Result of the underlying {@link sendEmail} call.
  */
 export async function sendOrganisationInvitationEmail(env: Env, to: string, token: string, organisationName: string): Promise<Envelope> {
-  const origin = appOrigin(env)
-  if (!origin) {
-    return {
-      error: true,
-      message: "Email delivery is not configured.",
-      status: 500,
-    }
-  }
-
-  const link = `${origin}/invite?token=${encodeURIComponent(token)}`
-  const content = organisationInvitationEmail(link, organisationName)
-  return sendEmail(env, {
+  return sendTokenLinkEmail(
+    env,
     to,
-    subject: content.subject,
-    text: content.text,
-    html: content.html,
-    category: "Organisation Invitation",
-  })
+    "/invite",
+    token,
+    (link) => organisationInvitationEmail(link, organisationName),
+    "Organisation Invitation"
+  )
 }

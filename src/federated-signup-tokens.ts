@@ -51,18 +51,21 @@ export async function createFederatedSignupToken(dbClient: DbClient, input: Crea
 }
 
 /**
- * Read-only lookup — does not consume. Used by the signup confirmation page
- * to preview the proposed account. Consume happens in the POST handler.
+ * Shared body of {@link readFederatedSignupToken} and
+ * {@link consumeFederatedSignupToken}: runs a single `$1 = token` query and maps
+ * its result — no row to the invalid/expired (400) envelope, one row to success,
+ * a thrown error to the 500 envelope. The caller supplies the SELECT or the
+ * single-use UPDATE…RETURNING that distinguishes read from consume.
  */
-export async function readFederatedSignupToken(dbClient: DbClient, token: string): Promise<Envelope<{ row: FederatedSignupTokenRow }>> {
+async function runSignupTokenQuery(
+  dbClient: DbClient,
+  sql: string,
+  token: string,
+  errorLabel: string,
+  errorMessage: string
+): Promise<Envelope<{ row: FederatedSignupTokenRow }>> {
   try {
-    const { rows } = await dbClient.query(
-      `SELECT token_value, provider, provider_user_id, email, email_verified, display_name, expires_at, created_at, is_used
-         FROM federated_signup_tokens
-        WHERE token_value = $1 AND is_used = FALSE AND expires_at > NOW()
-        LIMIT 1`,
-      [token]
-    )
+    const { rows } = await dbClient.query(sql, [token])
     if (rows.length === 0) {
       return {
         success: false,
@@ -72,10 +75,10 @@ export async function readFederatedSignupToken(dbClient: DbClient, token: string
     }
     return { success: true, row: rows[0], status: 200 }
   } catch (error) {
-    console.error("Error in readFederatedSignupToken:", error)
+    console.error(`Error in ${errorLabel}:`, error)
     return {
       error: true,
-      message: "Could not read signup link.",
+      message: errorMessage,
       details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
@@ -83,33 +86,35 @@ export async function readFederatedSignupToken(dbClient: DbClient, token: string
 }
 
 /**
+ * Read-only lookup — does not consume. Used by the signup confirmation page
+ * to preview the proposed account. Consume happens in the POST handler.
+ */
+export async function readFederatedSignupToken(dbClient: DbClient, token: string): Promise<Envelope<{ row: FederatedSignupTokenRow }>> {
+  return await runSignupTokenQuery(
+    dbClient,
+    `SELECT token_value, provider, provider_user_id, email, email_verified, display_name, expires_at, created_at, is_used
+         FROM federated_signup_tokens
+        WHERE token_value = $1 AND is_used = FALSE AND expires_at > NOW()
+        LIMIT 1`,
+    token,
+    "readFederatedSignupToken",
+    "Could not read signup link."
+  )
+}
+
+/**
  * Atomic single-use consume (mirrors `consumeToken` in src/tokens.ts). The
  * UPDATE collapses used / expired / missing into a single negative envelope.
  */
 export async function consumeFederatedSignupToken(dbClient: DbClient, token: string): Promise<Envelope<{ row: FederatedSignupTokenRow }>> {
-  try {
-    const { rows } = await dbClient.query(
-      `UPDATE federated_signup_tokens
+  return await runSignupTokenQuery(
+    dbClient,
+    `UPDATE federated_signup_tokens
           SET is_used = TRUE
         WHERE token_value = $1 AND is_used = FALSE AND expires_at > NOW()
         RETURNING *`,
-      [token]
-    )
-    if (rows.length === 0) {
-      return {
-        success: false,
-        message: "Signup link is invalid or has expired.",
-        status: 400,
-      }
-    }
-    return { success: true, row: rows[0], status: 200 }
-  } catch (error) {
-    console.error("Error in consumeFederatedSignupToken:", error)
-    return {
-      error: true,
-      message: "Could not consume signup link.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
+    token,
+    "consumeFederatedSignupToken",
+    "Could not consume signup link."
+  )
 }

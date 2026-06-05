@@ -191,6 +191,30 @@ export async function deleteToken(
 }
 
 /**
+ * Shared body of the typed `create*Token` wrappers below: turns a relative TTL
+ * into an absolute ISO expiry and delegates to {@link createToken}. No error
+ * handling of its own — `createToken` already returns an error envelope rather
+ * than throwing, and the expiry maths cannot throw, so the per-wrapper
+ * try/catch this replaced was unreachable (its custom messages never surfaced).
+ * @param {DbClient} dbClient - An active pg.Client instance.
+ * @param {string} user_uuid - The UUID of the user.
+ * @param {string} token_type - The token_type column value.
+ * @param {number} ttlMs - Lifetime in milliseconds from now.
+ * @param {string|null} [email_address] - Optional email address to store on the token.
+ * @returns {Promise<TokenEnvelope<{ token_value: string }>>} The {@link createToken} result.
+ */
+async function createTypedToken(
+  dbClient: DbClient,
+  user_uuid: string,
+  token_type: string,
+  ttlMs: number,
+  email_address: string | null = null
+): Promise<TokenEnvelope<{ token_value: string }>> {
+  const expires_at = new Date(Date.now() + ttlMs).toISOString()
+  return await createToken(dbClient, user_uuid, token_type, expires_at, email_address)
+}
+
+/**
  * Creates a new email verification token in the database.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
@@ -202,20 +226,7 @@ export async function createEmailToken(
   user_uuid: string,
   email_address: string
 ): Promise<TokenEnvelope<{ token_value: string }>> {
-  try {
-    const token_type = "email_verification"
-    const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-
-    // Call createToken to insert the email token
-    return await createToken(dbClient, user_uuid, token_type, expires_at, email_address)
-  } catch (error) {
-    console.error("Error in createEmailToken:", error)
-    return {
-      error: true,
-      message: "Server error while creating email token.",
-      details: error instanceof Error ? error.message : String(error),
-    }
-  }
+  return await createTypedToken(dbClient, user_uuid, "email_verification", 24 * 60 * 60 * 1000, email_address)
 }
 
 /**
@@ -230,20 +241,7 @@ export async function createPasswordToken(
   user_uuid: string,
   email_address: string
 ): Promise<TokenEnvelope<{ token_value: string }>> {
-  try {
-    const token_type = "password_reset"
-    const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-
-    // Call createToken to insert the email token
-    return await createToken(dbClient, user_uuid, token_type, expires_at, email_address)
-  } catch (error) {
-    console.error("Error in createPasswordToken:", error)
-    return {
-      error: true,
-      message: "Server error while creating password token.",
-      details: error instanceof Error ? error.message : String(error),
-    }
-  }
+  return await createTypedToken(dbClient, user_uuid, "password_reset", 24 * 60 * 60 * 1000, email_address)
 }
 
 /**
@@ -253,20 +251,7 @@ export async function createPasswordToken(
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
 export async function createLoginToken(dbClient: DbClient, user_uuid: string): Promise<TokenEnvelope<{ token_value: string }>> {
-  try {
-    const token_type = "totp_verification_pending"
-    const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString()
-
-    // Call createToken to insert the email token
-    return await createToken(dbClient, user_uuid, token_type, expires_at)
-  } catch (error) {
-    console.error("Error in createLoginToken:", error)
-    return {
-      error: true,
-      message: "Server error while creating login token.",
-      details: error instanceof Error ? error.message : String(error),
-    }
-  }
+  return await createTypedToken(dbClient, user_uuid, "totp_verification_pending", 15 * 60 * 1000)
 }
 
 /**
@@ -279,19 +264,7 @@ export async function createLoginToken(dbClient: DbClient, user_uuid: string): P
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
 export async function createPasswordUpgradeToken(dbClient: DbClient, user_uuid: string): Promise<TokenEnvelope<{ token_value: string }>> {
-  try {
-    const token_type = "password_upgrade"
-    const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString()
-
-    return await createToken(dbClient, user_uuid, token_type, expires_at)
-  } catch (error) {
-    console.error("Error in createPasswordUpgradeToken:", error)
-    return {
-      error: true,
-      message: "Server error while creating password-upgrade token.",
-      details: error instanceof Error ? error.message : String(error),
-    }
-  }
+  return await createTypedToken(dbClient, user_uuid, "password_upgrade", 15 * 60 * 1000)
 }
 
 /**
@@ -304,19 +277,7 @@ export async function createPasswordUpgradeToken(dbClient: DbClient, user_uuid: 
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
 export async function createBypassToken(dbClient: DbClient, user_uuid: string): Promise<TokenEnvelope<{ token_value: string }>> {
-  try {
-    const token_type = "totp_bypass"
-    const expires_at = new Date(Date.now() + 60 * 60 * 1000).toISOString()
-
-    return await createToken(dbClient, user_uuid, token_type, expires_at)
-  } catch (error) {
-    console.error("Error in createBypassToken:", error)
-    return {
-      error: true,
-      message: "Server error while creating bypass token.",
-      details: error instanceof Error ? error.message : String(error),
-    }
-  }
+  return await createTypedToken(dbClient, user_uuid, "totp_bypass", 60 * 60 * 1000)
 }
 
 /**
@@ -364,18 +325,5 @@ export async function createWebAuthnToken(
  * @returns {Promise<object>} - An object with the token_value if successful, or an error object.
  */
 export async function createSudoToken(dbClient: DbClient, user_uuid: string): Promise<TokenEnvelope<{ token_value: string }>> {
-  try {
-    const token_type = "sudo_elevation"
-    const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString()
-
-    // Call createToken to insert the email token
-    return await createToken(dbClient, user_uuid, token_type, expires_at)
-  } catch (error) {
-    console.error("Error in createSudoToken:", error)
-    return {
-      error: true,
-      message: "Server error while creating sudo token.",
-      details: error instanceof Error ? error.message : String(error),
-    }
-  }
+  return await createTypedToken(dbClient, user_uuid, "sudo_elevation", 15 * 60 * 1000)
 }

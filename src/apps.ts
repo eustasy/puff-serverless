@@ -44,26 +44,25 @@ const APP_COLUMNS =
   "app_uuid, app_name, client_id, client_secret, redirect_uris, app_active, app_licensing_mode, app_default_trial_days, app_created_at"
 
 /**
- * Read a single app by its app_uuid. The app must be active (`app_active` is
- * TRUE); a disabled app is treated as not found from the OAuth layer's point
- * of view — its tokens are rejected without leaking that the registration
- * still exists.
+ * Shared body of {@link readApp} and {@link readAppByClientId}: reads one active
+ * app by a fixed lookup column. `column` is a compile-time literal union, never
+ * caller input, so interpolating it into the WHERE clause is safe.
  */
-export async function readApp(dbClient: DbClient, app_uuid: string): Promise<Envelope<{ app: AppRow }>> {
+async function readAppBy(dbClient: DbClient, column: "app_uuid" | "client_id", value: string): Promise<Envelope<{ app: AppRow }>> {
   try {
     const query = `
       SELECT ${APP_COLUMNS}
       FROM apps
-      WHERE app_uuid = $1 AND app_active = TRUE
+      WHERE ${column} = $1 AND app_active = TRUE
       LIMIT 1
     `
-    const { rows } = await dbClient.query(query, [app_uuid])
+    const { rows } = await dbClient.query(query, [value])
     if (rows.length > 0) {
       return { success: true, app: rows[0], status: 200 }
     }
     return { success: false, message: "App not found.", status: 404 }
   } catch (error) {
-    console.error("Error in readApp:", error)
+    console.error(`Error in readAppBy (${column}):`, error)
     return {
       error: true,
       message: "Could not read app.",
@@ -74,32 +73,22 @@ export async function readApp(dbClient: DbClient, app_uuid: string): Promise<Env
 }
 
 /**
+ * Read a single app by its app_uuid. The app must be active (`app_active` is
+ * TRUE); a disabled app is treated as not found from the OAuth layer's point
+ * of view — its tokens are rejected without leaking that the registration
+ * still exists.
+ */
+export async function readApp(dbClient: DbClient, app_uuid: string): Promise<Envelope<{ app: AppRow }>> {
+  return await readAppBy(dbClient, "app_uuid", app_uuid)
+}
+
+/**
  * Read a single app by its public `client_id`. Used as the very first step of
  * /oauth/authorize and /oauth/token to resolve the request to a registered
  * app. Same active-only filter as readApp.
  */
 export async function readAppByClientId(dbClient: DbClient, client_id: string): Promise<Envelope<{ app: AppRow }>> {
-  try {
-    const query = `
-      SELECT ${APP_COLUMNS}
-      FROM apps
-      WHERE client_id = $1 AND app_active = TRUE
-      LIMIT 1
-    `
-    const { rows } = await dbClient.query(query, [client_id])
-    if (rows.length > 0) {
-      return { success: true, app: rows[0], status: 200 }
-    }
-    return { success: false, message: "App not found.", status: 404 }
-  } catch (error) {
-    console.error("Error in readAppByClientId:", error)
-    return {
-      error: true,
-      message: "Could not read app.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
+  return await readAppBy(dbClient, "client_id", client_id)
 }
 
 /**
@@ -184,6 +173,40 @@ export async function hashClientSecret(client_secret: string): Promise<{ stored:
 }
 
 /**
+ * Shared body of {@link listAppTiers} and {@link listAppPermissions}: reads the
+ * `app_key_values` rows an app declares for itself (subject = owner = app) whose
+ * key starts with `prefix`, returning each as `{ name, label }` where `name` is
+ * the key suffix after the prefix and `label` is the stored value.
+ */
+async function listAppLicenseEntries(
+  dbClient: DbClient,
+  app_uuid: string,
+  prefix: string,
+  errorLabel: string,
+  errorMessage: string
+): Promise<Envelope<{ entries: { name: string; label: string }[] }>> {
+  try {
+    const { rows } = await dbClient.query(
+      `SELECT kv_key, kv_value FROM app_key_values WHERE app_uuid = $1 AND owner_app_uuid = $1 AND kv_key LIKE $2 ESCAPE '\\' ORDER BY kv_key ASC`,
+      [app_uuid, `${prefix}%`]
+    )
+    const entries = rows.map((row) => ({
+      name: row.kv_key.slice(prefix.length),
+      label: row.kv_value,
+    }))
+    return { success: true, entries, status: 200 }
+  } catch (error) {
+    console.error(`Error in ${errorLabel}:`, error)
+    return {
+      error: true,
+      message: errorMessage,
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
+/**
  * Reads the tiers an app declares for itself. Tiers live in `app_key_values`
  * with the app as both subject and owner, under the `license:tiers:<name>` key
  * convention — the key suffix is the tier identifier (the value users get
@@ -192,25 +215,11 @@ export async function hashClientSecret(client_secret: string): Promise<{ stored:
  * @public — read side for the operator UI (out of scope this phase).
  */
 export async function listAppTiers(dbClient: DbClient, app_uuid: string): Promise<Envelope<{ tiers: { name: string; label: string }[] }>> {
-  try {
-    const { rows } = await dbClient.query(
-      `SELECT kv_key, kv_value FROM app_key_values WHERE app_uuid = $1 AND owner_app_uuid = $1 AND kv_key LIKE $2 ESCAPE '\\' ORDER BY kv_key ASC`,
-      [app_uuid, `${LICENSE_TIERS_PREFIX}%`]
-    )
-    const tiers = rows.map((row) => ({
-      name: row.kv_key.slice(LICENSE_TIERS_PREFIX.length),
-      label: row.kv_value,
-    }))
-    return { success: true, tiers, status: 200 }
-  } catch (error) {
-    console.error("Error in listAppTiers:", error)
-    return {
-      error: true,
-      message: "Could not list app tiers.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
+  const result = await listAppLicenseEntries(dbClient, app_uuid, LICENSE_TIERS_PREFIX, "listAppTiers", "Could not list app tiers.")
+  if (result.success) {
+    return { success: true, tiers: result.entries, status: 200 }
   }
+  return result
 }
 
 /**
@@ -224,23 +233,15 @@ export async function listAppPermissions(
   dbClient: DbClient,
   app_uuid: string
 ): Promise<Envelope<{ perms: { name: string; label: string }[] }>> {
-  try {
-    const { rows } = await dbClient.query(
-      `SELECT kv_key, kv_value FROM app_key_values WHERE app_uuid = $1 AND owner_app_uuid = $1 AND kv_key LIKE $2 ESCAPE '\\' ORDER BY kv_key ASC`,
-      [app_uuid, `${LICENSE_PERMS_PREFIX}%`]
-    )
-    const perms = rows.map((row) => ({
-      name: row.kv_key.slice(LICENSE_PERMS_PREFIX.length),
-      label: row.kv_value,
-    }))
-    return { success: true, perms, status: 200 }
-  } catch (error) {
-    console.error("Error in listAppPermissions:", error)
-    return {
-      error: true,
-      message: "Could not list app permissions.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
+  const result = await listAppLicenseEntries(
+    dbClient,
+    app_uuid,
+    LICENSE_PERMS_PREFIX,
+    "listAppPermissions",
+    "Could not list app permissions."
+  )
+  if (result.success) {
+    return { success: true, perms: result.entries, status: 200 }
   }
+  return result
 }

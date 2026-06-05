@@ -127,40 +127,70 @@ export async function resolveKeyValue(dbClient: DbClient, opts: ResolveOptions):
   }
 }
 
-async function queryUserTier(dbClient: DbClient, user_uuid: string, owner: Owner, key: string): Promise<string | null> {
+// Shared body of the four single-value tiers (user / team / org / app). They
+// differ only in the table and its id column, both internal literals supplied
+// by the named wrappers below (never caller input), so interpolating them is
+// safe. Returns the single `kv_value`, or null when the tier has no row.
+async function querySingleTier(
+  dbClient: DbClient,
+  table: string,
+  idColumn: string,
+  id: string,
+  owner: Owner,
+  key: string
+): Promise<string | null> {
   const ownerWhere = ownerFilter(owner, 2)
   const result = await dbClient.query(
-    `SELECT kv_value FROM user_key_values WHERE user_uuid = $1 AND ${ownerWhere.sql} AND kv_key = $3 LIMIT 1`,
-    [user_uuid, ...ownerWhere.values, key]
+    `SELECT kv_value FROM ${table} WHERE ${idColumn} = $1 AND ${ownerWhere.sql} AND kv_key = $3 LIMIT 1`,
+    [id, ...ownerWhere.values, key]
   )
   return result.rows.length === 0 ? null : result.rows[0].kv_value
+}
+
+async function queryUserTier(dbClient: DbClient, user_uuid: string, owner: Owner, key: string): Promise<string | null> {
+  return await querySingleTier(dbClient, "user_key_values", "user_uuid", user_uuid, owner, key)
 }
 
 async function queryTeamTier(dbClient: DbClient, team_uuid: string, owner: Owner, key: string): Promise<string | null> {
-  const ownerWhere = ownerFilter(owner, 2)
-  const result = await dbClient.query(
-    `SELECT kv_value FROM team_key_values WHERE team_uuid = $1 AND ${ownerWhere.sql} AND kv_key = $3 LIMIT 1`,
-    [team_uuid, ...ownerWhere.values, key]
-  )
-  return result.rows.length === 0 ? null : result.rows[0].kv_value
+  return await querySingleTier(dbClient, "team_key_values", "team_uuid", team_uuid, owner, key)
 }
 
 async function queryOrgTier(dbClient: DbClient, org_uuid: string, owner: Owner, key: string): Promise<string | null> {
-  const ownerWhere = ownerFilter(owner, 2)
-  const result = await dbClient.query(
-    `SELECT kv_value FROM organisation_key_values WHERE org_uuid = $1 AND ${ownerWhere.sql} AND kv_key = $3 LIMIT 1`,
-    [org_uuid, ...ownerWhere.values, key]
-  )
-  return result.rows.length === 0 ? null : result.rows[0].kv_value
+  return await querySingleTier(dbClient, "organisation_key_values", "org_uuid", org_uuid, owner, key)
 }
 
 async function queryAppTier(dbClient: DbClient, app_uuid: string, owner: Owner, key: string): Promise<string | null> {
-  const ownerWhere = ownerFilter(owner, 2)
+  return await querySingleTier(dbClient, "app_key_values", "app_uuid", app_uuid, owner, key)
+}
+
+// Shared body of the two role tiers (team-role / org-role). They differ only in
+// the KV table, the membership table, and the scope column (`team_uuid` /
+// `org_uuid`) — all internal literals from the wrappers below, never caller
+// input. Returns every distinct value the user holds via their roles in the
+// scope, de-duplicated across roles.
+async function queryRoleTier(
+  dbClient: DbClient,
+  kvTable: string,
+  memberTable: string,
+  scopeColumn: string,
+  scopeId: string,
+  user_uuid: string,
+  owner: Owner,
+  key: string
+): Promise<string[]> {
+  const ownerWhere = ownerFilter(owner, 3)
   const result = await dbClient.query(
-    `SELECT kv_value FROM app_key_values WHERE app_uuid = $1 AND ${ownerWhere.sql} AND kv_key = $3 LIMIT 1`,
-    [app_uuid, ...ownerWhere.values, key]
+    `SELECT DISTINCT kv.kv_value
+       FROM ${kvTable} kv
+       JOIN ${memberTable} m
+         ON m.${scopeColumn} = kv.${scopeColumn} AND m.role = kv.role
+      WHERE kv.${scopeColumn} = $1
+        AND m.user_uuid = $2
+        AND ${ownerWhere.sql}
+        AND kv.kv_key = $4`,
+    [scopeId, user_uuid, ...ownerWhere.values, key]
   )
-  return result.rows.length === 0 ? null : result.rows[0].kv_value
+  return result.rows.map((row) => row.kv_value)
 }
 
 /**
@@ -168,33 +198,9 @@ async function queryAppTier(dbClient: DbClient, app_uuid: string, owner: Owner, 
  * `team_uuid`. One row per matching role; de-duplicated across roles.
  */
 async function queryTeamRoleTier(dbClient: DbClient, team_uuid: string, user_uuid: string, owner: Owner, key: string): Promise<string[]> {
-  const ownerWhere = ownerFilter(owner, 3)
-  const result = await dbClient.query(
-    `SELECT DISTINCT kv.kv_value
-       FROM team_role_key_values kv
-       JOIN team_members tm
-         ON tm.team_uuid = kv.team_uuid AND tm.role = kv.role
-      WHERE kv.team_uuid = $1
-        AND tm.user_uuid = $2
-        AND ${ownerWhere.sql}
-        AND kv.kv_key = $4`,
-    [team_uuid, user_uuid, ...ownerWhere.values, key]
-  )
-  return result.rows.map((row) => row.kv_value)
+  return await queryRoleTier(dbClient, "team_role_key_values", "team_members", "team_uuid", team_uuid, user_uuid, owner, key)
 }
 
 async function queryOrgRoleTier(dbClient: DbClient, org_uuid: string, user_uuid: string, owner: Owner, key: string): Promise<string[]> {
-  const ownerWhere = ownerFilter(owner, 3)
-  const result = await dbClient.query(
-    `SELECT DISTINCT kv.kv_value
-       FROM org_role_key_values kv
-       JOIN organisation_members om
-         ON om.org_uuid = kv.org_uuid AND om.role = kv.role
-      WHERE kv.org_uuid = $1
-        AND om.user_uuid = $2
-        AND ${ownerWhere.sql}
-        AND kv.kv_key = $4`,
-    [org_uuid, user_uuid, ...ownerWhere.values, key]
-  )
-  return result.rows.map((row) => row.kv_value)
+  return await queryRoleTier(dbClient, "org_role_key_values", "organisation_members", "org_uuid", org_uuid, user_uuid, owner, key)
 }

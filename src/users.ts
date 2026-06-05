@@ -368,6 +368,37 @@ export async function disableUser(dbClient: DbClient, user_uuid: string): Promis
 }
 
 /**
+ * Shared body of the single-statement "update one user by uuid" operations
+ * ({@link enableUser}, {@link updateLastLogin}): runs `sql` with `[user_uuid]`
+ * and maps the row count — a hit to `{ success: true, status: 200 }`, no row to
+ * the 404 not-found envelope, a thrown error to the 500 envelope. `sql` is an
+ * internal literal supplied by the wrappers, never caller input.
+ */
+async function updateUserByUuid(
+  dbClient: DbClient,
+  sql: string,
+  user_uuid: string,
+  errorLabel: string,
+  errorMessage: string
+): Promise<Envelope> {
+  try {
+    const result = await dbClient.query(sql, [user_uuid])
+    if ((result.rowCount ?? 0) > 0) {
+      return { success: true, status: 200 }
+    }
+    return { success: false, message: "User not found.", status: 404 }
+  } catch (error) {
+    console.error(`Error in ${errorLabel}:`, error)
+    return {
+      error: true,
+      message: errorMessage,
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
+/**
  * Re-enables a previously disabled user account (sets `user_active = TRUE`).
  * Sessions terminated by `disableUser` are not restored — the user logs in
  * fresh. Idempotent: enabling an already-active account succeeds.
@@ -376,21 +407,13 @@ export async function disableUser(dbClient: DbClient, user_uuid: string): Promis
  * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` on hit, `{ success: false, message, status: 404 }` if no such user, `{ error: true, message, details, status: 500 }` on DB error.
  */
 export async function enableUser(dbClient: DbClient, user_uuid: string): Promise<Envelope> {
-  try {
-    const result = await dbClient.query("UPDATE users SET user_active = TRUE WHERE user_uuid = $1", [user_uuid])
-    if ((result.rowCount ?? 0) > 0) {
-      return { success: true, status: 200 }
-    }
-    return { success: false, message: "User not found.", status: 404 }
-  } catch (error) {
-    console.error("Error in enableUser:", error)
-    return {
-      error: true,
-      message: "Could not enable user.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
+  return await updateUserByUuid(
+    dbClient,
+    "UPDATE users SET user_active = TRUE WHERE user_uuid = $1",
+    user_uuid,
+    "enableUser",
+    "Could not enable user."
+  )
 }
 
 /**
@@ -468,21 +491,13 @@ export async function deleteUser(dbClient: DbClient, user_uuid: string): Promise
  * @returns {Promise<object>} Envelope: `{ success: true, status: 200 }` if a row was updated, `{ success: false, message, status: 404 }` if not, `{ error: true, message, details, status: 500 }` on DB error.
  */
 export async function updateLastLogin(dbClient: DbClient, user_uuid: string): Promise<Envelope> {
-  try {
-    const result = await dbClient.query("UPDATE users SET user_last_login = NOW() WHERE user_uuid = $1", [user_uuid])
-    if ((result.rowCount ?? 0) > 0) {
-      return { success: true, status: 200 }
-    }
-    return { success: false, message: "User not found.", status: 404 }
-  } catch (error) {
-    console.error("Error in updateLastLogin:", error)
-    return {
-      error: true,
-      message: "Could not update last login timestamp.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
+  return await updateUserByUuid(
+    dbClient,
+    "UPDATE users SET user_last_login = NOW() WHERE user_uuid = $1",
+    user_uuid,
+    "updateLastLogin",
+    "Could not update last login timestamp."
+  )
 }
 
 /**
