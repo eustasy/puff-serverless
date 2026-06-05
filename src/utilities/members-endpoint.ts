@@ -11,7 +11,7 @@ export function renderMembersTable(
     confirmMessage: string
     canEditRoles: boolean
     canRemove: boolean
-  },
+  }
 ): Response {
   let html = "<table><thead><tr><th>Member</th><th>Roles</th><th>Actions</th></tr></thead><tbody>"
   for (const member of members) {
@@ -20,7 +20,7 @@ export function renderMembersTable(
       const checkboxes = options.roles
         .map(
           (role) =>
-            `<label><input type="checkbox" name="roles" value="${role}" ${member.roles.includes(role) ? "checked" : ""} /> ${role}</label>`,
+            `<label><input type="checkbox" name="roles" value="${role}" ${member.roles.includes(role) ? "checked" : ""} /> ${role}</label>`
         )
         .join(" ")
       actions += `<details><summary>Edit roles</summary>
