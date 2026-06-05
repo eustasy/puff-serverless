@@ -77,22 +77,34 @@ describe("exchangeCode", () => {
   })
 
   it("returns null id_token when the provider omits it", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse({ access_token: "at" }))))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(jsonResponse({ access_token: "at" })))
+    )
     expect(await exchangeCode(opts)).toMatchObject({ success: true, access_token: "at", id_token: null })
   })
 
   it("fails with 502 on a non-OK token response", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response("bad", { status: 400 }))))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response("bad", { status: 400 })))
+    )
     expect(await exchangeCode(opts)).toMatchObject({ success: false, status: 502 })
   })
 
   it("fails with 502 when no access token is returned", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse({ token_type: "bearer" }))))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(jsonResponse({ token_type: "bearer" })))
+    )
     expect(await exchangeCode(opts)).toMatchObject({ success: false, status: 502 })
   })
 
   it("returns a 502 error envelope on a network failure", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("offline"))))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline")))
+    )
     expect(await exchangeCode(opts)).toMatchObject({ error: true, status: 502 })
   })
 })
@@ -124,17 +136,26 @@ describe("fetchUserIdentity", () => {
   })
 
   it("fails with 502 when the userinfo response is not OK", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response("no", { status: 401 }))))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response("no", { status: 401 })))
+    )
     expect(await fetchUserIdentity(provider, "token")).toMatchObject({ success: false, status: 502 })
   })
 
   it("fails with 502 when the profile cannot be normalised", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse({ login: "no-id" }))))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(jsonResponse({ login: "no-id" })))
+    )
     expect(await fetchUserIdentity(provider, "token")).toMatchObject({ success: false, status: 502 })
   })
 
   it("returns a 502 error envelope on a network failure", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("offline"))))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline")))
+    )
     expect(await fetchUserIdentity(provider, "token")).toMatchObject({ error: true, status: 502 })
   })
 })
