@@ -12,5 +12,8 @@ const SPEC: KeyValueSpec = {
   label: "team-role-keyvalues",
 }
 
-export const { readKeyValue, readKeyValues, searchKeyValues, setKeyValue, deleteKeyValue } =
-  createRoleKvModule<TeamRoleKeyValueRow>(SPEC, isTeamRole, "Unknown team role.")
+export const { readKeyValue, readKeyValues, searchKeyValues, setKeyValue, deleteKeyValue } = createRoleKvModule<TeamRoleKeyValueRow>(
+  SPEC,
+  isTeamRole,
+  "Unknown team role."
+)

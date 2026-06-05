@@ -12,5 +12,8 @@ const SPEC: KeyValueSpec = {
   label: "org-role-keyvalues",
 }
 
-export const { readKeyValue, readKeyValues, searchKeyValues, setKeyValue, deleteKeyValue } =
-  createRoleKvModule<OrgRoleKeyValueRow>(SPEC, isOrgRole, "Unknown organisation role.")
+export const { readKeyValue, readKeyValues, searchKeyValues, setKeyValue, deleteKeyValue } = createRoleKvModule<OrgRoleKeyValueRow>(
+  SPEC,
+  isOrgRole,
+  "Unknown organisation role."
+)
