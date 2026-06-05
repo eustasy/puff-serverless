@@ -68,10 +68,12 @@ The scary-looking outliers (complexity ≥ 30), all **reviewed and accepted**:
 - `src/utilities/oauth-token.ts` — `buildIdToken` 33
 - `functions/api/csp-report.ts` — 30
 
-> Optional, explicitly NOT committed: `oauth/token.ts` (81) and `oauth/userinfo.ts` (60)
-> are large enough that *if* we ever wanted to, per-grant-type handlers could move into
-> the existing `src/utilities/oauth-token.ts`. Flagged as a possible future follow-up
-> only — it conflicts with "controllers are controllers," so it is not in scope here.
+> **Refinement (maintainer call):** controller complexity is *not* acceptable when the
+> function reasonably contains **extractable logic** — only the irreducible
+> validate-then-return guard surface is. `oauth/token.ts` (81) and `oauth/userinfo.ts`
+> (60) crossed that line, so they were decomposed — see [Tier D](#tier-d--controller-decomposition-done).
+> The remaining controller complexity findings are pure guard clauses with nothing to
+> extract, and stay.
 
 ### Test duplication — LEAVE
 
@@ -223,6 +225,35 @@ independently reviewable and revertible.
 - [ ] **C3** `src/billing.ts` ↔ `src/entitlements.ts` — shared licensing block (decide import direction; no cycle).
 - [ ] **C4** `src/entitlements.ts` — internal dedup.
 - [ ] **Tier C gate** — billing/entitlements suites green; full smells re-run; `npm run lint`.
+- [x] **D1** `functions/oauth/userinfo.ts` — claim assembly → `buildUserInfoClaims` + `resolveEntitlementsClaim` + `readEmailClaims` in `src/utilities/oauth-userinfo.ts`. Complexity 60 + level-4 nesting gone; only the 8 auth guards remain.
+- [x] **D2** `functions/oauth/token.ts` — grant flows → `handleAuthorizationCodeGrant` / `handleRefreshTokenGrant` (+ private `ensureFloatingSeat`, `mintTokens`) in a **new** `src/utilities/oauth-token-grants.ts`. Complexity 81 gone; controller is now preamble + dispatch (8 guards).
+- [x] **Tier D gate** — `tsc` strict clean; 565/565 green; `npm run format` ✔; smells: high-complexity fns 35→33, high-total 9→7, deeply-nested 3→2, **no new findings**.
+
+## Tier D — controller decomposition (done)
+
+Added after the maintainer refined the rule: controller complexity is worth removing when
+the handler holds **extractable logic** (not just guards). Both OAuth outliers qualified.
+No endpoint-level tests exist for these two handlers yet (accepted for now — to be added
+later); the safety net is that the extracted logic moved into the `src/utilities/*` layer
+and the full `src/` suite + `tsc` stay green.
+
+- **`userinfo.ts`** — the scope-gated claim builders + the 4-deep entitlements nest moved
+  into `oauth-userinfo.ts` as `buildUserInfoClaims`, with `resolveEntitlementsClaim`
+  (guard-returns flatten the nest) and `readEmailClaims` (fail-soft). Handler keeps token
+  validation + user lookup, then one `buildUserInfoClaims` call.
+- **`token.ts`** — split the two ~60-line grant branches into `handleAuthorizationCodeGrant`
+  / `handleRefreshTokenGrant`. **Placement note:** these first went into `oauth-token.ts`,
+  but that pushed *its* file-total complexity to 61 (a new smell) — relocating a smell, not
+  removing it. So grant orchestration lives in a **new `oauth-token-grants.ts`**, leaving
+  `oauth-token.ts` as token primitives. The grant-branch divergences are preserved as
+  explicit parameters, per the spec table:
+  - floating-seat denial: `ensureFloatingSeat(..., releaseOnFailure)` — `false` for code, `true` for refresh.
+  - `nonce`: from the grant on code exchange, `null` on refresh (OIDC §12.1).
+  - refresh token: conditional-on-`offline_access` + tolerated on code; always-rotate + hard-500 on refresh.
+- **Left in place:** `oauth-token.ts`'s pre-existing `buildIdToken` (complexity 33, two
+  level-4 nests) — predates this work and out of scope. It now overlaps conceptually with
+  `buildUserInfoClaims`, but unifying ID-token vs UserInfo claim sets is a semantic decision
+  (they may legitimately diverge), deliberately not taken here.
 
 ## Out of scope
 
@@ -233,4 +264,6 @@ independently reviewable and revertible.
   rejected for now — smells aren't a CI gate, so the dashboard noise is harmless, and a
   blanket threshold bump would also hide *future* genuinely-bad complexity. Revisit only
   if the dashboard signal-to-noise becomes a real nuisance.
-- The optional `oauth/token.ts` / `userinfo.ts` controller decomposition (flagged above).
+- ~~The optional `oauth/token.ts` / `userinfo.ts` controller decomposition~~ — **now done**, see [Tier D](#tier-d--controller-decomposition-done).
+- Unifying `buildIdToken` (ID-token claims) with `buildUserInfoClaims` (UserInfo claims) —
+  conceptually similar, but a deliberate non-merge (the two claim sets may diverge).
