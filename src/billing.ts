@@ -853,6 +853,10 @@ export async function startSubscriptionCheckout(
       sessionId: session.id,
       status: 200,
     }
+    /* v8 ignore start -- defensive: the awaited reads above (getSubscriptionForApp,
+       getPricing) catch internally and return envelopes, and the only throwing
+       call (the provider) has its own try/catch, so this outer catch cannot be
+       reached in unit context. Kept as a belt-and-suspenders guard. */
   } catch (error) {
     console.error("Error in startSubscriptionCheckout:", error)
     return {
@@ -861,6 +865,7 @@ export async function startSubscriptionCheckout(
       details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
+    /* v8 ignore stop */
   }
 }
 
@@ -896,6 +901,10 @@ export async function openBillingPortal(
     }
 
     return { success: true, portalUrl: session.url, status: 200 }
+    /* v8 ignore start -- defensive: the awaited getCustomer read catches
+       internally and returns an envelope, and the only throwing call (the
+       provider) has its own try/catch, so this outer catch cannot be reached
+       in unit context. Kept as a belt-and-suspenders guard. */
   } catch (error) {
     console.error("Error in openBillingPortal:", error)
     return {
@@ -904,6 +913,7 @@ export async function openBillingPortal(
       details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
+    /* v8 ignore stop */
   }
 }
 

@@ -285,6 +285,10 @@ export async function listEntitlementsForToken(
       },
       status: 200,
     }
+    /* v8 ignore start -- defensive: listAppPermissions and resolveKeyValue both
+       catch internally and return error envelopes (handled by the `!success`
+       checks above), so no DB error propagates to this outer catch. Kept as a
+       belt-and-suspenders guard against an unforeseen throw. */
   } catch (error) {
     console.error("Error in listEntitlementsForToken:", error)
     return {
@@ -293,6 +297,7 @@ export async function listEntitlementsForToken(
       details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
+    /* v8 ignore stop */
   }
 }
 

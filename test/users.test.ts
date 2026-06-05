@@ -58,6 +58,33 @@ describe("registerUser", () => {
     db.on(/SELECT 1 FROM emails/, { rows: [{ "?column?": 1 }] })
     await expect(registerUser(db.client, fakeEnv(), "alice", "a@b.test", LONG_PASSWORD)).rejects.toThrow("already registered")
   })
+
+  it("throws when the email-existence check itself fails", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT 1 FROM emails/, pgError("08006")) // existsEmail → error envelope
+    await expect(registerUser(db.client, fakeEnv(), "alice", "a@b.test", LONG_PASSWORD)).rejects.toThrow("verify email existence")
+  })
+
+  it("throws when adding the primary email fails", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT 1 FROM emails/, { rows: [] })
+    db.on(/INSERT INTO users/, { rowCount: 1 })
+    db.on(READ_EMAIL, { rows: [] })
+    db.on(/INSERT INTO emails/, { rows: [{ email_address: "a@b.test" }] })
+    db.on(/INSERT INTO tokens/, pgError("08006")) // verification-token creation fails → createEmail error
+    await expect(registerUser(db.client, fakeEnv(), "alice", "a@b.test", LONG_PASSWORD)).rejects.toThrow()
+  })
+
+  it("throws when creating the password fails", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT 1 FROM emails/, { rows: [] })
+    db.on(/INSERT INTO users/, { rowCount: 1 })
+    db.on(READ_EMAIL, { rows: [] })
+    db.on(/INSERT INTO emails/, { rows: [{ email_address: "a@b.test" }] })
+    db.on(/INSERT INTO tokens/, { rows: [{ token_value: "tok" }] })
+    db.on(/INSERT INTO secrets/, pgError("08006")) // createPassword → error envelope
+    await expect(registerUser(db.client, fakeEnv(), "alice", "a@b.test", LONG_PASSWORD)).rejects.toThrow()
+  })
 })
 
 describe("loginUser", () => {
@@ -135,6 +162,82 @@ describe("loginUser", () => {
       password_upgrade_required: true,
     })
   })
+
+  it("returns the generic 401 when reading the email errors", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, pgError("08006")) // readEmail → error envelope
+    expect(await loginUser(db.client, "a@b.test", "pw", "ua", "ip", "GB", 12)).toMatchObject({ error: true, status: 401 })
+  })
+
+  it("returns an error when password verification fails internally", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, { rows: [{ user_uuid: "user-1", email_address: "a@b.test" }] })
+    db.on(/secret_value, secret_type/, pgError("08006")) // readPassword → error → verifyPassword error
+    expect(await loginUser(db.client, "a@b.test", "pw", "ua", "ip", "GB", 12)).toMatchObject({ error: true })
+  })
+
+  it("tells the user when they entered a previously-used password", async () => {
+    const db = await loginDb({})
+    const { hash, salt } = await puff_hashing_password("an old password", "s1", "SHA-384")
+    // Active check fails (wrong pw); the history lookup then matches a past one.
+    db.on(/secret_type, secret_value/, { rows: [{ secret_type: "puff_password_SHA-384", secret_value: `${hash}:${salt}` }] })
+    const r = await loginUser(db.client, "a@b.test", "an old password", "ua", "ip", "GB", 12)
+    expect(r).toMatchObject({ error: true, status: 401, message: expect.stringContaining("previously used") })
+  })
+
+  it("logs but still succeeds when the hash upgrade-on-login fails", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, { rows: [{ user_uuid: "user-1", email_address: "a@b.test" }] })
+    // Stored under an outdated algorithm so needs_upgrade is true.
+    const { hash, salt } = await puff_hashing_password(LONG_PASSWORD, "login-salt", "SHA-256")
+    db.on(/secret_value, secret_type/, { rows: [{ secret_value: `${hash}:${salt}`, secret_type: "puff_password_SHA-256" }] })
+    db.on(/UPDATE secrets SET secret_last_used/, { rowCount: 1 })
+    db.on(/SET is_enabled = FALSE/, pgError("08006")) // updatePassword fails (best-effort, logged)
+    db.on(/SELECT user_active FROM users/, { rows: [{ user_active: true }] })
+    db.on(/SELECT 1\s+FROM secrets/, { rows: [] }) // no 2FA
+    db.on(/INSERT INTO sessions/, { rowCount: 1 })
+    db.on(/UPDATE users SET user_last_login/, { rowCount: 1 })
+    const r = await loginUser(db.client, "a@b.test", LONG_PASSWORD, "ua", "ip", "GB", 12)
+    expect(r).toMatchObject({ success: true, status: 200 })
+  })
+
+  it("returns an error when the 2FA check fails", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, { rows: [{ user_uuid: "user-1", email_address: "a@b.test" }] })
+    db.on(/secret_value, secret_type/, {
+      rows: [{ secret_value: await storedPassword(LONG_PASSWORD), secret_type: "puff_password_SHA-384" }],
+    })
+    db.on(/UPDATE secrets SET secret_last_used/, { rowCount: 1 })
+    db.on(/SELECT user_active FROM users/, { rows: [{ user_active: true }] })
+    db.on(/SELECT 1\s+FROM secrets/, pgError("08006")) // has2fa → error
+    expect(await loginUser(db.client, "a@b.test", LONG_PASSWORD, "ua", "ip", "GB", 12)).toMatchObject({ error: true })
+  })
+
+  it("returns an error when session creation fails", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, { rows: [{ user_uuid: "user-1", email_address: "a@b.test" }] })
+    db.on(/secret_value, secret_type/, {
+      rows: [{ secret_value: await storedPassword(LONG_PASSWORD), secret_type: "puff_password_SHA-384" }],
+    })
+    db.on(/UPDATE secrets SET secret_last_used/, { rowCount: 1 })
+    db.on(/SELECT user_active FROM users/, { rows: [{ user_active: true }] })
+    db.on(/SELECT 1\s+FROM secrets/, { rows: [] }) // no 2FA
+    db.on(/INSERT INTO sessions/, pgError("08006")) // createSession → error envelope
+    expect(await loginUser(db.client, "a@b.test", LONG_PASSWORD, "ua", "ip", "GB", 12)).toMatchObject({ error: true })
+  })
+
+  it("returns 500 on an unexpected error during login", async () => {
+    const db = new FakeDb()
+    // readEmail is awaited outside an inner guard; a thrown non-envelope error
+    // from the active-user SELECT lands in loginUser's own catch.
+    db.on(READ_EMAIL, { rows: [{ user_uuid: "user-1", email_address: "a@b.test" }] })
+    db.on(/secret_value, secret_type/, {
+      rows: [{ secret_value: await storedPassword(LONG_PASSWORD), secret_type: "puff_password_SHA-384" }],
+    })
+    db.on(/UPDATE secrets SET secret_last_used/, { rowCount: 1 })
+    db.on(/SELECT user_active FROM users/, pgError("08006"))
+    expect((await loginUser(db.client, "a@b.test", LONG_PASSWORD, "ua", "ip", "GB", 12)).status).toBe(500)
+  })
 })
 
 describe("disableUser", () => {
@@ -158,6 +261,21 @@ describe("disableUser", () => {
     expect(result).toMatchObject({ success: false, status: 404 })
     expect(db.calls.map((c) => c.text)).toContain("ROLLBACK")
   })
+
+  it("rolls back when terminating the user's sessions fails", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE users SET user_active = FALSE/, { rows: [{ user_uuid: "user-1" }] })
+    db.on(/UPDATE sessions SET is_active = FALSE/, pgError("08006")) // terminateAllSessions → error envelope
+    const result = await disableUser(db.client, "user-1")
+    expect(result).toMatchObject({ error: true })
+    expect(db.calls.map((c) => c.text)).toContain("ROLLBACK")
+  })
+
+  it("returns 500 when the transaction cannot begin", async () => {
+    const db = new FakeDb()
+    db.on(/BEGIN/, pgError("08006"))
+    expect((await disableUser(db.client, "user-1")).status).toBe(500)
+  })
 })
 
 describe("enableUser", () => {
@@ -174,6 +292,12 @@ describe("enableUser", () => {
     const db = new FakeDb()
     db.on(/UPDATE users SET user_active = TRUE/, { rowCount: 0 })
     expect((await enableUser(db.client, "user-1")).status).toBe(404)
+  })
+
+  it("returns 500 when the update throws", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE users SET user_active = TRUE/, pgError("08006"))
+    expect((await enableUser(db.client, "user-1")).status).toBe(500)
   })
 })
 
@@ -202,6 +326,12 @@ describe("deleteUser", () => {
     expect(result).toMatchObject({ success: false, status: 409 })
     // The user row is left untouched.
     expect(db.calls.some((c) => c.text.includes("DELETE FROM users"))).toBe(false)
+  })
+
+  it("returns 500 when the transaction cannot begin", async () => {
+    const db = new FakeDb()
+    db.on(/BEGIN/, pgError("08006"))
+    expect((await deleteUser(db.client, "user-1")).status).toBe(500)
   })
 })
 

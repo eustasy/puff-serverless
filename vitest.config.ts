@@ -21,6 +21,15 @@ export default {
       // gives a readable summary in the CI log and locally.
       reporter: ["text", "lcov"],
       include: ["src/**/*.ts"],
+      // Coverage ratchet (see docs/plans/test-coverage-src.md). Floors set just
+      // below the post-Tier-2 numbers so `vitest run --coverage` fails on a
+      // regression. Raise these as Tier 3 lands so the floor only ever rises.
+      thresholds: {
+        lines: 93,
+        statements: 93,
+        functions: 95,
+        branches: 80,
+      },
     },
   },
 } satisfies ViteUserConfigExport

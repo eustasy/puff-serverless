@@ -170,4 +170,83 @@ describe("handleStripeWebhookEvent", () => {
     const result = await handleStripeWebhookEvent(db.client, null, subscriptionEvent("customer.subscription.created"))
     expect(result).toEqual({ status: 500 })
   })
+
+  it("marks a subscription canceled on customer.subscription.deleted", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO billing_webhook_events/, { rowCount: 1 })
+    db.on(/UPDATE subscriptions/, { rows: [{ org_uuid: "org-1", app_uuid: "app-1" }] })
+    db.on(/INSERT INTO audit_events/, { rowCount: 1 })
+    const result = await handleStripeWebhookEvent(
+      db.client,
+      null,
+      subscriptionEvent("customer.subscription.deleted", { canceled_at: PERIOD_END })
+    )
+    expect(result).toEqual({ status: 200 })
+    const audit = db.calls.find((c) => /INSERT INTO audit_events/.test(c.text))
+    expect(audit?.values[1]).toBe("billing.subscription.canceled")
+    expect(audit?.values[8]).toBe("org-1")
+  })
+
+  it("falls back to metadata for the org when the cancel UPDATE matches no row", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO billing_webhook_events/, { rowCount: 1 })
+    db.on(/UPDATE subscriptions/, { rows: [] }) // no local row matched
+    db.on(/INSERT INTO audit_events/, { rowCount: 1 })
+    const result = await handleStripeWebhookEvent(db.client, null, subscriptionEvent("customer.subscription.deleted"))
+    expect(result).toEqual({ status: 200 })
+    const audit = db.calls.find((c) => /INSERT INTO audit_events/.test(c.text))
+    expect(audit?.values[8]).toBe("org-1") // from metadata fallback
+  })
+
+  it("ignores a subscription.deleted event with no subscription id", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO billing_webhook_events/, { rowCount: 1 })
+    const result = await handleStripeWebhookEvent(db.client, null, subscriptionEvent("customer.subscription.deleted", { id: undefined }))
+    expect(result).toEqual({ status: 200 })
+    expect(db.calls.some((c) => /UPDATE subscriptions/.test(c.text))).toBe(false)
+  })
+
+  it("records the invoice and emits the matching event for each invoice type", async () => {
+    const cases: Array<[string, string, Record<string, unknown>]> = [
+      ["invoice.finalized", "billing.invoice.issued", {}],
+      ["invoice.payment_succeeded", "billing.payment.succeeded", {}],
+      ["invoice.payment_failed", "billing.payment.failed", {}],
+      ["invoice.voided", "billing.invoice.voided", {}],
+    ]
+    for (const [type, expected, over] of cases) {
+      const db = new FakeDb()
+      db.on(/INSERT INTO billing_webhook_events/, { rowCount: 1 })
+      db.on(/SELECT subscription_uuid, org_uuid FROM subscriptions/, { rows: [{ subscription_uuid: "s-1", org_uuid: "org-1" }] })
+      db.on(/INSERT INTO invoices/, { rowCount: 1 })
+      db.on(/INSERT INTO audit_events/, { rowCount: 1 })
+      const event: StripeEvent = {
+        id: `evt_${type}`,
+        type,
+        data: { object: { id: "in_ext", status: "open", total: 1000, currency: "usd", subscription: "sub_ext", ...over } },
+      }
+      const result = await handleStripeWebhookEvent(db.client, null, event)
+      expect(result, type).toEqual({ status: 200 })
+      const audit = db.calls.find((c) => /INSERT INTO audit_events/.test(c.text))
+      expect(audit?.values[1], type).toBe(expected)
+    }
+  })
+
+  it("acks but does nothing for an unhandled event type", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO billing_webhook_events/, { rowCount: 1 })
+    const event: StripeEvent = { id: "evt_x", type: "customer.created", data: { object: { id: "cus_1" } } }
+    const result = await handleStripeWebhookEvent(db.client, null, event)
+    expect(result).toEqual({ status: 200 })
+    // Recorded for dedup, but no subscription/invoice writes.
+    expect(db.calls.some((c) => /INSERT INTO (subscriptions|invoices)/.test(c.text))).toBe(false)
+  })
+
+  it("ignores an invoice event with no invoice id", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO billing_webhook_events/, { rowCount: 1 })
+    const event: StripeEvent = { id: "evt_noid", type: "invoice.paid", data: { object: { subscription: "sub_ext" } } }
+    const result = await handleStripeWebhookEvent(db.client, null, event)
+    expect(result).toEqual({ status: 200 })
+    expect(db.calls.some((c) => /INSERT INTO invoices/.test(c.text))).toBe(false)
+  })
 })

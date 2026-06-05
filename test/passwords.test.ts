@@ -9,13 +9,33 @@ import {
   minPasswordLength,
   passwordConfig,
   passwordRequirements,
+  passwordRequirementsHtml,
   DEFAULT_MIN_PASSWORD_LENGTH,
 } from "../src/passwords.js"
-import { puff_hashing_password } from "../src/utilities/hashing.js"
+import { puff_hashing_password, puffHashSha1Hibp } from "../src/utilities/hashing.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
 import { fakeEnv } from "./helpers/fake-env.js"
 
 afterEach(() => vi.unstubAllGlobals())
+
+// Build a HaveIBeenPwned k-anonymity range response whose suffix line matches
+// `pw` with the given breach count, so the fail-closed path can be exercised.
+async function hibpBody(pw: string, count: number): Promise<string> {
+  const { l35 } = await puffHashSha1Hibp(pw)
+  return `0000000000000000000000000000000000:5\n${l35.toUpperCase()}:${count}`
+}
+
+function stubFetch(body: string): void {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({ text: async () => body }))
+  )
+}
+
+// A range response with no matching suffix → HIBP reports the password clean.
+function stubFetchClean(): void {
+  stubFetch("0000000000000000000000000000000000:5")
+}
 
 describe("minPasswordLength", () => {
   it("falls back to the floor when unset, non-numeric or below the floor", () => {
@@ -69,6 +89,31 @@ describe("passwordRequirements", () => {
     expect(await passwordRequirements("Abcdefghijk1", cfg)).toBe(true)
   })
 
+  it("enforces capital and special rules independently", async () => {
+    const cfg = passwordConfig(fakeEnv({ REQUIRE_CAPITAL: "true", REQUIRE_SPECIAL_CHAR: "true" }))
+    expect(await passwordRequirements("abcdefghijk1", cfg)).toBe(false) // no capital
+    expect(await passwordRequirements("Abcdefghijk1", cfg)).toBe(false) // capital, no special
+    expect(await passwordRequirements("Abcdefghij1!", cfg)).toBe(true)
+  })
+
+  it("uses zxcvbn as the hard gate when configured", async () => {
+    const cfg = passwordConfig(fakeEnv({ REQUIRE_ZXCVBN: "true" }))
+    expect(await passwordRequirements("aaaaaaaaaaaa", cfg)).toBe(false) // long enough but trivially weak
+    expect(await passwordRequirements("correct horse battery staple", cfg)).toBe(true)
+  })
+
+  it("rejects a password found in HIBP breach data", async () => {
+    stubFetch(await hibpBody("abcdefghijkl", 42))
+    const cfg = passwordConfig(fakeEnv({ REQUIRE_NOT_COMPROMISED: "true" }))
+    expect(await passwordRequirements("abcdefghijkl", cfg)).toBe(false)
+  })
+
+  it("accepts a password absent from HIBP breach data", async () => {
+    stubFetchClean()
+    const cfg = passwordConfig(fakeEnv({ REQUIRE_NOT_COMPROMISED: "true" }))
+    expect(await passwordRequirements("abcdefghijkl", cfg)).toBe(true)
+  })
+
   it("treats a HIBP outage as a pass (fail-open)", async () => {
     vi.stubGlobal(
       "fetch",
@@ -78,6 +123,84 @@ describe("passwordRequirements", () => {
     )
     const cfg = passwordConfig(fakeEnv({ REQUIRE_NOT_COMPROMISED: "true" }))
     expect(await passwordRequirements("abcdefghijkl", cfg)).toBe(true)
+  })
+})
+
+describe("passwordRequirementsHtml", () => {
+  it("marks the length rule positive when met and negative when not", async () => {
+    expect(await passwordRequirementsHtml("abcdefghijkl", 12)).toContain("result-positive")
+    const short = await passwordRequirementsHtml("short", 12)
+    expect(short).toContain("result-negative")
+    expect(short).toContain("at least 12 characters")
+  })
+
+  it("renders each character-class rule as a hard requirement by default", async () => {
+    const cfg = passwordConfig(fakeEnv({ REQUIRE_NUMBER: "true", REQUIRE_CAPITAL: "true", REQUIRE_SPECIAL_CHAR: "true" }))
+    const html = await passwordRequirementsHtml("Abcdefghij1!", cfg)
+    expect(html).toContain("<strong>Must</strong> contain a number")
+    expect(html).toContain("contain an uppercase letter")
+    expect(html).toContain("contain a special character")
+    expect(html).not.toContain("result-negative") // all satisfied
+  })
+
+  it("marks unmet character-class rules negative", async () => {
+    const cfg = passwordConfig(fakeEnv({ REQUIRE_NUMBER: "true", REQUIRE_CAPITAL: "true", REQUIRE_SPECIAL_CHAR: "true" }))
+    const html = await passwordRequirementsHtml("abcdefghijkl", cfg) // no number/capital/special
+    expect(html).toContain("result-negative")
+    expect((html.match(/result-negative/g) ?? []).length).toBeGreaterThanOrEqual(3)
+  })
+
+  it("downgrades character rules to suggestions when zxcvbn is the hard gate", async () => {
+    const cfg = passwordConfig(fakeEnv({ REQUIRE_ZXCVBN: "true", REQUIRE_NUMBER: "true" }))
+    const html = await passwordRequirementsHtml("correct horse battery staple", cfg)
+    expect(html).toContain("Should contain a number")
+    expect(html).toContain("<strong>Must</strong> be strong enough")
+    expect(html).toContain("result-positive") // strong password passes the gate
+  })
+
+  it("shows a zxcvbn estimate with warning and suggestions for a weak password", async () => {
+    const cfg = passwordConfig(fakeEnv({ SHOW_ZXCVBN: "true" }))
+    const html = await passwordRequirementsHtml("password", cfg)
+    expect(html).toContain("Password strength:")
+    expect(html).toContain("result-negative")
+    expect(html).toContain("result-info") // at least one suggestion rendered
+  })
+
+  it("reports a single HIBP breach hit in the singular", async () => {
+    stubFetch(await hibpBody("abcdefghijkl", 1))
+    const cfg = passwordConfig(fakeEnv({ REQUIRE_NOT_COMPROMISED: "true" }))
+    const html = await passwordRequirementsHtml("abcdefghijkl", cfg)
+    expect(html).toContain("known data breach<")
+    expect(html).not.toContain("breaches")
+  })
+
+  it("formats and pluralises a larger HIBP breach count", async () => {
+    stubFetch(await hibpBody("abcdefghijkl", 1500))
+    const cfg = passwordConfig(fakeEnv({ REQUIRE_NOT_COMPROMISED: "true" }))
+    const html = await passwordRequirementsHtml("abcdefghijkl", cfg)
+    expect(html).toContain("known data breaches")
+    expect(html).toContain("1,500")
+  })
+
+  it("shows the clean message when HIBP returns no match", async () => {
+    stubFetchClean()
+    const cfg = passwordConfig(fakeEnv({ REQUIRE_NOT_COMPROMISED: "true" }))
+    const html = await passwordRequirementsHtml("abcdefghijkl", cfg)
+    expect(html).toContain("not be in known data breaches")
+  })
+
+  it("fails open with an info note when the HIBP lookup throws", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("down")
+      })
+    )
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    const cfg = passwordConfig(fakeEnv({ REQUIRE_NOT_COMPROMISED: "true" }))
+    const html = await passwordRequirementsHtml("abcdefghijkl", cfg)
+    expect(html).toContain("Unable to check breach status")
+    errSpy.mockRestore()
   })
 })
 
@@ -103,6 +226,12 @@ describe("createPassword", () => {
     db.on(/INSERT INTO secrets/, pgError("08006"))
     expect((await createPassword(db.client, "u", "abcdefghijkl")).status).toBe(500)
   })
+
+  it("returns 500 when the insert returns no rows", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO secrets/, { rows: [] })
+    expect((await createPassword(db.client, "u", "abcdefghijkl")).status).toBe(500)
+  })
 })
 
 describe("readPassword", () => {
@@ -125,6 +254,12 @@ describe("readPassword", () => {
     db.on(/secret_value, secret_type/, { rows: [] })
     expect((await readPassword(db.client, "user-1")).status).toBe(404)
   })
+
+  it("returns 500 when the select throws", async () => {
+    const db = new FakeDb()
+    db.on(/secret_value, secret_type/, pgError("08006"))
+    expect((await readPassword(db.client, "user-1")).status).toBe(500)
+  })
 })
 
 describe("disablePassword", () => {
@@ -144,6 +279,12 @@ describe("disablePassword", () => {
       success: true,
       disabled: false,
     })
+  })
+
+  it("returns 500 when the update throws", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE secrets/, pgError("08006"))
+    expect((await disablePassword(db.client, "user-1")).status).toBe(500)
   })
 })
 
@@ -194,6 +335,21 @@ describe("verifyPassword", () => {
       verified: false,
     })
   })
+
+  it("returns 500 when reading the stored password errors", async () => {
+    const db = new FakeDb()
+    db.on(/secret_value, secret_type/, pgError("08006"))
+    expect((await verifyPassword(db.client, "user-1", "pw")).status).toBe(500)
+  })
+
+  it("returns 500 when hashing the attempt throws (corrupt stored algorithm)", async () => {
+    const db = new FakeDb()
+    db.on(/secret_value, secret_type/, {
+      rows: [{ secret_value: "abc:salt", secret_type: "puff_password_BOGUS" }],
+    })
+    db.on(/UPDATE secrets/, { rowCount: 1 })
+    expect((await verifyPassword(db.client, "user-1", "pw")).status).toBe(500)
+  })
 })
 
 describe("isPasswordReused", () => {
@@ -222,6 +378,20 @@ describe("isPasswordReused", () => {
     })
     expect(await isPasswordReused(db.client, "user-1", "a different password")).toMatchObject({ reused: false })
   })
+
+  it("skips malformed stored rows without a salt", async () => {
+    const db = new FakeDb()
+    db.on(/secret_type, secret_value/, {
+      rows: [{ secret_type: "puff_password_SHA-384", secret_value: "nosaltseparator" }],
+    })
+    expect(await isPasswordReused(db.client, "user-1", "whatever")).toMatchObject({ reused: false })
+  })
+
+  it("returns 500 when the history lookup throws", async () => {
+    const db = new FakeDb()
+    db.on(/secret_type, secret_value/, pgError("08006"))
+    expect((await isPasswordReused(db.client, "user-1", "pw")).status).toBe(500)
+  })
 })
 
 describe("updatePassword", () => {
@@ -243,5 +413,19 @@ describe("updatePassword", () => {
     const result = await updatePassword(db.client, "user-1", "short")
     expect(result).toMatchObject({ success: false, status: 400 })
     expect(db.calls.map((c) => c.text)).toContain("ROLLBACK")
+  })
+
+  it("rolls back and surfaces a 500 when disabling the old password fails", async () => {
+    const db = new FakeDb()
+    db.on(/SET is_enabled = FALSE/, pgError("08006"))
+    const result = await updatePassword(db.client, "user-1", "abcdefghijkl")
+    expect(result).toMatchObject({ error: true, status: 500 })
+    expect(db.calls.map((c) => c.text)).toContain("ROLLBACK")
+  })
+
+  it("returns 500 when the transaction cannot even begin", async () => {
+    const db = new FakeDb()
+    db.on(/BEGIN/, pgError("08006"))
+    expect((await updatePassword(db.client, "user-1", "abcdefghijkl")).status).toBe(500)
   })
 })

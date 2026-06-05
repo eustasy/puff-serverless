@@ -31,6 +31,12 @@ describe("existsEmail", () => {
       exists: false,
     })
   })
+
+  it("returns an error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT 1 FROM emails/, pgError("08006"))
+    expect(await existsEmail(db.client, "a@b.test")).toMatchObject({ error: true })
+  })
 })
 
 describe("readEmail", () => {
@@ -51,6 +57,12 @@ describe("readEmail", () => {
       success: false,
       message: "Email not found.",
     })
+  })
+
+  it("returns an error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, pgError("08006"))
+    expect(await readEmail(db.client, "a@b.test")).toMatchObject({ error: true })
   })
 })
 
@@ -105,6 +117,29 @@ describe("createEmail", () => {
     const result = await createEmail(db.client, "user-1", "a@b.test", true, true)
     expect(result).toMatchObject({ success: true, token_value: null })
   })
+
+  it("treats an insert conflict as a successful add with no token (race)", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, { rows: [] })
+    db.on(/INSERT INTO emails/, { rowCount: 0, rows: [] }) // ON CONFLICT DO NOTHING
+    const result = await createEmail(db.client, "user-1", "a@b.test")
+    expect(result).toMatchObject({ success: true, token_value: null })
+  })
+
+  it("returns 500 when the verification token cannot be created", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, { rows: [] })
+    db.on(/INSERT INTO emails/, { rows: [{ email_address: "a@b.test" }] })
+    db.on(/INSERT INTO tokens/, pgError("08006")) // createEmailToken → error envelope
+    expect(await createEmail(db.client, "user-1", "a@b.test")).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("re-throws when the insert itself fails", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, { rows: [] })
+    db.on(/INSERT INTO emails/, pgError("08006"))
+    await expect(createEmail(db.client, "user-1", "a@b.test")).rejects.toThrow()
+  })
 })
 
 describe("verifyEmailByToken", () => {
@@ -141,6 +176,49 @@ describe("verifyEmailByToken", () => {
       message: "Email address already verified.",
     })
   })
+
+  it("returns 500 when the consumed token has no associated email", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE tokens SET is_used = TRUE/, { rows: [{ user_uuid: "user-1", email_address: null }] })
+    expect(await verifyEmailByToken(db.client, "tok")).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("returns 404 when the verified token's email no longer exists", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE tokens SET is_used = TRUE/, { rows: [{ user_uuid: "user-1", email_address: "a@b.test" }] })
+    db.on(READ_EMAIL, { rows: [] }) // readEmail → success:false (not found)
+    expect(await verifyEmailByToken(db.client, "tok")).toMatchObject({ error: true, status: 404 })
+  })
+
+  it("returns 500 when reading the email errors", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE tokens SET is_used = TRUE/, { rows: [{ user_uuid: "user-1", email_address: "a@b.test" }] })
+    db.on(READ_EMAIL, pgError("08006")) // readEmail → error envelope
+    expect(await verifyEmailByToken(db.client, "tok")).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("rejects when the token's user does not match the email's owner", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE tokens SET is_used = TRUE/, { rows: [{ user_uuid: "user-1", email_address: "a@b.test" }] })
+    db.on(READ_EMAIL, { rows: [emailRow({ user_uuid: "someone-else", is_verified: false })] })
+    expect(await verifyEmailByToken(db.client, "tok")).toMatchObject({ error: true, status: 400 })
+  })
+
+  it("returns 500 when the verification update affects no rows", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE tokens SET is_used = TRUE/, { rows: [{ user_uuid: "user-1", email_address: "a@b.test" }] })
+    db.on(READ_EMAIL, { rows: [emailRow({ user_uuid: "user-1", is_verified: false })] })
+    db.on(/UPDATE emails SET is_verified/, { rowCount: 0 })
+    expect(await verifyEmailByToken(db.client, "tok")).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("returns 500 when the verification update throws", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE tokens SET is_used = TRUE/, { rows: [{ user_uuid: "user-1", email_address: "a@b.test" }] })
+    db.on(READ_EMAIL, { rows: [emailRow({ user_uuid: "user-1", is_verified: false })] })
+    db.on(/UPDATE emails SET is_verified/, pgError("08006"))
+    expect(await verifyEmailByToken(db.client, "tok")).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("setPrimaryEmail", () => {
@@ -165,6 +243,35 @@ describe("setPrimaryEmail", () => {
       rows: [emailRow({ user_uuid: "user-1", is_verified: false })],
     })
     expect((await setPrimaryEmail(db.client, "user-1", "a@b.test")).status).toBe(400)
+  })
+
+  it("returns 404 when the address is not found", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, { rows: [] })
+    expect((await setPrimaryEmail(db.client, "user-1", "a@b.test")).status).toBe(404)
+  })
+
+  it("returns 500 when reading the address errors", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, pgError("08006"))
+    expect((await setPrimaryEmail(db.client, "user-1", "a@b.test")).status).toBe(500)
+  })
+
+  it("rolls back with 500 when the promote affects no rows", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, { rows: [emailRow({ user_uuid: "user-1", is_verified: true })] })
+    db.on(/is_primary = FALSE/, { rowCount: 1 }) // demote
+    db.on(/is_primary = TRUE/, { rowCount: 0 }) // promote — unexpectedly hits nothing
+    const result = await setPrimaryEmail(db.client, "user-1", "a@b.test")
+    expect(result).toMatchObject({ error: true, status: 500 })
+    expect(db.calls.map((c) => c.text)).toContain("ROLLBACK")
+  })
+
+  it("re-throws when the transaction fails unexpectedly", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, { rows: [emailRow({ user_uuid: "user-1", is_verified: true })] })
+    db.on(/is_primary = FALSE/, pgError("08006")) // demote throws (non-retryable)
+    await expect(setPrimaryEmail(db.client, "user-1", "a@b.test")).rejects.toThrow()
   })
 })
 
@@ -193,5 +300,31 @@ describe("deleteEmail", () => {
     const db = new FakeDb()
     db.on(READ_EMAIL, { rows: [emailRow({ user_uuid: "someone-else" })] })
     expect((await deleteEmail(db.client, "user-1", "a@b.test")).status).toBe(403)
+  })
+
+  it("returns 404 when the address is not found", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, { rows: [] })
+    expect((await deleteEmail(db.client, "user-1", "a@b.test")).status).toBe(404)
+  })
+
+  it("returns 500 when reading the address errors", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, pgError("08006"))
+    expect((await deleteEmail(db.client, "user-1", "a@b.test")).status).toBe(500)
+  })
+
+  it("returns 404 when the delete affects no rows", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, { rows: [emailRow({ user_uuid: "user-1", is_primary: false })] })
+    db.on(/DELETE FROM emails/, { rowCount: 0 })
+    expect((await deleteEmail(db.client, "user-1", "a@b.test")).status).toBe(404)
+  })
+
+  it("re-throws when the delete fails", async () => {
+    const db = new FakeDb()
+    db.on(READ_EMAIL, { rows: [emailRow({ user_uuid: "user-1", is_primary: false })] })
+    db.on(/DELETE FROM emails/, pgError("08006"))
+    await expect(deleteEmail(db.client, "user-1", "a@b.test")).rejects.toThrow()
   })
 })

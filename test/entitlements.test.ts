@@ -8,7 +8,7 @@ import {
   listEntitlementsForToken,
   summariseLicensing,
 } from "../src/entitlements.js"
-import { FakeDb } from "./helpers/fake-db.js"
+import { FakeDb, pgError } from "./helpers/fake-db.js"
 
 describe("isUserInOrg / isTeamInOrg", () => {
   it("isUserInOrg returns true when a row exists", async () => {
@@ -23,6 +23,12 @@ describe("isUserInOrg / isTeamInOrg", () => {
     db.on(/FROM teams WHERE team_uuid/, { rows: [], rowCount: 0 })
     const r = await isTeamInOrg(db.client, "o-1", "t-1")
     expect(r).toEqual({ success: true, belongs: false, status: 200 })
+  })
+
+  it("returns 500 when the existence query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM organisation_members/, pgError("08006"))
+    expect((await isUserInOrg(db.client, "o-1", "u-1")).status).toBe(500)
   })
 })
 
@@ -46,6 +52,33 @@ describe("assertGranteeInOrg", () => {
       team_uuid: "t-1",
     })
     expect(r.success).toBe(true)
+  })
+
+  it("passes a user grantee that is a member", async () => {
+    const db = new FakeDb()
+    db.on(/FROM organisation_members/, { rows: [{ x: 1 }], rowCount: 1 })
+    const r = await assertGranteeInOrg(db.client, "o-1", { type: "user", user_uuid: "u-1" })
+    expect(r).toMatchObject({ success: true, status: 200 })
+  })
+
+  it("404s a team grantee that does not belong", async () => {
+    const db = new FakeDb()
+    db.on(/FROM teams WHERE team_uuid/, { rows: [], rowCount: 0 })
+    const r = await assertGranteeInOrg(db.client, "o-1", { type: "team", team_uuid: "t-1" })
+    expect(r.success).toBe(false)
+    if (!r.success && !r.error) expect(r.status).toBe(404)
+  })
+
+  it("propagates a DB error from the user membership check", async () => {
+    const db = new FakeDb()
+    db.on(/FROM organisation_members/, pgError("08006"))
+    expect(await assertGranteeInOrg(db.client, "o-1", { type: "user", user_uuid: "u-1" })).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("propagates a DB error from the team membership check", async () => {
+    const db = new FakeDb()
+    db.on(/FROM teams WHERE team_uuid/, pgError("08006"))
+    expect(await assertGranteeInOrg(db.client, "o-1", { type: "team", team_uuid: "t-1" })).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -111,6 +144,33 @@ describe("isLicensed", () => {
     const r = await isLicensed(db.client, { app_uuid: "a-1", app_licensing_mode: "floating" }, "u-1", "o-1")
     expect(r).toMatchObject({ success: true, licensed: true, tier: null })
   })
+
+  it("propagates a subscription-lookup DB error", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions/, pgError("08006"))
+    expect(await isLicensed(db.client, { app_uuid: "a-1", app_licensing_mode: "seat" }, "u-1", "o-1")).toMatchObject({ error: true })
+  })
+
+  it("propagates a membership DB error in usage mode", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions/, { rows: [{ status: "active" }], rowCount: 1 })
+    db.on(/FROM organisation_members/, pgError("08006"))
+    expect(await isLicensed(db.client, { app_uuid: "a-1", app_licensing_mode: "usage" }, "u-1", "o-1")).toMatchObject({ error: true })
+  })
+
+  it("propagates a resolver DB error in seat mode", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions/, { rows: [{ status: "active" }], rowCount: 1 })
+    db.on(/FROM user_key_values/, pgError("08006")) // resolveKeyValue → error envelope
+    expect(await isLicensed(db.client, { app_uuid: "a-1", app_licensing_mode: "seat" }, "u-1", "o-1")).toMatchObject({ error: true })
+  })
+
+  it("returns 500 when the floating-session query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions/, { rows: [{ status: "active" }], rowCount: 1 })
+    db.on(/FROM app_floating_sessions/, pgError("08006"))
+    expect((await isLicensed(db.client, { app_uuid: "a-1", app_licensing_mode: "floating" }, "u-1", "o-1")).status).toBe(500)
+  })
 })
 
 describe("summariseLicensing", () => {
@@ -143,6 +203,19 @@ describe("summariseLicensing", () => {
     const r = await summariseLicensing(db.client, { app_uuid: "a-1", app_licensing_mode: "seat" }, "o-1")
     expect(r).toMatchObject({ success: true, mode: "seat", assigned: 12 })
   })
+
+  it("'usage' counts distinct users with any app-owned KV row", async () => {
+    const db = new FakeDb()
+    db.on(/count\(DISTINCT user_uuid\)::INT AS count/, { rows: [{ count: 5 }] })
+    const r = await summariseLicensing(db.client, { app_uuid: "a-1", app_licensing_mode: "usage" }, "o-1")
+    expect(r).toMatchObject({ success: true, mode: "usage", assigned: 5 })
+  })
+
+  it("returns 500 when a count query throws", async () => {
+    const db = new FakeDb()
+    db.on(/count\(DISTINCT user_uuid\)::INT AS count/, pgError("08006"))
+    expect((await summariseLicensing(db.client, { app_uuid: "a-1", app_licensing_mode: "seat" }, "o-1")).status).toBe(500)
+  })
 })
 
 describe("listEntitlementsForToken", () => {
@@ -172,6 +245,53 @@ describe("listEntitlementsForToken", () => {
       expect(r.claim.tier).toBeNull()
     }
   })
+
+  it("resolves the seat tier for a seat-mode app", async () => {
+    const db = new FakeDb()
+    db.on(/FROM app_key_values WHERE app_uuid = \$1 AND owner_app_uuid = \$1/, {
+      rows: [{ kv_key: "license:perms:export", kv_value: "Export" }],
+    })
+    // The user-tier resolver answers both the perm key and the license:tier key.
+    db.on(/SELECT kv_value FROM user_key_values WHERE user_uuid = \$1 AND owner_app_uuid = \$2 AND kv_key = \$3 LIMIT 1/, (values) => ({
+      rows: values[2] === "perm:export" ? [{ kv_value: "granted" }] : values[2] === "license:tier" ? [{ kv_value: "pro" }] : [],
+    }))
+    db.on(/FROM org_role_key_values/, { rows: [] })
+    db.on(/FROM organisation_key_values/, { rows: [] })
+    const r = await listEntitlementsForToken(db.client, { app_uuid: "a-1", app_licensing_mode: "seat" }, "u-1", "o-1")
+    expect(r.success).toBe(true)
+    if (r.success) {
+      expect(r.claim.tier).toBe("pro")
+      expect(r.claim.perms).toEqual({ export: "granted" })
+    }
+  })
+
+  it("propagates a listAppPermissions DB error", async () => {
+    const db = new FakeDb()
+    db.on(/FROM app_key_values WHERE app_uuid = \$1 AND owner_app_uuid = \$1/, pgError("08006"))
+    expect(await listEntitlementsForToken(db.client, { app_uuid: "a-1", app_licensing_mode: "none" }, "u-1", "o-1")).toMatchObject({
+      error: true,
+    })
+  })
+
+  it("propagates a resolver error while building perms", async () => {
+    const db = new FakeDb()
+    db.on(/FROM app_key_values WHERE app_uuid = \$1 AND owner_app_uuid = \$1/, {
+      rows: [{ kv_key: "license:perms:export", kv_value: "Export" }],
+    })
+    db.on(/SELECT kv_value FROM user_key_values WHERE user_uuid = \$1 AND owner_app_uuid = \$2 AND kv_key = \$3 LIMIT 1/, pgError("08006"))
+    expect(await listEntitlementsForToken(db.client, { app_uuid: "a-1", app_licensing_mode: "none" }, "u-1", "o-1")).toMatchObject({
+      error: true,
+    })
+  })
+
+  it("propagates a resolver error while reading the seat tier", async () => {
+    const db = new FakeDb()
+    db.on(/FROM app_key_values WHERE app_uuid = \$1 AND owner_app_uuid = \$1/, { rows: [] }) // no declared perms
+    db.on(/SELECT kv_value FROM user_key_values WHERE user_uuid = \$1 AND owner_app_uuid = \$2 AND kv_key = \$3 LIMIT 1/, pgError("08006")) // tier resolver throws
+    expect(await listEntitlementsForToken(db.client, { app_uuid: "a-1", app_licensing_mode: "seat" }, "u-1", "o-1")).toMatchObject({
+      error: true,
+    })
+  })
 })
 
 describe("findEligibleOrgs", () => {
@@ -186,5 +306,11 @@ describe("findEligibleOrgs", () => {
     const r = await findEligibleOrgs(db.client, "a-1", "u-1")
     expect(r.success).toBe(true)
     if (r.success) expect(r.orgs).toHaveLength(2)
+  })
+
+  it("returns 500 when the eligibility query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM organisations o[\s\S]*JOIN organisation_members/, pgError("08006"))
+    expect((await findEligibleOrgs(db.client, "a-1", "u-1")).status).toBe(500)
   })
 })

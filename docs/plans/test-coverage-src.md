@@ -183,18 +183,19 @@ with the remainder explicitly justified — not a vanity 100%.
 ## Locking the gains in (coverage ratchet)
 
 CI already emits `coverage/lcov.info` for the Qlty upload. To stop regressions,
-add a `coverage.thresholds` block to `vitest.config.ts` once Tier 2 lands
-(e.g. start at the then-current numbers, ratchet up per tier):
+a `coverage.thresholds` block is set in `vitest.config.ts`, started at the
+post-Tier-2 numbers (floors just below actual so a regression fails the run):
 
 ```ts
 coverage: {
   // ...existing...
-  thresholds: { lines: 90, functions: 90, branches: 85, statements: 90 },
+  thresholds: { lines: 93, statements: 93, functions: 95, branches: 80 },
 }
 ```
 
-`vitest run --coverage` then fails below threshold. Raise the numbers as Tier 3
-progresses so the floor only ever rises.
+**Landed with Tier 2** (post-Tier-2 actuals: lines 93.91%, statements 93.28%,
+functions 96.28%, branches 82.22%). `vitest run --coverage` now fails below
+threshold. Raise the numbers as Tier 3 progresses so the floor only ever rises.
 
 ## Execution order & expected coverage after each tier
 

@@ -4,9 +4,11 @@ import {
   createSubscription,
   ensureCustomer,
   getCustomer,
+  getInvoice,
   getSubscriptionForApp,
   listAllSubscriptions,
   listInvoices,
+  listPricing,
   listSubscriptions,
   openBillingPortal,
   reconcileBillingEmails,
@@ -18,6 +20,12 @@ import {
   type ProviderSubscription,
 } from "../src/billing.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
+
+// A provider whose every method rejects — for the 502 adapter-error branches.
+const throwing = () =>
+  vi.fn(async () => {
+    throw new Error("provider boom")
+  })
 
 const providerSub: ProviderSubscription = {
   id: "sub_ext",
@@ -491,5 +499,357 @@ describe("listInvoices", () => {
     db.on(/FROM invoices/, { rows: [invoice] })
     const result = await listInvoices(db.client, "org-1")
     expect(result).toEqual({ success: true, invoices: [invoice], status: 200 })
+  })
+
+  it("surfaces a DB error as a 500 envelope (readList catch)", async () => {
+    const db = new FakeDb()
+    db.on(/FROM invoices/, pgError("XX000"))
+    expect((await listInvoices(db.client, "org-1")).status).toBe(500)
+  })
+})
+
+describe("listPricing", () => {
+  it("returns the pricing rows for an app", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_pricing[\s\S]*ORDER BY tier/, { rows: [pricingRow] })
+    expect(await listPricing(db.client, "app-1")).toEqual({ success: true, pricing: [pricingRow], status: 200 })
+  })
+
+  it("surfaces a DB error as a 500 envelope", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_pricing/, pgError("XX000"))
+    expect((await listPricing(db.client, "app-1")).status).toBe(500)
+  })
+})
+
+describe("getInvoice", () => {
+  it("returns the invoice row scoped to the org", async () => {
+    const db = new FakeDb()
+    db.on(/FROM invoices[\s\S]*invoice_uuid = \$2/, { rows: [{ invoice_uuid: "inv-1" }] })
+    expect(await getInvoice(db.client, "org-1", "inv-1")).toMatchObject({
+      success: true,
+      invoice: { invoice_uuid: "inv-1" },
+      status: 200,
+    })
+  })
+
+  it("returns null when the invoice is absent", async () => {
+    const db = new FakeDb()
+    db.on(/FROM invoices[\s\S]*invoice_uuid = \$2/, { rows: [] })
+    expect(await getInvoice(db.client, "org-1", "inv-x")).toMatchObject({ success: true, invoice: null })
+  })
+})
+
+describe("resolveBillingEmail (error)", () => {
+  it("surfaces a DB error as a 500 envelope", async () => {
+    const db = new FakeDb()
+    db.on(/member_roles/, pgError("XX000"))
+    expect((await resolveBillingEmail(db.client, "org-1")).status).toBe(500)
+  })
+})
+
+describe("listSubscriptions / listAllSubscriptions (errors)", () => {
+  it("listSubscriptions surfaces a DB error as 500", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*ORDER BY created_at/, pgError("XX000"))
+    expect((await listSubscriptions(db.client, "org-1")).status).toBe(500)
+  })
+
+  it("listAllSubscriptions surfaces a DB error as 500", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions s/, pgError("XX000"))
+    expect((await listAllSubscriptions(db.client, {})).status).toBe(500)
+  })
+})
+
+describe("ensureCustomer (error & race paths)", () => {
+  it("propagates a getCustomer DB error", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, pgError("XX000"))
+    const r = await ensureCustomer(db.client, fakeProvider(), { org_uuid: "org-1", org_name: "Acme", locale: "en" })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("propagates a resolveBillingEmail DB error", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, { rows: [] })
+    db.on(/member_roles/, pgError("XX000"))
+    const r = await ensureCustomer(db.client, fakeProvider(), { org_uuid: "org-1", org_name: "Acme", locale: "en" })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("maps a provider createCustomer failure to a 502", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, { rows: [] })
+    db.on(/member_roles/, { rows: [{ email_address: "billing@acme.test" }] })
+    const r = await ensureCustomer(db.client, fakeProvider({ createCustomer: throwing() }), {
+      org_uuid: "org-1",
+      org_name: "Acme",
+      locale: "en",
+    })
+    expect(r).toMatchObject({ error: true, status: 502 })
+  })
+
+  it("resolves the race winner when the insert is a no-op", async () => {
+    const db = new FakeDb()
+    // First read → no row; the post-insert re-read → the winning row.
+    db.once(/FROM billing_customers/, { rows: [] })
+    db.on(/FROM billing_customers/, { rows: [{ org_uuid: "org-1", provider: "stripe", provider_customer_id: "cus_winner" }] })
+    db.on(/member_roles/, { rows: [{ email_address: "billing@acme.test" }] })
+    db.on(/INSERT INTO billing_customers/, { rows: [] }) // lost the race
+    const r = await ensureCustomer(db.client, fakeProvider(), { org_uuid: "org-1", org_name: "Acme", locale: "en" })
+    expect(r).toMatchObject({ success: true, status: 200, customer: { provider_customer_id: "cus_winner" } })
+  })
+
+  it("returns 500 when the row cannot be reloaded after a lost race", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, { rows: [] }) // both reads miss
+    db.on(/member_roles/, { rows: [{ email_address: "billing@acme.test" }] })
+    db.on(/INSERT INTO billing_customers/, { rows: [] })
+    const r = await ensureCustomer(db.client, fakeProvider(), { org_uuid: "org-1", org_name: "Acme", locale: "en" })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("surfaces an insert failure as a 500 (catch)", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, { rows: [] })
+    db.on(/member_roles/, { rows: [{ email_address: "billing@acme.test" }] })
+    db.on(/INSERT INTO billing_customers/, pgError("XX000"))
+    const r = await ensureCustomer(db.client, fakeProvider(), { org_uuid: "org-1", org_name: "Acme", locale: "en" })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+})
+
+describe("setBillingEmailOverride (error & clear paths)", () => {
+  const customerRow = { org_uuid: "org-1", provider_customer_id: "cus_1", billing_email: "override@x.test", synced_email: "old@x.test" }
+
+  it("propagates a getCustomer DB error", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, pgError("XX000"))
+    const r = await setBillingEmailOverride(db.client, fakeProvider(), { org_uuid: "org-1", email: "new@x.test" })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("falls back to the resolved email when the override is cleared", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, { rows: [customerRow] })
+    db.on(/member_roles/, { rows: [{ email_address: "resolved@x.test" }] })
+    db.on(/UPDATE billing_customers SET billing_email/, { rowCount: 1 })
+    db.on(/UPDATE billing_customers SET synced_email/, { rowCount: 1 })
+    const provider = fakeProvider()
+    const r = await setBillingEmailOverride(db.client, provider, { org_uuid: "org-1", email: null })
+    expect(r).toMatchObject({ success: true, email: "resolved@x.test" })
+    expect(provider.updateCustomer).toHaveBeenCalledWith("cus_1", { email: "resolved@x.test" })
+  })
+
+  it("propagates a resolve error when clearing the override", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, { rows: [customerRow] })
+    db.on(/member_roles/, pgError("XX000"))
+    const r = await setBillingEmailOverride(db.client, fakeProvider(), { org_uuid: "org-1", email: "  " })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("maps a provider updateCustomer failure to a 502", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, { rows: [customerRow] })
+    db.on(/UPDATE billing_customers SET billing_email/, { rowCount: 1 })
+    const r = await setBillingEmailOverride(db.client, fakeProvider({ updateCustomer: throwing() }), {
+      org_uuid: "org-1",
+      email: "new@x.test",
+    })
+    expect(r).toMatchObject({ error: true, status: 502 })
+  })
+
+  it("surfaces a DB write failure as a 500 (catch)", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, { rows: [customerRow] })
+    db.on(/UPDATE billing_customers SET billing_email/, pgError("XX000"))
+    const r = await setBillingEmailOverride(db.client, fakeProvider(), { org_uuid: "org-1", email: "new@x.test" })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+})
+
+describe("reconcileBillingEmails (skip & error paths)", () => {
+  it("skips a customer whose email cannot be resolved", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers[\s\S]*ORDER BY org_uuid/, {
+      rows: [{ org_uuid: "org-1", provider_customer_id: "cus_1", billing_email: null, synced_email: "x@x.test" }],
+    })
+    db.on(/member_roles/, pgError("XX000"))
+    const provider = fakeProvider()
+    const r = await reconcileBillingEmails(db.client, provider)
+    expect(r).toMatchObject({ success: true, reconciled: 0 })
+    expect(provider.updateCustomer).not.toHaveBeenCalled()
+  })
+
+  it("logs and skips a customer whose provider update throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers[\s\S]*ORDER BY org_uuid/, {
+      rows: [{ org_uuid: "org-1", provider_customer_id: "cus_1", billing_email: "override@x.test", synced_email: "old@x.test" }],
+    })
+    const r = await reconcileBillingEmails(db.client, fakeProvider({ updateCustomer: throwing() }))
+    expect(r).toMatchObject({ success: true, reconciled: 0 })
+  })
+
+  it("surfaces the listing DB error as a 500 envelope", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers[\s\S]*ORDER BY org_uuid/, pgError("XX000"))
+    expect((await reconcileBillingEmails(db.client, fakeProvider())).status).toBe(500)
+  })
+})
+
+describe("createSubscription (error paths)", () => {
+  it("propagates the existing-subscription lookup error", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*app_uuid = \$2/, pgError("XX000"))
+    const r = await createSubscription(db.client, fakeProvider(), { org_uuid: "org-1", app_uuid: "app-1", tier: "pro", customerId: "cus" })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("propagates the pricing lookup error", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*app_uuid = \$2/, { rows: [] })
+    db.on(/FROM billing_pricing/, pgError("XX000"))
+    const r = await createSubscription(db.client, fakeProvider(), { org_uuid: "org-1", app_uuid: "app-1", tier: "pro", customerId: "cus" })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("surfaces an insert failure as a 500 (catch)", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*app_uuid = \$2/, { rows: [] })
+    db.on(/FROM billing_pricing/, { rows: [pricingRow] })
+    db.on(/INSERT INTO subscriptions/, pgError("XX000"))
+    const r = await createSubscription(db.client, fakeProvider(), { org_uuid: "org-1", app_uuid: "app-1", tier: "pro", customerId: "cus" })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+})
+
+describe("updateSubscription (error paths)", () => {
+  it("propagates the subscription lookup error", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*WHERE subscription_uuid = \$1/, pgError("XX000"))
+    const r = await updateSubscription(db.client, fakeProvider(), { subscription_uuid: "s-1", newTier: "pro" })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("propagates the pricing lookup error", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*WHERE subscription_uuid = \$1/, { rows: [subRow] })
+    db.on(/FROM billing_pricing/, pgError("XX000"))
+    const r = await updateSubscription(db.client, fakeProvider(), { subscription_uuid: "s-1", newTier: "pro" })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("rejects with 400 when the new tier has no pricing", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*WHERE subscription_uuid = \$1/, { rows: [subRow] })
+    db.on(/FROM billing_pricing/, { rows: [] })
+    const r = await updateSubscription(db.client, fakeProvider(), { subscription_uuid: "s-1", newTier: "enterprise" })
+    expect(r).toMatchObject({ success: false, status: 400 })
+  })
+
+  it("maps a provider failure to a 502", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*WHERE subscription_uuid = \$1/, { rows: [subRow] })
+    db.on(/FROM billing_pricing/, { rows: [pricingRow] })
+    const r = await updateSubscription(db.client, fakeProvider({ updateSubscription: throwing() }), {
+      subscription_uuid: "s-1",
+      newTier: "pro",
+    })
+    expect(r).toMatchObject({ error: true, status: 502 })
+  })
+
+  it("surfaces the UPDATE failure as a 500 (catch)", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*WHERE subscription_uuid = \$1/, { rows: [subRow] })
+    db.on(/FROM billing_pricing/, { rows: [pricingRow] })
+    db.on(/UPDATE subscriptions/, pgError("XX000"))
+    const r = await updateSubscription(db.client, fakeProvider(), { subscription_uuid: "s-1", newTier: "pro" })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+})
+
+describe("cancelSubscription (error paths)", () => {
+  it("propagates the subscription lookup error", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*WHERE subscription_uuid = \$1/, pgError("XX000"))
+    const r = await cancelSubscription(db.client, fakeProvider(), { subscription_uuid: "s-1", immediately: true })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("returns 404 when the subscription is missing", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*WHERE subscription_uuid = \$1/, { rows: [] })
+    const r = await cancelSubscription(db.client, fakeProvider(), { subscription_uuid: "s-x", immediately: true })
+    expect(r).toMatchObject({ success: false, status: 404 })
+  })
+
+  it("maps a provider failure to a 502", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*WHERE subscription_uuid = \$1/, { rows: [subRow] })
+    const r = await cancelSubscription(db.client, fakeProvider({ cancelSubscription: throwing() }), {
+      subscription_uuid: "s-1",
+      immediately: false,
+    })
+    expect(r).toMatchObject({ error: true, status: 502 })
+  })
+
+  it("surfaces the UPDATE failure as a 500 (catch)", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*WHERE subscription_uuid = \$1/, { rows: [subRow] })
+    db.on(/UPDATE subscriptions/, pgError("XX000"))
+    const r = await cancelSubscription(db.client, fakeProvider(), { subscription_uuid: "s-1", immediately: true })
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+})
+
+describe("startSubscriptionCheckout (error paths)", () => {
+  const ok = { org_uuid: "org-1", app_uuid: "app-1", tier: "pro", customerId: "cus", successUrl: "https://ok", cancelUrl: "https://no" }
+
+  it("propagates the existing-subscription lookup error", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*app_uuid = \$2/, pgError("XX000"))
+    expect((await startSubscriptionCheckout(db.client, fakeProvider(), ok)).status).toBe(500)
+  })
+
+  it("propagates the pricing lookup error", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*app_uuid = \$2/, { rows: [] })
+    db.on(/FROM billing_pricing/, pgError("XX000"))
+    expect((await startSubscriptionCheckout(db.client, fakeProvider(), ok)).status).toBe(500)
+  })
+
+  it("rejects with 400 when the tier has no pricing", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*app_uuid = \$2/, { rows: [] })
+    db.on(/FROM billing_pricing/, { rows: [] })
+    expect((await startSubscriptionCheckout(db.client, fakeProvider(), ok)).status).toBe(400)
+  })
+
+  it("maps a provider failure to a 502", async () => {
+    const db = new FakeDb()
+    db.on(/FROM subscriptions[\s\S]*app_uuid = \$2/, { rows: [] })
+    db.on(/FROM billing_pricing/, { rows: [pricingRow] })
+    const r = await startSubscriptionCheckout(db.client, fakeProvider({ createCheckoutSession: throwing() }), ok)
+    expect(r).toMatchObject({ error: true, status: 502 })
+  })
+})
+
+describe("openBillingPortal (error paths)", () => {
+  it("propagates the getCustomer DB error", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, pgError("XX000"))
+    expect((await openBillingPortal(db.client, fakeProvider(), { org_uuid: "org-1", returnUrl: "https://b" })).status).toBe(500)
+  })
+
+  it("maps a provider failure to a 502", async () => {
+    const db = new FakeDb()
+    db.on(/FROM billing_customers/, { rows: [{ org_uuid: "org-1", provider_customer_id: "cus_x" }] })
+    const r = await openBillingPortal(db.client, fakeProvider({ createBillingPortalSession: throwing() }), {
+      org_uuid: "org-1",
+      returnUrl: "https://b",
+    })
+    expect(r).toMatchObject({ error: true, status: 502 })
   })
 })
