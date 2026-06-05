@@ -17,10 +17,10 @@ export function createDbMiddleware(label: string): Handler {
       return await context.next()
     } catch (error) {
       console.error(`${label}: connection or handler error:`, error)
-      return new Response(
-        '<h1 class="result-negative">Server Error</h1><p>An unexpected error occurred. Please try again later.</p>',
-        { status: 500, headers: { "Content-Type": "text/html" } }
-      )
+      return new Response('<h1 class="result-negative">Server Error</h1><p>An unexpected error occurred. Please try again later.</p>', {
+        status: 500,
+        headers: { "Content-Type": "text/html" },
+      })
     } finally {
       if (context.data.dbClient) {
         try {
