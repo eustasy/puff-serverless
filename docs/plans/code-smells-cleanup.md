@@ -92,6 +92,19 @@ verb / event (`ORG_ENABLED` vs `ORG_DISABLED`) / message. DRYing them behind a s
 factory couples two independent controllers behind a flag, for no real gain. Each file
 is 27 lines and reads cleanly in isolation. Left.
 
+### Cross-domain structural twins — LEAVE (surfaced during Tier B)
+
+The same category as `enable`/`disable`: distinct operations in different domains that
+share only the envelope skeleton. Unifying would couple unrelated modules behind a generic
+for a ~14–21 line skeleton that is mostly the mandated `try/catch`.
+
+- `removeTeamMember` (memberships) ↔ `revokeInvitation` (invitations) — both "DELETE one
+  row scoped by two columns; rowCount 0 → 404; catch → 500". Different tables, messages, domains.
+- `listTeams` (teams) ↔ `listInvitations` (invitations) — both "SELECT … WHERE scope = $1
+  ORDER BY …; return the list". Different tables, filters (invitations adds unspent/unexpired), domains.
+- `invitations.ts` internal mass-64 triples — the `try/catch` envelope shared across its five
+  functions. The envelope idiom (above), not extractable logic.
+
 ### `public/assets/webauthn.js` complexity 57 — LEAVE
 
 First-party (per memory: not a vendor file), but the complexity is the ceremony of the
@@ -216,10 +229,10 @@ independently reviewable and revertible.
 - [x] **A5** `src/keyvalues-resolver.ts` — `querySingleTier` (user/team/org/app) **and** `queryRoleTier` (team-role/org-role). The flagged 15-line pair was the role tiers; the single-value merge is a bonus sub-threshold dedup.
 - [x] **A6** `src/users.ts` — `updateUserByUuid` unifying `enableUser` + `updateLastLogin` (the 17-line twins; `disableUser`/`deleteUser` are transactional, left).
 - [x] **Tier A gate** — `tsc` strict clean; full suite 565/565 green; `npm run format` ✔ no issues; smells re-run shows all six files' duplication cleared (only the documented inherent `resolveKeyValue` / `loginUser` complexity remains).
-- [ ] **B1** `src/memberships.ts` — scope-parameterized member/role helpers.
-- [ ] **B2** `src/organisations.ts` ↔ `src/teams.ts` — shared create/update/delete + name validation.
-- [ ] **B3** `src/invitations.ts` — shared role-assignment/validation with memberships/teams.
-- [ ] **Tier B gate** — memberships/organisations/teams/invitations suites green; smells re-run.
+- [x] **B1** `src/memberships.ts` — `MembershipScope` descriptor + generic `addScopeMember` / `setScopeMemberRoles` / `listScopeMembers` / `getScopeRoles`; org/team delegate to them. The org last-owner invariant stays explicit (passed as `enforceInvariant` to `setOrgMemberRoles` only; `removeOrgMember` keeps its own guarded transaction). Cleared the 39/31/24/21/18 internal dups **and** the file's "High total complexity 58".
+- [x] **B2** `src/organisations.ts` ↔ `src/teams.ts` — shared `readNamedEntity` / `updateNamedEntityName` in new `src/utilities/named-entity.ts`, driven by a noun-based `NamedEntitySpec` (all messages derive from `noun`; `validateName` carried on the spec). Cleared the read (117) + update (148) pairs. `create`/`delete` left divergent (owner txn / balance check / FK→404), `list*` left (see below).
+- [x] **B3** `src/invitations.ts` — **no change; documented as false positives.** Its remaining dups are cross-domain structural twins, not shared domain logic: `acceptInvitation`'s member-INSERT has different error semantics from `addOrgMember` (FK→"organisation no longer exists", inside the accept transaction), and `revokeInvitation`/`listInvitations` are the delete-or-404 / list-by-scope envelope skeleton (see false-positives below).
+- [x] **Tier B gate** — `tsc` strict clean; full suite 565/565; `npm run format` ✔; duplication 41→28; high-total-complexity 7→6. Remaining cluster findings are all documented false positives / the envelope idiom.
 - [ ] **C1** confirm `test/billing.test.ts` / `test/entitlements.test.ts` coverage is adequate first.
 - [ ] **C2** `src/billing.ts` — provider-call/envelope mapping helper.
 - [ ] **C3** `src/billing.ts` ↔ `src/entitlements.ts` — shared licensing block (decide import direction; no cycle).

@@ -16,15 +16,16 @@ export const MAX_NAME_LENGTH = 128
 
 const ORG_COLUMNS = "org_uuid, org_name, org_active, org_locale, org_created_at, org_created_by"
 
+const validateName = (name: string): string | null => validateDisplayName(name, "An organisation name is required.", MAX_NAME_LENGTH)
+
 const ORG_ENTITY: NamedEntitySpec = {
   table: "organisations",
   columns: ORG_COLUMNS,
   idColumn: "org_uuid",
   nameColumn: "org_name",
-  notFoundMessage: "Organisation not found.",
+  noun: "organisation",
+  validateName,
 }
-
-const validateName = (name: string): string | null => validateDisplayName(name, "An organisation name is required.", MAX_NAME_LENGTH)
 
 /**
  * Creates an organisation and makes the creator its first `owner`, in one
@@ -80,7 +81,7 @@ export async function createOrganisation(
  * @returns {Promise<Envelope<{ organisation: OrganisationRow }>>} `{ success: true, organisation, status: 200 }`, `{ success: false, message, status: 404 }`, or an error envelope.
  */
 export async function readOrganisation(dbClient: DbClient, org_uuid: string): Promise<Envelope<{ organisation: OrganisationRow }>> {
-  const result = await readNamedEntity<OrganisationRow>(dbClient, ORG_ENTITY, org_uuid, "readOrganisation", "Could not read organisation.")
+  const result = await readNamedEntity<OrganisationRow>(dbClient, ORG_ENTITY, org_uuid)
   if (result.success) {
     return { success: true, organisation: result.row, status: 200 }
   }
@@ -99,18 +100,7 @@ export async function updateOrganisation(
   org_uuid: string,
   name: string
 ): Promise<Envelope<{ organisation: OrganisationRow }>> {
-  const invalid = validateName(name)
-  if (invalid) {
-    return { success: false, message: invalid, status: 400 }
-  }
-  const result = await updateNamedEntityName<OrganisationRow>(
-    dbClient,
-    ORG_ENTITY,
-    org_uuid,
-    name,
-    "updateOrganisation",
-    "Could not update organisation."
-  )
+  const result = await updateNamedEntityName<OrganisationRow>(dbClient, ORG_ENTITY, org_uuid, name)
   if (result.success) {
     return { success: true, organisation: result.row, status: 200 }
   }

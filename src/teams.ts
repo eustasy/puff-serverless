@@ -14,15 +14,16 @@ export const MAX_NAME_LENGTH = 128
 
 const TEAM_COLUMNS = "team_uuid, org_uuid, team_name, team_created_at"
 
+const validateName = (name: string): string | null => validateDisplayName(name, "A team name is required.", MAX_NAME_LENGTH)
+
 const TEAM_ENTITY: NamedEntitySpec = {
   table: "teams",
   columns: TEAM_COLUMNS,
   idColumn: "team_uuid",
   nameColumn: "team_name",
-  notFoundMessage: "Team not found.",
+  noun: "team",
+  validateName,
 }
-
-const validateName = (name: string): string | null => validateDisplayName(name, "A team name is required.", MAX_NAME_LENGTH)
 
 /**
  * Creates a team within an organisation. The caller is responsible for the
@@ -68,7 +69,7 @@ export async function createTeam(dbClient: DbClient, org_uuid: string, name: str
  * @returns {Promise<Envelope<{ team: TeamRow }>>} `{ success: true, team, status: 200 }`, `{ success: false, message, status: 404 }`, or an error envelope.
  */
 export async function readTeam(dbClient: DbClient, team_uuid: string): Promise<Envelope<{ team: TeamRow }>> {
-  const result = await readNamedEntity<TeamRow>(dbClient, TEAM_ENTITY, team_uuid, "readTeam", "Could not read team.")
+  const result = await readNamedEntity<TeamRow>(dbClient, TEAM_ENTITY, team_uuid)
   if (result.success) {
     return { success: true, team: result.row, status: 200 }
   }
@@ -83,11 +84,7 @@ export async function readTeam(dbClient: DbClient, team_uuid: string): Promise<E
  * @returns {Promise<Envelope<{ team: TeamRow }>>} `{ success: true, team, status: 200 }`, `{ success: false, message, status: 400|404 }`, or an error envelope.
  */
 export async function updateTeam(dbClient: DbClient, team_uuid: string, name: string): Promise<Envelope<{ team: TeamRow }>> {
-  const invalid = validateName(name)
-  if (invalid) {
-    return { success: false, message: invalid, status: 400 }
-  }
-  const result = await updateNamedEntityName<TeamRow>(dbClient, TEAM_ENTITY, team_uuid, name, "updateTeam", "Could not update team.")
+  const result = await updateNamedEntityName<TeamRow>(dbClient, TEAM_ENTITY, team_uuid, name)
   if (result.success) {
     return { success: true, team: result.row, status: 200 }
   }
