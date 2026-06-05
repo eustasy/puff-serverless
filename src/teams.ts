@@ -7,11 +7,20 @@
 // there is no slug, and names need not be unique within an organisation.
 
 import { validateDisplayName } from "./utilities/validation.js"
+import { readNamedEntity, updateNamedEntityName, type NamedEntitySpec } from "./utilities/named-entity.js"
 
 /** Longest accepted team display name. */
 export const MAX_NAME_LENGTH = 128
 
 const TEAM_COLUMNS = "team_uuid, org_uuid, team_name, team_created_at"
+
+const TEAM_ENTITY: NamedEntitySpec = {
+  table: "teams",
+  columns: TEAM_COLUMNS,
+  idColumn: "team_uuid",
+  nameColumn: "team_name",
+  notFoundMessage: "Team not found.",
+}
 
 const validateName = (name: string): string | null => validateDisplayName(name, "A team name is required.", MAX_NAME_LENGTH)
 
@@ -59,21 +68,11 @@ export async function createTeam(dbClient: DbClient, org_uuid: string, name: str
  * @returns {Promise<Envelope<{ team: TeamRow }>>} `{ success: true, team, status: 200 }`, `{ success: false, message, status: 404 }`, or an error envelope.
  */
 export async function readTeam(dbClient: DbClient, team_uuid: string): Promise<Envelope<{ team: TeamRow }>> {
-  try {
-    const result = await dbClient.query(`SELECT ${TEAM_COLUMNS} FROM teams WHERE team_uuid = $1 LIMIT 1`, [team_uuid])
-    if (result.rows.length === 0) {
-      return { success: false, message: "Team not found.", status: 404 }
-    }
-    return { success: true, team: result.rows[0], status: 200 }
-  } catch (error) {
-    console.error("Error in readTeam:", error)
-    return {
-      error: true,
-      message: "Could not read team.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
+  const result = await readNamedEntity<TeamRow>(dbClient, TEAM_ENTITY, team_uuid, "readTeam", "Could not read team.")
+  if (result.success) {
+    return { success: true, team: result.row, status: 200 }
   }
+  return result
 }
 
 /**
@@ -88,24 +87,11 @@ export async function updateTeam(dbClient: DbClient, team_uuid: string, name: st
   if (invalid) {
     return { success: false, message: invalid, status: 400 }
   }
-  try {
-    const result = await dbClient.query(`UPDATE teams SET team_name = $2 WHERE team_uuid = $1 RETURNING ${TEAM_COLUMNS}`, [
-      team_uuid,
-      name.trim(),
-    ])
-    if ((result.rowCount ?? 0) === 0) {
-      return { success: false, message: "Team not found.", status: 404 }
-    }
-    return { success: true, team: result.rows[0], status: 200 }
-  } catch (error) {
-    console.error("Error in updateTeam:", error)
-    return {
-      error: true,
-      message: "Could not update team.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
+  const result = await updateNamedEntityName<TeamRow>(dbClient, TEAM_ENTITY, team_uuid, name, "updateTeam", "Could not update team.")
+  if (result.success) {
+    return { success: true, team: result.row, status: 200 }
   }
+  return result
 }
 
 /**

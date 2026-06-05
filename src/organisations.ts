@@ -9,11 +9,20 @@
 import { runInTransaction } from "./utilities/transaction.js"
 import { OWNER_ROLE } from "./permissions.js"
 import { validateDisplayName } from "./utilities/validation.js"
+import { readNamedEntity, updateNamedEntityName, type NamedEntitySpec } from "./utilities/named-entity.js"
 
 /** Longest accepted organisation display name. */
 export const MAX_NAME_LENGTH = 128
 
 const ORG_COLUMNS = "org_uuid, org_name, org_active, org_locale, org_created_at, org_created_by"
+
+const ORG_ENTITY: NamedEntitySpec = {
+  table: "organisations",
+  columns: ORG_COLUMNS,
+  idColumn: "org_uuid",
+  nameColumn: "org_name",
+  notFoundMessage: "Organisation not found.",
+}
 
 const validateName = (name: string): string | null => validateDisplayName(name, "An organisation name is required.", MAX_NAME_LENGTH)
 
@@ -71,21 +80,11 @@ export async function createOrganisation(
  * @returns {Promise<Envelope<{ organisation: OrganisationRow }>>} `{ success: true, organisation, status: 200 }`, `{ success: false, message, status: 404 }`, or an error envelope.
  */
 export async function readOrganisation(dbClient: DbClient, org_uuid: string): Promise<Envelope<{ organisation: OrganisationRow }>> {
-  try {
-    const result = await dbClient.query(`SELECT ${ORG_COLUMNS} FROM organisations WHERE org_uuid = $1 LIMIT 1`, [org_uuid])
-    if (result.rows.length === 0) {
-      return { success: false, message: "Organisation not found.", status: 404 }
-    }
-    return { success: true, organisation: result.rows[0], status: 200 }
-  } catch (error) {
-    console.error("Error in readOrganisation:", error)
-    return {
-      error: true,
-      message: "Could not read organisation.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
+  const result = await readNamedEntity<OrganisationRow>(dbClient, ORG_ENTITY, org_uuid, "readOrganisation", "Could not read organisation.")
+  if (result.success) {
+    return { success: true, organisation: result.row, status: 200 }
   }
+  return result
 }
 
 /**
@@ -104,24 +103,18 @@ export async function updateOrganisation(
   if (invalid) {
     return { success: false, message: invalid, status: 400 }
   }
-  try {
-    const result = await dbClient.query(`UPDATE organisations SET org_name = $2 WHERE org_uuid = $1 RETURNING ${ORG_COLUMNS}`, [
-      org_uuid,
-      name.trim(),
-    ])
-    if ((result.rowCount ?? 0) === 0) {
-      return { success: false, message: "Organisation not found.", status: 404 }
-    }
-    return { success: true, organisation: result.rows[0], status: 200 }
-  } catch (error) {
-    console.error("Error in updateOrganisation:", error)
-    return {
-      error: true,
-      message: "Could not update organisation.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
+  const result = await updateNamedEntityName<OrganisationRow>(
+    dbClient,
+    ORG_ENTITY,
+    org_uuid,
+    name,
+    "updateOrganisation",
+    "Could not update organisation."
+  )
+  if (result.success) {
+    return { success: true, organisation: result.row, status: 200 }
   }
+  return result
 }
 
 /** Flips `org_active`. Shared by disableOrganisation / enableOrganisation. */
