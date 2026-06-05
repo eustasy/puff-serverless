@@ -1,84 +1,72 @@
 {
-	"name": "puff-serverless",
-	"main": "./worker.ts",
-	"compatibility_date": "2026-03-22",
-	"compatibility_flags": [
-		"nodejs_compat"
-	],
-	"triggers": {
-		// Two ticks (handler dispatches on the matched expression in src/cron.ts):
-		//   "0 0 * * *" (daily) — OAuth signing-key rotation (only rotates once
-		//     the active key is older than OAUTH_KEY_ROTATION_INTERVAL_DAYS,
-		//     default 7, so the effective cadence is weekly) + the usage rollup.
-		//   "0 * * * *" (hourly) — billing-email reconcile (re-resolves each
-		//     org's effective billing contact and patches the provider on drift).
-		// Pure-SQL row reaping (TOTP, floating-session, session, token, audit)
-		// lives in CockroachDB itself via `sql/schedules.sql`.
-		"crons": [
-			"0 0 * * *",
-			"0 * * * *"
-		]
-	},
-	"assets": {
-		"directory": "./public",
-		"binding": "ASSETS",
-		"run_worker_first": [
-			"/account",
-			"/logout",
-			"/2fa",
-			"/password-upgrade",
-			"/login",
-			"/register"
-		]
-	},
-	"hyperdrive": [
-		{
-			"binding": "HYPERDRIVE",
-			"id": "404f36162d5341429d55bde35de77b9f"
-		}
-	],
-	// Workers KV — mutable state the Worker writes at runtime. Used today for
-	// OAuth signing keys (`oauth:keys:active`, `oauth:keys:retired`) so the
-	// weekly rotation cron can promote a fresh keypair without an operator
-	// `wrangler secret put`. See docs/Operations.md → OAuth signing-key
-	// rotation. Provision per-deploy with:
-	//   npx wrangler kv namespace create KV_OAUTH_KEYS
-	// then paste the printed id below.
-	"kv_namespaces": [
-		{
-			"binding": "KV_OAUTH_KEYS",
-			"id": "ca56704db52447d6ae5665baa538f5fa",
-			"remote": true
-		}
-	],
-	"ratelimits": [
-		{
-			"name": "EMAIL_CHECK_RL",
-			"namespace_id": "1001",
-			"simple": {
-				"limit": 60,
-				"period": 60
-			}
-		}
-	],
-	"vars": {
-		"MAILTRAP_SENDER": "puff@eustasy.org",
-		"MAILTRAP_SENDER_NAME": "PuffAuth",
-		"APP_URL": "https://puff-serverless.eustasy.org"
-	},
-	"observability": {
-		"enabled": false,
-		"head_sampling_rate": 1,
-		"logs": {
-			"enabled": true,
-			"head_sampling_rate": 1,
-			"persist": true,
-			"invocation_logs": true
-		},
-		"traces": {
-			"enabled": false,
-			"persist": true,
-			"head_sampling_rate": 1
-		}
-	}
+  "name": "puff-serverless",
+  "main": "./worker.ts",
+  "compatibility_date": "2026-03-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    // Two ticks (handler dispatches on the matched expression in src/cron.ts):
+    //   "0 0 * * *" (daily) — OAuth signing-key rotation (only rotates once
+    //     the active key is older than OAUTH_KEY_ROTATION_INTERVAL_DAYS,
+    //     default 7, so the effective cadence is weekly) + the usage rollup.
+    //   "0 * * * *" (hourly) — billing-email reconcile (re-resolves each
+    //     org's effective billing contact and patches the provider on drift).
+    // Pure-SQL row reaping (TOTP, floating-session, session, token, audit)
+    // lives in CockroachDB itself via `sql/schedules.sql`.
+    "crons": ["0 0 * * *", "0 * * * *"],
+  },
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/account", "/logout", "/2fa", "/password-upgrade", "/login", "/register"],
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "404f36162d5341429d55bde35de77b9f",
+    },
+  ],
+  // Workers KV — mutable state the Worker writes at runtime. Used today for
+  // OAuth signing keys (`oauth:keys:active`, `oauth:keys:retired`) so the
+  // weekly rotation cron can promote a fresh keypair without an operator
+  // `wrangler secret put`. See docs/Operations.md → OAuth signing-key
+  // rotation. Provision per-deploy with:
+  //   npx wrangler kv namespace create KV_OAUTH_KEYS
+  // then paste the printed id below.
+  "kv_namespaces": [
+    {
+      "binding": "KV_OAUTH_KEYS",
+      "id": "ca56704db52447d6ae5665baa538f5fa",
+      "remote": true,
+    },
+  ],
+  "ratelimits": [
+    {
+      "name": "EMAIL_CHECK_RL",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 60,
+        "period": 60,
+      },
+    },
+  ],
+  "vars": {
+    "MAILTRAP_SENDER": "puff@eustasy.org",
+    "MAILTRAP_SENDER_NAME": "PuffAuth",
+    "APP_URL": "https://puff-serverless.eustasy.org",
+  },
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true,
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1,
+    },
+  },
 }
