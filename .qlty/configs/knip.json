@@ -5,5 +5,6 @@
   "ignoreExportsUsedInFile": true,
   "ignore": ["dist/**", "worker-configuration.d.ts"],
   "ignoreUnresolved": ["./dist/worker/index.js"],
-  "ignoreDependencies": ["prettier", "qlty", "tsc", "vitest"]
+  "ignoreBinaries": ["tsc", "vitest"],
+  "ignoreDependencies": ["prettier", "qlty"]
 }
