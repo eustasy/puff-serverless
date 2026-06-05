@@ -11,7 +11,7 @@ export const onRequestPost: Handler = async (context) => {
   let formData
   try {
     formData = await context.request.formData()
-  } catch (e) {
+  } catch {
     return new Response('<p class="result-negative">Error: Invalid request body. Expected form data.</p>', {
       status: 400,
       headers: {
@@ -72,7 +72,7 @@ export const onRequestPost: Handler = async (context) => {
 
     // "Decrypt" the secret_value
     if (!secretRecord.secret_value.startsWith("sim_encrypted::")) {
-      console.error(`Invalid secret_value format for user ${user_uuid} of type \'totp_secret\'.`)
+      console.error(`Invalid secret_value format for user ${user_uuid} of type 'totp_secret'.`)
       return new Response('<p class="result-negative">Error: Internal error with 2FA secret storage.</p>', {
         status: 500,
         headers: {
@@ -159,7 +159,7 @@ export const onRequestPost: Handler = async (context) => {
   }
 }
 
-export const onRequest: Handler = async (context) => {
+export const onRequest: Handler = async (_context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "POST" },

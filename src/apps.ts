@@ -21,7 +21,10 @@ import { PREFERRED_PASSWORD_ALGO, puff_hashing_password } from "./utilities/hash
 export const LICENSING_MODES = ["none", "seat", "usage", "floating"] as const
 export type AppLicensingMode = (typeof LICENSING_MODES)[number]
 
-/** Type guard for user-supplied licensing mode strings. */
+/**
+ * Type guard for user-supplied licensing mode strings.
+ * @public — staged for the operator/validation layer; not yet consumed.
+ */
 export function isAppLicensingMode(value: unknown): value is AppLicensingMode {
   return typeof value === "string" && (LICENSING_MODES as readonly string[]).includes(value)
 }
@@ -186,6 +189,7 @@ export async function hashClientSecret(client_secret: string): Promise<{ stored:
  * convention — the key suffix is the tier identifier (the value users get
  * granted in `license:tier`), the value is the human-readable label or
  * description. Returns an empty list when the app has not declared any.
+ * @public — read side for the operator UI (out of scope this phase).
  */
 export async function listAppTiers(dbClient: DbClient, app_uuid: string): Promise<Envelope<{ tiers: { name: string; label: string }[] }>> {
   try {

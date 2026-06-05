@@ -12,7 +12,7 @@ export const onRequestPost: Handler = async (context) => {
     formData = await context.request.formData()
     token = formData.get("token")
     new_password = formData.get("pw")
-  } catch (e) {
+  } catch {
     return new Response('<p class="result-negative">Invalid request data.</p>', {
       status: 400,
       headers: { "Content-Type": "text/html" },
@@ -119,7 +119,7 @@ export const onRequestPost: Handler = async (context) => {
   }
 }
 
-export const onRequest: Handler = async (context) => {
+export const onRequest: Handler = async (_context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "POST" },

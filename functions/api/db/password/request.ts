@@ -13,7 +13,7 @@ export const onRequestPost: Handler = async (context) => {
   try {
     formData = await context.request.formData()
     email = formData.get("email")
-  } catch (e) {
+  } catch {
     return new Response('<p class="result-negative">Invalid request. Please provide an email.</p>', {
       status: 400,
       headers: { "Content-Type": "text/html" },
@@ -85,7 +85,7 @@ export const onRequestPost: Handler = async (context) => {
   }
 }
 
-export const onRequest: Handler = async (context) => {
+export const onRequest: Handler = async (_context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "POST" },

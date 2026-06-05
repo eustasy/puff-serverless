@@ -455,6 +455,9 @@ export async function findEligibleOrgs(
   }
 }
 
-// Re-export the prefix constants — entitlement endpoints validate that
-// caller-supplied keys are in the allowed namespace.
+/**
+ * Re-export the prefix constants — entitlement endpoints validate that
+ * caller-supplied keys are in the allowed namespace.
+ * @public — `LICENSE_PERMS_PREFIX` is staged for those validators, not yet consumed.
+ */
 export { LICENSE_PERMS_PREFIX, PERM_PREFIX }

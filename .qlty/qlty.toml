@@ -175,3 +175,15 @@ file_patterns = [
   "**/.github/workflows/**",
   "**/.github/dependabot.yml",
 ]
+
+# 4. Vendored htmx builds served verbatim from public/assets. The global
+#    exclude_patterns already cover the `.min.*` variants; the readable (non-min)
+#    builds are third-party source we ship as-is, so the JS code linters and
+#    prettier must not lint or reformat them. webauthn.js / main.css in the same
+#    directory are first-party and stay in scope. Security scanners still see
+#    these files (they are not in this list).
+[[exclude]]
+plugins = ["oxc", "knip", "prettier"]
+file_patterns = [
+  "**/assets/htmx_*.js",
+]

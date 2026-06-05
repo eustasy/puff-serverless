@@ -12,7 +12,7 @@ export const onRequestGet: Handler = async (context) => {
     const result = await readSessions(dbClient, user_uuid)
 
     if (!result.success) {
-      return new Response(`<p class=\"result-negative\">${result.error}</p>`, {
+      return new Response(`<p class="result-negative">${result.error}</p>`, {
         status: result.status,
         headers: { "Content-Type": "text/html" },
       })
@@ -70,7 +70,7 @@ export const onRequestGet: Handler = async (context) => {
   }
 }
 
-export const onRequest: Handler = async (context) => {
+export const onRequest: Handler = async (_context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "GET" },

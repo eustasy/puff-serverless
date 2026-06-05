@@ -148,7 +148,10 @@ function providerError(fn: string, error: unknown): ErrorEnvelope {
 
 // --- Pricing catalog -------------------------------------------------------
 
-/** All pricing rows for an app, cheapest interval first then tier name. */
+/**
+ * All pricing rows for an app, cheapest interval first then tier name.
+ * @public — read side for the operator/checkout UI; not yet consumed.
+ */
 export async function listPricing(dbClient: DbClient, app_uuid: string): Promise<Envelope<{ pricing: BillingPricingRow[] }>> {
   try {
     const { rows } = await dbClient.query(

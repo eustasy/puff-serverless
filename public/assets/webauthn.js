@@ -112,7 +112,7 @@ async function registerPasskey() {
       throw new Error("Could not start passkey registration.")
     }
     startData = await startRes.json()
-  } catch (err) {
+  } catch {
     if (msgArea) msgArea.innerHTML = '<p class="result-negative">Could not start passkey registration. Please try again.</p>'
     return
   }
@@ -122,7 +122,7 @@ async function registerPasskey() {
     credential = await navigator.credentials.create({
       publicKey: prepareCreationOptions(startData.options),
     })
-  } catch (err) {
+  } catch {
     if (msgArea) msgArea.innerHTML = '<p class="result-negative">Passkey creation was cancelled or failed.</p>'
     return
   }
@@ -138,7 +138,7 @@ async function registerPasskey() {
     if (completeRes.ok) {
       htmx.trigger(document.body, "passkeysChanged")
     }
-  } catch (err) {
+  } catch {
     if (msgArea) msgArea.innerHTML = '<p class="result-negative">Failed to complete passkey registration.</p>'
   }
 }
@@ -167,7 +167,7 @@ async function authenticateWithPasskey() {
       throw new Error("Could not start passkey authentication.")
     }
     options = await startRes.json()
-  } catch (err) {
+  } catch {
     if (resultArea) resultArea.innerHTML = '<p class="result-negative">Could not start passkey authentication. Please try again.</p>'
     return
   }
@@ -177,7 +177,7 @@ async function authenticateWithPasskey() {
     credential = await navigator.credentials.get({
       publicKey: prepareRequestOptions(options),
     })
-  } catch (err) {
+  } catch {
     if (resultArea) resultArea.innerHTML = '<p class="result-negative">Passkey authentication was cancelled or failed.</p>'
     return
   }
@@ -199,7 +199,7 @@ async function authenticateWithPasskey() {
 
     const html = await completeRes.text()
     if (resultArea) resultArea.innerHTML = html
-  } catch (err) {
+  } catch {
     if (resultArea) resultArea.innerHTML = '<p class="result-negative">Passkey authentication failed.</p>'
   }
 }

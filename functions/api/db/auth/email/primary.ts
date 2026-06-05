@@ -23,7 +23,7 @@ export const onRequestPost: Handler = async (context) => {
     const result = await setPrimaryEmail(dbClient, user_uuid, new_primary_email_address)
 
     if (result.error) {
-      return new Response(`<p class=\"result-negative\">${result.message}</p>`, {
+      return new Response(`<p class="result-negative">${result.message}</p>`, {
         status: result.status || 500,
         headers: { "Content-Type": "text/html" },
       })
@@ -36,7 +36,7 @@ export const onRequestPost: Handler = async (context) => {
     })
 
     // On success, return a success message and trigger an event for HTMX to refresh the list
-    return new Response(`<p class=\"result-positive\">${result.message}</p>`, {
+    return new Response(`<p class="result-positive">${result.message}</p>`, {
       status: result.status || 200,
       headers: {
         "Content-Type": "text/html",
@@ -49,14 +49,14 @@ export const onRequestPost: Handler = async (context) => {
     if (error instanceof TypeError && error.message.includes("formData")) {
       errorMessage = "Invalid request format. Expected form data."
     }
-    return new Response(`<p class=\"result-negative\">${errorMessage}</p>`, {
+    return new Response(`<p class="result-negative">${errorMessage}</p>`, {
       status: 500,
       headers: { "Content-Type": "text/html" },
     })
   }
 }
 
-export const onRequest: Handler = async (context) => {
+export const onRequest: Handler = async (_context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "POST" },

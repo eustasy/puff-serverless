@@ -1,4 +1,6 @@
-function HextoUint8(hexString: string) {
+// Inverse of Uint8toHex. Currently unused (kept as the symmetric counterpart);
+// the `_` prefix marks it intentionally unused so the linter stays quiet.
+function _HextoUint8(hexString: string) {
   return Uint8Array.from((hexString.match(/.{1,2}/g) ?? []).map((byte) => parseInt(byte, 16)))
 }
 

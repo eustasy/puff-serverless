@@ -20,7 +20,7 @@ export const onRequestPost: Handler = async (context) => {
     const formData = await context.request.formData()
     current_password = formData.get("current_password")
     new_password = formData.get("pw")
-  } catch (e) {
+  } catch {
     return new Response("<p>Error: Invalid form data.</p>", {
       status: 400,
       headers: { "Content-Type": "text/html" },
@@ -119,7 +119,7 @@ export const onRequestPost: Handler = async (context) => {
   // No finally block needed here as individual helpers manage their own DB connections.
 }
 
-export const onRequest: Handler = async (context) => {
+export const onRequest: Handler = async (_context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "POST" },

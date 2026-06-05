@@ -11,7 +11,7 @@ export const onRequestPost: Handler = async (context) => {
   let formData
   try {
     formData = await context.request.formData()
-  } catch (e) {
+  } catch {
     return new Response("<p>Error: Invalid form data.</p>", {
       status: 400,
       headers: {
@@ -136,7 +136,7 @@ export const onRequestPost: Handler = async (context) => {
   }
 }
 
-export const onRequest: Handler = async (context) => {
+export const onRequest: Handler = async (_context) => {
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "POST" },

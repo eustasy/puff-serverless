@@ -30,7 +30,7 @@ export const onRequestPost: Handler = async (context) => {
   let new_password
   try {
     new_password = (await context.request.formData()).get("pw")
-  } catch (e) {
+  } catch {
     return new Response('<p class="result-negative">Invalid request data.</p>', {
       status: 400,
       headers: { "Content-Type": "text/html" },

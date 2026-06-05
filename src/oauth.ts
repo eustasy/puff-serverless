@@ -24,6 +24,7 @@ export const SUPPORTED_SCOPES = [
   "puff:roles",
   "puff:entitlements",
 ] as const
+/** @public — exported scope union for callers; not yet referenced in-repo. */
 export type SupportedScope = (typeof SUPPORTED_SCOPES)[number]
 
 const SUPPORTED_SCOPE_SET: ReadonlySet<string> = new Set(SUPPORTED_SCOPES)
