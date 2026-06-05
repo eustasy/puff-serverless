@@ -238,11 +238,7 @@ export async function used2fa(dbClient: DbClient, user_uuid: string, totp_code: 
  * Returns 401 specifically for a wrong TOTP code so callers can distinguish
  * "try again" (token still live) from "re-authenticate" (token invalid/expired).
  */
-export async function verifyTotpLogin(
-  dbClient: DbClient,
-  totpToken: string,
-  totpCode: string,
-): Promise<Envelope<{ user_uuid: string }>> {
+export async function verifyTotpLogin(dbClient: DbClient, totpToken: string, totpCode: string): Promise<Envelope<{ user_uuid: string }>> {
   // Non-consuming read so a wrong code does not burn the pending-login token.
   const tokenData = await readToken(dbClient, totpToken)
   if (!tokenData.success) {

@@ -48,7 +48,7 @@ export const onRequestPost: Handler = async (context) => {
     user_uuid,
     context.request.headers.get("User-Agent") || "",
     context.request.headers.get("CF-Connecting-IP") || "",
-    context.request.headers.get("CF-IPCountry") || "",
+    context.request.headers.get("CF-IPCountry") || ""
   )
   if (!session.success) {
     return resultNegative("Error creating session. Please try again.", 500, HX_RETARGET)
