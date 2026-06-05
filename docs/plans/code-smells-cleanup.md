@@ -104,6 +104,9 @@ for a ~14–21 line skeleton that is mostly the mandated `try/catch`.
   ORDER BY …; return the list". Different tables, filters (invitations adds unspent/unexpired), domains.
 - `invitations.ts` internal mass-64 triples — the `try/catch` envelope shared across its five
   functions. The envelope idiom (above), not extractable logic.
+- `listAllSubscriptions` (billing) ↔ `findEligibleOrgs` (entitlements), mass 65 — two unrelated
+  multi-JOIN SELECTs (paged operator subscription list vs. a user's eligible-org EXISTS chain)
+  matched only on SQL shape. No shared semantics; surfaced during Tier C.
 
 ### `public/assets/webauthn.js` complexity 57 — LEAVE
 
@@ -233,11 +236,11 @@ independently reviewable and revertible.
 - [x] **B2** `src/organisations.ts` ↔ `src/teams.ts` — shared `readNamedEntity` / `updateNamedEntityName` in new `src/utilities/named-entity.ts`, driven by a noun-based `NamedEntitySpec` (all messages derive from `noun`; `validateName` carried on the spec). Cleared the read (117) + update (148) pairs. `create`/`delete` left divergent (owner txn / balance check / FK→404), `list*` left (see below).
 - [x] **B3** `src/invitations.ts` — **no change; documented as false positives.** Its remaining dups are cross-domain structural twins, not shared domain logic: `acceptInvitation`'s member-INSERT has different error semantics from `addOrgMember` (FK→"organisation no longer exists", inside the accept transaction), and `revokeInvitation`/`listInvitations` are the delete-or-404 / list-by-scope envelope skeleton (see false-positives below).
 - [x] **Tier B gate** — `tsc` strict clean; full suite 565/565; `npm run format` ✔; duplication 41→28; high-total-complexity 7→6. Remaining cluster findings are all documented false positives / the envelope idiom.
-- [ ] **C1** confirm `test/billing.test.ts` / `test/entitlements.test.ts` coverage is adequate first.
-- [ ] **C2** `src/billing.ts` — provider-call/envelope mapping helper.
-- [ ] **C3** `src/billing.ts` ↔ `src/entitlements.ts` — shared licensing block (decide import direction; no cycle).
-- [ ] **C4** `src/entitlements.ts` — internal dedup.
-- [ ] **Tier C gate** — billing/entitlements suites green; full smells re-run; `npm run lint`.
+- [x] **C1** Coverage confirmed adequate — `billing.test.ts` (495 lines) and `entitlements.test.ts` (190) exercise the read functions; the fake DB matches SQL by fragment, so behaviour-preserving refactors stay caught.
+- [x] **C2** `src/billing.ts` — the provider-call mapping (`providerError`) was **already** factored out; the real duplication was the **read** boilerplate. Added computed-key `readRow<K,T>` / `readList<K,T>` so the 5 row-getters + 3 list-getters became one-line delegates that still return their domain key (`{ customer }`, `{ subscription }`, `{ invoices }`, …). Cleared all 9 read dups; file complexity 105→87.
+- [x] **C3** **No change — the billing↔entitlements "shared block" was a false positive.** The mass-65 cross-file dup is `listAllSubscriptions` (subscriptions⋈orgs⋈apps, paged) ↔ `findEligibleOrgs` (orgs⋈members + EXISTS chain) — two unrelated multi-JOIN SELECTs the detector matched on SQL shape. Nothing semantic is shared, so the "import direction" decision was moot.
+- [x] **C4** `src/entitlements.ts` — computed-key `queryExists<K>` unifies `isUserInOrg` / `isTeamInOrg` (cleared the mass-99 dup). `isLicensed`'s mode branching and the file's other complexity are inherent domain logic, left.
+- [x] **Tier C gate** — `tsc` strict clean; full suite 565/565; `npm run format` ✔; duplication 28→20; high-total-complexity 9→6.
 - [x] **D1** `functions/oauth/userinfo.ts` — claim assembly → `buildUserInfoClaims` + `resolveEntitlementsClaim` + `readEmailClaims` in `src/utilities/oauth-userinfo.ts`. Complexity 60 + level-4 nesting gone; only the 8 auth guards remain.
 - [x] **D2** `functions/oauth/token.ts` — grant flows → `handleAuthorizationCodeGrant` / `handleRefreshTokenGrant` (+ private `ensureFloatingSeat`, `mintTokens`) in a **new** `src/utilities/oauth-token-grants.ts`. Complexity 81 gone; controller is now preamble + dispatch (8 guards).
 - [x] **Tier D gate** — `tsc` strict clean; 565/565 green; `npm run format` ✔; smells: high-complexity fns 35→33, high-total 9→7, deeply-nested 3→2, **no new findings**.

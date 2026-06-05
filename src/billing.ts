@@ -146,6 +146,60 @@ function providerError(fn: string, error: unknown): ErrorEnvelope {
   }
 }
 
+// Read primitives shared by the row/list getters below. Each runs the SELECT and
+// returns the success envelope keyed by the caller's domain field (`key`), so a
+// getter collapses to a one-line delegate that still returns `{ customer }`,
+// `{ subscription }`, `{ invoices }`, etc. `key` is a compile-time literal, never
+// caller input. A DB error maps to the 500 envelope.
+
+/** Single-row SELECT → `{ [key]: row | null }`. */
+async function readRow<K extends string, T>(
+  dbClient: DbClient,
+  key: K,
+  sql: string,
+  params: unknown[],
+  errorLabel: string,
+  errorMessage: string
+): Promise<Envelope<{ [P in K]: T | null }>> {
+  try {
+    const { rows } = await dbClient.query(sql, params)
+    const data = { [key]: (rows[0] ?? null) as T | null } as { [P in K]: T | null }
+    return { success: true, status: 200, ...data }
+  } catch (error) {
+    console.error(`Error in ${errorLabel}:`, error)
+    return {
+      error: true,
+      message: errorMessage,
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
+/** List SELECT → `{ [key]: rows }`. */
+async function readList<K extends string, T>(
+  dbClient: DbClient,
+  key: K,
+  sql: string,
+  params: unknown[],
+  errorLabel: string,
+  errorMessage: string
+): Promise<Envelope<{ [P in K]: T[] }>> {
+  try {
+    const { rows } = await dbClient.query(sql, params)
+    const data = { [key]: rows as T[] } as { [P in K]: T[] }
+    return { success: true, status: 200, ...data }
+  } catch (error) {
+    console.error(`Error in ${errorLabel}:`, error)
+    return {
+      error: true,
+      message: errorMessage,
+      details: error instanceof Error ? error.message : String(error),
+      status: 500,
+    }
+  }
+}
+
 // --- Pricing catalog -------------------------------------------------------
 
 /**
@@ -153,22 +207,15 @@ function providerError(fn: string, error: unknown): ErrorEnvelope {
  * @public — read side for the operator/checkout UI; not yet consumed.
  */
 export async function listPricing(dbClient: DbClient, app_uuid: string): Promise<Envelope<{ pricing: BillingPricingRow[] }>> {
-  try {
-    const { rows } = await dbClient.query(
-      `SELECT ${PRICING_COLUMNS} FROM billing_pricing
+  return readList<"pricing", BillingPricingRow>(
+    dbClient,
+    "pricing",
+    `SELECT ${PRICING_COLUMNS} FROM billing_pricing
         WHERE app_uuid = $1 ORDER BY tier ASC`,
-      [app_uuid]
-    )
-    return { success: true, pricing: rows, status: 200 }
-  } catch (error) {
-    console.error("Error in listPricing:", error)
-    return {
-      error: true,
-      message: "Could not list pricing.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
+    [app_uuid],
+    "listPricing",
+    "Could not list pricing."
+  )
 }
 
 /** The pricing row for a single `(app, tier)`, or null when none is defined. */
@@ -177,22 +224,15 @@ export async function getPricing(
   app_uuid: string,
   tier: string
 ): Promise<Envelope<{ pricing: BillingPricingRow | null }>> {
-  try {
-    const { rows } = await dbClient.query(
-      `SELECT ${PRICING_COLUMNS} FROM billing_pricing
+  return readRow<"pricing", BillingPricingRow>(
+    dbClient,
+    "pricing",
+    `SELECT ${PRICING_COLUMNS} FROM billing_pricing
         WHERE app_uuid = $1 AND tier = $2 LIMIT 1`,
-      [app_uuid, tier]
-    )
-    return { success: true, pricing: rows[0] ?? null, status: 200 }
-  } catch (error) {
-    console.error("Error in getPricing:", error)
-    return {
-      error: true,
-      message: "Could not read pricing.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
+    [app_uuid, tier],
+    "getPricing",
+    "Could not read pricing."
+  )
 }
 
 // --- Customers -------------------------------------------------------------
@@ -254,22 +294,15 @@ export async function resolveBillingEmail(dbClient: DbClient, org_uuid: string):
 
 /** The billing-customer row for an org, or null if the org has none yet. */
 export async function getCustomer(dbClient: DbClient, org_uuid: string): Promise<Envelope<{ customer: BillingCustomerRow | null }>> {
-  try {
-    const { rows } = await dbClient.query(
-      `SELECT ${CUSTOMER_COLUMNS} FROM billing_customers
+  return readRow<"customer", BillingCustomerRow>(
+    dbClient,
+    "customer",
+    `SELECT ${CUSTOMER_COLUMNS} FROM billing_customers
         WHERE org_uuid = $1 LIMIT 1`,
-      [org_uuid]
-    )
-    return { success: true, customer: rows[0] ?? null, status: 200 }
-  } catch (error) {
-    console.error("Error in getCustomer:", error)
-    return {
-      error: true,
-      message: "Could not read billing customer.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
+    [org_uuid],
+    "getCustomer",
+    "Could not read billing customer."
+  )
 }
 
 /**
@@ -460,22 +493,15 @@ export async function reconcileBillingEmails(
 
 /** All subscriptions for an org, newest first. */
 export async function listSubscriptions(dbClient: DbClient, org_uuid: string): Promise<Envelope<{ subscriptions: SubscriptionRow[] }>> {
-  try {
-    const { rows } = await dbClient.query(
-      `SELECT ${SUBSCRIPTION_COLUMNS} FROM subscriptions
+  return readList<"subscriptions", SubscriptionRow>(
+    dbClient,
+    "subscriptions",
+    `SELECT ${SUBSCRIPTION_COLUMNS} FROM subscriptions
         WHERE org_uuid = $1 ORDER BY created_at DESC`,
-      [org_uuid]
-    )
-    return { success: true, subscriptions: rows, status: 200 }
-  } catch (error) {
-    console.error("Error in listSubscriptions:", error)
-    return {
-      error: true,
-      message: "Could not list subscriptions.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
+    [org_uuid],
+    "listSubscriptions",
+    "Could not list subscriptions."
+  )
 }
 
 export type OperatorSubscriptionRow = SubscriptionRow & {
@@ -524,22 +550,15 @@ export async function getSubscription(
   dbClient: DbClient,
   subscription_uuid: string
 ): Promise<Envelope<{ subscription: SubscriptionRow | null }>> {
-  try {
-    const { rows } = await dbClient.query(
-      `SELECT ${SUBSCRIPTION_COLUMNS} FROM subscriptions
+  return readRow<"subscription", SubscriptionRow>(
+    dbClient,
+    "subscription",
+    `SELECT ${SUBSCRIPTION_COLUMNS} FROM subscriptions
         WHERE subscription_uuid = $1 LIMIT 1`,
-      [subscription_uuid]
-    )
-    return { success: true, subscription: rows[0] ?? null, status: 200 }
-  } catch (error) {
-    console.error("Error in getSubscription:", error)
-    return {
-      error: true,
-      message: "Could not read subscription.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
+    [subscription_uuid],
+    "getSubscription",
+    "Could not read subscription."
+  )
 }
 
 /**
@@ -551,22 +570,15 @@ export async function getSubscriptionForApp(
   org_uuid: string,
   app_uuid: string
 ): Promise<Envelope<{ subscription: SubscriptionRow | null }>> {
-  try {
-    const { rows } = await dbClient.query(
-      `SELECT ${SUBSCRIPTION_COLUMNS} FROM subscriptions
+  return readRow<"subscription", SubscriptionRow>(
+    dbClient,
+    "subscription",
+    `SELECT ${SUBSCRIPTION_COLUMNS} FROM subscriptions
         WHERE org_uuid = $1 AND app_uuid = $2 LIMIT 1`,
-      [org_uuid, app_uuid]
-    )
-    return { success: true, subscription: rows[0] ?? null, status: 200 }
-  } catch (error) {
-    console.error("Error in getSubscriptionForApp:", error)
-    return {
-      error: true,
-      message: "Could not read subscription.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
+    [org_uuid, app_uuid],
+    "getSubscriptionForApp",
+    "Could not read subscription."
+  )
 }
 
 /**
@@ -899,22 +911,15 @@ export async function openBillingPortal(
 
 /** All invoices for an org, newest first. */
 export async function listInvoices(dbClient: DbClient, org_uuid: string): Promise<Envelope<{ invoices: InvoiceRow[] }>> {
-  try {
-    const { rows } = await dbClient.query(
-      `SELECT ${INVOICE_COLUMNS} FROM invoices
+  return readList<"invoices", InvoiceRow>(
+    dbClient,
+    "invoices",
+    `SELECT ${INVOICE_COLUMNS} FROM invoices
         WHERE org_uuid = $1 ORDER BY created_at DESC`,
-      [org_uuid]
-    )
-    return { success: true, invoices: rows, status: 200 }
-  } catch (error) {
-    console.error("Error in listInvoices:", error)
-    return {
-      error: true,
-      message: "Could not list invoices.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
+    [org_uuid],
+    "listInvoices",
+    "Could not list invoices."
+  )
 }
 
 /** A single invoice by uuid scoped to an org, or null. */
@@ -923,20 +928,13 @@ export async function getInvoice(
   org_uuid: string,
   invoice_uuid: string
 ): Promise<Envelope<{ invoice: InvoiceRow | null }>> {
-  try {
-    const { rows } = await dbClient.query(
-      `SELECT ${INVOICE_COLUMNS} FROM invoices
+  return readRow<"invoice", InvoiceRow>(
+    dbClient,
+    "invoice",
+    `SELECT ${INVOICE_COLUMNS} FROM invoices
         WHERE org_uuid = $1 AND invoice_uuid = $2 LIMIT 1`,
-      [org_uuid, invoice_uuid]
-    )
-    return { success: true, invoice: rows[0] ?? null, status: 200 }
-  } catch (error) {
-    console.error("Error in getInvoice:", error)
-    return {
-      error: true,
-      message: "Could not read invoice.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
+    [org_uuid, invoice_uuid],
+    "getInvoice",
+    "Could not read invoice."
+  )
 }

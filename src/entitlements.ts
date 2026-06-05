@@ -17,43 +17,60 @@ import { ENTITLED_STATUSES, getSubscriptionForApp } from "./billing.js"
 // --- Grantee-in-org constraint --------------------------------------------
 
 /**
- * True if the user holds at least one `organisation_members` row in this org.
- * The role does not matter — a guest still counts; this is the
- * "are they attached to this org at all" check.
+ * Runs an existence SELECT (`SELECT 1 … LIMIT 1`) and returns the success
+ * envelope keyed by `key` with whether any row matched. `key` is a compile-time
+ * literal, never caller input; a DB error maps to the 500 envelope.
  */
-export async function isUserInOrg(dbClient: DbClient, org_uuid: string, user_uuid: string): Promise<Envelope<{ member: boolean }>> {
+async function queryExists<K extends string>(
+  dbClient: DbClient,
+  key: K,
+  sql: string,
+  params: unknown[],
+  errorLabel: string,
+  errorMessage: string
+): Promise<Envelope<{ [P in K]: boolean }>> {
   try {
-    const { rowCount } = await dbClient.query(
-      `SELECT 1 FROM organisation_members
-        WHERE org_uuid = $1 AND user_uuid = $2 LIMIT 1`,
-      [org_uuid, user_uuid]
-    )
-    return { success: true, member: (rowCount ?? 0) > 0, status: 200 }
+    const { rowCount } = await dbClient.query(sql, params)
+    const data = { [key]: (rowCount ?? 0) > 0 } as { [P in K]: boolean }
+    return { success: true, status: 200, ...data }
   } catch (error) {
-    console.error("Error in isUserInOrg:", error)
+    console.error(`Error in ${errorLabel}:`, error)
     return {
       error: true,
-      message: "Could not check organisation membership.",
+      message: errorMessage,
       details: error instanceof Error ? error.message : String(error),
       status: 500,
     }
   }
 }
 
+/**
+ * True if the user holds at least one `organisation_members` row in this org.
+ * The role does not matter — a guest still counts; this is the
+ * "are they attached to this org at all" check.
+ */
+export async function isUserInOrg(dbClient: DbClient, org_uuid: string, user_uuid: string): Promise<Envelope<{ member: boolean }>> {
+  return queryExists<"member">(
+    dbClient,
+    "member",
+    `SELECT 1 FROM organisation_members
+        WHERE org_uuid = $1 AND user_uuid = $2 LIMIT 1`,
+    [org_uuid, user_uuid],
+    "isUserInOrg",
+    "Could not check organisation membership."
+  )
+}
+
 /** True if `team_uuid` belongs to `org_uuid`. */
 export async function isTeamInOrg(dbClient: DbClient, org_uuid: string, team_uuid: string): Promise<Envelope<{ belongs: boolean }>> {
-  try {
-    const { rowCount } = await dbClient.query(`SELECT 1 FROM teams WHERE team_uuid = $1 AND org_uuid = $2 LIMIT 1`, [team_uuid, org_uuid])
-    return { success: true, belongs: (rowCount ?? 0) > 0, status: 200 }
-  } catch (error) {
-    console.error("Error in isTeamInOrg:", error)
-    return {
-      error: true,
-      message: "Could not check team membership.",
-      details: error instanceof Error ? error.message : String(error),
-      status: 500,
-    }
-  }
+  return queryExists<"belongs">(
+    dbClient,
+    "belongs",
+    `SELECT 1 FROM teams WHERE team_uuid = $1 AND org_uuid = $2 LIMIT 1`,
+    [team_uuid, org_uuid],
+    "isTeamInOrg",
+    "Could not check team membership."
+  )
 }
 
 /**
