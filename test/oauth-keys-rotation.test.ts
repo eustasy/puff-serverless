@@ -97,6 +97,52 @@ describe("rotateSigningKey", () => {
     })
     await expect(rotateSigningKey(env)).rejects.toThrow(/KV_OAUTH_KEYS binding missing/)
   })
+
+  it("emits a failure audit and rethrows when keypair self-verification fails", async () => {
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: fakeKv(),
+      HYPERDRIVE: { connectionString: "postgres://localhost/test" },
+    })
+
+    // Make crypto.subtle.sign throw so assertKeypairUsable bails out.
+    const signSpy = vi.spyOn(crypto.subtle, "sign").mockRejectedValueOnce(new Error("sign hardware failure"))
+
+    await expect(rotateSigningKey(env)).rejects.toThrow("sign hardware failure")
+    signSpy.mockRestore()
+
+    const auditInserts = queryMock.mock.calls.filter((c) => String(c[0]).includes("INSERT INTO audit_events"))
+    expect(auditInserts.length).toBe(1)
+    expect(auditInserts[0]![1][1]).toBe("oauth.signing_key.rotation.failed")
+    expect(auditInserts[0]![1][3]).toBe("failure")
+  })
+
+  it("still succeeds (skips audit) when HYPERDRIVE is missing", async () => {
+    // withAuditClient returns early — no pg client opened, rotation completes.
+    const env = fakeEnv({ KV_OAUTH_KEYS: fakeKv() })
+    const result = await rotateSigningKey(env)
+    expect(result.rotated).toBe(true)
+    expect(connectMock).not.toHaveBeenCalled()
+  })
+
+  it("still succeeds when the audit INSERT query throws", async () => {
+    queryMock.mockRejectedValueOnce(new Error("DB unavailable"))
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: fakeKv(),
+      HYPERDRIVE: { connectionString: "postgres://localhost/test" },
+    })
+    const result = await rotateSigningKey(env)
+    expect(result.rotated).toBe(true)
+  })
+
+  it("still succeeds when the audit client end() throws", async () => {
+    endMock.mockRejectedValueOnce(new Error("end failed"))
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: fakeKv(),
+      HYPERDRIVE: { connectionString: "postgres://localhost/test" },
+    })
+    const result = await rotateSigningKey(env)
+    expect(result.rotated).toBe(true)
+  })
 })
 
 describe("maybeRotateSigningKey", () => {
@@ -152,9 +198,32 @@ describe("maybeRotateSigningKey", () => {
     expect(result.rotated).toBe(false)
     expect(result.reason).toMatch(/KV_OAUTH_KEYS/)
   })
+
+  it("treats a non-numeric rotation interval as the 7-day default and rotates when key is 8 days old", async () => {
+    const kv = fakeKv()
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: kv,
+      OAUTH_KEY_ROTATION_INTERVAL_DAYS: "not-a-number",
+      HYPERDRIVE: { connectionString: "postgres://localhost/test" },
+    })
+    await rotateSigningKey(env)
+
+    const stored = (await kv.get("oauth:keys:active", "json")) as StoredActiveKey
+    stored.created_at = new Date(Date.now() - 8 * 86_400 * 1000).toISOString()
+    await kv.put("oauth:keys:active", JSON.stringify(stored))
+
+    // 8 days > 7-day default → should rotate.
+    const result = await maybeRotateSigningKey(env)
+    expect(result.rotated).toBe(true)
+  })
 })
 
 describe("promoteRetiredKey", () => {
+  it("throws when KV_OAUTH_KEYS is missing", async () => {
+    const env = fakeEnv({ HYPERDRIVE: { connectionString: "postgres://localhost/test" } })
+    await expect(promoteRetiredKey(env)).rejects.toThrow(/KV_OAUTH_KEYS binding missing/)
+  })
+
   it("returns promoted=false when no retired key is held", async () => {
     const env = fakeEnv({
       KV_OAUTH_KEYS: fakeKv(),
@@ -164,8 +233,7 @@ describe("promoteRetiredKey", () => {
     expect(result.promoted).toBe(false)
   })
 
-  it("refuses to promote a public-only retired key (no signing scalar)", async () => {
-    const pubOnly = { kty: "EC", crv: "P-256", x: "abc", y: "def" }
+  it("refuses to promote a public-only retired key (no signing scalar)", async () => {    const pubOnly = { kty: "EC", crv: "P-256", x: "abc", y: "def" }
     const kv = fakeKv({
       "oauth:keys:retired": {
         jwk: pubOnly,
@@ -232,5 +300,31 @@ describe("promoteRetiredKey", () => {
     const auditInserts = queryMock.mock.calls.filter((c) => String(c[0]).includes("INSERT INTO audit_events"))
     expect(auditInserts.length).toBe(1)
     expect(auditInserts[0]![1][1]).toBe("oauth.signing_key.retired.promoted")
+  })
+
+  it("promotes retired and deletes the retired KV slot when there is no active key", async () => {
+    // Seed only a retired entry (with a private scalar so it passes the guard).
+    const pair = (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"])) as CryptoKeyPair
+    const jwk = (await crypto.subtle.exportKey("jwk", pair.privateKey)) as JsonWebKey
+    const retiredJwk = { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y, d: jwk.d }
+    const retiredKid = await jwkThumbprint(retiredJwk as never)
+
+    const kv = fakeKv({
+      "oauth:keys:retired": { jwk: retiredJwk, kid: retiredKid, retired_at: new Date().toISOString() },
+      // no "oauth:keys:active"
+    })
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: kv,
+      HYPERDRIVE: { connectionString: "postgres://localhost/test" },
+    })
+
+    const result = await promoteRetiredKey(env)
+    expect(result.promoted).toBe(true)
+    expect(result.new_kid).toBe(retiredKid)
+
+    const newActive = (await kv.get("oauth:keys:active", "json")) as StoredActiveKey
+    expect(newActive.kid).toBe(retiredKid)
+    // The retired slot was deleted (else branch), so there is no new retired entry.
+    expect(await kv.get("oauth:keys:retired", "json")).toBeNull()
   })
 })
