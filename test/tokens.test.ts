@@ -85,6 +85,16 @@ describe("readToken", () => {
       message: "Token not found.",
     })
   })
+
+  it("returns an error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT .* FROM tokens/, pgError("08006", "connection lost"))
+    const result = await readToken(db.client, "tok")
+    expect(result).toMatchObject({
+      error: true,
+      message: "Server error while reading token.",
+    })
+  })
 })
 
 describe("usedToken", () => {
@@ -103,6 +113,16 @@ describe("usedToken", () => {
     expect(await usedToken(db.client, "tok")).toEqual({
       success: false,
       rowCount: 0,
+    })
+  })
+
+  it("returns an error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on("UPDATE tokens SET is_used", pgError("08006", "connection lost"))
+    const result = await usedToken(db.client, "tok")
+    expect(result).toMatchObject({
+      error: true,
+      message: "Server error while updating token.",
     })
   })
 })
@@ -131,6 +151,16 @@ describe("consumeToken", () => {
       message: "Invalid, expired, or already-used token.",
     })
   })
+
+  it("returns an error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on("UPDATE tokens SET is_used = TRUE", pgError("08006", "connection lost"))
+    const result = await consumeToken(db.client, "tok", "email_verification")
+    expect(result).toMatchObject({
+      error: true,
+      message: "Server error while consuming token.",
+    })
+  })
 })
 
 describe("deleteToken", () => {
@@ -142,6 +172,16 @@ describe("deleteToken", () => {
       rowCount: 1,
     })
     expect(db.calls[0].values).toEqual(["u1", "tok"])
+  })
+
+  it("returns an error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on("DELETE FROM tokens", pgError("08006", "connection lost"))
+    const result = await deleteToken(db.client, "u1", "tok")
+    expect(result).toMatchObject({
+      error: true,
+      message: "Server error while deleting tokens.",
+    })
   })
 })
 
@@ -194,5 +234,15 @@ describe("createWebAuthnToken", () => {
     const db = new FakeDb()
     db.on("INSERT INTO tokens", { rows: [] })
     expect(await createWebAuthnToken(db.client, "u", "webauthn_authentication_challenge", "c", "2099-01-01")).toMatchObject({ error: true })
+  })
+
+  it("returns an error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on("INSERT INTO tokens", pgError("08006", "connection lost"))
+    const result = await createWebAuthnToken(db.client, "user-1", "webauthn_registration_challenge", "c", "2099-01-01")
+    expect(result).toMatchObject({
+      error: true,
+      message: "Server error while creating WebAuthn token.",
+    })
   })
 })
