@@ -233,7 +233,8 @@ describe("promoteRetiredKey", () => {
     expect(result.promoted).toBe(false)
   })
 
-  it("refuses to promote a public-only retired key (no signing scalar)", async () => {    const pubOnly = { kty: "EC", crv: "P-256", x: "abc", y: "def" }
+  it("refuses to promote a public-only retired key (no signing scalar)", async () => {
+    const pubOnly = { kty: "EC", crv: "P-256", x: "abc", y: "def" }
     const kv = fakeKv({
       "oauth:keys:retired": {
         jwk: pubOnly,
