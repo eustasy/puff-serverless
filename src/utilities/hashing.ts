@@ -1,8 +1,10 @@
 // Inverse of Uint8toHex. Currently unused (kept as the symmetric counterpart);
 // the `_` prefix marks it intentionally unused so the linter stays quiet.
+/* v8 ignore start -- intentionally unused; kept only as the symmetric counterpart of Uint8toHex */
 function _HextoUint8(hexString: string) {
   return Uint8Array.from((hexString.match(/.{1,2}/g) ?? []).map((byte) => parseInt(byte, 16)))
 }
+/* v8 ignore stop */
 
 function Uint8toHex(bytes: Uint8Array) {
   return bytes.reduce((str: string, byte: number) => str + byte.toString(16).padStart(2, "0"), "")

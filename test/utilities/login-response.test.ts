@@ -60,6 +60,13 @@ describe("loginOutcomeResponse — password upgrade required", () => {
     expect(response.headers.get("HX-Redirect")).toBe("/password-upgrade")
     expect(response.headers.get("Set-Cookie")).toContain("password_upgrade_token=")
   })
+
+  it("returns 500 when the password-upgrade token cannot be created", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO tokens/, { rows: [] })
+    const response = await loginOutcomeResponse(db.client, fakeEnv(), upgradeResult, request())
+    expect(response.status).toBe(500)
+  })
 })
 
 describe("loginOutcomeResponse — session granted", () => {

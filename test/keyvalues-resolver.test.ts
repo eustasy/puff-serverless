@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { resolveKeyValue } from "../src/keyvalues-resolver.js"
-import { FakeDb } from "./helpers/fake-db.js"
+import { FakeDb, pgError } from "./helpers/fake-db.js"
 
 const orgOwner = { type: "org" as const, org_uuid: "org-1" }
 const appOwner = { type: "app" as const, app_uuid: "a-1" }
@@ -240,5 +240,17 @@ describe("resolveKeyValue", () => {
     })
     expect(result).toMatchObject({ success: true, values: [], source: null })
     expect(db.calls.some((c) => /FROM app_key_values/.test(c.text))).toBe(false)
+  })
+
+  it("returns a 500 error envelope when a DB query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM user_key_values/, pgError("08006", "connection lost"))
+    const result = await resolveKeyValue(db.client, {
+      owner: orgOwner,
+      key: "k",
+      user_uuid: "u-1",
+      org_uuid: "org-1",
+    })
+    expect(result).toMatchObject({ error: true, status: 500 })
   })
 })

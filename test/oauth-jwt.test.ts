@@ -138,6 +138,24 @@ describe("verifyJwt — rejections", () => {
     expect(result.success).toBe(false)
   })
 
+  it("rejects a token whose header is not valid JSON", async () => {
+    const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: currentPriv })
+    // Middle part is irrelevant — the header decode fails first.
+    // base64url of "this is not json" as the header segment.
+    const notJsonHeader = Buffer.from("this is not json").toString("base64url")
+    const result = await verifyJwt(env, `${notJsonHeader}.payload.sig`)
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.message).toMatch(/not valid JSON/)
+  })
+
+  it("rejects a token whose header is missing the kid field", async () => {
+    const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: currentPriv })
+    const noKidHeader = Buffer.from(JSON.stringify({ alg: "ES256", typ: "JWT" })).toString("base64url")
+    const result = await verifyJwt(env, `${noKidHeader}.payload.sig`)
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.message).toMatch(/kid/)
+  })
+
   it("rejects a token with an unsupported alg", async () => {
     const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: currentPriv })
     const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT", kid: "x" })).toString("base64url")

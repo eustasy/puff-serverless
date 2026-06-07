@@ -109,6 +109,14 @@ describe("getProviderConfig + extractors", () => {
     expect(identity?.email_verified).toBe(false)
   })
 
+  it("Microsoft: keeps the email unverified when the ID token payload is not valid JSON", () => {
+    const config = getProviderConfig("microsoft")!
+    // 3-part token; middle segment is base64url of "this is not json" — JSON.parse throws in readIdTokenTenant
+    const idToken = "header.dGhpcyBpcyBub3QganNvbg.sig"
+    const identity = config.normaliseUserinfo({ sub: "ms-1", email: "dave@x", name: "Dave" }, undefined, idToken)
+    expect(identity?.email_verified).toBe(false)
+  })
+
   it("returns null when the response is missing a stable identifier", () => {
     expect(getProviderConfig("github")!.normaliseUserinfo({})).toBeNull()
     expect(getProviderConfig("google")!.normaliseUserinfo({})).toBeNull()

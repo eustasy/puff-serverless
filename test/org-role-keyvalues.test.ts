@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { readKeyValue, setKeyValue, deleteKeyValue } from "../src/org-role-keyvalues.js"
+import { readKeyValue, readKeyValues, searchKeyValues, setKeyValue, deleteKeyValue } from "../src/org-role-keyvalues.js"
 import { FakeDb } from "./helpers/fake-db.js"
 
 const orgOwner = { type: "org" as const, org_uuid: "org-1" }
@@ -32,5 +32,33 @@ describe("org-role-keyvalues", () => {
     await setKeyValue(db.client, "org-1", "billing", orgOwner, "monthly_cap", "5000")
     const insert = db.calls.find((c) => c.text.startsWith("INSERT"))!
     expect(insert.values).toEqual(["org-1", "billing", "monthly_cap", "5000", null, "org-1", null])
+  })
+
+  it("readKeyValues rejects an invalid role without querying", async () => {
+    const db = new FakeDb()
+    const result = await readKeyValues(db.client, "org-1", "ceo", orgOwner)
+    expect(result).toMatchObject({ success: false, status: 400 })
+    expect(db.calls).toHaveLength(0)
+  })
+
+  it("readKeyValues returns all rows for a valid role", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT .* FROM org_role_key_values/, { rows: [{ kv_key: "cap", kv_value: "5000" }] })
+    const result = await readKeyValues(db.client, "org-1", "admin", orgOwner)
+    expect(result).toMatchObject({ success: true, pairs: [{ kv_key: "cap" }] })
+  })
+
+  it("searchKeyValues rejects an invalid role without querying", async () => {
+    const db = new FakeDb()
+    const result = await searchKeyValues(db.client, "org-1", "ceo", orgOwner, "cap")
+    expect(result).toMatchObject({ success: false, status: 400 })
+    expect(db.calls).toHaveLength(0)
+  })
+
+  it("searchKeyValues returns matching rows for a valid role and non-empty pattern", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT .* FROM org_role_key_values/, { rows: [{ kv_key: "cap_limit", kv_value: "100" }] })
+    const result = await searchKeyValues(db.client, "org-1", "admin", orgOwner, "cap")
+    expect(result).toMatchObject({ success: true, pairs: [{ kv_key: "cap_limit" }] })
   })
 })

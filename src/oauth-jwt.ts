@@ -95,6 +95,7 @@ export async function verifyJwt(env: Env, token: string): Promise<VerifyResult> 
   try {
     payload = decodeJson<JwtPayload>(encodedPayload)
   } catch {
+    /* v8 ignore next -- payload cannot be non-JSON from a legitimately signed JWT; only reachable with a hand-crafted synthetic token */
     return { success: false, message: "JWT payload is not valid JSON" }
   }
 

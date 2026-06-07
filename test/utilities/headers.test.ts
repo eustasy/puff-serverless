@@ -59,4 +59,9 @@ describe("parseUserAgent", () => {
     const ua = "x".repeat(50)
     expect(parseUserAgent(ua)).toBe("x".repeat(30) + "...")
   })
+
+  it("returns just the OS when the browser is unknown", () => {
+    // Contains a Windows OS token but no recognised browser token.
+    expect(parseUserAgent("Mozilla/5.0 (Windows NT 10.0)")).toBe("Windows 10/11")
+  })
 })
