@@ -111,8 +111,9 @@ describe("getProviderConfig + extractors", () => {
 
   it("Microsoft: keeps the email unverified when the ID token payload is not valid JSON", () => {
     const config = getProviderConfig("microsoft")!
-    // 3-part token; middle segment is base64url of "this is not json" — JSON.parse throws in readIdTokenTenant
-    const idToken = "header.dGhpcyBpcyBub3QganNvbg.sig"
+    // 3-part token; middle segment is base64url of a non-JSON string — JSON.parse throws in readIdTokenTenant
+    const notJsonPayload = btoa("this is not json").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+    const idToken = `header.${notJsonPayload}.sig`
     const identity = config.normaliseUserinfo({ sub: "ms-1", email: "dave@x", name: "Dave" }, undefined, idToken)
     expect(identity?.email_verified).toBe(false)
   })
