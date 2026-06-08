@@ -40,6 +40,12 @@ describe("addOrgMember", () => {
     db.on(/INSERT INTO organisation_members/, pgError("23503"))
     expect((await addOrgMember(db.client, "ghost", "user-1", "admin", null)).status).toBe(404)
   })
+
+  it("returns a 500 error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO organisation_members/, pgError("08006", "connection lost"))
+    expect(await addOrgMember(db.client, "org-1", "user-1", "admin", null)).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("removeOrgMember", () => {
@@ -71,6 +77,12 @@ describe("removeOrgMember", () => {
     const result = await removeOrgMember(db.client, "org-1", "user-1")
     expect(result).toMatchObject({ success: false, status: 409 })
     expect(db.calls.some((c) => c.text.includes("DELETE FROM organisation_members"))).toBe(false)
+  })
+
+  it("returns a 500 error envelope when the count query throws", async () => {
+    const db = new FakeDb()
+    db.on(COUNT_QUERY, pgError("08006", "connection lost"))
+    expect(await removeOrgMember(db.client, "org-1", "user-1")).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -108,6 +120,19 @@ describe("setOrgMemberRoles", () => {
     db.on(/INSERT INTO organisation_members/, { rowCount: 1 })
     expect(await setOrgMemberRoles(db.client, "org-1", "user-1", ["owner", "billing"], "user-9")).toEqual({ success: true, status: 200 })
   })
+
+  it("maps a foreign-key violation to 404", async () => {
+    const db = new FakeDb()
+    db.on(COUNT_QUERY, { rows: [{ owners: 2, target_owner: 0 }] })
+    db.on(/DELETE FROM organisation_members/, pgError("23503"))
+    expect((await setOrgMemberRoles(db.client, "org-1", "ghost", ["admin"], null)).status).toBe(404)
+  })
+
+  it("returns a 500 error envelope when the count query throws", async () => {
+    const db = new FakeDb()
+    db.on(COUNT_QUERY, pgError("08006", "connection lost"))
+    expect(await setOrgMemberRoles(db.client, "org-1", "user-1", ["admin"], null)).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("listOrgMembers", () => {
@@ -128,6 +153,12 @@ describe("listOrgMembers", () => {
       status: 200,
     })
   })
+
+  it("returns a 500 error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM organisation_members m/, pgError("08006", "connection lost"))
+    expect(await listOrgMembers(db.client, "org-1")).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("addTeamMember", () => {
@@ -147,6 +178,12 @@ describe("addTeamMember", () => {
     db.on(/INSERT INTO team_members/, pgError("23503"))
     expect((await addTeamMember(db.client, "ghost", "user-1", "lead", null)).status).toBe(404)
   })
+
+  it("returns a 500 error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO team_members/, pgError("08006", "connection lost"))
+    expect(await addTeamMember(db.client, "team-1", "user-1", "lead", null)).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("removeTeamMember", () => {
@@ -164,6 +201,12 @@ describe("removeTeamMember", () => {
     db.on(/DELETE FROM team_members/, { rowCount: 0 })
     expect((await removeTeamMember(db.client, "team-1", "user-1")).status).toBe(404)
   })
+
+  it("returns a 500 error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/DELETE FROM team_members/, pgError("08006", "connection lost"))
+    expect(await removeTeamMember(db.client, "team-1", "user-1")).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("setTeamMemberRoles", () => {
@@ -177,6 +220,24 @@ describe("setTeamMemberRoles", () => {
     db.on(/DELETE FROM team_members/, { rowCount: 1 })
     db.on(/INSERT INTO team_members/, { rowCount: 1 })
     expect(await setTeamMemberRoles(db.client, "team-1", "user-1", ["lead"], "user-9")).toEqual({ success: true, status: 200 })
+  })
+
+  it("rejects an unknown team role with 400", async () => {
+    const db = new FakeDb()
+    expect(await setTeamMemberRoles(db.client, "team-1", "user-1", ["owner"], null)).toMatchObject({ success: false, status: 400 })
+    expect(db.calls).toHaveLength(0)
+  })
+
+  it("maps a foreign-key violation to 404", async () => {
+    const db = new FakeDb()
+    db.on(/DELETE FROM team_members/, pgError("23503"))
+    expect((await setTeamMemberRoles(db.client, "ghost", "user-1", ["lead"], null)).status).toBe(404)
+  })
+
+  it("returns a 500 error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/DELETE FROM team_members/, pgError("08006", "connection lost"))
+    expect(await setTeamMemberRoles(db.client, "team-1", "user-1", ["lead"], null)).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -196,6 +257,12 @@ describe("listTeamMembers", () => {
       success: true,
       members,
     })
+  })
+
+  it("returns a 500 error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM team_members m/, pgError("08006", "connection lost"))
+    expect(await listTeamMembers(db.client, "team-1")).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -228,5 +295,17 @@ describe("getOrgRoles / getTeamRoles", () => {
       roles: ["lead"],
       status: 200,
     })
+  })
+
+  it("returns a 500 error envelope when the org roles query throws", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT role FROM organisation_members/, pgError("08006", "connection lost"))
+    expect(await getOrgRoles(db.client, "org-1", "user-1")).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("returns a 500 error envelope when the team roles query throws", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT role FROM team_members/, pgError("08006", "connection lost"))
+    expect(await getTeamRoles(db.client, "team-1", "user-1")).toMatchObject({ error: true, status: 500 })
   })
 })
