@@ -76,6 +76,28 @@ describe("recordUsageEvent", () => {
     if (result.success) expect(result.event_uuid).toBe("existing-uuid")
   })
 
+  it("returns success with an empty event_uuid when the conflict lookup finds no row", async () => {
+    // A rare race: the insert conflicted but the existing row is gone by the
+    // time we look it up. Treated as success with an empty uuid.
+    const db = new FakeDb()
+    db.on(/INSERT INTO usage_events/, { rows: [], rowCount: 0 })
+    db.on(/SELECT event_uuid FROM usage_events/, { rows: [] })
+    const result = await recordUsageEvent(db.client, baseInput)
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.event_uuid).toBe("")
+  })
+
+  it.each([
+    ["app_uuid", { app_uuid: "" }],
+    ["org_uuid", { org_uuid: "" }],
+    ["idempotency_key", { idempotency_key: "" }],
+  ])("rejects a missing %s with 400 before any query", async (_field, override) => {
+    const db = new FakeDb()
+    const result = await recordUsageEvent(db.client, { ...baseInput, ...override })
+    expect(result).toMatchObject({ success: false, status: 400 })
+    expect(db.calls).toHaveLength(0)
+  })
+
   it("accepts a null user_uuid and passes NULL to the database", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO usage_events/, {
@@ -329,6 +351,32 @@ describe("syncUsageRollups", () => {
     const result = await syncUsageRollups(db.client, fakeProvider())
     expect(result).toMatchObject({ success: true, synced: 0 })
   })
+
+  it("normalises a string day value when building the identifier", async () => {
+    const db = new FakeDb()
+    db.on(/FROM usage_rollups r\s+JOIN billing_customers/, {
+      rows: [
+        {
+          app_uuid: "app-1",
+          org_uuid: "org-1",
+          metric: "api_calls",
+          day: "2025-06-01",
+          quantity: "42",
+          provider_customer_id: "cus_1",
+        },
+      ],
+    })
+    db.on(/UPDATE usage_rollups SET synced_at/, { rowCount: 1 })
+    const provider = fakeProvider()
+    await syncUsageRollups(db.client, provider)
+    expect(provider.recordMeterEvent).toHaveBeenCalledWith(expect.objectContaining({ identifier: "app-1:org-1:api_calls:2025-06-01" }))
+  })
+
+  it("returns a 500 error envelope when the rollup query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM usage_rollups r\s+JOIN billing_customers/, pgError("08006"))
+    expect((await syncUsageRollups(db.client, fakeProvider())).status).toBe(500)
+  })
 })
 
 describe("listUsageRollups", () => {
@@ -357,5 +405,11 @@ describe("listUsageRollups", () => {
     const result = await listUsageRollups(db.client, { org_uuid: "org-9" })
     expect(result).toMatchObject({ success: true })
     expect(db.calls[0]?.values?.[0]).toBe("org-9")
+  })
+
+  it("returns a 500 error envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM usage_rollups\s+ORDER BY day DESC/, pgError("08006"))
+    expect((await listUsageRollups(db.client)).status).toBe(500)
   })
 })

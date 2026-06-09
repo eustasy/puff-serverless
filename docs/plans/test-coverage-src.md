@@ -189,13 +189,19 @@ post-Tier-2 numbers (floors just below actual so a regression fails the run):
 ```ts
 coverage: {
   // ...existing...
-  thresholds: { lines: 93, statements: 93, functions: 95, branches: 80 },
+  thresholds: { lines: 99, statements: 99, functions: 98, branches: 89 },
 }
 ```
 
 **Landed with Tier 2** (post-Tier-2 actuals: lines 93.91%, statements 93.28%,
 functions 96.28%, branches 82.22%). `vitest run --coverage` now fails below
-threshold. Raise the numbers as Tier 3 progresses so the floor only ever rises.
+threshold. **Raised after Tier 3** (post-Tier-3 actuals: lines 99.78%,
+statements 99.56%, functions 98.68%, branches 90.04% — 1096 tests). The branch
+target of ≥90% is met; the ~10% residual is dominated by defensive arms that
+cannot be hit without contorting the test (the `error instanceof Error ?
+error.message : String(error)` fallback in every `catch`, `?? default` guards on
+values the fake `pg` client always supplies, and `|| default` message/status
+fallbacks on envelopes that always carry both).
 
 ## Execution order & expected coverage after each tier
 

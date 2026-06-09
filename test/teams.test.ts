@@ -32,6 +32,12 @@ describe("createTeam", () => {
     db.on(/INSERT INTO teams/, pgError("23503"))
     expect((await createTeam(db.client, "ghost-org", "Platform")).status).toBe(404)
   })
+
+  it("returns 500 on an unexpected (non-FK) error", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO teams/, pgError("08006"))
+    expect(await createTeam(db.client, "org-1", "Platform")).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("readTeam", () => {
@@ -84,6 +90,12 @@ describe("deleteTeam", () => {
     const db = new FakeDb()
     db.on(/DELETE FROM teams/, { rows: [] })
     expect((await deleteTeam(db.client, "team-1")).status).toBe(404)
+  })
+
+  it("returns 500 when the delete throws", async () => {
+    const db = new FakeDb()
+    db.on(/DELETE FROM teams/, pgError("08006"))
+    expect((await deleteTeam(db.client, "team-1")).status).toBe(500)
   })
 })
 

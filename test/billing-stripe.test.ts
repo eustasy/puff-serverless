@@ -154,6 +154,14 @@ describe("provider REST methods (fetch)", () => {
     expect(body.get("trial_period_days")).toBe("14")
   })
 
+  it("creates a subscription without a trial period when none is requested", async () => {
+    const calls = stubStripe([{ json: { id: "sub_1", status: "active" } }])
+    const provider = createStripeProvider(STRIPE_ENV)
+    await provider.createSubscription({ customerId: "cus_1", priceId: "price_1", metadata: { org_uuid: "org-1" } })
+    const body = new URLSearchParams(calls[0].init.body as string)
+    expect(body.has("trial_period_days")).toBe(false)
+  })
+
   it("reads the current item before swapping price on an update", async () => {
     const calls = stubStripe([{ json: { items: { data: [{ id: "si_1" }] } } }, { json: { id: "sub_1", status: "active" } }])
     const provider = createStripeProvider(STRIPE_ENV)
@@ -208,6 +216,20 @@ describe("provider REST methods (fetch)", () => {
     expect(body.get("subscription_data[trial_period_days]")).toBe("7")
   })
 
+  it("creates a checkout session without a trial period when none is requested", async () => {
+    const calls = stubStripe([{ json: { id: "cs_1", url: "https://checkout/1" } }])
+    const provider = createStripeProvider(STRIPE_ENV)
+    await provider.createCheckoutSession({
+      customerId: "cus_1",
+      priceId: "price_1",
+      successUrl: "https://ok",
+      cancelUrl: "https://no",
+      metadata: { org_uuid: "org-1" },
+    })
+    const body = new URLSearchParams(calls[0].init.body as string)
+    expect(body.has("subscription_data[trial_period_days]")).toBe(false)
+  })
+
   it("creates a billing portal session", async () => {
     const calls = stubStripe([{ json: { url: "https://portal/1" } }])
     const provider = createStripeProvider(STRIPE_ENV)
@@ -232,6 +254,14 @@ describe("provider REST methods (fetch)", () => {
     const body = new URLSearchParams(calls[0].init.body as string)
     expect(body.get("payload[value]")).toBe("42")
     expect(body.get("timestamp")).toBe("1700000000")
+  })
+
+  it("records a meter event without a timestamp", async () => {
+    const calls = stubStripe([{ json: {} }])
+    const provider = createStripeProvider(STRIPE_ENV)
+    await provider.recordMeterEvent({ eventName: "api_calls", customerId: "cus_1", value: 1, identifier: "rollup-2" })
+    const body = new URLSearchParams(calls[0].init.body as string)
+    expect(body.has("timestamp")).toBe(false)
   })
 
   it("throws a StripeError carrying the API error message on a non-2xx response", async () => {

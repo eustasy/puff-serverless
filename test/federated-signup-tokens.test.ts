@@ -5,7 +5,7 @@ import {
   createFederatedSignupToken,
   readFederatedSignupToken,
 } from "../src/federated-signup-tokens.js"
-import { FakeDb } from "./helpers/fake-db.js"
+import { FakeDb, pgError } from "./helpers/fake-db.js"
 
 describe("createFederatedSignupToken", () => {
   it("inserts the token with the configured TTL and the provider data", async () => {
@@ -26,6 +26,19 @@ describe("createFederatedSignupToken", () => {
     expect(call.values[4]).toBe(true)
     expect(call.values[5]).toBe("Alice")
     expect(call.values[6]).toBe(FEDERATED_SIGNUP_TOKEN_TTL_SECONDS)
+  })
+
+  it("returns a 500 envelope when the insert throws", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO federated_signup_tokens/, pgError("08006"))
+    const r = await createFederatedSignupToken(db.client, {
+      provider: "github",
+      provider_user_id: "gh-1",
+      email: null,
+      email_verified: false,
+      display_name: null,
+    })
+    expect(r).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -57,6 +70,13 @@ describe("readFederatedSignupToken", () => {
     const r = await readFederatedSignupToken(db.client, "t-?")
     expect(r.success).toBe(false)
     if (!r.success && !r.error) expect(r.status).toBe(400)
+  })
+
+  it("returns a 500 envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT[\s\S]*FROM federated_signup_tokens/, pgError("08006"))
+    const r = await readFederatedSignupToken(db.client, "t-1")
+    expect(r).toMatchObject({ error: true, status: 500 })
   })
 })
 

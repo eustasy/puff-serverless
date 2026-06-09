@@ -39,6 +39,12 @@ describe("createInvitation", () => {
     db.on(/INSERT INTO organisation_invitations/, pgError("23503"))
     expect((await createInvitation(db.client, "ghost", "a@b.test", ["member"], null)).status).toBe(404)
   })
+
+  it("returns 500 on an unexpected (non-FK) error", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO organisation_invitations/, pgError("08006"))
+    expect(await createInvitation(db.client, "org-1", "a@b.test", ["member"], null)).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("readInvitation", () => {
@@ -57,6 +63,12 @@ describe("readInvitation", () => {
     const db = new FakeDb()
     db.on(/FROM organisation_invitations i/, { rows: [] })
     expect((await readInvitation(db.client, "tok-1")).status).toBe(404)
+  })
+
+  it("returns 500 when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM organisation_invitations i/, pgError("08006"))
+    expect(await readInvitation(db.client, "tok-1")).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -80,6 +92,21 @@ describe("acceptInvitation", () => {
     const result = await acceptInvitation(db.client, "tok-1", "user-1")
     expect(result).toMatchObject({ success: false, status: 400 })
     expect(db.calls.some((c) => c.text.includes("INSERT INTO organisation_members"))).toBe(false)
+  })
+
+  it("maps an FK violation during the grant to 404", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE organisation_invitations/, {
+      rows: [{ org_uuid: "org-1", roles: ["member"], invited_by: "user-9" }],
+    })
+    db.on(/INSERT INTO organisation_members/, pgError("23503"))
+    expect((await acceptInvitation(db.client, "tok-1", "user-1")).status).toBe(404)
+  })
+
+  it("returns 500 on an unexpected error", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE organisation_invitations/, pgError("08006"))
+    expect(await acceptInvitation(db.client, "tok-1", "user-1")).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -118,5 +145,11 @@ describe("revokeInvitation", () => {
     const db = new FakeDb()
     db.on(/DELETE FROM organisation_invitations/, { rowCount: 0 })
     expect((await revokeInvitation(db.client, "org-1", "tok-1")).status).toBe(404)
+  })
+
+  it("returns 500 when the delete throws", async () => {
+    const db = new FakeDb()
+    db.on(/DELETE FROM organisation_invitations/, pgError("08006"))
+    expect(await revokeInvitation(db.client, "org-1", "tok-1")).toMatchObject({ error: true, status: 500 })
   })
 })

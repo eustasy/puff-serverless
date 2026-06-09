@@ -122,6 +122,49 @@ describe("getProviderConfig + extractors", () => {
     expect(getProviderConfig("github")!.normaliseUserinfo({})).toBeNull()
     expect(getProviderConfig("google")!.normaliseUserinfo({})).toBeNull()
   })
+
+  it("every extractor returns null for a non-object userinfo payload", () => {
+    expect(getProviderConfig("github")!.normaliseUserinfo("nope")).toBeNull()
+    expect(getProviderConfig("google")!.normaliseUserinfo(42)).toBeNull()
+    expect(getProviderConfig("microsoft")!.normaliseUserinfo(null)).toBeNull()
+  })
+
+  it("Microsoft: returns null when sub is an empty string", () => {
+    expect(getProviderConfig("microsoft")!.normaliseUserinfo({ sub: "", email: "x@y" })).toBeNull()
+  })
+
+  it("Microsoft: stays unverified when the ID token carries a non-string tid", () => {
+    const config = getProviderConfig("microsoft")!
+    const payload = btoa(JSON.stringify({ tid: 1234 }))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "")
+    const identity = config.normaliseUserinfo({ sub: "ms-1", email: "dave@x", name: "Dave" }, undefined, `header.${payload}.sig`)
+    expect(identity?.email_verified).toBe(false)
+  })
+
+  it("GitHub: picks any verified email when none is marked primary", () => {
+    const identity = getProviderConfig("github")!.normaliseUserinfo({ id: 7, login: "eve", email: null }, [
+      { email: "eve@x", primary: false, verified: true },
+    ])
+    expect(identity).toMatchObject({ email: "eve@x", email_verified: true })
+  })
+
+  it("GitHub: keeps the /user.email unverified when /user/emails has no verified address", () => {
+    const identity = getProviderConfig("github")!.normaliseUserinfo({ id: 7, login: "eve", email: "eve@x" }, [
+      { email: "other@x", primary: false, verified: false },
+    ])
+    expect(identity).toMatchObject({ email: "eve@x", email_verified: false })
+  })
+
+  it("GitHub: yields a null email when neither /user.email nor /user/emails has one", () => {
+    const identity = getProviderConfig("github")!.normaliseUserinfo({ id: 7, login: "eve" })
+    expect(identity).toMatchObject({ provider_user_id: "7", email: null, email_verified: false })
+  })
+
+  it("getProviderConfig returns null for an unknown provider name", () => {
+    expect(getProviderConfig("twitter")).toBeNull()
+  })
 })
 
 describe("getProviderCredentials + listConfiguredProviders", () => {

@@ -22,13 +22,15 @@ export default {
       reporter: ["text", "lcov"],
       include: ["src/**/*.ts"],
       // Coverage ratchet (see docs/plans/test-coverage-src.md). Floors set just
-      // below the post-Tier-2 numbers so `vitest run --coverage` fails on a
-      // regression. Raise these as Tier 3 lands so the floor only ever rises.
+      // below the post-Tier-3 numbers so `vitest run --coverage` fails on a
+      // regression. Raise these as coverage improves so the floor only ever rises.
+      // Post-Tier-3 actuals: lines 99.78%, statements 99.56%, functions 98.68%,
+      // branches 90.04%.
       thresholds: {
-        lines: 93,
-        statements: 93,
-        functions: 95,
-        branches: 80,
+        lines: 99,
+        statements: 99,
+        functions: 98,
+        branches: 89,
       },
     },
   },

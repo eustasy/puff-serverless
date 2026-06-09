@@ -49,6 +49,13 @@ describe("loginOutcomeResponse — 2FA required", () => {
     const response = await loginOutcomeResponse(db.client, fakeEnv(), totpResult, request())
     expect(response.status).toBe(500)
   })
+
+  it("adds Secure to the pending-token cookie when SECURE_COOKIE is set", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO tokens/, { rows: [{ token_value: "tok" }] })
+    const response = await loginOutcomeResponse(db.client, fakeEnv({ SECURE_COOKIE: "true" }), totpResult, request())
+    expect(response.headers.get("Set-Cookie")).toContain("Secure")
+  })
 })
 
 describe("loginOutcomeResponse — password upgrade required", () => {
@@ -66,6 +73,13 @@ describe("loginOutcomeResponse — password upgrade required", () => {
     db.on(/INSERT INTO tokens/, { rows: [] })
     const response = await loginOutcomeResponse(db.client, fakeEnv(), upgradeResult, request())
     expect(response.status).toBe(500)
+  })
+
+  it("adds Secure to the upgrade-token cookie when SECURE_COOKIE is set", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO tokens/, { rows: [{ token_value: "tok" }] })
+    const response = await loginOutcomeResponse(db.client, fakeEnv({ SECURE_COOKIE: "true" }), upgradeResult, request())
+    expect(response.headers.get("Set-Cookie")).toContain("Secure")
   })
 })
 

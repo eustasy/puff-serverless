@@ -61,6 +61,10 @@ describe("validatePair", () => {
   it("rejects a value exceeding MAX_VALUE_LENGTH", () => {
     expect(validatePair("key", "v".repeat(MAX_VALUE_LENGTH + 1))).toBe(`Values cannot be longer than ${MAX_VALUE_LENGTH} characters.`)
   })
+
+  it("rejects a non-string value", () => {
+    expect(validatePair("key", 5 as unknown as string)).toBe("A value is required.")
+  })
 })
 
 describe("escapeLikePattern", () => {
@@ -120,6 +124,13 @@ describe("deleteKeyValueGeneric", () => {
     db.on(/DELETE FROM test_kvs/, pgError("08006", "connection lost"))
     const result = await deleteKeyValueGeneric(db.client, spec, ["s-1"], userOwner, "k")
     expect(result).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("rejects an invalid key with 400 before any query", async () => {
+    const db = new FakeDb()
+    const result = await deleteKeyValueGeneric(db.client, spec, ["s-1"], userOwner, "")
+    expect(result).toMatchObject({ success: false, status: 400 })
+    expect(db.calls).toHaveLength(0)
   })
 })
 

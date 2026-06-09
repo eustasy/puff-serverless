@@ -116,6 +116,14 @@ describe("handleAuthorizationCodeGrant", () => {
     expect(mocks.createRefreshToken).not.toHaveBeenCalled()
   })
 
+  it("omits id_token when the grant yields none (no openid scope)", async () => {
+    mocks.buildIdToken.mockResolvedValue(null)
+    const { form } = await codeGrant({ scopes: ["profile"] })
+    const body = await (await handleAuthorizationCodeGrant(env, db(), appWith("none"), form, issuer)).json()
+    expect(body).not.toHaveProperty("id_token")
+    expect(body).toMatchObject({ access_token: "access-token" })
+  })
+
   it("issues a refresh token when offline_access is granted", async () => {
     mocks.createRefreshToken.mockResolvedValue({ success: true, token: "refresh-1" })
     const { form } = await codeGrant({ scopes: ["openid", "offline_access"] })
@@ -185,6 +193,16 @@ describe("handleRefreshTokenGrant", () => {
     const form = new URLSearchParams({ refresh_token: "rt" })
     const body = await (await handleRefreshTokenGrant(env, db(), appWith("none"), form, issuer)).json()
     expect(body).toMatchObject({ access_token: "access-token", refresh_token: "rotated-1", id_token: "id-token" })
+  })
+
+  it("omits id_token when the refreshed grant has no openid scope", async () => {
+    mocks.buildIdToken.mockResolvedValue(null)
+    mocks.consumeRefreshToken.mockResolvedValue({ success: true, grant: { ...okGrant, scopes: ["profile"] } })
+    mocks.createRefreshToken.mockResolvedValue({ success: true, token: "rotated-1" })
+    const form = new URLSearchParams({ refresh_token: "rt" })
+    const body = await (await handleRefreshTokenGrant(env, db(), appWith("none"), form, issuer)).json()
+    expect(body).not.toHaveProperty("id_token")
+    expect(body).toMatchObject({ refresh_token: "rotated-1" })
   })
 
   it("500s when rotation fails", async () => {

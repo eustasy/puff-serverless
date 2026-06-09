@@ -138,6 +138,29 @@ describe("loadSigningKey", () => {
     const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: JSON.stringify(pub) })
     await expect(loadSigningKey(env)).rejects.toThrow(/private scalar/)
   })
+
+  it("throws when the env-var JWK is valid JSON but not an EC P-256 key", async () => {
+    const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: JSON.stringify({ kty: "RSA", n: "x", e: "AQAB" }) })
+    await expect(loadSigningKey(env)).rejects.toThrow(/not an ES256/)
+  })
+
+  it("throws when the KV active key is missing the private scalar `d`", async () => {
+    const pub = JSON.parse(currentPriv)
+    delete pub.d
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: fakeKv({ "oauth:keys:active": { jwk: pub, kid: "k", created_at: "now" } }),
+    })
+    await expect(loadSigningKey(env)).rejects.toThrow(/private scalar/)
+  })
+
+  it("falls back to the env-var when KV is bound but has no active entry", async () => {
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: fakeKv({}),
+      OAUTH_SIGNING_KEY_PRIVATE: currentPriv,
+    })
+    const key = await loadSigningKey(env)
+    expect(key.type).toBe("private")
+  })
 })
 
 describe("currentPublicJwk", () => {
@@ -169,6 +192,30 @@ describe("currentPublicJwk", () => {
     const jwk = await currentPublicJwk(env)
     expect(jwk.kid).toBe(kid)
     expect(jwk).not.toHaveProperty("d")
+  })
+
+  it("serves the second KV read from the per-isolate cache", async () => {
+    const priv = JSON.parse(currentPriv)
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: fakeKv({ "oauth:keys:active": { jwk: priv, kid: "kid-1", created_at: "now" } }),
+    })
+    const first = await currentPublicJwk(env)
+    const second = await currentPublicJwk(env)
+    expect(second.kid).toBe(first.kid)
+  })
+
+  it("derives the kid from the JWK thumbprint when KV omits it", async () => {
+    const priv = JSON.parse(currentPriv)
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: fakeKv({ "oauth:keys:active": { jwk: priv, created_at: "now" } }),
+    })
+    const jwk = await currentPublicJwk(env)
+    expect(jwk.kid).toBe(await jwkThumbprint(priv))
+  })
+
+  it("throws when no active key is configured anywhere", async () => {
+    const env = fakeEnv({ OAUTH_SIGNING_KEY_PRIVATE: "" })
+    await expect(currentPublicJwk(env)).rejects.toThrow(/No active signing key/)
   })
 })
 
@@ -212,6 +259,30 @@ describe("previousPublicJwk", () => {
     const jwk = await previousPublicJwk(env)
     expect(jwk).not.toBeNull()
     expect(jwk!.kid).toBe(kid)
+  })
+
+  it("derives the kid from the thumbprint when the KV retired entry omits it", async () => {
+    const pub = JSON.parse(previousPub)
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: fakeKv({ "oauth:keys:retired": { jwk: pub, retired_at: "now" } }),
+    })
+    const jwk = await previousPublicJwk(env)
+    expect(jwk!.kid).toBe(await jwkThumbprint(pub))
+  })
+
+  it("returns null when KV is bound but holds no retired entry", async () => {
+    const env = fakeEnv({ KV_OAUTH_KEYS: fakeKv({}) })
+    expect(await previousPublicJwk(env)).toBeNull()
+  })
+
+  it("serves the second retired KV read from the per-isolate cache", async () => {
+    const pub = JSON.parse(previousPub)
+    const env = fakeEnv({
+      KV_OAUTH_KEYS: fakeKv({ "oauth:keys:retired": { jwk: pub, kid: "kid-r", retired_at: "now" } }),
+    })
+    const first = await previousPublicJwk(env)
+    const second = await previousPublicJwk(env)
+    expect(second!.kid).toBe(first!.kid)
   })
 })
 

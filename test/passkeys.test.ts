@@ -38,6 +38,12 @@ describe("getPasskeyByCredentialId", () => {
     db.on(/FROM passkeys/, { rows: [] })
     expect((await getPasskeyByCredentialId(db.client, "cred")).status).toBe(404)
   })
+
+  it("returns 500 when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM passkeys/, pgError("08006"))
+    expect((await getPasskeyByCredentialId(db.client, "cred")).status).toBe(500)
+  })
 })
 
 describe("savePasskey", () => {
@@ -57,6 +63,13 @@ describe("savePasskey", () => {
     db.on(/INSERT INTO passkeys/, { rowCount: 1 })
     await savePasskey(db.client, "user-1", "c", new Uint8Array([1]), 0, undefined, "k") // prettier-ignore
     expect(db.calls[0].values[5]).toBeNull()
+  })
+
+  it("returns 500 when the insert throws", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO passkeys/, pgError("08006"))
+    const result = await savePasskey(db.client, "user-1", "c", new Uint8Array([1]), 0, undefined, "k")
+    expect(result).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -93,6 +106,12 @@ describe("deletePasskey", () => {
     db.on(/DELETE FROM passkeys/, { rowCount: 0 })
     expect((await deletePasskey(db.client, "p1", "user-1")).status).toBe(404)
   })
+
+  it("returns 500 when the delete throws", async () => {
+    const db = new FakeDb()
+    db.on(/DELETE FROM passkeys/, pgError("08006"))
+    expect((await deletePasskey(db.client, "p1", "user-1")).status).toBe(500)
+  })
 })
 
 describe("getRpConfig", () => {
@@ -106,6 +125,10 @@ describe("getRpConfig", () => {
 
   it("falls back to localhost when nothing is configured", () => {
     expect(getRpConfig(fakeEnv()).rpID).toBe("localhost")
+  })
+
+  it("falls back to localhost when APP_URL is not a parseable URL", () => {
+    expect(getRpConfig(fakeEnv({ APP_URL: "not a url" })).rpID).toBe("localhost")
   })
 
   it("resolves the RP name from WEBAUTHN_RP_NAME, then APP_NAME, then a default", () => {

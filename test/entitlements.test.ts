@@ -211,6 +211,14 @@ describe("summariseLicensing", () => {
     expect(r).toMatchObject({ success: true, mode: "usage", assigned: 5 })
   })
 
+  it("'floating' reports a null max when none is configured", async () => {
+    const db = new FakeDb()
+    db.on(/count\(\*\)::INT AS count[\s\S]*FROM app_floating_sessions/, { rows: [{ count: 2 }] })
+    db.on(/FROM organisation_key_values/, { rows: [] })
+    const r = await summariseLicensing(db.client, { app_uuid: "a-1", app_licensing_mode: "floating" }, "o-1")
+    expect(r).toMatchObject({ success: true, mode: "floating", active: 2, max: null })
+  })
+
   it("returns 500 when a count query throws", async () => {
     const db = new FakeDb()
     db.on(/count\(DISTINCT user_uuid\)::INT AS count/, pgError("08006"))
@@ -282,6 +290,18 @@ describe("listEntitlementsForToken", () => {
     expect(await listEntitlementsForToken(db.client, { app_uuid: "a-1", app_licensing_mode: "none" }, "u-1", "o-1")).toMatchObject({
       error: true,
     })
+  })
+
+  it("leaves the tier null when the seat tier resolves to nothing", async () => {
+    const db = new FakeDb()
+    db.on(/FROM app_key_values WHERE app_uuid = \$1 AND owner_app_uuid = \$1/, { rows: [] }) // no declared perms
+    db.on(/SELECT kv_value FROM user_key_values WHERE user_uuid = \$1 AND owner_app_uuid = \$2 AND kv_key = \$3 LIMIT 1/, { rows: [] })
+    db.on(/FROM org_role_key_values/, { rows: [] })
+    db.on(/FROM organisation_key_values/, { rows: [] })
+    db.on(/FROM app_key_values WHERE app_uuid = \$1 AND/, { rows: [] })
+    const r = await listEntitlementsForToken(db.client, { app_uuid: "a-1", app_licensing_mode: "seat" }, "u-1", "o-1")
+    expect(r.success).toBe(true)
+    if (r.success) expect(r.claim.tier).toBeNull()
   })
 
   it("propagates a resolver error while reading the seat tier", async () => {

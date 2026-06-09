@@ -85,6 +85,27 @@ describe("showSchedules", () => {
     })
   })
 
+  it("coerces an unparseable timestamp to null", async () => {
+    const db = new FakeDb()
+    db.on(/SHOW SCHEDULES/, {
+      rows: [
+        {
+          id: "1",
+          label: "row-level-ttl-300",
+          schedule_status: "ACTIVE",
+          next_run: "not-a-real-date",
+          state: null,
+          recurrence: null,
+          owner: null,
+          created: null,
+        },
+      ],
+    })
+    const result = await showSchedules(db.client)
+    expect(result).toMatchObject({ success: true })
+    if (result.success) expect(result.schedules[0]!.next_run).toBeNull()
+  })
+
   it("returns a 500 error envelope when the query fails", async () => {
     const db = new FakeDb()
     db.on(/SHOW SCHEDULES/, pgError("42501", "permission denied"))

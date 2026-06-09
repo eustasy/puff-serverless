@@ -83,4 +83,8 @@ describe("clearNextCookie", () => {
     expect(cookie).toContain("Max-Age=0")
     expect(cookie).toContain("HttpOnly")
   })
+
+  it("adds Secure when SECURE_COOKIE is set", () => {
+    expect(clearNextCookie(fakeEnv({ SECURE_COOKIE: "true" }))).toContain("Secure")
+  })
 })

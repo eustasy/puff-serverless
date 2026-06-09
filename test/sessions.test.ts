@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 import {
   verifyTokenAndGetUser,
   verifySessionToken,
@@ -10,6 +10,23 @@ import {
 } from "../src/sessions.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
 import { fakeEnv } from "./helpers/fake-env.js"
+
+// verifySessionToken opens its own short-lived pg Client; mock it so that one
+// function can be exercised without a real database (precedent:
+// oauth-keys-rotation.test.ts). The FakeDb-based tests below don't construct a
+// Client, so the mock is inert for them.
+const { connectMock, endMock, clientQueryMock } = vi.hoisted(() => ({
+  connectMock: vi.fn(),
+  endMock: vi.fn(),
+  clientQueryMock: vi.fn(),
+}))
+vi.mock("pg", () => ({
+  Client: class {
+    connect = connectMock
+    end = endMock
+    query = clientQueryMock
+  },
+}))
 
 const future = () => new Date(Date.now() + 60_000)
 const past = () => new Date(Date.now() - 60_000)
@@ -82,11 +99,57 @@ describe("verifyTokenAndGetUser", () => {
       status: 500,
     })
   })
+
+  it("succeeds even if the background last-accessed update rejects", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT .* FROM sessions/, {
+      rows: [{ user_uuid: "user-1", expires_at: future(), ip_country: "GB" }],
+    })
+    db.on(/UPDATE sessions SET last_accessed_at/, pgError("08006"))
+    const result = await verifyTokenAndGetUser(db.client, "tok", "GB", "1.2.3.4")
+    expect(result.success).toBe(true)
+    // Let the fire-and-forget rejection handler run before the test ends.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
 })
 
 describe("verifySessionToken", () => {
+  beforeEach(() => {
+    connectMock.mockReset().mockResolvedValue(undefined)
+    endMock.mockReset().mockResolvedValue(undefined)
+    clientQueryMock.mockReset()
+  })
+
   it("returns false when no Hyperdrive binding is configured", async () => {
     expect(await verifySessionToken(fakeEnv(), "tok", null, null)).toBe(false)
+  })
+
+  it("returns false when the connection string is empty", async () => {
+    const env = fakeEnv({ HYPERDRIVE: { connectionString: "" } as Env["HYPERDRIVE"] })
+    expect(await verifySessionToken(env, "tok", null, null)).toBe(false)
+  })
+
+  it("returns true for a valid session over its own connection", async () => {
+    clientQueryMock.mockResolvedValue({
+      rows: [{ user_uuid: "user-1", expires_at: future(), ip_country: "GB" }],
+      rowCount: 1,
+    })
+    const env = fakeEnv({ HYPERDRIVE: { connectionString: "postgres://localhost/test" } as Env["HYPERDRIVE"] })
+    expect(await verifySessionToken(env, "tok", "GB", "1.2.3.4")).toBe(true)
+    expect(endMock).toHaveBeenCalled()
+  })
+
+  it("returns false when the session is invalid", async () => {
+    clientQueryMock.mockResolvedValue({ rows: [], rowCount: 0 })
+    const env = fakeEnv({ HYPERDRIVE: { connectionString: "postgres://localhost/test" } as Env["HYPERDRIVE"] })
+    expect(await verifySessionToken(env, "tok", null, null)).toBe(false)
+  })
+
+  it("fails closed (false) when connecting throws, still closing the client", async () => {
+    connectMock.mockRejectedValue(new Error("connection refused"))
+    const env = fakeEnv({ HYPERDRIVE: { connectionString: "postgres://localhost/test" } as Env["HYPERDRIVE"] })
+    expect(await verifySessionToken(env, "tok", null, null)).toBe(false)
+    expect(endMock).toHaveBeenCalled()
   })
 })
 
@@ -169,6 +232,12 @@ describe("terminateAllOtherSessions", () => {
     db.on(/UPDATE sessions SET is_active = FALSE/, { rowCount: 3 })
     expect(await terminateAllOtherSessions(db.client, "user-1", "keep-me")).toEqual({ success: true, deletedCount: 3, status: 200 })
     expect(db.calls[0].values).toEqual(["user-1", "keep-me"])
+  })
+
+  it("returns 500 when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE sessions/, pgError("08006"))
+    expect((await terminateAllOtherSessions(db.client, "user-1", "keep-me")).status).toBe(500)
   })
 })
 

@@ -7,7 +7,7 @@ import {
   reapStaleFloatingSessions,
   releaseFloatingSeat,
 } from "../src/app-floating-sessions.js"
-import { FakeDb } from "./helpers/fake-db.js"
+import { FakeDb, pgError } from "./helpers/fake-db.js"
 
 describe("getFloatingPoolMax", () => {
   it("returns the per-org override when set", async () => {
@@ -43,6 +43,13 @@ describe("getFloatingPoolMax", () => {
     db.on(/FROM app_key_values/, { rows: [] })
     const result = await getFloatingPoolMax(db.client, "a-1", "o-1")
     expect(result).toEqual({ success: true, max: null, status: 200 })
+  })
+
+  it("returns a 500 envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM organisation_key_values/, pgError("08006"))
+    const result = await getFloatingPoolMax(db.client, "a-1", "o-1")
+    expect(result).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -99,6 +106,36 @@ describe("checkoutFloatingSeat", () => {
     expect(result.success).toBe(false)
     if (!result.success && !result.error) expect(result.status).toBe(409)
   })
+
+  it("allocates when the usage query returns no count row (treated as zero)", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT 1 FROM app_floating_sessions/, { rows: [], rowCount: 0 })
+    db.on(/FROM organisation_key_values/, { rows: [{ kv_value: "3" }] })
+    db.on(/count\(\*\)::INT AS count[\s\S]*FROM app_floating_sessions/, { rows: [] })
+    db.on(/INSERT INTO app_floating_sessions/, {
+      rows: [{ expires_at: new Date("2030-01-01") }],
+    })
+    const result = await checkoutFloatingSeat(db.client, "a-1", "o-1", "u-1")
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.allocated).toBe("new")
+  })
+
+  it("propagates a pool-size lookup failure as a 500 envelope", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT 1 FROM app_floating_sessions/, { rows: [], rowCount: 0 })
+    // getFloatingPoolMax catches its own error and returns !success; checkout
+    // then rolls back with that error envelope.
+    db.on(/FROM organisation_key_values/, pgError("08006"))
+    const result = await checkoutFloatingSeat(db.client, "a-1", "o-1", "u-1")
+    expect(result).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("returns a 500 envelope when the transaction throws unexpectedly", async () => {
+    const db = new FakeDb()
+    db.on(/SELECT 1 FROM app_floating_sessions/, pgError("08006"))
+    const result = await checkoutFloatingSeat(db.client, "a-1", "o-1", "u-1")
+    expect(result).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("heartbeatFloatingSeat", () => {
@@ -114,6 +151,13 @@ describe("heartbeatFloatingSeat", () => {
     db.on(/UPDATE app_floating_sessions/, { rows: [], rowCount: 1 })
     const result = await heartbeatFloatingSeat(db.client, "a-1", "o-1", "u-1")
     expect(result).toEqual({ success: true, existing: true, status: 200 })
+  })
+
+  it("returns a 500 envelope when the update throws", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE app_floating_sessions/, pgError("08006"))
+    const result = await heartbeatFloatingSeat(db.client, "a-1", "o-1", "u-1")
+    expect(result).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -131,6 +175,13 @@ describe("releaseFloatingSeat", () => {
     const result = await releaseFloatingSeat(db.client, "a-1", "o-1", "u-1")
     expect(result).toEqual({ success: true, released: false, status: 200 })
   })
+
+  it("returns a 500 envelope when the delete throws", async () => {
+    const db = new FakeDb()
+    db.on(/DELETE FROM app_floating_sessions/, pgError("08006"))
+    const result = await releaseFloatingSeat(db.client, "a-1", "o-1", "u-1")
+    expect(result).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("countActiveFloatingSeats", () => {
@@ -140,6 +191,20 @@ describe("countActiveFloatingSeats", () => {
     const result = await countActiveFloatingSeats(db.client, "a-1", "o-1")
     expect(result).toEqual({ success: true, count: 7, status: 200 })
   })
+
+  it("defaults to zero when the query returns no count row", async () => {
+    const db = new FakeDb()
+    db.on(/count\(\*\)::INT AS count/, { rows: [] })
+    const result = await countActiveFloatingSeats(db.client, "a-1", "o-1")
+    expect(result).toEqual({ success: true, count: 0, status: 200 })
+  })
+
+  it("returns a 500 envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/count\(\*\)::INT AS count/, pgError("08006"))
+    const result = await countActiveFloatingSeats(db.client, "a-1", "o-1")
+    expect(result).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("reapStaleFloatingSessions", () => {
@@ -148,5 +213,12 @@ describe("reapStaleFloatingSessions", () => {
     db.on(/DELETE FROM app_floating_sessions/, { rows: [], rowCount: 4 })
     const result = await reapStaleFloatingSessions(db.client)
     expect(result).toEqual({ success: true, reaped: 4, status: 200 })
+  })
+
+  it("returns a 500 envelope when the delete throws", async () => {
+    const db = new FakeDb()
+    db.on(/DELETE FROM app_floating_sessions/, pgError("08006"))
+    const result = await reapStaleFloatingSessions(db.client)
+    expect(result).toMatchObject({ error: true, status: 500 })
   })
 })

@@ -116,6 +116,12 @@ describe("disableOrganisation / enableOrganisation", () => {
     db.on(/UPDATE organisations SET org_active/, { rowCount: 0 })
     expect((await disableOrganisation(db.client, "org-1")).status).toBe(404)
   })
+
+  it("returns 500 when the update throws", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE organisations SET org_active/, pgError("08006"))
+    expect((await disableOrganisation(db.client, "org-1")).status).toBe(500)
+  })
 })
 
 describe("deleteOrganisation", () => {
@@ -143,6 +149,12 @@ describe("deleteOrganisation", () => {
     expect(result).toMatchObject({ success: false, status: 409 })
     // The DELETE must not have run.
     expect(db.calls.some((c) => /DELETE FROM organisations/.test(c.text))).toBe(false)
+  })
+
+  it("returns 500 when the balance check throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM invoices/, pgError("08006"))
+    expect((await deleteOrganisation(db.client, "org-1")).status).toBe(500)
   })
 })
 

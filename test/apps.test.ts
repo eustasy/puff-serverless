@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest"
-import { hashClientSecret, listApps, readApp, readAppByClientId, verifyAppCredentials } from "../src/apps.js"
+import {
+  hashClientSecret,
+  isAppLicensingMode,
+  listApps,
+  listAppTiers,
+  readApp,
+  readAppByClientId,
+  verifyAppCredentials,
+} from "../src/apps.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
 
 const sampleApp: AppRow = {
@@ -13,6 +21,20 @@ const sampleApp: AppRow = {
   app_default_trial_days: null,
   app_created_at: new Date("2026-05-01T00:00:00Z"),
 }
+
+describe("isAppLicensingMode", () => {
+  it("accepts every declared licensing mode", () => {
+    for (const mode of ["none", "seat", "usage", "floating"]) {
+      expect(isAppLicensingMode(mode)).toBe(true)
+    }
+  })
+
+  it("rejects unknown strings and non-strings", () => {
+    expect(isAppLicensingMode("perpetual")).toBe(false)
+    expect(isAppLicensingMode(42)).toBe(false)
+    expect(isAppLicensingMode(null)).toBe(false)
+  })
+})
 
 describe("readApp", () => {
   it("returns the active app row", async () => {
@@ -103,6 +125,20 @@ describe("verifyAppCredentials", () => {
     expect(result.success).toBe(true)
     if (result.success) expect(result.verified).toBe(false)
   })
+
+  it("propagates a lookup DB error as a 500", async () => {
+    const db = new FakeDb()
+    db.on(/FROM apps/, pgError("08006"))
+    expect(await verifyAppCredentials(db.client, "cid-1", "anything")).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("returns 500 when the stored secret is not a string", async () => {
+    const db = new FakeDb()
+    // A malformed row whose client_secret is null makes `.indexOf` throw,
+    // exercising the catch.
+    db.on(/FROM apps/, { rows: [{ ...sampleApp, client_secret: null }] })
+    expect(await verifyAppCredentials(db.client, "cid-1", "anything")).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("listApps", () => {
@@ -114,6 +150,39 @@ describe("listApps", () => {
     const result = await listApps(db.client)
     expect(result.success).toBe(true)
     if (result.success) expect(result.apps).toHaveLength(2)
+  })
+
+  it("returns 500 when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM apps/, pgError("08006"))
+    expect((await listApps(db.client)).status).toBe(500)
+  })
+})
+
+describe("listAppTiers", () => {
+  it("maps the license:tiers: keys to { name, label } entries", async () => {
+    const db = new FakeDb()
+    db.on(/FROM app_key_values/, {
+      rows: [
+        { kv_key: "license:tiers:pro", kv_value: "Pro plan" },
+        { kv_key: "license:tiers:free", kv_value: "Free plan" },
+      ],
+    })
+    const result = await listAppTiers(db.client, "a-1")
+    expect(result).toEqual({
+      success: true,
+      tiers: [
+        { name: "pro", label: "Pro plan" },
+        { name: "free", label: "Free plan" },
+      ],
+      status: 200,
+    })
+  })
+
+  it("propagates a DB error from the shared helper", async () => {
+    const db = new FakeDb()
+    db.on(/FROM app_key_values/, pgError("08006"))
+    expect((await listAppTiers(db.client, "a-1")).status).toBe(500)
   })
 })
 

@@ -123,6 +123,32 @@ describe("buildIdToken", () => {
     expect(signedPayload()).toMatchObject({ email: "primary@example.com", email_verified: true })
   })
 
+  it("skips name/email claims when the user read fails", async () => {
+    mocks.readUser.mockResolvedValue({ success: false, message: "gone", status: 404 })
+    const result = await buildIdToken(fakeEnv(), new FakeDb().client, ctx({ scopes: ["openid", "profile", "email"] }))
+    expect(result).toBe("signed.jwt.token")
+    const payload = signedPayload()
+    expect(payload).not.toHaveProperty("name")
+    expect(payload).not.toHaveProperty("email")
+    expect(mocks.readEmails).not.toHaveBeenCalled()
+  })
+
+  it("falls back to any verified email when none is marked primary", async () => {
+    mocks.readUser.mockResolvedValue({ success: true, user: { user_name: "Ada" }, status: 200 })
+    mocks.readEmails.mockResolvedValue([{ email_address: "verified@example.com", is_primary: false, is_verified: true }])
+    await buildIdToken(fakeEnv(), new FakeDb().client, ctx({ scopes: ["openid", "email"] }))
+    expect(signedPayload()).toMatchObject({ email: "verified@example.com", email_verified: true })
+  })
+
+  it("omits puff:memberships and puff:roles when those builders fail", async () => {
+    mocks.buildMembershipsClaim.mockResolvedValue({ success: false, message: "x", status: 500 })
+    mocks.buildRolesClaim.mockResolvedValue({ success: false, message: "x", status: 500 })
+    await buildIdToken(fakeEnv(), new FakeDb().client, ctx({ scopes: ["openid", "puff:memberships", "puff:roles"] }))
+    const payload = signedPayload()
+    expect(payload).not.toHaveProperty("puff:memberships")
+    expect(payload).not.toHaveProperty("puff:roles")
+  })
+
   it("tolerates an email read failure without failing the token", async () => {
     mocks.readUser.mockResolvedValue({ success: true, user: { user_name: "Ada" }, status: 200 })
     mocks.readEmails.mockRejectedValue(new Error("db down"))

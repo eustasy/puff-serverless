@@ -55,6 +55,18 @@ describe("upsertConsent", () => {
     expect(db.calls[0]!.text).toMatch(/ON CONFLICT \(user_uuid, app_uuid\)/)
     expect(db.calls[0]!.values).toEqual(["u-1", "a-1", ["openid", "email"]])
   })
+
+  it("returns 500 when the upsert returns no row", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO oauth_consents/, { rows: [] })
+    expect(await upsertConsent(db.client, "u-1", "a-1", ["openid"])).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("returns 500 when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO oauth_consents/, pgError("08006"))
+    expect(await upsertConsent(db.client, "u-1", "a-1", ["openid"])).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("revokeConsent", () => {
@@ -72,6 +84,12 @@ describe("revokeConsent", () => {
     const result = await revokeConsent(db.client, "u-1", "a-1")
     expect(result.success).toBe(true)
     if (result.success) expect(result.revoked).toBe(false)
+  })
+
+  it("returns 500 when the delete throws", async () => {
+    const db = new FakeDb()
+    db.on(/DELETE FROM oauth_consents/, pgError("08006"))
+    expect(await revokeConsent(db.client, "u-1", "a-1")).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -100,5 +118,11 @@ describe("hasConsentFor", () => {
     const result = await hasConsentFor(db.client, "u-1", "a-1", ["openid"])
     expect(result.success).toBe(true)
     if (result.success) expect(result.covered).toBe(false)
+  })
+
+  it("propagates a read error as an error envelope", async () => {
+    const db = new FakeDb()
+    db.on(/FROM oauth_consents/, pgError("08006"))
+    expect(await hasConsentFor(db.client, "u-1", "a-1", ["openid"])).toMatchObject({ error: true, status: 500 })
   })
 })

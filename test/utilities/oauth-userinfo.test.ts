@@ -80,6 +80,22 @@ describe("buildUserInfoClaims", () => {
     expect(await build(payload({ scope: "openid puff:roles" }))).toEqual({ sub: "u1" })
   })
 
+  it("omits puff:memberships when its builder fails", async () => {
+    mocks.buildMembershipsClaim.mockResolvedValue({ success: false, message: "x", status: 500 })
+    expect(await build(payload({ scope: "openid puff:memberships" }))).toEqual({ sub: "u1" })
+  })
+
+  it("treats a non-string scope claim as no scopes", async () => {
+    expect(await build(payload({ scope: 1234 }))).toEqual({ sub: "u1" })
+  })
+
+  it("omits puff:entitlements when the app resolves but has no entitlements", async () => {
+    mocks.readAppByClientId.mockResolvedValue({ success: true, app: { app_uuid: "a1", app_licensing_mode: "seat" }, status: 200 })
+    mocks.buildEntitlementsClaim.mockResolvedValue({ success: true, entitlements: null, status: 200 })
+    const claims = await build(payload({ scope: "openid puff:entitlements", client_id: "c1", org_uuid: "o1" }))
+    expect(claims).toEqual({ sub: "u1" })
+  })
+
   it("resolves puff:entitlements from the token's app + org context", async () => {
     mocks.readAppByClientId.mockResolvedValue({ success: true, app: { app_uuid: "a1", app_licensing_mode: "seat" }, status: 200 })
     mocks.buildEntitlementsClaim.mockResolvedValue({ success: true, entitlements: { tier: "pro" }, status: 200 })

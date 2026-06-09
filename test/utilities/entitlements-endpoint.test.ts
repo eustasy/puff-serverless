@@ -94,6 +94,22 @@ describe("createGranteeEntitlementListHandler", () => {
     expect(response.status).toBe(405)
     expect(response.headers.get("Allow")).toBe("GET")
   })
+
+  it("builds a user grantee when granteeType is 'user'", async () => {
+    const userKv = {
+      readKeyValues: vi.fn().mockResolvedValue({ success: true, pairs: [], status: 200 }),
+      searchKeyValues: vi.fn(),
+    }
+    const userHandler = createGranteeEntitlementListHandler({
+      kv: userKv,
+      paramName: "user_uuid",
+      granteeType: "user",
+      urlSegment: "users",
+    })
+    const response = await userHandler.onRequestGet(ctx({ params: { user_uuid: "u9" } }))
+    expect(response.status).toBe(200)
+    expect(mocks.assertGranteeInOrg).toHaveBeenCalledWith(expect.anything(), "o1", { type: "user", user_uuid: "u9" })
+  })
 })
 
 describe("createGranteeEntitlementSetHandler", () => {
@@ -150,6 +166,27 @@ describe("createGranteeEntitlementSetHandler", () => {
     expect(mocks.emitFromContext).not.toHaveBeenCalled()
   })
 
+  it("propagates a grantee-not-in-org failure", async () => {
+    mocks.assertGranteeInOrg.mockResolvedValue({ success: false, message: "not a member", status: 404 })
+    expect((await handler.onRequestPost(ctx({ request: formRequest({ key: "license:tier", value: "pro" }) }))).status).toBe(404)
+  })
+
+  it("builds a user grantee and emits user-targeted metadata", async () => {
+    const userKv = { setKeyValue: vi.fn().mockResolvedValue({ success: true, created: true, status: 201 }) }
+    const userHandler = createGranteeEntitlementSetHandler({
+      kv: userKv,
+      paramName: "user_uuid",
+      granteeType: "user",
+      eventType: "org.user.entitlements.set",
+    })
+    await userHandler.onRequestPost(ctx({ params: { user_uuid: "u9" }, request: formRequest({ key: "license:tier", value: "pro" }) }))
+    expect(mocks.assertGranteeInOrg).toHaveBeenCalledWith(expect.anything(), "o1", { type: "user", user_uuid: "u9" })
+    expect(mocks.emitFromContext).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ target_user_uuid: "u9", target_team_uuid: undefined })
+    )
+  })
+
   it("405s other methods", async () => {
     const response = await handler.onRequest(ctx())
     expect(response.status).toBe(405)
@@ -190,6 +227,31 @@ describe("createGranteeEntitlementRemoveHandler", () => {
   it("surfaces a delete failure", async () => {
     kv.deleteKeyValue.mockResolvedValue({ success: false, message: "boom", status: 500 })
     expect((await handler.onRequestPost(ctx({ request: formRequest({ key: "license:tier" }) }))).status).toBe(500)
+  })
+
+  it("returns the parse error for a non-form body", async () => {
+    const bad = new Request("https://app.example/x", { method: "POST", body: "{}", headers: { "Content-Type": "application/json" } })
+    expect((await handler.onRequestPost(ctx({ request: bad }))).status).toBe(400)
+  })
+
+  it("propagates a grantee-not-in-org failure", async () => {
+    mocks.assertGranteeInOrg.mockResolvedValue({ success: false, message: "not a member", status: 404 })
+    expect((await handler.onRequestPost(ctx({ request: formRequest({ key: "license:tier" }) }))).status).toBe(404)
+  })
+
+  it("builds a team grantee and emits team-targeted metadata", async () => {
+    const teamKv = { deleteKeyValue: vi.fn().mockResolvedValue({ success: true, status: 200 }) }
+    const teamHandler = createGranteeEntitlementRemoveHandler({
+      kv: teamKv,
+      paramName: "team_uuid",
+      granteeType: "team",
+      eventType: "org.team.entitlements.removed",
+    })
+    await teamHandler.onRequestPost(ctx({ params: { team_uuid: "t1" }, request: formRequest({ key: "license:tier" }) }))
+    expect(mocks.emitFromContext).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ target_team_uuid: "t1", target_user_uuid: undefined })
+    )
   })
 
   it("405s other methods", async () => {

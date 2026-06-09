@@ -42,6 +42,22 @@ describe("createAuthorizationCode", () => {
     expect(call.values[9]).toBe(AUTHORIZATION_CODE_TTL_SECONDS)
   })
 
+  it("returns 500 when the insert returns no row", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO oauth_grants/, { rows: [] })
+    const result = await createAuthorizationCode(db.client, {
+      user_uuid: "u-1",
+      app_uuid: "a-1",
+      org_uuid: null,
+      scopes: [],
+      redirect_uri: "x",
+      code_challenge: "c",
+      code_challenge_method: "S256",
+      nonce: null,
+    })
+    expect(result).toMatchObject({ error: true, status: 500 })
+  })
+
   it("returns 500 when the DB throws", async () => {
     const db = new FakeDb()
     db.on(/INSERT INTO oauth_grants/, pgError("08006"))
@@ -90,6 +106,13 @@ describe("consumeAuthorizationCode", () => {
     expect(result.success).toBe(false)
     expect(result.status).toBe(400)
   })
+
+  it("returns 500 when the DB throws", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE oauth_grants/, pgError("08006"))
+    const result = await consumeAuthorizationCode(db.client, "c-1", "a-1", "https://app.example/cb")
+    expect(result).toMatchObject({ error: true, status: 500 })
+  })
 })
 
 describe("createRefreshToken", () => {
@@ -112,6 +135,32 @@ describe("createRefreshToken", () => {
     expect(call.values[3]).toBe("o-1")
     expect(call.values[5]).toBe("rt-old")
     expect(call.values[6]).toBe(REFRESH_TOKEN_TTL_SECONDS)
+  })
+
+  it("returns 500 when the insert returns no row", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO oauth_grants/, { rows: [] })
+    const result = await createRefreshToken(db.client, {
+      user_uuid: "u-1",
+      app_uuid: "a-1",
+      org_uuid: null,
+      scopes: [],
+      parent_grant_value: null,
+    })
+    expect(result).toMatchObject({ error: true, status: 500 })
+  })
+
+  it("returns 500 when the DB throws", async () => {
+    const db = new FakeDb()
+    db.on(/INSERT INTO oauth_grants/, pgError("08006"))
+    const result = await createRefreshToken(db.client, {
+      user_uuid: "u-1",
+      app_uuid: "a-1",
+      org_uuid: null,
+      scopes: [],
+      parent_grant_value: null,
+    })
+    expect(result).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -138,6 +187,12 @@ describe("consumeRefreshToken", () => {
     db.on(/UPDATE oauth_grants/, { rows: [] })
     expect((await consumeRefreshToken(db.client, "rt-?", "a-1")).status).toBe(400)
   })
+
+  it("returns 500 when the DB throws", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE oauth_grants/, pgError("08006"))
+    expect((await consumeRefreshToken(db.client, "rt-1", "a-1")).status).toBe(500)
+  })
 })
 
 describe("revokeRefreshTokenChain", () => {
@@ -149,5 +204,12 @@ describe("revokeRefreshTokenChain", () => {
     const result = await revokeRefreshTokenChain(db.client, "rt-1")
     expect(result.success).toBe(true)
     if (result.success) expect(result.revoked).toBe(2)
+  })
+
+  it("returns 500 when the DB throws", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE oauth_grants/, pgError("08006"))
+    const result = await revokeRefreshTokenChain(db.client, "rt-1")
+    expect(result).toMatchObject({ error: true, status: 500 })
   })
 })

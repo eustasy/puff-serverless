@@ -64,4 +64,29 @@ describe("parseUserAgent", () => {
     // Contains a Windows OS token but no recognised browser token.
     expect(parseUserAgent("Mozilla/5.0 (Windows NT 10.0)")).toBe("Windows 10/11")
   })
+
+  it.each([
+    ["SamsungBrowser/23.0", "Samsung Browser"],
+    ["Opera/9.80", "Opera"],
+    ["OPR/106.0.0.0", "Opera"],
+    ["Edge/18.19041", "Edge (Legacy)"],
+    ["Chrome/120.0.0.0", "Chrome"],
+    ["Safari/537.36", "Safari"],
+  ])("identifies the %s browser token", (token, expected) => {
+    expect(parseUserAgent(token)).toBe(expected)
+  })
+
+  it.each([
+    ["Windows NT 6.3", "Windows 8.1"],
+    ["Windows NT 6.2", "Windows 8"],
+    ["Windows NT 6.1", "Windows 7"],
+    ["Windows NT 6.0", "Windows Vista"],
+    ["Windows NT 5.1", "Windows XP"],
+    ["Android 14; Pixel", "Android"],
+    ["iPhone; CPU iPhone OS 17", "iOS"],
+    ["iPad; CPU OS 17", "iOS"],
+    ["X11; Linux x86_64", "Linux"],
+  ])("identifies the %s OS token", (token, expected) => {
+    expect(parseUserAgent("Firefox/121.0 " + token)).toBe("Firefox on " + expected)
+  })
 })

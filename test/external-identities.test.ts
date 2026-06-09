@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest"
-import { findByProvider, linkExternalIdentity, listExternalIdentities, unlinkExternalIdentity } from "../src/external-identities.js"
+import {
+  findByProvider,
+  linkExternalIdentity,
+  listExternalIdentities,
+  unlinkExternalIdentity,
+  updateLastUsed,
+} from "../src/external-identities.js"
 import { FakeDb, pgError } from "./helpers/fake-db.js"
 
 describe("listExternalIdentities", () => {
@@ -18,6 +24,13 @@ describe("listExternalIdentities", () => {
     const result = await listExternalIdentities(db.client, "u-1")
     expect(result.success).toBe(true)
     if (result.success) expect(result.identities).toHaveLength(1)
+  })
+
+  it("returns a 500 envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM external_identities/, pgError("08006", "connection lost"))
+    const result = await listExternalIdentities(db.client, "u-1")
+    expect(result).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -38,6 +51,13 @@ describe("findByProvider", () => {
     const r = await findByProvider(db.client, "github", "gh-x")
     expect(r.success).toBe(true)
     if (r.success) expect(r.identity).toBeNull()
+  })
+
+  it("returns a 500 envelope when the query throws", async () => {
+    const db = new FakeDb()
+    db.on(/FROM external_identities/, pgError("08006"))
+    const r = await findByProvider(db.client, "github", "gh-1")
+    expect(r).toMatchObject({ error: true, status: 500 })
   })
 })
 
@@ -96,6 +116,22 @@ describe("linkExternalIdentity", () => {
     expect(r.success).toBe(false)
     if (!r.success && !r.error) expect(r.status).toBe(409)
   })
+
+  it("returns a 500 envelope on an unexpected (non-unique) error", async () => {
+    const db = new FakeDb()
+    // A thrown non-Error exercises the String(error) fallback in the catch.
+    db.on(/INSERT INTO external_identities/, () => {
+      throw "connection reset"
+    })
+    const r = await linkExternalIdentity(db.client, {
+      user_uuid: "u-1",
+      provider: "github",
+      provider_user_id: "gh-1",
+      email: null,
+      display_name: null,
+    })
+    expect(r).toMatchObject({ error: true, status: 500, details: "connection reset" })
+  })
 })
 
 describe("unlinkExternalIdentity", () => {
@@ -128,5 +164,27 @@ describe("unlinkExternalIdentity", () => {
     const r = await unlinkExternalIdentity(db.client, "u-1", "github", "gh-x")
     expect(r.success).toBe(false)
     if (!r.success && !r.error) expect(r.status).toBe(404)
+  })
+
+  it("returns a 500 envelope when the transaction throws an unexpected error", async () => {
+    const db = new FakeDb()
+    db.on(/password_count/, pgError("08006"))
+    const r = await unlinkExternalIdentity(db.client, "u-1", "github", "gh-1")
+    expect(r).toMatchObject({ error: true, status: 500 })
+  })
+})
+
+describe("updateLastUsed", () => {
+  it("issues the UPDATE and resolves", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE external_identities/, { rows: [], rowCount: 1 })
+    await expect(updateLastUsed(db.client, "github", "gh-1")).resolves.toBeUndefined()
+    expect(db.calls[0].values).toEqual(["github", "gh-1"])
+  })
+
+  it("swallows errors (non-fatal)", async () => {
+    const db = new FakeDb()
+    db.on(/UPDATE external_identities/, pgError("08006"))
+    await expect(updateLastUsed(db.client, "github", "gh-1")).resolves.toBeUndefined()
   })
 })
