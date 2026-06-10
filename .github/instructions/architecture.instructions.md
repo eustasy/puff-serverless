@@ -14,12 +14,16 @@ Terse reference for AI tooling. Long-form prose lives in `docs/Architecture.md`,
 
 ## Structure
 
-- `functions/api/` — dynamic endpoints, directory-routed by Cloudflare Pages Functions.
-  - Organised by domain: `functions/api/db/user/`, `functions/api/db/auth/email/`, `functions/api/db/auth/2fa/`, `functions/api/db/auth/password/`, `functions/api/db/auth/passkeys/`, `functions/api/db/auth/external-identities/`, `functions/api/db/auth/organisations/`, `functions/api/db/2fa/`, `functions/api/db/password/`, `functions/api/db/passkeys/`, `functions/api/db/federated-signup/`.
-  - `functions/api/` (no `db/` prefix) — endpoints needing neither DB nor auth (`functions/api/providers.ts`, `functions/api/password/requirements.ts`, `functions/api/csp-report.ts`).
-  - `functions/api/db/` — needs a DB connection. `functions/api/db/_middleware.ts` opens a Hyperdrive `pg` client into `context.data.dbClient`, closes it in `finally`. The middleware also runs a cross-origin write guard (rejects state-changing requests where `Sec-Fetch-Site !== same-origin`).
-  - `functions/api/db/auth/` — additionally requires an authenticated session. `functions/api/db/auth/_middleware.ts` reads the `session_token` cookie, calls `verifyTokenAndGetUser`, and populates `context.data.user_uuid`.
-  - Beneath `[org_uuid]/` and `[team_uuid]/`, further middleware files resolve the caller's role set into `context.data.orgRoles` / `context.data.teamRoles`. Inside `apps/[app_uuid]/`, `context.data.app` holds the resolved app row.
+- `functions/api/` — dynamic endpoints at **flat paths**, directory-routed by Cloudflare Pages Functions. Tier (DB / auth / operator) is **not** the directory path; it is chosen per request by the policy table in `functions/api/_middleware.ts`.
+  - Organised by domain: `functions/api/user/`, `functions/api/email/`, `functions/api/2fa/`, `functions/api/password/`, `functions/api/passkeys/`, `functions/api/external-identities/`, `functions/api/organisations/`, `functions/api/federated-signup/`, `functions/api/admin/`, `functions/api/billing/`.
+  - A single `functions/api/_middleware.ts` composes `[corsGate, maybeDb, maybeAuth, maybeOperator]` — tier functions imported from `src/utilities/` (`createDbMiddleware`, `sameOriginWriteGuard` / `externalCorsGuard`, `sessionAuthMiddleware`, `operatorAuthMiddleware`). Each gate runs its tier or passes through per the `policyFor(pathname)` result.
+  - **Fail-safe default**: any `/api/*` path not in the `NO_DB` / `PUBLIC_DB` exact-path sets (or matched by the `/api/billing/` or `/api/admin/` prefixes) is `{ db: true, auth: true }` — locked down, not exposed.
+    - `NO_DB` — neither DB nor auth (`/api/providers`, `/api/password-requirements`, `/api/messages`, `/api/csp-report`).
+    - `PUBLIC_DB` — DB but no session: login / registration / token-capability flows (e.g. `/api/user/login`, `/api/password/request`, `/api/email/verify`).
+    - `/api/billing/` prefix — DB, no session, `cors: "external"` (token/signature-authed in the handler).
+    - `/api/admin/` prefix — DB + auth + operator gate (`OPERATOR_USER_UUIDS`).
+  - **DB tier** (`createDbMiddleware`) opens a Hyperdrive `pg` client into `context.data.dbClient`, closes it in `finally`. **CORS tier** runs the same-origin write guard (rejects state-changing requests where `Sec-Fetch-Site !== same-origin`) for internal paths, or the external CORS guard for `/api/billing/*`. **Auth tier** (`sessionAuthMiddleware`) reads the `session_token` cookie, calls `verifyTokenAndGetUser`, and populates `context.data.user_uuid`.
+  - **Resource-scoped middleware (not a tier)**: beneath `organisations/[org_uuid]/` (and nested `apps/[app_uuid]/`, `teams/[team_uuid]/`), `_middleware.ts` files resolve the caller's role set into `context.data.orgRoles` / `context.data.teamRoles` (and the app row into `context.data.app`). These run *after* the policy middleware and are per-resource authz, distinct from the db/auth/operator tiers.
 - `functions/` (outside `api/`) — Pages-Function-rendered HTML pages: `functions/_middleware.ts` (root page-cookie gating), `functions/organisations/[org_uuid].ts`, `functions/invite.ts`, `functions/federated-signup.ts`, `functions/sitemap.xml.ts`, `functions/login/[provider]/index.ts` + `callback.ts`, `functions/oauth/{authorize,token,userinfo}.ts`, `functions/.well-known/{openid-configuration,jwks.json}.ts`.
 - `public/` — static files served by Workers Static Assets.
   - HTML: `index.html`, `login.html`, `register.html`, `logout.html`, `account.html`, `2fa.html`, `password-upgrade.html`, `reset/request.html`, `reset/set.html`.
@@ -55,7 +59,7 @@ Terse reference for AI tooling. Long-form prose lives in `docs/Architecture.md`,
 - API endpoints **return HTML fragments designed for HTMX swapping** — not JSON.
 - Avoid returning JSON unless explicitly requested or for OAuth endpoints (`/oauth/token`, `/oauth/userinfo`, `/.well-known/*`) which follow the OAuth 2.1 / OIDC specs.
 - Utilise HTMX response headers:
-  - `HX-Redirect` for HTMX-driven client-side navigation: `return new Response(null, { status: 303, headers: { "HX-Redirect": "/login?message=Success." } })`. Endpoints reached via direct browser navigation (e.g., a link clicked from an email) need a standard `Location` header instead — `HX-Redirect` is ignored outside HTMX. Branch on `context.request.headers.get("HX-Request") === "true"` to pick the right one; see `functions/api/db/email/verify.ts`.
+  - `HX-Redirect` for HTMX-driven client-side navigation: `return new Response(null, { status: 303, headers: { "HX-Redirect": "/login?message=Success." } })`. Endpoints reached via direct browser navigation (e.g., a link clicked from an email) need a standard `Location` header instead — `HX-Redirect` is ignored outside HTMX. Branch on `context.request.headers.get("HX-Request") === "true"` to pick the right one; see `functions/api/email/verify.ts`.
   - `HX-Trigger` to fire client-side events that refresh other page sections (e.g., `"emailListChanged"`, `"sessionListChanged"`, `"tfaStatusChanged"`, `"passkeysChanged"`, `"organisationsChanged"`, `"organisationMembersChanged"`, `"teamsChanged"`, `"teamMembersChanged"`, `"organisationInvitationsChanged"`, `"externalIdentitiesChanged"`, `"appEntitlementsChanged"`).
   - `HX-Retarget` to redirect an error response to a different DOM target than the form's default.
 - Stateless: each request must contain all necessary information (cookies, form fields, query params).
@@ -72,10 +76,10 @@ These instructions are to avoid unwanted AI activity:
 - Do not check for conditions already handled by preceding middleware (database connectivity, authentication, role resolution, cross-origin write guard).
 - **Input Validation**: perform input validation (form data, query parameters, headers) at the beginning of API endpoint handlers, before any database call.
 - **Database Connectivity**:
-  - Access the database client via `const dbClient = context.data.dbClient` in API handlers, relying on `functions/api/db/_middleware.ts` to provide it.
+  - Access the database client via `const dbClient = context.data.dbClient` in API handlers, relying on the DB tier in `functions/api/_middleware.ts` to provide it.
   - Do not create new database connections in API handlers or `src` functions (exception: `src/cron.ts` opens its own — it runs outside the middleware chain).
 - **Authentication**:
-  - Access the authenticated user via `const user_uuid = context.data.user_uuid` in API handlers under `functions/api/db/auth/`.
+  - Access the authenticated user via `const user_uuid = context.data.user_uuid` in API handlers whose policy is auth-gated (the fail-safe default, plus `/api/admin/*`).
   - Do not re-authenticate in API handlers or `src` functions.
 - **Authorisation**:
   - Org/team endpoints authorise via `can(roles, "scope:action")` from `src/permissions.ts`, never on raw role strings.

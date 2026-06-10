@@ -38,7 +38,7 @@ Forms use these HTMX attributes:
 - `hx-include="[name='field1'], [name='field2']"` — explicitly include fields.
 
 ```html
-<form hx-validate="true" hx-post="/api/db/user/login" hx-target="#login-result" hx-disabled-elt=".btn-safe">
+<form hx-validate="true" hx-post="/api/user/login" hx-target="#login-result" hx-disabled-elt=".btn-safe">
   <div class="form-group">
     <label for="email">Email:</label>
     <input type="email" id="email" name="email" required />
@@ -53,7 +53,7 @@ Forms use these HTMX attributes:
 Sections that load content on page load and refresh on server-triggered events:
 
 ```html
-<div id="email-list-container" hx-get="/api/db/auth/email/list" hx-trigger="load, emailListChanged from:body" hx-swap="innerHTML">
+<div id="email-list-container" hx-get="/api/email/list" hx-trigger="load, emailListChanged from:body" hx-swap="innerHTML">
   <p>Loading email addresses...</p>
 </div>
 ```
@@ -126,7 +126,7 @@ Single-property helpers used on `.result-area` containers and standalone control
 
 ### 2FA Setup
 
-Used by server-rendered HTML for the TOTP setup flow (`functions/api/db/auth/2fa/setup/start.ts`):
+Used by server-rendered HTML for the TOTP setup flow (`functions/api/2fa/setup/start.ts`):
 
 - `.tfa-qr-layout` — Flex container holding the QR image + manual-entry secret side-by-side; wraps on narrow screens.
 - `.tfa-qr-code` — Sizing constraint for the embedded QR image (`max-width: 200px; height: auto`).

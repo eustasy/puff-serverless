@@ -109,7 +109,7 @@ Common method exports: `onRequestGet`, `onRequestPost`. Catch-all goes through `
 
 ```ts
 const dbClient = context.data.dbClient! // From db middleware
-const user_uuid = context.data.user_uuid! // From auth middleware (under db/auth/)
+const user_uuid = context.data.user_uuid! // From auth middleware (auth-gated policy)
 const orgRoles = context.data.orgRoles ?? [] // Under organisations/[org_uuid]/
 const teamRoles = context.data.teamRoles ?? [] // Under teams/[team_uuid]/
 const app = context.data.app! // Under apps/[app_uuid]/
@@ -146,7 +146,7 @@ const promptValue = context.request.headers.get("HX-Prompt") // From hx-prompt
 
 ### Authorisation
 
-For endpoints under `functions/api/db/auth/organisations/[org_uuid]/...`, authorise via the typed capability matrix in `src/permissions.ts`:
+For endpoints under `functions/api/organisations/[org_uuid]/...`, authorise via the typed capability matrix in `src/permissions.ts`:
 
 ```ts
 import { can } from "../../../../../src/permissions.js"
@@ -222,7 +222,7 @@ return new Response(null, {
 })
 ```
 
-See `functions/api/db/email/verify.ts` for the canonical example.
+See `functions/api/email/verify.ts` for the canonical example.
 
 **Error:**
 
@@ -287,7 +287,7 @@ context.waitUntil(
 return resultPositive("Done.", 200)
 ```
 
-Canonical examples: password-reset email (`functions/api/db/password/request.ts`), 2FA-bypass email (`functions/api/db/2fa/bypass/request.ts`), federated-signup verify email (`functions/api/db/federated-signup/confirm.ts`). All three intentionally stay generic regardless of delivery outcome (enumeration prevention / best-effort delivery), so `waitUntil` is the right primitive.
+Canonical examples: password-reset email (`functions/api/password/request.ts`), 2FA-bypass email (`functions/api/2fa/bypass/request.ts`), federated-signup verify email (`functions/api/federated-signup/confirm.ts`). All three intentionally stay generic regardless of delivery outcome (enumeration prevention / best-effort delivery), so `waitUntil` is the right primitive.
 
 **Synchronous external calls whose result shapes the response** — keep `await`. Examples: OAuth-provider userinfo fetch on the federated-login callback (must complete before issuing the session), invitation email on `organisations/[org_uuid]/members/invite.ts` (handler returns 502 on delivery failure so the operator knows), `email/resend.ts` (user explicitly asked, so failure is surfaced inline).
 

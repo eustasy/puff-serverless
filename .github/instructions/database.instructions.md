@@ -1,5 +1,5 @@
 ---
-applyTo: "sql/**,src/**,functions/api/db/**"
+applyTo: "sql/**,src/**,functions/api/**"
 ---
 
 # Database Instructions
