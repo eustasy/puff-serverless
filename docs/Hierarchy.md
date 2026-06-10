@@ -96,7 +96,7 @@ Every app declares a **licensing mode** at registration (`app_licensing_mode`, C
 | `usage`    | Any org member is licensed; metering happens out of band (the app reports usage back to the operator for Phase 8 billing).                                                              |
 | `floating` | A per-org pool of N concurrent seats. Pool size in `license:floating:max`. `app_floating_sessions` tracks current allocations; OAuth `/token` allocates on every code/refresh exchange. |
 
-The mode picks the gating semantics; the entitlement _values_ live in the KV store (see below). Org admins manage grants under `functions/api/db/auth/organisations/[org_uuid]/apps/[app_uuid]/...`, gated by `org:entitlements:write`.
+The mode picks the gating semantics; the entitlement _values_ live in the KV store (see below). Org admins manage grants under `functions/api/organisations/[org_uuid]/apps/[app_uuid]/...`, gated by `org:entitlements:write`.
 
 ## The key-value store and the resolver chain
 

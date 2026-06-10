@@ -233,9 +233,9 @@ const PUBLIC_DB = new Set([
   "/api/passkeys/authenticate/complete",
   "/api/organisations/invitation/view",
   "/api/federated-signup/confirm",
-  "/api/billing/webhook",            // Stripe — header-less, allowed by guard
-  // /api/billing/usage/[app_uuid] is app-token authed, not session: list it
-  // here if it should bypass session auth (matches today's billing tier).
+  // NB: /api/billing/* is deliberately NOT here — it is a prefix rule in
+  // policyFor (below), because usage/[app_uuid] has a dynamic segment an exact
+  // Set entry cannot capture.
 ])
 
 interface Policy {
@@ -254,6 +254,11 @@ const corsModeFor = (pathname: string): "internal" | "external" => (pathname.sta
 
 function policyFor(pathname: string): Policy {
   const cors = corsModeFor(pathname)
+  // The whole /api/billing subtree is DB-only and token/signature-authed in the
+  // handler (Stripe webhook + the dynamic usage/[app_uuid] API), never session-
+  // authed. A PREFIX, not a Set entry, because usage/[app_uuid] has a dynamic
+  // segment an exact match cannot capture.
+  if (pathname.startsWith("/api/billing/")) return { db: true, auth: false, operator: false, cors }
   if (NO_DB.has(pathname)) return { db: false, auth: false, operator: false, cors }
   if (PUBLIC_DB.has(pathname)) return { db: true, auth: false, operator: false, cors }
   if (pathname.startsWith("/api/admin/")) return { db: true, auth: true, operator: true, cors }

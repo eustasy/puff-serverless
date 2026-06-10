@@ -26,6 +26,11 @@ interface Env {
   COOKIE_SAMESITE?: string
   SECURE_COOKIE?: string
   SESSION_MAX_AGE_SECONDS?: string
+  // Comma-separated allowlist of origins permitted by the external CORS guard
+  // (src/utilities/cors.ts → externalCorsGuard). Default-deny: unset or empty
+  // means no cross-origin caller is allowed (Stripe's server-to-server path
+  // sends no Origin and is unaffected).
+  EXTERNAL_CORS_ORIGINS?: string
   MAILTRAP_API_URL?: string
   // Minimum password length. Optional; defaults to 12 (DEFAULT_MIN_PASSWORD_LENGTH).
   // Can only raise the minimum above the built-in floor — see minPasswordLength.

@@ -35,13 +35,18 @@ A serverless SSO / access-control app. Stack: Cloudflare Workers + Pages Functio
 
 ### Request layering
 
-Routing is by directory depth under `functions/api/`, with two middleware files gating each layer:
+API endpoints live at flat paths under `functions/api/` (e.g. `functions/api/email/list.ts`, `functions/api/user/login.ts`). Routing is **not** by directory depth: a single `functions/api/_middleware.ts` composes the shared tier functions from `src/utilities/` and selects them per request via a route-policy table (`policyFor`). The composed chain is `[corsGate, maybeDb, maybeAuth, maybeOperator]`; each gate either runs its tier function or passes through, based on the policy for the request path:
 
-- `functions/api/` — no DB, no auth (e.g. `password/requirements.ts`).
-- `functions/api/db/` — `_middleware.ts` opens a Hyperdrive `pg` client, sets `context.data.dbClient`, closes it in `finally`.
-- `functions/api/db/auth/` — `_middleware.ts` reads the `session_token` cookie, verifies it, sets `context.data.user_uuid`.
+- **CORS** — `corsGate` always runs. First-party HTMX paths get the internal `sameOriginWriteGuard` (anti-CSRF: state-changing methods must be same-origin). `/api/billing/*` gets the external `externalCorsGuard` (real CORS for third-party, signature/token-authed callers).
+- **DB** (`createDbMiddleware`) — opens a Hyperdrive `pg` client into `context.data.dbClient`, closes it in `finally`.
+- **Auth** (`sessionAuthMiddleware`) — reads the `session_token` cookie, verifies it, sets `context.data.user_uuid`.
+- **Operator** (`operatorAuthMiddleware`) — gates the `/api/admin/*` prefix to UUIDs in `OPERATOR_USER_UUIDS`.
 
-Endpoints read `context.data.dbClient` / `context.data.user_uuid` directly — never re-connect or re-authenticate in a handler. DB middleware runs before auth middleware.
+The policy is **fail-safe by default**: any `/api/*` path not listed in the `NO_DB` / `PUBLIC_DB` exact-path sets (or matched by the `/api/billing/` and `/api/admin/` prefixes) gets `{ db: true, auth: true }` — the most-protected tier. A new endpoint someone forgets to register is locked down, not exposed. The tiers compose in order, so auth implies db and operator implies auth; each gate's prerequisite is always satisfied.
+
+Endpoints read `context.data.dbClient` / `context.data.user_uuid` directly — never re-connect or re-authenticate in a handler.
+
+The three resource-scoped middlewares under `functions/api/organisations/[org_uuid]/` (plus `.../apps/[app_uuid]/` and `.../teams/[team_uuid]/`) are **not** part of the tier model: they run *after* the policy middleware to resolve per-resource membership/roles for that subtree's authz, and are described in the backend instructions.
 
 ### `src/` domain modules
 
@@ -80,4 +85,4 @@ This repo has detailed, scoped instruction docs — consult them before non-triv
 
 ## Production blocker
 
-Verification and password-reset links are currently `console.log`'d server-side as a placeholder for email delivery. The two sites are marked `// SECURITY: remove before production` (in `src/users.ts` and `functions/api/db/password/request.ts`) and must be removed before any production deployment.
+Verification and password-reset links are currently `console.log`'d server-side as a placeholder for email delivery. The two sites are marked `// SECURITY: remove before production` (in `src/users.ts` and `functions/api/password/request.ts`) and must be removed before any production deployment.

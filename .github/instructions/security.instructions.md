@@ -10,16 +10,17 @@ applyTo: "**"
 - Session tokens are 32-byte random hex strings (`randomBytes(32).toString("hex")`).
 - The server-side session row expires after 7 days (hardcoded in `src/sessions.ts#createSession`); the cookie expiry is independently configured via `SESSION_MAX_AGE_SECONDS` (default 30 days). The effective session lifetime is whichever fires first — usually the DB row.
 - Sessions are also invalidated if the user's IP country changes.
-- Session verification happens in `functions/api/db/auth/_middleware.ts` — endpoints under `functions/api/db/auth/` are protected automatically.
+- Session verification happens in `sessionAuthMiddleware` (`src/utilities/session-auth.ts`), run by the auth tier of `functions/api/_middleware.ts`. Any `/api/*` path that resolves to an auth-gated policy — the fail-safe default, plus the `/api/admin/*` prefix — is protected automatically; only the `NO_DB` / `PUBLIC_DB` opt-out sets and the `/api/billing/*` prefix run without it.
 - Login failures return generic "Invalid email or password" messages — never reveal whether the email exists during login.
 - Three login paths grant a session: password (with optional 2FA gate), passkey (single-step — the passkey is both factors), or federated provider (single-step — the provider is the second factor). Each emits `account.login.success` after the session is granted.
 
 ## CSRF / cross-origin writes
 
-- The cross-origin write guard in `functions/api/db/_middleware.ts` rejects state-changing requests (non-GET/HEAD/OPTIONS) whose `Sec-Fetch-Site` is not `same-origin`, falling back to an `Origin` match when `Sec-Fetch-*` is absent. Returns 403 with an HTML fragment.
+- The CORS gate runs first in `functions/api/_middleware.ts`, picking a guard by the route policy's `cors` field. First-party (internal) paths get `sameOriginWriteGuard` (`src/utilities/cors.ts`), which rejects state-changing requests (non-GET/HEAD/OPTIONS) whose `Sec-Fetch-Site` is not `same-origin`, falling back to an `Origin` match when `Sec-Fetch-*` is absent. Returns 403 with an HTML fragment.
 - This closes the residual same-site CSRF gap that `SameSite=Lax` does not catch (sibling-subdomain attackers).
-- The guard runs before the DB connection opens, so a cross-origin POST never reaches a handler.
-- The only state-changing GET is `/api/db/email/verify` (token-gated, exempt — GET is a safe method). Don't add other state-changing GETs without explicit thought.
+- The internal guard is the **fail-safe default** — every `/api/*` path is same-origin-protected unless deliberately opted into the external tier. Only `/api/billing/*` is `cors: "external"`: those callers are token/signature-authed in the handler (no ambient cookie ⇒ no CSRF vector), so `externalCorsGuard` runs real CORS (answers `OPTIONS` preflight, echoes an allowlisted `Origin` from `EXTERNAL_CORS_ORIGINS`) and never blocks on origin. Marking a cookie-authed endpoint `external` would strip its CSRF protection — never do this.
+- The CORS gate runs before the DB connection opens, so a cross-origin POST never reaches a handler.
+- The only state-changing GET is `/api/email/verify` (token-gated, exempt — GET is a safe method). Don't add other state-changing GETs without explicit thought.
 
 ## Passwords
 
@@ -39,7 +40,7 @@ applyTo: "**"
 - 2FA setup: secret is created with `is_enabled = FALSE`, enabled only after successful TOTP code verification.
 - **TOTP replay prevention**: `totp_used_codes` keyed on `(user_uuid, totp_code)` with `INSERT … ON CONFLICT DO NOTHING` — a code is accepted at most once within its acceptance window. Replays return failure. `verify()` uses `epochTolerance: 30` (±1 step for clock skew). Stale rows are reaped by a CockroachDB Row-Level TTL rule (`sql/schedules.sql`), scanned every 5 minutes.
 - **2FA QR code** is rendered inline as `<svg>` via `uqr` — the TOTP secret never leaves the origin (older versions sent it to a third-party QR-image service, which was a leak).
-- **2FA bypass** (`/api/db/2fa/bypass/{request,verify}`) emails a single-use link to a verified address (primary if verified, otherwise oldest-verified secondary) when the user has lost their authenticator. Refuses to send when a `password_reset` token was consumed in the last 24h, so email alone cannot reset the password (factor 1) AND bypass 2FA (factor 2) in the same window.
+- **2FA bypass** (`/api/2fa/bypass/{request,verify}`) emails a single-use link to a verified address (primary if verified, otherwise oldest-verified secondary) when the user has lost their authenticator. Refuses to send when a `password_reset` token was consumed in the last 24h, so email alone cannot reset the password (factor 1) AND bypass 2FA (factor 2) in the same window.
 
 ## Passkeys (WebAuthn)
 
@@ -76,7 +77,7 @@ applyTo: "**"
 - All SQL queries use parameterised `$1`, `$2`, ... placeholders — never string concatenation.
 - Form inputs are validated at the beginning of each API handler before any business logic.
 - Email format is validated using regex or HTML5 `type="email"` on the client.
-- When reflecting user-controlled values into HTML response bodies or attributes, run them through `escapeHtml` from `src/utilities/escape.ts`. For JSON embedded inside HTML attributes (e.g. `hx-vals='...'`), use `escapeHtml(JSON.stringify(obj))`. The email endpoints under `functions/api/db/auth/email/` are the canonical examples.
+- When reflecting user-controlled values into HTML response bodies or attributes, run them through `escapeHtml` from `src/utilities/escape.ts`. For JSON embedded inside HTML attributes (e.g. `hx-vals='...'`), use `escapeHtml(JSON.stringify(obj))`. The email endpoints under `functions/api/email/` are the canonical examples.
 - The password reset flow does not reveal whether an email exists (returns generic success either way).
 - Adding an email that already belongs to a different user is treated identically to a real successful add in the response shape (no error, no diagnostic message). This prevents email-enumeration. See `src/emails.ts#createEmail` — both the upfront `readEmail` check and the `ON CONFLICT DO NOTHING` race path return the same success-shaped response.
 

@@ -107,7 +107,7 @@ npx wrangler hyperdrive create puff-serverless \
   --connection-string="postgres://user:password@host:26257/puff?sslmode=verify-full"
 ```
 
-Copy the printed Hyperdrive ID into `wrangler.jsonc` under `hyperdrive[].id` (the binding name `HYPERDRIVE` must stay — that's what `functions/api/db/_middleware.ts` opens its `pg` client against):
+Copy the printed Hyperdrive ID into `wrangler.jsonc` under `hyperdrive[].id` (the binding name `HYPERDRIVE` must stay — that's what the DB tier of `functions/api/_middleware.ts`, via `createDbMiddleware`, opens its `pg` client against):
 
 ```jsonc
 {

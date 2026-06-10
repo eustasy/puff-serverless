@@ -98,7 +98,7 @@ export function createGranteeEntitlementListHandler(config: GranteeListConfig): 
         return resultNegative(result.message, result.status)
       }
       return renderKeyValueTable(result.pairs, {
-        removeBase: `/api/db/auth/organisations/${encodeURIComponent(org_uuid)}/apps/${encodeURIComponent(app.app_uuid)}/${config.urlSegment}/${encodeURIComponent(grantee_uuid)}/entitlements/remove`,
+        removeBase: `/api/organisations/${encodeURIComponent(org_uuid)}/apps/${encodeURIComponent(app.app_uuid)}/${config.urlSegment}/${encodeURIComponent(grantee_uuid)}/entitlements/remove`,
         triggerName: "appEntitlementsChanged",
         canWrite: can(orgRoles, "org:entitlements:write"),
         search: search || undefined,

@@ -157,7 +157,7 @@ async function sendTokenLinkEmail(
  * @returns {Promise<Envelope>} Result of the underlying {@link sendEmail} call.
  */
 export async function sendVerificationEmail(env: Env, to: string, token: string): Promise<Envelope> {
-  return sendTokenLinkEmail(env, to, "/api/db/email/verify", token, verificationEmail, "Email Verification")
+  return sendTokenLinkEmail(env, to, "/api/email/verify", token, verificationEmail, "Email Verification")
 }
 
 /**
@@ -179,7 +179,7 @@ export async function sendPasswordResetEmail(env: Env, to: string, token: string
  * @returns {Promise<Envelope>} Result of the underlying {@link sendEmail} call.
  */
 export async function sendTwoFactorBypassEmail(env: Env, to: string, token: string): Promise<Envelope> {
-  return sendTokenLinkEmail(env, to, "/api/db/2fa/bypass/verify", token, twoFactorBypassEmail, "2FA Bypass")
+  return sendTokenLinkEmail(env, to, "/api/2fa/bypass/verify", token, twoFactorBypassEmail, "2FA Bypass")
 }
 
 /**

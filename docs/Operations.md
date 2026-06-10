@@ -196,8 +196,8 @@ Both gated by the `OPERATOR_USER_UUIDS` env var (comma- or whitespace-separated 
 
 | Endpoint                                             | Effect                                                                                                                                                                                                         |
 | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/db/auth/admin/oauth-keys/rotate`          | Rotate now, ignoring the age check. Useful for staging rehearsals or responding to a suspected compromise.                                                                                                     |
-| `POST /api/db/auth/admin/oauth-keys/promote-retired` | Emergency rollback. Swaps `oauth:keys:retired` back into `oauth:keys:active`. Only works while the retired entry carries the private scalar `d` — the normal rotation strips it, so this is a last-ditch path. |
+| `POST /api/admin/oauth-keys/rotate`                  | Rotate now, ignoring the age check. Useful for staging rehearsals or responding to a suspected compromise.                                                                                                     |
+| `POST /api/admin/oauth-keys/promote-retired`         | Emergency rollback. Swaps `oauth:keys:retired` back into `oauth:keys:active`. Only works while the retired entry carries the private scalar `d` — the normal rotation strips it, so this is a last-ditch path. |
 
 Both write an audit event (`oauth.signing_key.rotated` / `oauth.signing_key.retired.promoted`).
 
@@ -258,7 +258,7 @@ Both write an audit event (`oauth.signing_key.rotated` / `oauth.signing_key.reti
 
 6. **Hand the credentials to the app's operator** — `client_id` (public) + `client_secret` (the plaintext from step 2, **once**).
 
-Org admins can now grant entitlements for the app under `functions/api/db/auth/organisations/[org_uuid]/apps/[app_uuid]/...`, gated by `org:entitlements:write`. The app authenticates against `/oauth/token` with HTTP Basic or body params and uses the standard OAuth 2.1 Authorization Code + PKCE flow ([Architecture.md → OAuth 2.1 / OIDC endpoints](Architecture.md#oauth-21--oidc-endpoints-puff-as-provider)).
+Org admins can now grant entitlements for the app under `functions/api/organisations/[org_uuid]/apps/[app_uuid]/...`, gated by `org:entitlements:write`. The app authenticates against `/oauth/token` with HTTP Basic or body params and uses the standard OAuth 2.1 Authorization Code + PKCE flow ([Architecture.md → OAuth 2.1 / OIDC endpoints](Architecture.md#oauth-21--oidc-endpoints-puff-as-provider)).
 
 To disable an app, set `app_active = FALSE`. The change is reversible and doesn't cascade — existing grants stay in place but new authorization requests are rejected.
 
@@ -431,7 +431,7 @@ The email on each Stripe customer (where Stripe sends receipts and its own faile
 
 Tiebreak: earliest membership, then email. If nobody qualifies and no override is set, the customer is created with no email (Stripe then has no one to notify).
 
-- **Set / clear the override:** `POST /api/db/auth/organisations/[org_uuid]/billing/email` (form field `email`; empty clears it), requires `org:billing:write`. This re-resolves and pushes to Stripe immediately.
+- **Set / clear the override:** `POST /api/organisations/[org_uuid]/billing/email` (form field `email`; empty clears it), requires `org:billing:write`. This re-resolves and pushes to Stripe immediately.
 - **Drift:** the hourly cron (`reconcileBillingEmails`) re-resolves every customer and patches Stripe only when the effective address differs from the stored `billing_customers.synced_email` — so a membership change or an email re-verification propagates within an hour without touching the membership endpoints.
 - **Multiple recipients:** Stripe's customer holds a single email. To notify several billing-role members, point the override at a distribution alias the org maintains (Puff does not multicast on Stripe's behalf).
 
@@ -451,18 +451,18 @@ The schema's `provider` column is a plain `TEXT` field — it stores `"stripe"` 
 Operators should be aware of the following limitations that are not yet implemented:
 
 - **Puff-originated dunning emails.** Puff does not send its own emails to `billing`-role members on payment failure or upcoming renewal. Stripe's built-in dunning does reach the resolved customer email (see [Billing-contact email](#billing-contact-email)), and access is cut off immediately on failure; a Puff-side mailer that notifies all billing-role members is deferred.
-- **Operator endpoints.** Read-only dashboards exist — `GET /api/db/auth/admin/billing/subscriptions` (all subscriptions across orgs) and `GET /api/db/auth/admin/billing/usage` (rollups, optional `?org_uuid=`), behind the `OPERATOR_USER_UUIDS` gate. **Comp seats** are handled with a Stripe 100%-off coupon (Puff sees a normal `active` subscription — no special status); **manual invoices** are raised in the Stripe Dashboard and flow into Puff via the webhook's customer fallback. Neither needs a Puff write endpoint.
+- **Operator endpoints.** Read-only dashboards exist — `GET /api/admin/billing/subscriptions` (all subscriptions across orgs) and `GET /api/admin/billing/usage` (rollups, optional `?org_uuid=`), behind the `OPERATOR_USER_UUIDS` gate. **Comp seats** are handled with a Stripe 100%-off coupon (Puff sees a normal `active` subscription — no special status); **manual invoices** are raised in the Stripe Dashboard and flow into Puff via the webhook's customer fallback. Neither needs a Puff write endpoint.
 - **Refund automation.** Refunds are manual via the Stripe Dashboard. Issuing a refund does not automatically adjust entitlements — subscription cancellation is a separate step.
 
 ## Security concerns
 
 Operational guardrails worth keeping in mind:
 
-- **Cookie security** — `SECURE_COOKIE=true` and `COOKIE_SAMESITE=Lax` are the production defaults. The cross-origin write guard in `functions/api/db/_middleware.ts` rejects same-site CSRF from sibling subdomains independently of `SameSite`. If you serve Puff alongside other apps on the same parent domain, the guard is what closes the residual gap.
+- **Cookie security** — `SECURE_COOKIE=true` and `COOKIE_SAMESITE=Lax` are the production defaults. The same-origin write guard (`sameOriginWriteGuard`, run by the CORS tier of `functions/api/_middleware.ts` for all internal `/api/*` paths) rejects same-site CSRF from sibling subdomains independently of `SameSite`. If you serve Puff alongside other apps on the same parent domain, the guard is what closes the residual gap.
 - **Password policy** — at minimum, enforce `MIN_PASSWORD_LENGTH ≥ 12` and turn on `REQUIRE_NOT_COMPROMISED` (HIBP). `REQUIRE_ZXCVBN` is the strongest single setting — score ≥ 3 catches most weak passwords without requiring arbitrary character-class flags.
-- **2FA bypass** — the `/api/db/2fa/bypass/request` flow sends a single-use email link to a verified address on the account: the primary if it's verified, otherwise the oldest-verified secondary. Possession of that inbox is the second factor; if an attacker compromises a user's email and their password, 2FA does not save them. The endpoint also refuses to send if a password reset was completed in the last 24 hours — otherwise email alone could reset the password (factor 1) and then bypass 2FA (factor 2). Encourage passkeys (which bind to the device and aren't email-recoverable) for high-value accounts.
+- **2FA bypass** — the `/api/2fa/bypass/request` flow sends a single-use email link to a verified address on the account: the primary if it's verified, otherwise the oldest-verified secondary. Possession of that inbox is the second factor; if an attacker compromises a user's email and their password, 2FA does not save them. The endpoint also refuses to send if a password reset was completed in the last 24 hours — otherwise email alone could reset the password (factor 1) and then bypass 2FA (factor 2). Encourage passkeys (which bind to the device and aren't email-recoverable) for high-value accounts.
 - **TOTP replay** — handled by `totp_used_codes` and the 5-minute DB schedule. A code is accepted at most once within its 30s validity window; replays within the same window are rejected.
-- **OAuth signing key** — the active key lives in `KV_OAUTH_KEYS`; a daily cron rotates it automatically once a week (default `OAUTH_KEY_ROTATION_INTERVAL_DAYS=7`). The retired key is held in JWKS for a two-hour overlap so in-flight tokens validate through the transition. Trigger an on-demand rotation via `POST /api/db/auth/admin/oauth-keys/rotate` after any suspected compromise.
+- **OAuth signing key** — the active key lives in `KV_OAUTH_KEYS`; a daily cron rotates it automatically once a week (default `OAUTH_KEY_ROTATION_INTERVAL_DAYS=7`). The retired key is held in JWKS for a two-hour overlap so in-flight tokens validate through the transition. Trigger an on-demand rotation via `POST /api/admin/oauth-keys/rotate` after any suspected compromise.
 - **Audit log** — `notice` and above are retained indefinitely. Use it for incident investigation; the `target_label` column snapshots referents that may later be deleted. Don't store sensitive payloads in `event_metadata` (passwords, full tokens) — it ends up in the audit table verbatim.
 - **CSP violation reporting** — `public/_headers` declares a `report-uri` and `Reporting-Endpoints`; violations land at `functions/api/csp-report.ts`, which logs them via `console.warn`. Check `wrangler tail` periodically (or pipe it to a log aggregator) to spot misconfigurations or attacks.
 - **Schema changes** — keep additive. The audit table outlives its referents because the FK constraints were deliberately omitted; any schema change that adds FKs to existing append-only data should be reviewed carefully.

@@ -26,7 +26,7 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
     return new Response(null, { status: 302, headers })
   }
 
-  const panelUrl = `/api/db/auth/organisations/${encodeURIComponent(org_uuid)}/read`
+  const panelUrl = `/api/organisations/${encodeURIComponent(org_uuid)}/read`
   const body = `<!doctype html>
 <html lang="en">
   <head>

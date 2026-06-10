@@ -1,7 +1,7 @@
 // `/federated-signup?token=…` — the confirmation page for a fresh signup
 // landed via /login/[provider]/callback. It previews the username + email
 // Puff intends to create and asks the user to confirm. POST goes to
-// `/api/db/federated-signup/confirm`, which consumes the token, creates
+// `/api/federated-signup/confirm`, which consumes the token, creates
 // the user, links the identity, and issues a session.
 //
 // A Pages Function (not under /api/db) so the URL is friendly and the page
@@ -58,7 +58,7 @@ export const onRequestGet: Handler = async (context) => {
         <dt>Username</dt><dd>${escapeHtml(username)}</dd>
         ${emailLine}
       </dl>
-      <form method="POST" action="/api/db/federated-signup/confirm">
+      <form method="POST" action="/api/federated-signup/confirm">
         <input type="hidden" name="token" value="${escapeHtml(token)}">
         <button type="submit">Create account</button>
         <a href="/login">Cancel</a>

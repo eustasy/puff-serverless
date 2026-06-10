@@ -1,7 +1,7 @@
 // Automated OAuth signing-key rotation. Runs from the daily cron in
 // `src/cron.ts` (which only rotates once the active key is old enough —
 // see `maybeRotateSigningKey`); can also be invoked from the operator
-// endpoint at `functions/api/db/auth/admin/oauth-keys/rotate.ts`.
+// endpoint at `functions/api/admin/oauth-keys/rotate.ts`.
 //
 // One-shot procedure:
 //   1. Generate a fresh ES256 keypair in-Worker (Web Crypto).

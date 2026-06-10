@@ -11,7 +11,7 @@ declare global {
   // rotation in production the env-var path can be removed.
   //
   // `OPERATOR_USER_UUIDS` (comma- or whitespace-separated) gates the
-  // `/api/db/auth/admin/*` endpoints — see `functions/api/db/auth/admin/`.
+  // `/api/admin/*` endpoints — see `functions/api/admin/`.
   // `OAUTH_KEY_ROTATION_INTERVAL_DAYS` (default 7) bounds the minimum age
   // before the daily cron rotates again — see `src/oauth-keys-rotation.ts`.
   //

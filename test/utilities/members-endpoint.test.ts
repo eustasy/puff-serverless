@@ -12,7 +12,7 @@ const member = (over: Partial<ScopeMember> = {}): ScopeMember => ({
 
 const opts = {
   roles: ["org:owner", "org:member"] as const,
-  base: "/api/db/auth/organisations/o1",
+  base: "/api/organisations/o1",
   messageArea: "org-members-msg",
   confirmMessage: "Remove this member?",
   canEditRoles: true,
@@ -26,7 +26,7 @@ describe("renderMembersTable", () => {
     expect(body).toContain('value="org:owner" checked')
     expect(body).toContain('value="org:member" ')
     expect(body).not.toContain('value="org:member" checked')
-    expect(body).toContain('hx-post="/api/db/auth/organisations/o1/members/roles"')
+    expect(body).toContain('hx-post="/api/organisations/o1/members/roles"')
   })
 
   it("renders a remove button with the confirm message when removable", async () => {

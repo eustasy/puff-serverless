@@ -7,9 +7,9 @@ import { escapeHtml } from "../src/utilities/escape.js"
  * from the URL (a static `.html` cannot read its own query string without
  * client JS, which this project does not use). The function only bakes the
  * token into the markup — it touches no database. The page then:
- *   - previews the invitation via `GET /api/db/organisations/invitation/view`
+ *   - previews the invitation via `GET /api/organisations/invitation/view`
  *     (unauthenticated), and
- *   - accepts it via `POST /api/db/auth/organisations/invitation/accept`, which
+ *   - accepts it via `POST /api/organisations/invitation/accept`, which
  *     requires a session — an unauthenticated visitor signs in or registers and
  *     returns to the same link.
  */
@@ -42,7 +42,7 @@ export const onRequestGet: Handler = async (context) => {
       <header><h1>Organisation Invitation</h1></header>
       <main>
         <div
-          hx-get="/api/db/organisations/invitation/view?token=${tokenParam}"
+          hx-get="/api/organisations/invitation/view?token=${tokenParam}"
           hx-trigger="load"
           hx-swap="innerHTML"
         >
@@ -52,7 +52,7 @@ export const onRequestGet: Handler = async (context) => {
         <div id="invite-message-area" class="result-area spacer-bottom"></div>
 
         <form
-          hx-post="/api/db/auth/organisations/invitation/accept"
+          hx-post="/api/organisations/invitation/accept"
           hx-target="#invite-message-area"
           hx-swap="innerHTML"
         >
