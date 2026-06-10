@@ -31,7 +31,7 @@ export const onRequestGet: Handler = async (context) => {
                     hx-target="#email-list-container"
                     hx-swap="innerHTML"
                     hx-trigger="click"
-                    hx-disabled-elt="this"
+                    hx-disable="this"
                 >Make Primary</button> `
       }
       // Only allow removing non-primary emails
@@ -44,7 +44,7 @@ export const onRequestGet: Handler = async (context) => {
                     hx-swap="innerHTML"
                     hx-trigger="click"
                     hx-confirm="Are you sure you want to remove this email address?"
-                    hx-disabled-elt="this"
+                    hx-disable="this"
                 >Remove</button> `
       }
       // Always allow resending verification for unverified emails
@@ -56,7 +56,7 @@ export const onRequestGet: Handler = async (context) => {
                     hx-target="#email-message-area"
                     hx-swap="innerHTML"
                     hx-trigger="click"
-                    hx-disabled-elt="this"
+                    hx-disable="this"
                 >Resend Verification</button>`
       }
       html += `</td></tr>`

@@ -40,7 +40,7 @@ export const onRequestGet: Handler = async (context) => {
         <button
           type="submit"
           class="btn-danger"
-          hx-disabled-elt="this"
+          hx-disable="this"
           hx-confirm="Are you sure you want to remove Two-Factor Authentication? This will reduce your account security."
         >
           Remove 2FA
@@ -59,7 +59,7 @@ export const onRequestGet: Handler = async (context) => {
         hx-target="#tfa-status-container"
         hx-swap="innerHTML"
         hx-trigger="click"
-        hx-disabled-elt="this"
+        hx-disable="this"
       >
         Setup 2FA
         <img class="htmx-indicator" src="/assets/bars.svg" alt="Loading..."/>

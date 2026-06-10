@@ -31,7 +31,7 @@ export const onRequestGet: Handler = async (context) => {
             hx-target="#passkey-message-area"
             hx-swap="innerHTML"
             hx-confirm="Remove this passkey?"
-            hx-disabled-elt="this"
+            hx-disable="this"
           >Remove<img class="htmx-indicator" src="/assets/bars.svg" /></button>
         </div>
       </div>`

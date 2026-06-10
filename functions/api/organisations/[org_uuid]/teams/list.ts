@@ -32,7 +32,7 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
         hx-get="${base}/${encodeURIComponent(team.team_uuid)}/read"
         hx-target="#team-detail"
         hx-swap="innerHTML"
-        hx-disabled-elt="this"
+        hx-disable="this"
       >Manage</button>
     </li>`
   }

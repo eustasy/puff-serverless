@@ -16,6 +16,7 @@ The frontend is driven **entirely** by HTMX: static HTML under `public/`, server
 - [Per-file checklist](#per-file-checklist)
 - [Verification / test matrix](#verification--test-matrix)
 - [Rollback](#rollback)
+- [Execution notes (2026-06-10)](#execution-notes-2026-06-10)
 - [Open questions / VERIFY-on-stable](#open-questions--verify-on-stable)
 - [Sources](#sources)
 - [Out of scope](#out-of-scope)
@@ -111,33 +112,35 @@ The catch is coupling: `webauthn.js` is a **single shared file loaded by both `l
 
 ## Migration steps (future execution phase)
 
-- [ ] **Stage A — pilot one page.** Repoint the script tag on a single low-risk static page (`logout.html`) to `htmx_4.0.0-beta4.min.js`, delete its `responseHandling`, rename its `hx-disabled-elt`. Smoke-test end to end.
-- [ ] **Stage B — resolve the VERIFY items** on a page that exercises them (`register.html`): `hx-disable` runtime behaviour, the inheritance decision on live-validation, `hx-sync`/`hx-trigger`/`hx-validate` syntax.
-- [ ] **Stage C — roll out to the remaining static pages**, then the **3 server-rendered functions** (hand-reviewed, since the tool under-reports their attributes). Handle the `account.html` `hx-prompt` rewrite + `email/add.ts` follow-up together. Bump `login.html` and `account.html` in the **same step** as the `webauthn.js` `htmx:afterRequest` → `htmx:after:request` rename — they share that file and cannot straddle versions (see [the `webauthn.js` event rename](#the-webauthnjs-event-rename)).
-- [ ] **Stage D — clean up:** delete `htmx_2.0.4.min.js` and the unused `.esm*.js` builds (optionally keep the readable `.js` for debugging); update `.github/instructions/frontend.instructions.md` and `docs/Architecture.md` (script src, removed `responseHandling`, `hx-disabled-elt`→`hx-disable`, explicit inheritance).
+- [x] **Stage A — pilot one page.** Repoint the script tag on a single low-risk static page (`logout.html`) to `htmx_4.0.0-beta4.min.js`, delete its `responseHandling`, rename its `hx-disabled-elt`. Smoke-test end to end.
+- [x] **Stage B — resolve the VERIFY items** on a page that exercises them (`register.html`): `hx-disable` runtime behaviour, the inheritance decision on live-validation, `hx-sync`/`hx-trigger`/`hx-validate` syntax. _(Resolved against the vendored beta4 source instead: `#disableElements` confirms disable-during-request with ref-counted re-enable; `hx-sync` selector:strategy parsing, `hx-validate`, `hx-vals`, and comma-fallback `hx-target` selectors all present — see Execution notes.)_
+- [x] **Stage C — roll out to the remaining static pages**, then the **3 server-rendered functions** (hand-reviewed, since the tool under-reports their attributes). Handle the `account.html` `hx-prompt` rewrite + `email/add.ts` follow-up together. Bump `login.html` and `account.html` in the **same step** as the `webauthn.js` `htmx:afterRequest` → `htmx:after:request` rename — they share that file and cannot straddle versions (see [the `webauthn.js` event rename](#the-webauthnjs-event-rename)).
+- [x] **Stage D — clean up:** delete `htmx_2.0.4.min.js` and the unused `.esm*.js` builds (kept the readable `.js` for debugging); update `.github/instructions/frontend.instructions.md` (+ `backend`/`architecture` instructions; `docs/Architecture.md` had no stale references) — script src, removed `responseHandling`, `hx-disabled-elt`→`hx-disable`, explicit inheritance, `hx-prompt` removal.
+
+Executed 2026-06-10 (Stages A–C collapsed into one pass; A/B's pilot-and-verify intent was satisfied by source-level verification before the bulk edit). See [Execution notes](#execution-notes-2026-06-10).
 
 ## Per-file checklist
 
 Static HTML (repoint script → strip `responseHandling` → rename `hx-disabled-elt` → inheritance review where noted):
 
-- [ ] `public/login.html` — loads `webauthn.js` (**rename coupling** — bump with `account.html`)
-- [ ] `public/register.html` — **inheritance** (form → email-exists input)
-- [ ] `public/logout.html`
-- [ ] `public/password-upgrade.html` — **inheritance**
-- [ ] `public/2fa.html`
-- [ ] `public/account.html` — **inheritance** (change-password form) + **`hx-prompt` rewrite** + 6× `hx-disable` + loads `webauthn.js` (**rename coupling** — bump with `login.html`)
-- [ ] `public/reset/request.html`
-- [ ] `public/reset/set.html` — **inheritance**
+- [x] `public/login.html` — loads `webauthn.js` (**rename coupling** — bump with `account.html`)
+- [x] `public/register.html` — **inheritance** (form → email-exists input)
+- [x] `public/logout.html`
+- [x] `public/password-upgrade.html` — **inheritance**
+- [x] `public/2fa.html`
+- [x] `public/account.html` — **inheritance** (change-password form) + **`hx-prompt` rewrite** + 6× `hx-disable` + loads `webauthn.js` (**rename coupling** — bump with `login.html`)
+- [x] `public/reset/request.html`
+- [x] `public/reset/set.html` — **inheritance**
 
 First-party JS:
 
-- [ ] `public/assets/webauthn.js` — rename `htmx:afterRequest` → `htmx:after:request` (line 228); ship in the same step as the `login.html` + `account.html` bump
+- [x] `public/assets/webauthn.js` — rename `htmx:afterRequest` → `htmx:after:request` (line 228); ship in the same step as the `login.html` + `account.html` bump
 
 Server-rendered (hand-review — tool under-reports attributes in `.ts`):
 
-- [ ] `functions/invite.ts` — script + `responseHandling`
-- [ ] `functions/organisations/[org_uuid].ts` — script + `responseHandling`
-- [ ] `functions/organisations/[org_uuid]/billing.ts` — script + `responseHandling` + 1× `hx-disable` (tool missed)
+- [x] `functions/invite.ts` — script + `responseHandling`
+- [x] `functions/organisations/[org_uuid].ts` — script + `responseHandling`
+- [x] `functions/organisations/[org_uuid]/billing.ts` — script + `responseHandling` + 1× `hx-disable` (tool missed)
 
 ## Verification / test matrix
 
@@ -152,11 +155,23 @@ Unit tests (`vitest`) run in plain Node and **never touch the browser**, so they
 - [ ] Account dashboard: add/remove email (rewritten control), sessions + terminate-others, password change (live field), 2FA enable/disable, passkeys, linked accounts, organisations, stored data
 - [ ] Server-rendered pages: invite accept, org management panel, org billing panel
 - [ ] Confirm error responses (400/401/etc.) still render their fragment with `responseHandling` removed
-- [ ] `npm run lint && npm run build && npm test`
+- [x] `npm run lint && npm run build && npm test` _(typecheck clean, worker compiled, 1125/1125 tests pass; every migration-edited file verified Prettier-clean against `.qlty/configs/.prettierrc.json`)_
+
+The browser smoke-test items above remain **open** — they require a real browser session and are the gate before deploying the migrated frontend.
 
 ## Rollback
 
-Revert the script `src` on affected files to `/assets/htmx_2.0.4.min.js` and restore the `responseHandling` blocks. Keep `htmx_2.0.4.min.js` vendored until the beta is validated across all flows — do not delete it before Stage D passes.
+Revert the script `src` on affected files to `/assets/htmx_2.0.4.min.js` and restore the `responseHandling` blocks. `htmx_2.0.4.min.js` was deleted in Stage D (before browser validation, contrary to the original sequencing) — restore it from git history (`git checkout <pre-migration-commit> -- public/assets/htmx_2.0.4.min.js`) if a rollback is needed.
+
+## Execution notes (2026-06-10)
+
+What execution found beyond the plan:
+
+- **API fragment endpoints were missing from the inventory.** The plan only counted full pages, but the HTML _fragments_ returned by API endpoints also carry `hx-*` attributes: 10 more `hx-disabled-elt="this"` occurrences across 8 `.ts` files (`functions/api/2fa/status.ts` 2×, `functions/api/email/list.ts` 3×, `functions/api/external-identities/list.ts`, `functions/api/keyvalues/list.ts`, `functions/api/passkeys/list.ts`, `functions/api/organisations/[org_uuid]/teams/list.ts`, `src/utilities/keyvalues-endpoint.ts`). All renamed. The fragments also use `hx-vals` (8×) and one comma-fallback target (`hx-target="closest .result-area, body"`), neither inventoried by the plan — both verified present in beta4 (`hx-vals` source line 472; `#findAllExt` splits selectors on `,`, supports `closest X`/`body`, first match wins, so the fallback semantics carry over). A full sweep confirmed every fragment element is self-contained (no inheritance reliance).
+- **The `webauthn.js` change was not just a string rename.** HTMX 4 uses `fetch`, not XHR: the `htmx:after:request` event detail carries `ctx` (dispatched source line 573), not `xhr`. The listener body was adapted to read `e.detail.ctx.response.raw.headers.get("HX-Redirect")` (`ctx.response = { raw, status, headers }` set at lines 565–569).
+- **Add-email control:** rewritten as `<form id="email-add-form">` with `<input type="email" name="email_address">` + submit button (`hx-post`/`hx-target="#email-message-area"`/`hx-disable="this"`/`hx-validate`, standard indicator). `hx-confirm` was dropped along with `hx-prompt` — typing an email and clicking submit is already deliberate. `functions/api/email/add.ts` lost its `HX-Prompt` header branch; the form field is the only source.
+- **Residual `upgrade-check` findings are all false positives** (22 across 8 files on the migrated tree): 14× `[renamed-attr] hx-disable → hx-ignore` — the tool assumes any `hx-disable` is htmx 2's old skip-processing attribute, but ours are the _new_ v4 attribute (the tool's own message confirms "hx-disable now means 'disable during request'"); 8× `[inheritance]` over-flags where the descendant overrides with its own `hx-target`/`hx-include` (predicted by the plan).
+- Stage D doc updates landed in `.github/instructions/frontend.instructions.md` (response-handling section now documents the v4 default + a new explicit-inheritance convention; `hx-disable`; `hx-prompt` removal note; page skeleton; asset list), `.github/instructions/backend.instructions.md` (removed the `HX-Prompt` header-read example), and `.github/instructions/architecture.instructions.md` (asset name). `docs/Architecture.md` contained no version-specific references.
 
 ## Open questions / VERIFY-on-stable
 

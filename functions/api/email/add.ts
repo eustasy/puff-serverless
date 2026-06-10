@@ -9,20 +9,11 @@ export const onRequestPost: Handler = async (context) => {
 
   try {
     const formData = await context.request.formData()
-    let email_address = formData.get("email_address")
+    const email_address = formData.get("email_address")
 
-    // If email_address from form data is not a string or is empty,
-    // try to get it from the HX-Prompt header. HTMX sends the prompted value in this header,
-    // which can be more reliable when the hx-prompt is on a button element.
-    if ((typeof email_address !== "string" || email_address.trim() === "") && context.request.headers.has("HX-Prompt")) {
-      const promptedValue = context.request.headers.get("HX-Prompt")
-      // Only use the header value if it's a non-empty string
-      if (promptedValue && typeof promptedValue === "string" && promptedValue.trim() !== "") {
-        email_address = promptedValue
-      }
-    }
-
-    // Validate the retrieved email address
+    // The email address comes from the form field only. (The previous prompt-header
+    // fallback was dropped: HTMX 4 removed the browser-prompt attribute, so the
+    // add-email control is now a real <input name="email_address"> form.)
     if (typeof email_address !== "string") {
       return new Response('<p class="result-negative">Email address is missing or submitted in an invalid format.</p>', {
         status: 400,

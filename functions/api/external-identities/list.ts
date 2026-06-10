@@ -37,7 +37,7 @@ export const onRequestGet: Handler = async (context) => {
             hx-target="#external-identities-message-area"
             hx-swap="innerHTML"
             hx-confirm="Unlink ${escapeHtml(providerLabel)}?"
-            hx-disabled-elt="this"
+            hx-disable="this"
           >Unlink</button>
         </div>
       </div>`

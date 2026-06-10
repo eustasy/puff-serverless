@@ -3,21 +3,8 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta
-      name="htmx-config"
-      content='{"responseHandling": [
-      {"code":"200", "swap": true},
-      {"code":"400", "swap": true},
-      {"code":"401", "swap": true},
-      {"code":"403", "swap": true},
-      {"code":"404", "swap": true},
-      {"code":"405", "swap": true},
-      {"code":"500", "swap": true}
-    ]
-    }'
-   >
     <title>Logout</title>
-    <script src="/assets/htmx_2.0.4.min.js"></script>
+    <script src="/assets/htmx_4.0.0-beta4.min.js"></script>
     <link rel="stylesheet" href="/assets/main.css">
   </head>
   <body>
@@ -30,7 +17,7 @@
         class="btn-danger"
         hx-post="/api/user/logout"
         hx-target="#logout-result"
-        hx-disabled-elt="#logoutButton"
+        hx-disable="#logoutButton"
       >
         Log Out
         <img class="htmx-indicator" src="/assets/bars.svg" alt="">

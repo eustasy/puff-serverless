@@ -3,28 +3,15 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta
-      name="htmx-config"
-      content='{"responseHandling": [
-      {"code":"200", "swap": true},
-      {"code":"400", "swap": true},
-      {"code":"401", "swap": true},
-      {"code":"403", "swap": true},
-      {"code":"404", "swap": true},
-      {"code":"405", "swap": true},
-      {"code":"500", "swap": true}
-    ]
-    }'
-   >
     <title>Login - 2 Factor Authentication</title>
-    <script src="/assets/htmx_2.0.4.min.js"></script>
+    <script src="/assets/htmx_4.0.0-beta4.min.js"></script>
     <link rel="stylesheet" href="/assets/main.css">
   </head>
   <body>
     <div class="container">
       <h1>Login</h1>
       <div id="message-area" class="result-area"></div>
-      <form hx-validate="true" hx-post="/api/2fa/login" hx-target="#login-result" hx-include="[name='otp']" hx-disabled-elt=".btn-safe">
+      <form hx-validate="true" hx-post="/api/2fa/login" hx-target="#login-result" hx-include="[name='otp']" hx-disable=".btn-safe">
         <div class="form-group">
           <label for="otp">One-Time Password (OTP):</label>
           <input
@@ -48,7 +35,7 @@
       <details class="tfa-bypass">
         <summary>Lost access to your authenticator?</summary>
         <p>We can email a one-time link to a verified email address on your account. Opening it completes this login without a code.</p>
-        <form hx-post="/api/2fa/bypass/request" hx-target="#bypass-result" hx-swap="innerHTML" hx-disabled-elt="button">
+        <form hx-post="/api/2fa/bypass/request" hx-target="#bypass-result" hx-swap="innerHTML" hx-disable="button">
           <button type="submit" class="btn-safe">
             Email me a bypass link
             <img class="htmx-indicator" src="/assets/bars.svg" alt="">

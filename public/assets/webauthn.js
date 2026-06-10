@@ -225,9 +225,11 @@ document.addEventListener("DOMContentLoaded", () => {
   if (emailInput && loginForm) {
     // Record a successful password sign-in. Every successful outcome (session,
     // 2FA, or password-upgrade) returns an HX-Redirect; failures do not.
-    loginForm.addEventListener("htmx:afterRequest", (e) => {
-      const xhr = e.detail && e.detail.xhr
-      if (xhr && xhr.getResponseHeader("HX-Redirect")) {
+    loginForm.addEventListener("htmx:after:request", (e) => {
+      // HTMX 4 uses fetch (no XHR): the event detail carries `ctx`, and the raw
+      // Response's headers expose HX-Redirect via the standard Headers.get().
+      const headers = e.detail && e.detail.ctx && e.detail.ctx.response && e.detail.ctx.response.raw && e.detail.ctx.response.raw.headers
+      if (headers && headers.get("HX-Redirect")) {
         rememberLogin(emailInput.value.trim(), false)
       }
     })

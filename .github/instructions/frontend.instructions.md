@@ -10,22 +10,11 @@ The frontend is static HTML served by the Cloudflare Worker via [Workers Static 
 
 ### Response Handling
 
-Every page that makes HTMX requests configures response handling in a meta tag to swap HTML for all expected status codes:
+HTMX 4 swaps every response except `204`/`304` by default, which is exactly the behaviour this app wants (error fragments render like success fragments). Do **not** add an `htmx-config` meta tag for response handling — the old `responseHandling` config was removed in HTMX 4.
 
-```html
-<meta
-  name="htmx-config"
-  content='{"responseHandling": [
-  {"code":"200", "swap": true},
-  {"code":"400", "swap": true},
-  {"code":"401", "swap": true},
-  {"code":"403", "swap": true},
-  {"code":"404", "swap": true},
-  {"code":"405", "swap": true},
-  {"code":"500", "swap": true}
-]}'
-/>
-```
+### Attribute Inheritance
+
+HTMX 4 does not inherit `hx-*` attributes implicitly. Every element that issues a request must carry its own complete attribute set (`hx-target`, `hx-include`, etc.) — do not rely on a parent `<form>`'s attributes reaching a descendant, and do not use the `:inherited` suffix (the codebase avoids it deliberately).
 
 ### Form Patterns
 
@@ -34,11 +23,11 @@ Forms use these HTMX attributes:
 - `hx-post="/api/..."` or `hx-get="/api/..."` — the API endpoint.
 - `hx-target="#result-id"` — where to swap the response HTML.
 - `hx-validate="true"` — enable HTML5 validation before submission.
-- `hx-disabled-elt=".btn-safe"` — disable the submit button during the request.
+- `hx-disable=".btn-safe"` — disable the submit button during the request.
 - `hx-include="[name='field1'], [name='field2']"` — explicitly include fields.
 
 ```html
-<form hx-validate="true" hx-post="/api/user/login" hx-target="#login-result" hx-disabled-elt=".btn-safe">
+<form hx-validate="true" hx-post="/api/user/login" hx-target="#login-result" hx-disable=".btn-safe">
   <div class="form-group">
     <label for="email">Email:</label>
     <input type="email" id="email" name="email" required />
@@ -82,10 +71,11 @@ Password and email fields use delayed keyup triggers for live feedback:
 <div id="password-requirements-output" class="result-area"></div>
 ```
 
-### Confirmations and Prompts
+### Confirmations
 
 - `hx-confirm="Are you sure?"` — browser confirm dialog before submission.
-- `hx-prompt="Enter value:"` — browser prompt dialog; value sent as `HX-Prompt` header.
+
+(HTMX 4 removed `hx-prompt`; controls that need a typed value use a real `<input>` + submit button instead.)
 
 ## CSS Classes
 
@@ -142,10 +132,9 @@ Every HTML page follows this structure:
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="htmx-config" content='{"responseHandling": [...]}' />
     <title>Page Title</title>
     <link rel="stylesheet" href="/assets/main.css" />
-    <script src="/assets/htmx_2.0.4.min.js"></script>
+    <script src="/assets/htmx_4.0.0-beta4.min.js"></script>
   </head>
   <body>
     <div class="container">
@@ -186,6 +175,6 @@ Pages-Function-rendered HTML follows the same head/CSS conventions as the static
 ### Assets
 
 - `assets/main.css` — global styles for every page.
-- `assets/htmx_2.0.4.min.js` — bundled HTMX client.
+- `assets/htmx_4.0.0-beta4.min.js` — bundled HTMX client (the readable `htmx_4.0.0-beta4.js` is kept alongside for debugging).
 - `assets/webauthn.js` — small ES module wrapping `navigator.credentials` for passkey registration and login. Imported only on pages that need it (`login.html`, `account.html`).
 - `assets/bars.svg` — HTMX loading-indicator graphic.

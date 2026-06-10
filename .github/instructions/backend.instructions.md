@@ -141,7 +141,6 @@ const userAgent = context.request.headers.get("User-Agent")
 const ipAddress = context.request.headers.get("CF-Connecting-IP")
 const ipCountry = context.request.headers.get("CF-IPCountry")
 const cookieHeader = context.request.headers.get("Cookie")
-const promptValue = context.request.headers.get("HX-Prompt") // From hx-prompt
 ```
 
 ### Authorisation

@@ -32,13 +32,9 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="htmx-config"
-      content='{"responseHandling":[{"code":".*","swap":true}]}'
-    />
     <title>Organisation</title>
     <link rel="stylesheet" href="/assets/main.css" />
-    <script src="/assets/htmx_2.0.4.min.js"></script>
+    <script src="/assets/htmx_4.0.0-beta4.min.js"></script>
   </head>
   <body>
     <div class="container wide">

@@ -28,7 +28,7 @@ Terse reference for AI tooling. Long-form prose lives in `docs/Architecture.md`,
 - `public/` — static files served by Workers Static Assets.
   - HTML: `index.html`, `login.html`, `register.html`, `logout.html`, `account.html`, `2fa.html`, `password-upgrade.html`, `reset/request.html`, `reset/set.html`.
   - CSS: `assets/main.css`.
-  - Client-side JS: `assets/htmx_2.0.4.min.js` (HTMX), `assets/webauthn.js` (small passkey helpers using raw `navigator.credentials`).
+  - Client-side JS: `assets/htmx_4.0.0-beta4.min.js` (HTMX), `assets/webauthn.js` (small passkey helpers using raw `navigator.credentials`).
   - Images: `assets/bars.svg` (HTMX loading indicator), `favicon.ico`.
   - `_headers` (security headers, CSP, HSTS, Reporting-Endpoints), `_redirects`, `robots.txt`.
 - `src/` — backend logic, one module per domain. All exports take `dbClient: DbClient` as their first parameter.

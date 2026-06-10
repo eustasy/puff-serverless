@@ -48,7 +48,7 @@ export function renderKeyValueTable(
             hx-target="closest .result-area, body"
             hx-swap="innerHTML"
             hx-confirm="Are you sure you want to delete the key &quot;${escapeHtml(pair.kv_key)}&quot;?"
-            hx-disabled-elt="this"
+            hx-disable="this"
           >Delete</button>
         </td>`
     }
