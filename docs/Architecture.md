@@ -40,12 +40,12 @@ export const onRequest = [corsGate, maybeDb, maybeAuth, maybeOperator]
 
 Each gate either runs its tier function or passes straight through (`context.next()`), based on the `Policy` resolved for the request path:
 
-| Gate          | Tier function (in `src/utilities/`)                   | Adds to `context.data` / effect                                       |
-| ------------- | ---------------------------------------------------- | -------------------------------------------------------------------- |
-| `corsGate`    | `sameOriginWriteGuard` _or_ `externalCorsGuard`      | cross-origin enforcement (always runs; guard chosen by `cors` field) |
-| `maybeDb`     | `createDbMiddleware("/api")`                         | `dbClient` (Hyperdrive `pg`)                                         |
-| `maybeAuth`   | `sessionAuthMiddleware`                              | `user_uuid` (from `session_token` cookie)                            |
-| `maybeOperator` | `operatorAuthMiddleware`                           | operator-UUID gate for `/api/admin/*`                                |
+| Gate | Tier function (in `src/utilities/`) | Adds to `context.data` / effect |
+| --- | --- | --- |
+| `corsGate` | `sameOriginWriteGuard` _or_ `externalCorsGuard` | cross-origin enforcement (always runs; guard chosen by `cors` field) |
+| `maybeDb` | `createDbMiddleware("/api")` | `dbClient` (Hyperdrive `pg`) |
+| `maybeAuth` | `sessionAuthMiddleware` | `user_uuid` (from `session_token` cookie) |
+| `maybeOperator` | `operatorAuthMiddleware` | operator-UUID gate for `/api/admin/*` |
 
 `createDbMiddleware`'s `try/finally` wraps `context.next()`, so when `maybeDb` runs the DB tier its connection stays open through `maybeAuth` + `maybeOperator` + the route handler and is closed afterwards — the same lifecycle the old nested tree gave.
 
@@ -55,7 +55,7 @@ Each gate either runs its tier function or passes straight through (`context.nex
 
 - **`NO_DB`** (exact-path `Set`) — neither DB nor session (e.g. `/api/providers`, `/api/password-requirements`, `/api/messages`, `/api/csp-report`).
 - **`PUBLIC_DB`** (exact-path `Set`) — DB but no session: login, registration, and token-capability flows (e.g. `/api/user/login`, `/api/password/request`, `/api/email/verify`, `/api/2fa/login`, `/api/organisations/invitation/view`, `/api/federated-signup/confirm`). Exact paths only — a prefix would be too greedy (e.g. `/api/organisations/create` must stay auth-required).
-- **`/api/billing/` prefix** — DB but no session, and `cors: "external"`. These are token/signature-authed *inside the handler* (Stripe webhook + the dynamic `usage/[app_uuid]` API), so they need a prefix (the dynamic segment defeats an exact `Set` entry) and the external CORS guard rather than the same-origin block.
+- **`/api/billing/` prefix** — DB but no session, and `cors: "external"`. These are token/signature-authed _inside the handler_ (Stripe webhook + the dynamic `usage/[app_uuid]` API), so they need a prefix (the dynamic segment defeats an exact `Set` entry) and the external CORS guard rather than the same-origin block.
 - **`/api/admin/` prefix** — `{ db: true, auth: true, operator: true }`. The one stricter opt-in.
 
 Because `auth` implies `db` and `operator` implies `auth` in `policyFor`, the gates never run a tier whose prerequisite was skipped (e.g. `sessionAuthMiddleware` always finds `context.data.dbClient`).
@@ -64,14 +64,14 @@ Because `auth` implies `db` and `operator` implies `auth` in `policyFor`, the ga
 
 `corsGate` always runs and picks the guard by the policy's `cors` field:
 
-- **`sameOriginWriteGuard`** (internal, the default) — first-party HTMX endpoints authenticated by the ambient `session_token` cookie. State-changing requests (non-GET/HEAD/OPTIONS) whose `Sec-Fetch-Site` is not `same-origin` (falling back to an `Origin` match when `Sec-Fetch-*` is absent) are rejected with a 403. This is a *block*, not CORS proper — it adds no `Access-Control-*` headers. It stops same-site CSRF from sibling subdomains that `SameSite=Lax` does not catch.
-- **`externalCorsGuard`** (external, opt-in for `/api/billing/*`) — third-party callers authenticated by a Stripe signature or app token *inside the handler*, never by the session cookie. With no ambient credential there is no CSRF vector, so it never blocks on origin: it answers the `OPTIONS` preflight (204) and echoes an allowlisted `Origin` (from `EXTERNAL_CORS_ORIGINS`) onto the response.
+- **`sameOriginWriteGuard`** (internal, the default) — first-party HTMX endpoints authenticated by the ambient `session_token` cookie. State-changing requests (non-GET/HEAD/OPTIONS) whose `Sec-Fetch-Site` is not `same-origin` (falling back to an `Origin` match when `Sec-Fetch-*` is absent) are rejected with a 403. This is a _block_, not CORS proper — it adds no `Access-Control-*` headers. It stops same-site CSRF from sibling subdomains that `SameSite=Lax` does not catch.
+- **`externalCorsGuard`** (external, opt-in for `/api/billing/*`) — third-party callers authenticated by a Stripe signature or app token _inside the handler_, never by the session cookie. With no ambient credential there is no CSRF vector, so it never blocks on origin: it answers the `OPTIONS` preflight (204) and echoes an allowlisted `Origin` (from `EXTERNAL_CORS_ORIGINS`) onto the response.
 
 The default is the strict internal guard, so a new endpoint is CSRF-protected unless it is deliberately opted into the external tier.
 
 ### Resource-scoped middleware (not part of the tier model)
 
-Beneath `organisations/[org_uuid]/` (and nested `apps/[app_uuid]/`, `teams/[team_uuid]/`), three `_middleware.ts` files resolve the caller's role set into `context.data.orgRoles` / `context.data.teamRoles` (and the resolved app row into `context.data.app`). These are **resource-scoped authz**, distinct from the db/auth/operator tiers: they run *after* the policy middleware, on the path that owns the resource, and relocate intact with their subtree. They are not selected by the policy table.
+Beneath `organisations/[org_uuid]/` (and nested `apps/[app_uuid]/`, `teams/[team_uuid]/`), three `_middleware.ts` files resolve the caller's role set into `context.data.orgRoles` / `context.data.teamRoles` (and the resolved app row into `context.data.app`). These are **resource-scoped authz**, distinct from the db/auth/operator tiers: they run _after_ the policy middleware, on the path that owns the resource, and relocate intact with their subtree. They are not selected by the policy table.
 
 Endpoints read `context.data.dbClient` / `context.data.user_uuid` (etc.) directly — never re-connect or re-authenticate in a handler.
 
@@ -94,33 +94,33 @@ They do not throw or return raw rows. The sole exception is `registerUser`, whic
 
 ## Directories
 
-| Folder                   | Contents                                                                         | Role                          |
-| ------------------------ | -------------------------------------------------------------------------------- | ----------------------------- |
-| `public/`                | Static files: HTML pages, CSS, the bundled HTMX client.                          | Workers Static Assets         |
-| `functions/`             | Pages-Function-routed endpoints (TypeScript), including HTML page renderers.     | Bundled into Worker           |
-| `functions/api/`         | Flat-path API endpoints; tier (DB / auth / operator) is set per request by the `functions/api/_middleware.ts` policy table, not by directory depth. | Bundled into Worker           |
-| `src/`                   | Backend logic by domain (`users.ts`, `sessions.ts`, `oauth-*.ts`, `hooks/`, …)   | Bundled into Worker           |
-| `src/utilities/`         | Shared helpers (`hashing.ts`, `headers.ts`, `responses.ts`, `transaction.ts`, …) | Bundled into Worker           |
-| `sql/`                   | One `.sql` file per table — schema source of truth.                              | Reference (imported manually) |
-| `test/`                  | Vitest unit tests, one `*.test.ts` per `src/` module.                            | Not deployed                  |
-| `scripts/`               | One-shot operator scripts (e.g. `generate-oauth-key.mjs`).                       | Not deployed                  |
-| `docs/`                  | Human-facing documentation (this directory).                                     | Not deployed                  |
-| `.github/instructions/`  | AI-tooling guidance (architecture/backend/database/frontend/security).           | Not deployed                  |
-| `dist/worker/`           | Build output from `wrangler pages functions build`. Never edit.                  | Build artifact                |
+| Folder | Contents | Role |
+| --- | --- | --- |
+| `public/` | Static files: HTML pages, CSS, the bundled HTMX client. | Workers Static Assets |
+| `functions/` | Pages-Function-routed endpoints (TypeScript), including HTML page renderers. | Bundled into Worker |
+| `functions/api/` | Flat-path API endpoints; tier (DB / auth / operator) is set per request by the `functions/api/_middleware.ts` policy table, not by directory depth. | Bundled into Worker |
+| `src/` | Backend logic by domain (`users.ts`, `sessions.ts`, `oauth-*.ts`, `hooks/`, …) | Bundled into Worker |
+| `src/utilities/` | Shared helpers (`hashing.ts`, `headers.ts`, `responses.ts`, `transaction.ts`, …) | Bundled into Worker |
+| `sql/` | One `.sql` file per table — schema source of truth. | Reference (imported manually) |
+| `test/` | Vitest unit tests, one `*.test.ts` per `src/` module. | Not deployed |
+| `scripts/` | One-shot operator scripts (e.g. `generate-oauth-key.mjs`). | Not deployed |
+| `docs/` | Human-facing documentation (this directory). | Not deployed |
+| `.github/instructions/` | AI-tooling guidance (architecture/backend/database/frontend/security). | Not deployed |
+| `dist/worker/` | Build output from `wrangler pages functions build`. Never edit. | Build artifact |
 
 ## Special files
 
-| File                                   | Role                                                                                                                                                |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `worker.ts`                            | Worker entry (`wrangler.jsonc`'s `main`). Forwards `fetch` to the built bundle; exports `scheduled`.                                                |
-| `wrangler.jsonc`                       | Wrangler config: bindings (`HYPERDRIVE`, `ASSETS`), `vars`, `triggers.crons`, custom-domain routes.                                                 |
-| `public/_headers`                      | HTTP response headers ([Pages Headers](https://developers.cloudflare.com/pages/platform/headers/)) including CSP, HSTS, and the reporting endpoint. |
-| `public/_redirects`                    | Redirect rules ([Pages Redirects](https://developers.cloudflare.com/pages/platform/redirects/)).                                                    |
-| `functions/_middleware.ts`             | Root middleware: page-level cookie gating for the static HTML files.                                                                                |
-| `functions/api/_middleware.ts`         | The single API middleware. Composes `[corsGate, maybeDb, maybeAuth, maybeOperator]` from `src/utilities/` and selects each tier per request via the `policyFor` route-policy table (fail-safe default db+auth). |
-| `types.d.ts`                           | Ambient global types (`DbClient`, `Env`, `RequestData`, `Handler`, `Envelope`, row interfaces).                                                     |
-| `env.d.ts`                             | Cloudflare Pages Functions Env declaration that augments `types.d.ts`'s `Env`.                                                                      |
-| `worker-configuration.d.ts`            | Auto-generated by `npx wrangler types`. Don't edit by hand.                                                                                         |
+| File | Role |
+| --- | --- |
+| `worker.ts` | Worker entry (`wrangler.jsonc`'s `main`). Forwards `fetch` to the built bundle; exports `scheduled`. |
+| `wrangler.jsonc` | Wrangler config: bindings (`HYPERDRIVE`, `ASSETS`), `vars`, `triggers.crons`, custom-domain routes. |
+| `public/_headers` | HTTP response headers ([Pages Headers](https://developers.cloudflare.com/pages/platform/headers/)) including CSP, HSTS, and the reporting endpoint. |
+| `public/_redirects` | Redirect rules ([Pages Redirects](https://developers.cloudflare.com/pages/platform/redirects/)). |
+| `functions/_middleware.ts` | Root middleware: page-level cookie gating for the static HTML files. |
+| `functions/api/_middleware.ts` | The single API middleware. Composes `[corsGate, maybeDb, maybeAuth, maybeOperator]` from `src/utilities/` and selects each tier per request via the `policyFor` route-policy table (fail-safe default db+auth). |
+| `types.d.ts` | Ambient global types (`DbClient`, `Env`, `RequestData`, `Handler`, `Envelope`, row interfaces). |
+| `env.d.ts` | Cloudflare Pages Functions Env declaration that augments `types.d.ts`'s `Env`. |
+| `worker-configuration.d.ts` | Auto-generated by `npx wrangler types`. Don't edit by hand. |
 
 ## Libraries
 
@@ -338,9 +338,9 @@ Active key material lives in the `KV_OAUTH_KEYS` KV namespace (bound in `wrangle
 
 ### Admin endpoints
 
-| Variable              | Default | Purpose                                                                                                                                                                                                                                                                                |
-| --------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OPERATOR_USER_UUIDS` | unset   | Comma- or whitespace-separated list of user UUIDs allowed to call `/api/admin/*` endpoints (manual key rotation, retired-key promotion). When unset, the whole admin section returns 503 — the safe default for a misconfigured deploy. The endpoint sits behind session auth. |
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `OPERATOR_USER_UUIDS` | unset | Comma- or whitespace-separated list of user UUIDs allowed to call `/api/admin/*` endpoints (manual key rotation, retired-key promotion). When unset, the whole admin section returns 503 — the safe default for a misconfigured deploy. The endpoint sits behind session auth. |
 
 ### Federated login providers
 

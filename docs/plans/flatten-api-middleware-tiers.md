@@ -405,7 +405,7 @@ passthrough line and the four old middleware files are deleted in the same stage
 
 ### Dependency graph
 
-```
+```text
 1  extract tiers ──────────────► old tree still green, independently testable
       │
 2  add api/_middleware.ts + TEMP /api/db/ passthrough   (safe coexistence)
@@ -431,7 +431,7 @@ The cost concentrates in the design / security / test stages; the bulk file moti
 mechanical and best driven by scripts + grep verification rather than model reasoning.
 
 | Stage | Character | Model | Effort | Why |
-|-------|-----------|-------|--------|-----|
+| --- | --- | --- | --- | --- |
 | 1 Extract + DB dedup + `externalCorsGuard` + tests | Net-new behaviour on a CSRF boundary | **Opus** | **High** | Not a pure lift: the dedup must preserve cors-guard ordering and the new guard is security-sensitive. Human review mandatory. |
 | 2 Policy table + passthrough | Security-critical **enumeration** | **Opus** | **High** | Every `NO_DB` / `PUBLIC_DB` entry is a security decision; correctness needs the real endpoint inventory, not the sample lists. |
 | 3 Move + import depth + URL rewrite | Mechanical, voluminous, miscount-prone | **Sonnet** | **Medium** | `git mv` + `../` recompute + two precise URL rewrites; verify each subtree's count to zero with grep. |
