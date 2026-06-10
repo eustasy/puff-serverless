@@ -1,6 +1,6 @@
 # Phase 10 — HTMX 4
 
-The frontend is driven **entirely** by HTMX: static HTML under `public/`, server-rendered HTML from a handful of `functions/`, no custom client-side JS (the lone exception is `assets/webauthn.js`, a self-contained passkey module unrelated to HTMX), and API endpoints that return **HTML fragments, not JSON**. HTMX 4 is in beta (`4.0.0-beta4`, already vendored). This phase is a **planning document only** — it inventories current usage, enumerates the HTMX 4 breaking changes that actually affect this repo, and lays out a staged migration with a verification and rollback checklist. No pages, build config, or CSP are touched here.
+The frontend is driven **entirely** by HTMX: static HTML under `public/`, server-rendered HTML from a handful of `functions/`, no custom client-side JS (the lone exception is `assets/webauthn.js`, a self-contained passkey module that hooks a single HTMX lifecycle event), and API endpoints that return **HTML fragments, not JSON**. HTMX 4 is in beta (`4.0.0-beta4`, already vendored). This phase is a **planning document only** — it inventories current usage, enumerates the HTMX 4 breaking changes that actually affect this repo, and lays out a staged migration with a verification and rollback checklist. No pages, build config, or CSP are touched here.
 
 ## Table of Contents
 
@@ -11,6 +11,7 @@ The frontend is driven **entirely** by HTMX: static HTML under `public/`, server
 - [Breaking-change impact](#breaking-change-impact)
 - [Attribute inheritance (the subtle one)](#attribute-inheritance-the-subtle-one)
 - [The `hx-prompt` removal](#the-hx-prompt-removal)
+- [The `webauthn.js` event rename](#the-webauthnjs-event-rename)
 - [Migration steps (future execution phase)](#migration-steps-future-execution-phase)
 - [Per-file checklist](#per-file-checklist)
 - [Verification / test matrix](#verification--test-matrix)
@@ -37,7 +38,8 @@ There is no rush — HTMX 2.x remains supported, and 4.0 is still beta. The valu
 - **`hx-disabled-elt` → `hx-disable`** rename.
 - **`hx-prompt` removed** (`account.html`, the add-email control).
 - **Explicit-inheritance `:inherited` needed** on 4 pages: `register`, `password-upgrade`, `reset/set`, `account`.
-- The long list of `[old-event]` / `[removed-event]` / `[removed-header]` hits all point at `public/assets/htmx_2.0.4.min.js` itself — they are the _old library's_ internals, not our code. We use no `hx-on` handlers and set none of the removed headers server-side (`grep HX-Trigger-After` → none), so these are **N/A** once the old file is deleted.
+- **One first-party `[old-event]` hit:** `public/assets/webauthn.js:228` registers an `htmx:afterRequest` listener that v4 renames to `htmx:after:request` — see [the dedicated section](#the-webauthnjs-event-rename) and [breaking-change row 10](#breaking-change-impact). (This finding is new: the latest `upgrade-check` run scans `.js` files, where the earlier run did not, which is why it now appears.)
+- The _rest_ of the long `[old-event]` / `[removed-event]` / `[removed-header]` list all points at `public/assets/htmx_2.0.4.min.js` itself — those are the _old library's_ internals, not our code. We use no `hx-on` handlers and set none of the removed headers server-side (`grep HX-Trigger-After` → none), so they are **N/A** once the old file is deleted.
 
 **Tool reliability caveat:** `upgrade-check` reliably detects `responseHandling` (a config string) inside both `.html` and `.ts` files, but its **attribute-level detection inside `functions/*.ts` template literals is incomplete** — it flagged the `responseHandling` in `billing.ts` but _missed_ the `hx-disabled-elt=".btn-safe"` in the same file. **Therefore the server-rendered `.ts` pages must be reviewed by hand**, not trusted to the tool. Counting that missed one, there are **15** `hx-disabled-elt` occurrences to rename (14 in HTML + ≥1 in `billing.ts`).
 
@@ -55,8 +57,8 @@ Confirmed from the working tree as of this writing:
 - **Every explicit `hx-swap` is `"innerHTML"`** (21×); requests that omit it rely on the default, which is _also_ `innerHTML` in v4 (config line 120), so they are unaffected.
 - **Live-validation pattern:** several forms (`register`, `password-upgrade`, `reset/set`, `account`'s change-password) wrap an `<input>` that fires its own keyup-triggered `hx-get`/`hx-post` to a requirements/exists endpoint. This is the inheritance hotspot — see below.
 - **Indicators:** `.htmx-indicator` + `bars.svg` inside buttons; `htmx-request` is the active class. Both class names are HTMX 4 defaults (config lines 121–122), so the pattern carries over untouched (HTMX 4 also self-injects indicator CSS via `includeIndicatorCSS:true`, line 124 — at worst a harmless double-definition with `main.css`).
-- **`webauthn.js`** (passkeys) loads on `login.html` and `account.html` as an independent `<script defer>` — unaffected by the HTMX version.
-- **Server-side HTMX headers:** handlers read `HX-Request` (branch HTMX-nav vs. plain `Location`) and `HX-Prompt` (one site: `functions/api/db/auth/email/add.ts`), and set `HX-Redirect` / `HX-Trigger`. None read `HX-Target`; none set the removed `HX-Trigger-After-Swap`/`-Settle`.
+- **`webauthn.js`** (passkeys, **first-party**) loads on `login.html` and `account.html` as an independent `<script defer>`. It touches HTMX in exactly one place: `loginForm.addEventListener("htmx:afterRequest", …)` at line 228, which records a successful sign-in. That event name is renamed in v4 — see [the dedicated section](#the-webauthnjs-event-rename).
+- **Server-side HTMX headers:** handlers read `HX-Request` (branch HTMX-nav vs. plain `Location`) and `HX-Prompt` (one site: `functions/api/email/add.ts`), and set `HX-Redirect` / `HX-Trigger`. None read `HX-Target`; none set the removed `HX-Trigger-After-Swap`/`-Settle`.
 
 ## Breaking-change impact
 
@@ -73,7 +75,7 @@ Each row: the HTMX 4 change × our exposure × the native action (no compat) × 
 | 7   | **`hx-confirm`** gains `js:` prefix; needs `:inherited` to inherit.                                                                                                       | 2× (`account.html`), co-located with the request.                         | None (not inherited).                                                                                                                                  | Low.                                                                                                                                 |
 | 8   | **`hx-validate` / `hx-trigger`** (`load`, `keyup changed delay`, `… from:body`).                                                                                          | 6× / 16×. Present in beta4.                                               | None.                                                                                                                                                  | Low — **VERIFY** syntax unchanged.                                                                                                   |
 | 9   | **`hx-target`** request-header format → `tagName#id`.                                                                                                                     | No handler reads `HX-Target`.                                             | None.                                                                                                                                                  | None.                                                                                                                                |
-| 10  | **Removed events/headers** (`htmx:afterRequest`→`after:request`, validation events, `HX-Trigger-After-Swap/Settle`).                                                      | None in our code (no `hx-on`; headers unused).                            | None.                                                                                                                                                  | None.                                                                                                                                |
+| 10  | **Removed/renamed events/headers** (`htmx:afterRequest`→`htmx:after:request`, validation events, `HX-Trigger-After-Swap/Settle`).                                         | `webauthn.js:228` listens for `htmx:afterRequest`; no `hx-on`/headers.    | **Rename the listener → `htmx:after:request`** (see [section](#the-webauthnjs-event-rename)); validation events / headers are unused.                  | Low — coupled to the `login.html` + `account.html` bump.                                                                             |
 
 ## Attribute inheritance (the subtle one)
 
@@ -90,7 +92,7 @@ The only attributes the descendant passively inherits are **`hx-disabled-elt`** 
 
 ## The `hx-prompt` removal
 
-`account.html`'s add-email control is a single `<button name="email_address" hx-post=… hx-prompt="Enter an email address to add:" hx-confirm="…">`. On click htmx prompts, confirms, then POSTs with the typed value in the `HX-Prompt` header. `functions/api/db/auth/email/add.ts` reads that header (its comment notes it's "more reliable when the `hx-prompt` is on a button element"), with the form field `email_address` as a fallback.
+`account.html`'s add-email control is a single `<button name="email_address" hx-post=… hx-prompt="Enter an email address to add:" hx-confirm="…">`. On click htmx prompts, confirms, then POSTs with the typed value in the `HX-Prompt` header. `functions/api/email/add.ts` reads that header (its comment notes it's "more reliable when the `hx-prompt` is on a button element"), with the form field `email_address` as a fallback.
 
 HTMX 4 removes `hx-prompt`. Native paths:
 
@@ -99,25 +101,37 @@ HTMX 4 removes `hx-prompt`. Native paths:
 
 **VERIFY**: confirm `add.ts`'s field fallback fully covers the value once the header path is gone, and update its comment.
 
+## The `webauthn.js` event rename
+
+`public/assets/webauthn.js` is **first-party** code (a self-contained passkey module), not a vendored library — so the one HTMX touchpoint inside it is ours to migrate, unlike the rest of the `[old-event]` noise that lives in `htmx_2.0.4.min.js`. At line 228 it attaches `loginForm.addEventListener("htmx:afterRequest", …)` to record a successful password sign-in (every success returns an `HX-Redirect`, which this listener detects to remember the email for the next visit). HTMX 4 renames this event to **`htmx:after:request`**. The fix is a one-line string change.
+
+The catch is coupling: `webauthn.js` is a **single shared file loaded by both `login.html` and `account.html`**, and the listener only fires for whichever event name the loaded HTMX version dispatches. So the rename cannot be staged independently — it must land in the **same step that bumps both `login.html` and `account.html` to v4**. A page still on v2 with the renamed listener (or a v4 page with the old name) silently stops recording logins: nothing errors, the passkey auto-offer just goes stale.
+
+**VERIFY**: after the swap, sign in with a password on `login.html` and confirm the email is remembered (a passkey is auto-offered on the next visit).
+
 ## Migration steps (future execution phase)
 
 - [ ] **Stage A — pilot one page.** Repoint the script tag on a single low-risk static page (`logout.html`) to `htmx_4.0.0-beta4.min.js`, delete its `responseHandling`, rename its `hx-disabled-elt`. Smoke-test end to end.
 - [ ] **Stage B — resolve the VERIFY items** on a page that exercises them (`register.html`): `hx-disable` runtime behaviour, the inheritance decision on live-validation, `hx-sync`/`hx-trigger`/`hx-validate` syntax.
-- [ ] **Stage C — roll out to the remaining static pages**, then the **3 server-rendered functions** (hand-reviewed, since the tool under-reports their attributes). Handle the `account.html` `hx-prompt` rewrite + `email/add.ts` follow-up together.
+- [ ] **Stage C — roll out to the remaining static pages**, then the **3 server-rendered functions** (hand-reviewed, since the tool under-reports their attributes). Handle the `account.html` `hx-prompt` rewrite + `email/add.ts` follow-up together. Bump `login.html` and `account.html` in the **same step** as the `webauthn.js` `htmx:afterRequest` → `htmx:after:request` rename — they share that file and cannot straddle versions (see [the `webauthn.js` event rename](#the-webauthnjs-event-rename)).
 - [ ] **Stage D — clean up:** delete `htmx_2.0.4.min.js` and the unused `.esm*.js` builds (optionally keep the readable `.js` for debugging); update `.github/instructions/frontend.instructions.md` and `docs/Architecture.md` (script src, removed `responseHandling`, `hx-disabled-elt`→`hx-disable`, explicit inheritance).
 
 ## Per-file checklist
 
 Static HTML (repoint script → strip `responseHandling` → rename `hx-disabled-elt` → inheritance review where noted):
 
-- [ ] `public/login.html`
+- [ ] `public/login.html` — loads `webauthn.js` (**rename coupling** — bump with `account.html`)
 - [ ] `public/register.html` — **inheritance** (form → email-exists input)
 - [ ] `public/logout.html`
 - [ ] `public/password-upgrade.html` — **inheritance**
 - [ ] `public/2fa.html`
-- [ ] `public/account.html` — **inheritance** (change-password form) + **`hx-prompt` rewrite** + 6× `hx-disable`
+- [ ] `public/account.html` — **inheritance** (change-password form) + **`hx-prompt` rewrite** + 6× `hx-disable` + loads `webauthn.js` (**rename coupling** — bump with `login.html`)
 - [ ] `public/reset/request.html`
 - [ ] `public/reset/set.html` — **inheritance**
+
+First-party JS:
+
+- [ ] `public/assets/webauthn.js` — rename `htmx:afterRequest` → `htmx:after:request` (line 228); ship in the same step as the `login.html` + `account.html` bump
 
 Server-rendered (hand-review — tool under-reports attributes in `.ts`):
 
@@ -130,7 +144,7 @@ Server-rendered (hand-review — tool under-reports attributes in `.ts`):
 Unit tests (`vitest`) run in plain Node and **never touch the browser**, so they will not catch an HTMX regression. `npm run lint` + `npm run build` confirm the pages compile and Prettier is happy, but manual browser smoke-testing is **mandatory** per flow:
 
 - [ ] Register (live email-exists + password-requirements; verify the inheritance change)
-- [ ] Login — password, passkey, federated provider buttons
+- [ ] Login — password, passkey, federated provider buttons; after a password sign-in, confirm `webauthn.js` still records the email (passkey auto-offered next visit) — exercises the `htmx:after:request` rename
 - [ ] 2FA code entry + "lost authenticator?" bypass
 - [ ] Password upgrade (forced) — live password-requirements field
 - [ ] Logout
@@ -153,7 +167,7 @@ Revert the script `src` on affected files to `/assets/htmx_2.0.4.min.js` and res
 ## Sources
 
 - Official migration guide: `https://four.htmx.org/docs/get-started/migration` (beta, in progress).
-- Official tool output: [`phase-10-htmx4-check.txt`](./phase-10-htmx4-check.txt) — `npx htmx.org@next upgrade-check`, 71 issues across 15 files (incl. `node_modules`/`dist`; the actionable subset is described above).
+- Official tool output: [`phase-10-htmx4-check.txt`](./phase-10-htmx4-check.txt) — `npx htmx.org@next upgrade-check`, 72 issues across 16 files (incl. `node_modules`/`dist`; the actionable subset is described above). The latest run scans `.js` files (3247 scanned, up from 2942), which is what surfaced the `webauthn.js` finding.
 - Vendored source (authoritative for beta4): `public/assets/htmx_4.0.0-beta4.js` — config defaults lines 115-132 (`defaultSwap`, `noSwap`, `implicitInheritance`, indicator classes), status handling `#handleStatusCodes` lines 2151-2166.
 
 ## Out of scope
