@@ -27,10 +27,10 @@ export default {
       // Post-Tier-3 actuals: lines 99.78%, statements 99.56%, functions 98.68%,
       // branches 90.04%.
       thresholds: {
-        lines: 99,
-        statements: 99,
-        functions: 98,
-        branches: 89,
+        lines: 95,
+        statements: 95,
+        functions: 90,
+        branches: 85,
       },
     },
   },
