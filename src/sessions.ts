@@ -60,8 +60,8 @@ export async function verifyTokenAndGetUser(
 
 /**
  * Verifies a session token by opening its own short-lived database connection.
- * For callers that run outside the functions/api/db middleware chain and so
- * have no injected dbClient — e.g. the root functions/_middleware.ts deciding
+ * For callers that run outside the functions/api/_middleware.ts policy chain and
+ * so have no injected dbClient — e.g. the root functions/_middleware.ts deciding
  * whether to redirect an already-logged-in user away from /login.
  *
  * Returns a plain boolean. Fails open: a connection or query error is logged
