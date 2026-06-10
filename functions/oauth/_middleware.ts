@@ -1,5 +1,5 @@
 // DB-connection middleware for /oauth/* routes. The cross-origin write guard
-// from /api/db/_middleware.ts is deliberately omitted — OAuth endpoints are
+// from /api/_middleware.ts is deliberately omitted — OAuth endpoints are
 // by design called cross-site (by client apps for /oauth/token, by users
 // arriving from a client app for /oauth/authorize), so requiring same-origin
 // would break the protocol.

@@ -1,7 +1,7 @@
 import { resultNegative } from "./responses.js"
 import { parseOperatorUuids } from "./operator-uuids.js"
 
-// Operator-only gate for /api/db/auth/admin/... — endpoints that rotate
+// Operator-only gate for /api/admin/... — endpoints that rotate
 // keys, run manual purges, and so on. Puff has no admin role on a user row;
 // instead the operator lists trusted user UUIDs in OPERATOR_USER_UUIDS
 // (comma- or whitespace-separated). An empty list locks the whole section
@@ -17,7 +17,7 @@ export const operatorAuthMiddleware: Handler = async (context) => {
   if (operators.size === 0) {
     console.warn(
       "Admin endpoint blocked: OPERATOR_USER_UUIDS is empty. Set it to the " +
-        "comma-separated UUIDs of trusted operators to unlock /api/db/auth/admin."
+        "comma-separated UUIDs of trusted operators to unlock /api/admin."
     )
     return resultNegative("Admin endpoints are disabled (OPERATOR_USER_UUIDS not configured).", 503)
   }

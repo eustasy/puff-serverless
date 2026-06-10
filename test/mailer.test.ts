@@ -101,7 +101,7 @@ describe("templated senders", () => {
   it("sendVerificationEmail builds an absolute verify link with the token", async () => {
     const fetchMock = stubFetch(new Response("", { status: 200 }))
     await sendVerificationEmail(configured, "a@b.test", "tok 123")
-    expect(sentBody(fetchMock).text).toContain("https://app.example.com/api/db/email/verify?token=tok%20123")
+    expect(sentBody(fetchMock).text).toContain("https://app.example.com/api/email/verify?token=tok%20123")
   })
 
   it("sendPasswordResetEmail builds an absolute reset link", async () => {
@@ -113,7 +113,7 @@ describe("templated senders", () => {
   it("sendTwoFactorBypassEmail builds an absolute bypass link", async () => {
     const fetchMock = stubFetch(new Response("", { status: 200 }))
     await sendTwoFactorBypassEmail(configured, "a@b.test", "btok")
-    expect(sentBody(fetchMock).text).toContain("https://app.example.com/api/db/2fa/bypass/verify?token=btok")
+    expect(sentBody(fetchMock).text).toContain("https://app.example.com/api/2fa/bypass/verify?token=btok")
   })
 
   it("sendOrganisationInvitationEmail builds an absolute /invite link", async () => {

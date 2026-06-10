@@ -13,7 +13,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"])
  * non-browser client with no victim cookie jar, so it is not a CSRF vector and
  * is allowed through.
  *
- * Token-gated GETs (e.g. `/api/db/email/verify`) are exempt automatically:
+ * Token-gated GETs (e.g. `/api/email/verify`) are exempt automatically:
  * GET is a safe method, and the URL token is the capability.
  */
 export const sameOriginWriteGuard: Handler = (context) => {

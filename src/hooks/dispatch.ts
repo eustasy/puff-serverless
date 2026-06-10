@@ -74,7 +74,7 @@ export async function emit(dbClient: DbClient, ctx: EmitContext | null, input: E
  * need to specify what is event-specific.
  *
  * The actor defaults to `context.data.user_uuid` (set by
- * `functions/api/db/auth/_middleware.ts`); pass `actor_user_uuid: null`
+ * `functions/api/_middleware.ts`); pass `actor_user_uuid: null`
  * explicitly for pre-auth events such as failed logins.
  */
 export async function emitFromContext(context: EmitContext, input: EmitInput): Promise<void> {

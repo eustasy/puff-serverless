@@ -29,7 +29,7 @@ export const onRequestGet: Handler<"org_uuid"> = async (context) => {
     return new Response(null, { status: 302, headers })
   }
 
-  const base = `/api/db/auth/organisations/${encodeURIComponent(org_uuid)}`
+  const base = `/api/organisations/${encodeURIComponent(org_uuid)}`
   const orgPage = `/organisations/${encodeURIComponent(org_uuid)}`
 
   const body = `<!doctype html>

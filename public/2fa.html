@@ -24,7 +24,7 @@
     <div class="container">
       <h1>Login</h1>
       <div id="message-area" class="result-area"></div>
-      <form hx-validate="true" hx-post="/api/db/2fa/login" hx-target="#login-result" hx-include="[name='otp']" hx-disabled-elt=".btn-safe">
+      <form hx-validate="true" hx-post="/api/2fa/login" hx-target="#login-result" hx-include="[name='otp']" hx-disabled-elt=".btn-safe">
         <div class="form-group">
           <label for="otp">One-Time Password (OTP):</label>
           <input
@@ -48,7 +48,7 @@
       <details class="tfa-bypass">
         <summary>Lost access to your authenticator?</summary>
         <p>We can email a one-time link to a verified email address on your account. Opening it completes this login without a code.</p>
-        <form hx-post="/api/db/2fa/bypass/request" hx-target="#bypass-result" hx-swap="innerHTML" hx-disabled-elt="button">
+        <form hx-post="/api/2fa/bypass/request" hx-target="#bypass-result" hx-swap="innerHTML" hx-disabled-elt="button">
           <button type="submit" class="btn-safe">
             Email me a bypass link
             <img class="htmx-indicator" src="/assets/bars.svg" alt="">

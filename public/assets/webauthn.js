@@ -104,7 +104,7 @@ async function registerPasskey() {
 
   let startData
   try {
-    const startRes = await fetch("/api/db/auth/passkeys/register/start", {
+    const startRes = await fetch("/api/passkeys/register/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     })
@@ -128,7 +128,7 @@ async function registerPasskey() {
   }
 
   try {
-    const completeRes = await fetch("/api/db/auth/passkeys/register/complete", {
+    const completeRes = await fetch("/api/passkeys/register/complete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(serializeCredential(credential)),
@@ -159,7 +159,7 @@ async function authenticateWithPasskey() {
   try {
     const formData = new FormData()
     formData.append("email", email)
-    const startRes = await fetch("/api/db/passkeys/authenticate/start", {
+    const startRes = await fetch("/api/passkeys/authenticate/start", {
       method: "POST",
       body: formData,
     })
@@ -183,7 +183,7 @@ async function authenticateWithPasskey() {
   }
 
   try {
-    const completeRes = await fetch("/api/db/passkeys/authenticate/complete", {
+    const completeRes = await fetch("/api/passkeys/authenticate/complete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(serializeCredential(credential)),
@@ -221,7 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Login-page only: remember the email across visits and auto-offer a passkey.
   const emailInput = document.getElementById("email")
-  const loginForm = document.querySelector('form[hx-post="/api/db/user/login"]')
+  const loginForm = document.querySelector('form[hx-post="/api/user/login"]')
   if (emailInput && loginForm) {
     // Record a successful password sign-in. Every successful outcome (session,
     // 2FA, or password-upgrade) returns an HX-Redirect; failures do not.

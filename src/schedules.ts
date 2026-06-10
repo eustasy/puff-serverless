@@ -4,7 +4,7 @@
 // CockroachDB Row-Level TTL schedules — one per table — with no Worker
 // involvement. `showSchedules` lets an operator confirm those schedules
 // exist and are healthy without opening a SQL shell. It is surfaced by the
-// operator-only endpoint `/api/db/auth/admin/schedules`.
+// operator-only endpoint `/api/admin/schedules`.
 //
 // Like every other `src/` module it takes `dbClient` as its first parameter
 // and returns a structured envelope rather than throwing or returning raw

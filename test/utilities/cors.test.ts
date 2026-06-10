@@ -99,7 +99,7 @@ describe("externalCorsGuard", () => {
 describe("sameOriginWriteGuard", () => {
   it("allows a safe GET regardless of origin headers", async () => {
     const context = fakeContext({
-      request: new Request("https://app.example/api/db/email/list", { method: "GET" }),
+      request: new Request("https://app.example/api/email/list", { method: "GET" }),
       next: async () => new Response("ok", { status: 200 }),
     })
 
@@ -111,7 +111,7 @@ describe("sameOriginWriteGuard", () => {
 
   it("allows a same-origin POST (Sec-Fetch-Site: same-origin)", async () => {
     const context = fakeContext({
-      request: new Request("https://app.example/api/db/auth/email/primary", {
+      request: new Request("https://app.example/api/email/primary", {
         method: "POST",
         headers: { "Sec-Fetch-Site": "same-origin" },
       }),
@@ -127,7 +127,7 @@ describe("sameOriginWriteGuard", () => {
   it("blocks a cross-origin POST with 403 and never reaches the handler", async () => {
     let reached = false
     const context = fakeContext({
-      request: new Request("https://app.example/api/db/auth/email/primary", {
+      request: new Request("https://app.example/api/email/primary", {
         method: "POST",
         headers: { "Sec-Fetch-Site": "cross-site" },
       }),
@@ -146,7 +146,7 @@ describe("sameOriginWriteGuard", () => {
 
   it("blocks a cross-origin POST identified by a mismatched Origin header", async () => {
     const context = fakeContext({
-      request: new Request("https://app.example/api/db/auth/email/primary", {
+      request: new Request("https://app.example/api/email/primary", {
         method: "POST",
         headers: { Origin: "https://evil.example" },
       }),
@@ -160,7 +160,7 @@ describe("sameOriginWriteGuard", () => {
 
   it("allows a POST that carries neither Sec-Fetch-Site nor Origin (non-browser client)", async () => {
     const context = fakeContext({
-      request: new Request("https://app.example/api/db/auth/email/primary", { method: "POST" }),
+      request: new Request("https://app.example/api/email/primary", { method: "POST" }),
       next: async () => new Response("ok", { status: 200 }),
     })
 

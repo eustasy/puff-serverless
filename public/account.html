@@ -35,7 +35,7 @@
             <button
               type="button"
               class="btn-save"
-              hx-post="/api/db/auth/email/add"
+              hx-post="/api/email/add"
               hx-target="#email-message-area"
               hx-swap="innerHTML"
               hx-disabled-elt="this"
@@ -51,7 +51,7 @@
             <button
               type="button"
               class="btn-safe"
-              hx-get="/api/db/auth/email/list"
+              hx-get="/api/email/list"
               hx-target="#email-list-container"
               hx-swap="innerHTML"
               hx-disabled-elt="this"
@@ -64,7 +64,7 @@
 
         <div id="email-message-area" class="result-area spacer-bottom"></div>
 
-        <div id="email-list-container" hx-get="/api/db/auth/email/list" hx-trigger="load, emailListChanged from:body" hx-swap="innerHTML">
+        <div id="email-list-container" hx-get="/api/email/list" hx-trigger="load, emailListChanged from:body" hx-swap="innerHTML">
           <p>Loading email addresses...</p>
         </div>
 
@@ -78,7 +78,7 @@
 
         <form
           id="change-password-form"
-          hx-post="/api/db/auth/password/change"
+          hx-post="/api/password/change"
           hx-target="#password-message-area"
           hx-swap="innerHTML"
           class="grid-container"
@@ -126,7 +126,7 @@
         <!-- Server messages regarding 2FA operations will appear here -->
         <div id="tfa-message-area" class="result-area spacer-bottom"></div>
 
-        <div id="tfa-status-container" hx-get="/api/db/auth/2fa/status" hx-trigger="load, tfaStatusChanged from:body" hx-swap="innerHTML">
+        <div id="tfa-status-container" hx-get="/api/2fa/status" hx-trigger="load, tfaStatusChanged from:body" hx-swap="innerHTML">
           <p>Loading 2FA status...</p>
         </div>
 
@@ -146,7 +146,7 @@
 
         <div
           id="passkey-list-container"
-          hx-get="/api/db/auth/passkeys/list"
+          hx-get="/api/passkeys/list"
           hx-trigger="load, passkeysChanged from:body"
           hx-swap="innerHTML"
         >
@@ -161,7 +161,7 @@
             <details>
               <summary>Add another provider</summary>
               <div
-                hx-get="/api/db/auth/external-identities/available"
+                hx-get="/api/external-identities/available"
                 hx-trigger="load, externalIdentitiesChanged from:body"
                 hx-swap="innerHTML"
               ></div>
@@ -173,7 +173,7 @@
 
         <div
           id="external-identities-list-container"
-          hx-get="/api/db/auth/external-identities/list"
+          hx-get="/api/external-identities/list"
           hx-trigger="load, externalIdentitiesChanged from:body"
           hx-swap="innerHTML"
         >
@@ -190,7 +190,7 @@
             <button
               type="button"
               class="btn-danger"
-              hx-post="/api/db/auth/session/terminate/all"
+              hx-post="/api/session/terminate/all"
               hx-target="#session-list-container"
               hx-swap="innerHTML"
               hx-disabled-elt="this"
@@ -204,7 +204,7 @@
             <button
               type="button"
               class="btn-safe"
-              hx-get="/api/db/auth/session/list"
+              hx-get="/api/session/list"
               hx-target="#session-list-container"
               hx-swap="innerHTML"
               hx-disabled-elt="this"
@@ -219,7 +219,7 @@
 
         <div
           id="session-list-container"
-          hx-get="/api/db/auth/session/list"
+          hx-get="/api/session/list"
           hx-trigger="load, sessionListChanged from:body"
           hx-swap="innerHTML"
         >
@@ -234,7 +234,7 @@
             <button
               type="button"
               class="btn-safe"
-              hx-get="/api/db/auth/keyvalues/list"
+              hx-get="/api/keyvalues/list"
               hx-target="#keyvalue-list-container"
               hx-swap="innerHTML"
               hx-disabled-elt="this"
@@ -249,7 +249,7 @@
 
         <form
           id="keyvalue-set-form"
-          hx-post="/api/db/auth/keyvalues/set"
+          hx-post="/api/keyvalues/set"
           hx-target="#keyvalue-message-area"
           hx-swap="innerHTML"
           class="grid-container"
@@ -279,7 +279,7 @@
               name="key"
               placeholder="Search keys"
               class="form-input"
-              hx-get="/api/db/auth/keyvalues/list"
+              hx-get="/api/keyvalues/list"
               hx-trigger="keyup changed delay:300ms, search"
               hx-target="#keyvalue-list-container"
               hx-swap="innerHTML"
@@ -289,7 +289,7 @@
 
         <div
           id="keyvalue-list-container"
-          hx-get="/api/db/auth/keyvalues/list"
+          hx-get="/api/keyvalues/list"
           hx-trigger="load, keyValueListChanged from:body"
           hx-swap="innerHTML"
         >
@@ -304,7 +304,7 @@
             <button
               type="button"
               class="btn-safe"
-              hx-get="/api/db/auth/organisations/list"
+              hx-get="/api/organisations/list"
               hx-target="#organisation-list-container"
               hx-swap="innerHTML"
               hx-disabled-elt="this"
@@ -319,7 +319,7 @@
 
         <form
           id="organisation-create-form"
-          hx-post="/api/db/auth/organisations/create"
+          hx-post="/api/organisations/create"
           hx-target="#organisation-message-area"
           hx-swap="innerHTML"
           class="grid-container"
@@ -338,7 +338,7 @@
 
         <div
           id="organisation-list-container"
-          hx-get="/api/db/auth/organisations/list"
+          hx-get="/api/organisations/list"
           hx-trigger="load, organisationsChanged from:body"
           hx-swap="innerHTML"
         >
