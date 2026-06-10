@@ -1,33 +1,30 @@
 lewis@Comrade2024:~/eustasy/puff-serverless$ npx htmx.org@next upgrade-check -- .
-Need to install the following packages:
-htmx.org@4.0.0-beta4
-Ok to proceed? (y) y
 File extensions: .html, .php, .js, .ts, .jinja, .jinja2, .j2, .erb, .hbs
 Use --ext to add more (e.g. --ext .vue --ext .svelte)
 
-Scanning 2942 file(s)...
+Scanning 3247 file(s)...
 
 ./dist/worker/index.js:49276: [removed-config] config "responseHandling" is removed
 ./dist/worker/index.js:51119: [removed-config] config "responseHandling" is removed
 ./dist/worker/index.js:51262: [removed-config] config "responseHandling" is removed
 ./functions/invite.ts:34: [removed-config] config "responseHandling" is removed
-./functions/organisations/[org_uuid].ts:45: [removed-config] config "responseHandling" is removed
-./functions/organisations/[org_uuid]/billing.ts:48: [removed-config] config "responseHandling" is removed
+./functions/organisations/[org_uuid].ts:37: [removed-config] config "responseHandling" is removed
+./functions/organisations/[org_uuid]/billing.ts:42: [removed-config] config "responseHandling" is removed
 ./node_modules/undici/lib/web/eventsource/eventsource.js:473: [removed-config] config "withCredentials" is removed
-./node_modules/wrangler/wrangler-dist/cli.js:29105: [removed-config] config "withCredentials" is removed
+./node_modules/wrangler/wrangler-dist/cli.js:29022: [removed-config] config "withCredentials" is removed
 ./public/2fa.html:8: [removed-config] config "responseHandling" is removed
 ./public/2fa.html:27: [renamed-attr] hx-disabled-elt → rename to hx-disable
-./public/2fa.html:62: [renamed-attr] hx-disabled-elt → rename to hx-disable
+./public/2fa.html:51: [renamed-attr] hx-disabled-elt → rename to hx-disable
 ./public/account.html:8: [removed-config] config "responseHandling" is removed
 ./public/account.html:35: [renamed-attr] hx-disabled-elt → rename to hx-disable
 ./public/account.html:35: [removed-attr] hx-prompt is removed → use hx-confirm with js: prefix
-./public/account.html:50: [renamed-attr] hx-disabled-elt → rename to hx-disable
-./public/account.html:82: [inheritance] hx-target needs :inherited suffix (descendant on line 101 has hx-post)
-./public/account.html:82: [inheritance] hx-swap needs :inherited suffix (descendant on line 101 has hx-post)
-./public/account.html:213: [renamed-attr] hx-disabled-elt → rename to hx-disable
-./public/account.html:226: [renamed-attr] hx-disabled-elt → rename to hx-disable
-./public/account.html:255: [renamed-attr] hx-disabled-elt → rename to hx-disable
-./public/account.html:339: [renamed-attr] hx-disabled-elt → rename to hx-disable
+./public/account.html:51: [renamed-attr] hx-disabled-elt → rename to hx-disable
+./public/account.html:79: [inheritance] hx-target needs :inherited suffix (descendant on line 92 has hx-post)
+./public/account.html:79: [inheritance] hx-swap needs :inherited suffix (descendant on line 92 has hx-post)
+./public/account.html:190: [renamed-attr] hx-disabled-elt → rename to hx-disable
+./public/account.html:204: [renamed-attr] hx-disabled-elt → rename to hx-disable
+./public/account.html:234: [renamed-attr] hx-disabled-elt → rename to hx-disable
+./public/account.html:304: [renamed-attr] hx-disabled-elt → rename to hx-disable
 ./public/assets/htmx_2.0.4.min.js:1: [old-event] old event name "htmx:afterOnLoad" → "htmx:after:init"
 ./public/assets/htmx_2.0.4.min.js:1: [old-event] old event name "htmx:afterProcessNode" → "htmx:after:init"
 ./public/assets/htmx_2.0.4.min.js:1: [old-event] old event name "htmx:afterRequest" → "htmx:after:request"
@@ -52,20 +49,21 @@ Scanning 2942 file(s)...
 ./public/assets/htmx_2.0.4.min.js:1: [old-event] old event name "htmx:swapError" → "htmx:error"
 ./public/assets/htmx_2.0.4.min.js:1: [old-event] old event name "htmx:targetError" → "htmx:error"
 ./public/assets/htmx_2.0.4.min.js:1: [old-event] old event name "htmx:timeout" → "htmx:error"
+./public/assets/htmx_2.0.4.min.js:1: [removed-event] removed event "htmx:validation:failed"
 ./public/assets/htmx_2.0.4.min.js:1: [removed-event] removed event "htmx:validation:validate"
 ./public/assets/htmx_2.0.4.min.js:1: [removed-event] removed event "htmx:validation:halted"
-./public/assets/htmx_2.0.4.min.js:1: [removed-event] removed event "htmx:validation:failed"
 ./public/assets/htmx_2.0.4.min.js:1: [removed-header] "HX-Trigger-After-Swap" is removed → use HX-Trigger or JavaScript instead
 ./public/assets/htmx_2.0.4.min.js:1: [removed-header] "HX-Trigger-After-Settle" is removed → use HX-Trigger or JavaScript instead
+./public/assets/webauthn.js:228: [old-event] old event name "htmx:afterRequest" → "htmx:after:request"
 ./public/login.html:8: [removed-config] config "responseHandling" is removed
-./public/login.html:43: [renamed-attr] hx-disabled-elt → rename to hx-disable
+./public/login.html:35: [renamed-attr] hx-disabled-elt → rename to hx-disable
 ./public/logout.html:8: [removed-config] config "responseHandling" is removed
 ./public/logout.html:27: [renamed-attr] hx-disabled-elt → rename to hx-disable
 ./public/password-upgrade.html:8: [removed-config] config "responseHandling" is removed
-./public/password-upgrade.html:30: [renamed-attr] hx-disabled-elt → rename to hx-disable
-./public/password-upgrade.html:30: [inheritance] hx-target needs :inherited suffix (descendant on line 39 has hx-post)
-./public/password-upgrade.html:30: [inheritance] hx-include needs :inherited suffix (descendant on line 39 has hx-post)
-./public/password-upgrade.html:30: [inheritance] hx-disabled-elt needs :inherited suffix (descendant on line 39 has hx-post)
+./public/password-upgrade.html:27: [renamed-attr] hx-disabled-elt → rename to hx-disable
+./public/password-upgrade.html:27: [inheritance] hx-target needs :inherited suffix (descendant on line 36 has hx-post)
+./public/password-upgrade.html:27: [inheritance] hx-include needs :inherited suffix (descendant on line 36 has hx-post)
+./public/password-upgrade.html:27: [inheritance] hx-disabled-elt needs :inherited suffix (descendant on line 36 has hx-post)
 ./public/register.html:8: [removed-config] config "responseHandling" is removed
 ./public/register.html:26: [renamed-attr] hx-disabled-elt → rename to hx-disable
 ./public/register.html:26: [inheritance] hx-target needs :inherited suffix (descendant on line 51 has hx-get)
@@ -75,9 +73,9 @@ Scanning 2942 file(s)...
 ./public/reset/request.html:26: [renamed-attr] hx-disabled-elt → rename to hx-disable
 ./public/reset/set.html:8: [removed-config] config "responseHandling" is removed
 ./public/reset/set.html:26: [renamed-attr] hx-disabled-elt → rename to hx-disable
-./public/reset/set.html:26: [inheritance] hx-target needs :inherited suffix (descendant on line 46 has hx-post)
-./public/reset/set.html:26: [inheritance] hx-include needs :inherited suffix (descendant on line 46 has hx-post)
-./public/reset/set.html:26: [inheritance] hx-disabled-elt needs :inherited suffix (descendant on line 46 has hx-post)
+./public/reset/set.html:26: [inheritance] hx-target needs :inherited suffix (descendant on line 39 has hx-post)
+./public/reset/set.html:26: [inheritance] hx-include needs :inherited suffix (descendant on line 39 has hx-post)
+./public/reset/set.html:26: [inheritance] hx-disabled-elt needs :inherited suffix (descendant on line 39 has hx-post)
 
-Found 71 issue(s) in 15 of 2942 file(s).
-lewis@Comrade2024:~/eustasy/puff-serverless$
+Found 72 issue(s) in 16 of 3247 file(s).
+lewis@Comrade2024:~/eustasy/puff-serverless
