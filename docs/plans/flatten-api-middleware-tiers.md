@@ -32,7 +32,7 @@ Functions has exactly one mechanism for scoping middleware: directory nesting. A
 depth. The three tiers are therefore *encoded as path segments*:
 
 | Path | What the segment buys you | Source |
-|------|---------------------------|--------|
+| --- | --- | --- |
 | `functions/api/…` | cross-origin guard only | (root `_middleware.ts`) |
 | `functions/api/db/…` | + `pg` client on `context.data.dbClient` | `functions/api/db/_middleware.ts` |
 | `functions/api/db/auth/…` | + `user_uuid` from the session cookie | `functions/api/db/auth/_middleware.ts` |
@@ -73,7 +73,7 @@ The one place we *add* behaviour is the cross-origin tier, which splits into an 
 (first-party, anti-CSRF) and an external (third-party CORS) guard — see
 [Internal vs external CORS](#internal-vs-external-cors).
 
-```
+```text
 BEFORE                                          AFTER
 functions/api/                                  functions/api/
   providers.ts            (public, no db)         providers.ts            ← unchanged tier
@@ -169,7 +169,7 @@ One tier is already a reusable function — `createDbMiddleware(label)` in
 tier is an importable `Handler` with a single source of truth:
 
 | New utility | Lifted verbatim from | Exports |
-|-------------|----------------------|---------|
+| --- | --- | --- |
 | `src/utilities/db-middleware.ts` *(exists)* | — | `createDbMiddleware(label): Handler` |
 | `src/utilities/cors.ts` *(new)* | `api/db/_middleware.ts` → `crossOriginWriteGuard` (renamed `sameOriginWriteGuard`); `externalCorsGuard` is **net-new** | `sameOriginWriteGuard: Handler`, `externalCorsGuard: Handler` |
 | `src/utilities/session-auth.ts` *(new)* | `api/db/auth/_middleware.ts` → `sessionAuthWithCookie` | `sessionAuthMiddleware: Handler` |
