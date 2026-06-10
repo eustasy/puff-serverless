@@ -4,8 +4,8 @@ import { policyFor, type Policy } from "../../functions/api/_middleware.js"
 // Exact paths that need neither DB nor a session (today's functions/api/*.ts).
 const NO_DB_PATHS = ["/api/csp-report", "/api/messages", "/api/password-requirements", "/api/providers"]
 
-// Exact paths that need the DB but no session (today's functions/api/db/*
-// non-auth leaves, mapped to their future flat paths).
+// Exact paths that need the DB but no session (functions/api/* leaves
+// registered in PUBLIC_DB).
 const PUBLIC_DB_PATHS = [
   "/api/user/exists",
   "/api/user/login",
@@ -44,21 +44,16 @@ describe("policyFor", () => {
     expect(policyFor("/api/email/list")).toEqual<Policy>({ db: true, auth: true, operator: false, cors: "internal" })
   })
 
-  // TEMP: these two assertions change in stage 4, when the legacy nested tree
-  // and the legacy billing middleware are deleted and the TEMP passthrough at
-  // the top of policyFor is removed. Until then both prefixes defer to the OLD
-  // middleware (no DB, no auth here), so this file does not double-connect.
-  it("defers legacy /api/db/** paths to the old middleware (TEMP passthrough)", () => {
-    expect(policyFor("/api/db/auth/email/list")).toEqual<Policy>({ db: false, auth: false, operator: false, cors: "internal" })
+  it("returns DB-only, external CORS for the billing webhook (static path)", () => {
+    expect(policyFor("/api/billing/webhook")).toEqual<Policy>({ db: true, auth: false, operator: false, cors: "external" })
   })
 
-  it("defers legacy /api/billing/* paths to the old middleware (TEMP passthrough)", () => {
-    expect(policyFor("/api/billing/webhook")).toEqual<Policy>({ db: false, auth: false, operator: false, cors: "external" })
+  it("returns DB-only, external CORS for the dynamic billing usage path (prefix rule catches dynamic segment)", () => {
+    expect(policyFor("/api/billing/usage/3f9c1a2b-4d5e-6f7a-8b9c-0d1e2f3a4b5c")).toEqual<Policy>({
+      db: true,
+      auth: false,
+      operator: false,
+      cors: "external",
+    })
   })
-
-  // TODO stage 4: once the TEMP passthrough is removed, the dynamic billing
-  // usage path should resolve to the REAL billing policy — DB-only, no session
-  // auth, external CORS — which the prefix rule below the passthrough provides.
-  // Cannot assert it yet because the passthrough shadows it:
-  //   expect(policyFor("/api/billing/usage/<uuid>")).toEqual({ db: true, auth: false, operator: false, cors: "external" })
 })

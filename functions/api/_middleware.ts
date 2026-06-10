@@ -10,15 +10,10 @@ import { operatorAuthMiddleware } from "../../src/utilities/operator-auth.js"
 // the OPERATOR prefix is the one stricter opt-in.
 
 // Need neither DB nor a session (today's functions/api/*.ts leaves).
-const NO_DB = new Set([
-  "/api/csp-report",
-  "/api/messages",
-  "/api/password-requirements",
-  "/api/providers",
-])
+const NO_DB = new Set(["/api/csp-report", "/api/messages", "/api/password-requirements", "/api/providers"])
 
 // Need the DB but no session — login, registration, token-capability flows
-// (today's functions/api/db/* non-auth leaves). Exact paths only: no dynamic
+// (functions/api/* leaves with explicit PUBLIC_DB registration). Exact paths only: no dynamic
 // segment appears in a public route, so a Set is enough and a prefix would be
 // too greedy (e.g. /api/organisations/create must NOT match here).
 const PUBLIC_DB = new Set([
@@ -57,22 +52,10 @@ const corsModeFor = (pathname: string): "internal" | "external" => (pathname.sta
 
 function policyFor(pathname: string): Policy {
   const cors = corsModeFor(pathname)
-  // ── TEMP (delete in the cleanup stage) ──────────────────────────────────
-  // While the legacy nested tree still lives at /api/db/** and the legacy
-  // billing middleware still lives at functions/api/billing/_middleware.ts,
-  // defer those paths to the OLD middleware. Without this, this file would run
-  // a SECOND DB connection + auth on top of the old chain for every legacy
-  // request. billing passes through as "external" so corsGate runs the no-op
-  // externalCorsGuard (not the same-origin block); /api/db passes through as
-  // "internal" (the old db middleware also runs sameOriginWriteGuard — running
-  // it twice is idempotent and harmless).
-  if (pathname.startsWith("/api/db/")) return { db: false, auth: false, operator: false, cors: "internal" }
-  if (pathname.startsWith("/api/billing/")) return { db: false, auth: false, operator: false, cors: "external" }
-  // ── End TEMP ────────────────────────────────────────────────────────────
-
-  // Real billing policy (active once the TEMP passthrough is removed): DB-only,
-  // token/signature-authed in the handler, external CORS. PREFIX because
-  // usage/[app_uuid] is dynamic.
+  // The whole /api/billing subtree is DB-only and token/signature-authed in the
+  // handler (Stripe webhook + the dynamic usage/[app_uuid] API), never session-
+  // authed, and legitimately cross-origin. A PREFIX, not a Set entry, because
+  // usage/[app_uuid] has a dynamic segment an exact match cannot capture.
   if (pathname.startsWith("/api/billing/")) return { db: true, auth: false, operator: false, cors }
   if (NO_DB.has(pathname)) return { db: false, auth: false, operator: false, cors }
   if (PUBLIC_DB.has(pathname)) return { db: true, auth: false, operator: false, cors }
