@@ -20,6 +20,10 @@ only their *selector* changes from folder position to a lookup.
 - [Migrated endpoint example](#migrated-endpoint-example)
 - [Blast radius](#blast-radius)
 - [Execution plan](#execution-plan)
+  - [Sequencing: the new middleware is not inert](#sequencing-the-new-middleware-is-not-inert)
+  - [Stages](#stages)
+  - [Dependency graph](#dependency-graph)
+  - [Models and effort](#models-and-effort)
 - [Trade-offs and risks](#trade-offs-and-risks)
 - [Rejected alternatives](#rejected-alternatives)
 - [Out of scope](#out-of-scope)
@@ -322,31 +326,117 @@ Plus, beyond the raw counts:
 
 ## Execution plan
 
-Staged so each stage is independently reviewable and the tree never half-migrated in a
-way that breaks routing:
+Staged so each stage is independently reviewable and the tree is never half-migrated in
+a way that breaks routing. The ordering is governed by one constraint the naïve "add the
+middleware, then move the files" reading misses.
+
+### Sequencing: the new middleware is not inert
+
+`functions/api/_middleware.ts` cascades to **every** descendant, including the
+still-nested `functions/api/db/**` handlers that exist until their leaves move. So the
+instant the composed middleware lands, a legacy request (`/api/db/auth/email/list`) runs
+**both** chains: the new `[corsGate, maybeDb, maybeAuth, maybeOperator]` and *then* the
+old `db/_middleware.ts` + `db/auth/_middleware.ts` beneath it. `policyFor` sends that
+path to the fail-safe default `{ db: true, auth: true }`, so the Hyperdrive client opens
+twice and session auth runs twice on every legacy route during the window. (An earlier
+draft called this stage "inert" — it is not.)
+
+The reverse order is worse: move handlers to flat paths *before* the new middleware
+exists and they serve **unauthenticated** until it lands — a live hole, not just waste.
+
+The fix is a **temporary passthrough** at the top of `policyFor`, so the new file defers
+legacy paths to the old tree while both coexist:
+
+```ts
+// TEMP (deleted in the cleanup stage): the legacy nested tree still owns these.
+if (pathname.startsWith("/api/db/")) return { db: false, auth: false, operator: false, cors: "internal" }
+```
+
+The only residue is `corsGate` re-running the same-origin check the old
+`crossOriginWriteGuard` also runs — idempotent, harmless. With it in place each leaf
+migrates independently: the moment a handler moves out of `/api/db/` it stops matching
+the passthrough and the real policy applies. When the last subtree has moved, the
+passthrough line and the four old middleware files are deleted in the same stage.
+
+### Stages
 
 1. **Extract the tier functions** (`cors.ts`, `session-auth.ts`, `operator-auth.ts` into
-   `src/utilities/`, bodies lifted verbatim). Repoint the *existing* `_middleware.ts` files
-   at the extracted functions so they keep working unchanged — this stage is a pure
-   no-behaviour-change refactor, independently testable, and the single-DB-function dedup
-   lands here. The one net-new function, `externalCorsGuard` in `cors.ts`, ships with its
-   own unit tests (preflight, allowlisted vs disallowed origin, no-Origin server-to-server)
-   since no existing middleware exercises it.
-2. **Compose + policy table.** Add `functions/api/_middleware.ts` (above), importing the
-   four tier functions. At this stage nothing routes to the flat paths yet, so it is
-   inert — but `npm run typecheck` proves the imports and composition compile.
-3. **Move the leaf handlers** from `functions/api/db/**` to their flattened paths, fixing
-   each file's relative `../src/` import depth (shallower path = fewer `../`). Move whole
-   sub-trees (`organisations/`, `admin/`, `2fa/`, …) intact.
-4. **Delete** the now-dead nesting middleware: `functions/api/db/_middleware.ts`,
-   `functions/api/db/auth/_middleware.ts`, `functions/api/db/auth/admin/_middleware.ts`,
-   `functions/api/billing/_middleware.ts`. The tier *functions* they were extracted into
-   survive in `src/utilities/` and are what the new file composes.
-5. **Rewrite public URLs**: the ~37 + ~52 references in `public/*.html` and any embedded
-   in handler HTML strings (`hx-get` / `hx-post` / `hx-vals` targets).
-6. **Update infra/docs**: `wrangler.jsonc`, `_headers`/CSP, `docs/Architecture.md`,
-   `.github/instructions/architecture.instructions.md`.
-7. **Update tests** and run the gate: `npm run lint && npm test`.
+   `src/utilities/`, bodies lifted verbatim) and repoint the *existing* `_middleware.ts`
+   files at them so they keep working unchanged. The DB-lifecycle dedup also lands here:
+   `api/db/_middleware.ts` becomes `[sameOriginWriteGuard, createDbMiddleware("/api/db")]`,
+   dropping its inline copy. The one net-new function, `externalCorsGuard`, ships with its
+   own unit tests (preflight, allowlisted vs disallowed origin, no-Origin
+   server-to-server). Pure no-behaviour-change refactor; `npm test` guards it alone.
+2. **Compose + policy table + TEMP passthrough.** Add `functions/api/_middleware.ts`
+   (above) importing the four tier functions, *with* the legacy-passthrough line. It now
+   coexists with the old tree safely; `npm run typecheck` proves it compiles.
+3. **Per-subtree flip.** For each subtree (`email/`, `user/`, `password/`,
+   `organisations/`, `2fa/`, `passkeys/`, `admin/`, …): move its leaves to the flat path,
+   fix each file's `../src/` import depth, rewrite that subtree's public URL references
+   (`hx-get` / `hx-post` / `hx-vals`, `public/*.html`, handler HTML strings) **and** its
+   tests — as **one commit per subtree**, each a working app. (This fuses the old steps 3
+   and 5; splitting move from URL-rewrite breaks the app between commits.)
+4. **Cleanup.** Once every subtree has moved: delete the now-dead
+   `functions/api/db/_middleware.ts`, `…/db/auth/_middleware.ts`,
+   `…/db/auth/admin/_middleware.ts`, `functions/api/billing/_middleware.ts`, **and** the
+   TEMP passthrough line. The extracted tier functions in `src/utilities/` survive.
+5. **Infra + docs.** Functional config (`wrangler.jsonc` `run_worker_first`, `_headers`/CSP
+   if any directive names these paths) is flip-coupled — land it with the stage-3 commit
+   that moves the relevant path. Prose (`docs/Architecture.md`,
+   `.github/instructions/architecture.instructions.md`) is deferrable to the end.
+6. **Gate.** `npm run lint && npm test`, plus the two net-new assertions: fail-safe
+   default (an unlisted path is db+auth) and the CORS boundary (`/api/billing/*` external,
+   a representative cookie endpoint internal).
+
+> **Two gotchas the real tree surfaces.** (a) The org subtree carries **three
+> resource-scoped middlewares** — `organisations/[org_uuid]/_middleware.ts`,
+> `…/apps/[app_uuid]/_middleware.ts`, `…/teams/[team_uuid]/_middleware.ts` — that enforce
+> per-resource membership/role authz. These are **not** tier middleware: they relocate
+> **intact** with their subtree in stage 3 and must survive stage 4's deletion (which
+> targets only the four named tier files). (b) Two source subtrees **merge** into one flat
+> dir: the public `functions/api/db/organisations/invitation/view.ts` and the authed
+> `functions/api/db/auth/organisations/**` both flatten to `functions/api/organisations/**`.
+> Policy is per-path so they coexist, but the move must merge, not overwrite.
+
+### Dependency graph
+
+```
+1  extract tiers ──────────────► old tree still green, independently testable
+      │
+2  add api/_middleware.ts + TEMP /api/db/ passthrough   (safe coexistence)
+      │
+3  per-subtree flip ─ email/ · user/ · password/ · organisations/ · 2fa/ · … ─┐
+      │  each commit ships; functional infra rides along                       │ repeat
+      └─────────────────────────────────────────────────────────────────────────┘
+      │
+4  delete 4 old _middleware.ts + remove TEMP passthrough   (only after ALL moved)
+      │
+5  docs ─ deferrable, may start any time after stage 1
+      │
+6  full gate: npm run lint && npm test
+```
+
+Hard edges: **1 → 2 → 3\* → 4 → 6.** What floats: the *new* tests (CORS boundary,
+fail-safe) can be written right after stage 1; the **docs** half of stage 5 anytime; the
+**functional** half of stage 5 is bound to the stage-3 commit that moves its paths.
+
+### Models and effort
+
+The cost concentrates in the design / security / test stages; the bulk file motion is
+mechanical and best driven by scripts + grep verification rather than model reasoning.
+
+| Stage | Character | Model | Effort | Why |
+|-------|-----------|-------|--------|-----|
+| 1 Extract + DB dedup + `externalCorsGuard` + tests | Net-new behaviour on a CSRF boundary | **Opus** | **High** | Not a pure lift: the dedup must preserve cors-guard ordering and the new guard is security-sensitive. Human review mandatory. |
+| 2 Policy table + passthrough | Security-critical **enumeration** | **Opus** | **High** | Every `NO_DB` / `PUBLIC_DB` entry is a security decision; correctness needs the real endpoint inventory, not the sample lists. |
+| 3 Move + import depth + URL rewrite | Mechanical, voluminous, miscount-prone | **Sonnet** | **Medium** | `git mv` + `../` recompute + two precise URL rewrites; verify each subtree's count to zero with grep. |
+| 4 Delete + un-passthrough | Trivial, order-gated | **Haiku** | **Low** | Pure deletions; the only skill is not doing it before stage 3 finishes. |
+| 5 Infra + docs | Config correctness + prose | **Sonnet** (config) / **Opus** (docs) | **Medium** | Wrong `run_worker_first`/CSP = silent breakage; the docs rewrite must explain the policy-table model. |
+| 6 Tests + gate | New test design + iterative debug | **Opus** | **High → Medium** | Fail-safe and CORS-boundary assertions are judgment; chasing gate fallout across ~90 files needs capability. |
+
+Throughout: cookie `Secure` / `SameSite` stay env-driven (never hardcoded); fixes are
+**manual, not autoformatted**; diff with `--ignore-all-space` to keep CRLF churn out of
+the change.
 
 ## Trade-offs and risks
 
