@@ -97,6 +97,21 @@ function rememberLogin(email, viaPasskey) {
   }
 }
 
+// Stop auto-offering a passkey on this device while keeping the remembered
+// email for pre-fill. Called when the device's "I hold a passkey" belief has
+// gone stale: the passkey was removed (here or elsewhere) so the auto-offer
+// would otherwise keep prompting for a credential that no longer exists.
+function forgetPasskey() {
+  try {
+    const prev = readLastLogin()
+    if (prev && prev.usedPasskey) {
+      localStorage.setItem(LAST_LOGIN_KEY, JSON.stringify({ email: prev.email, usedPasskey: false }))
+    }
+  } catch {
+    // localStorage unavailable — nothing to forget.
+  }
+}
+
 // Registration — called from the register passkey button in account.html
 async function registerPasskey() {
   const msgArea = document.getElementById("passkey-message-area")
@@ -143,15 +158,18 @@ async function registerPasskey() {
   }
 }
 
-// Authentication — called from the passkey login button in login.html
-async function authenticateWithPasskey() {
+// Authentication — called from the passkey login button in login.html, or
+// automatically on page load when this device last signed in with a passkey.
+// `auto` offers fall back to the visible login form silently rather than
+// surfacing errors, and forget the passkey when the device can't satisfy it.
+async function authenticateWithPasskey(auto = false) {
   const resultArea = document.getElementById("passkey-result")
   if (resultArea) resultArea.innerHTML = ""
 
   const emailInput = document.getElementById("email")
   const email = emailInput ? emailInput.value.trim() : ""
   if (!email) {
-    if (resultArea) resultArea.innerHTML = '<p class="result-negative">Please enter your email address.</p>'
+    if (!auto && resultArea) resultArea.innerHTML = '<p class="result-negative">Please enter your email address.</p>'
     return
   }
 
@@ -168,7 +186,10 @@ async function authenticateWithPasskey() {
     }
     options = await startRes.json()
   } catch {
-    if (resultArea) resultArea.innerHTML = '<p class="result-negative">Could not start passkey authentication. Please try again.</p>'
+    // A transient start failure on an auto-offer just falls back to the form;
+    // it isn't evidence the passkey is gone, so don't forget it.
+    if (!auto && resultArea)
+      resultArea.innerHTML = '<p class="result-negative">Could not start passkey authentication. Please try again.</p>'
     return
   }
 
@@ -178,6 +199,13 @@ async function authenticateWithPasskey() {
       publicKey: prepareRequestOptions(options),
     })
   } catch {
+    // An auto-offer the device can't satisfy (passkey removed here or on
+    // another device) must not keep prompting on every visit — forget it and
+    // fall back to the form. Manual attempts surface the failure as before.
+    if (auto) {
+      forgetPasskey()
+      return
+    }
     if (resultArea) resultArea.innerHTML = '<p class="result-negative">Passkey authentication was cancelled or failed.</p>'
     return
   }
@@ -219,6 +247,20 @@ document.addEventListener("DOMContentLoaded", () => {
     })
   }
 
+  // Account-page only: keep the login-page auto-offer honest. The list renders
+  // either passkey rows or the "No passkeys registered yet" empty marker
+  // (.result-info); it re-renders on load and whenever passkeys change. An
+  // empty list means the account holds no passkeys at all, so no device can
+  // sign in with one — forget the auto-offer.
+  const passkeyList = document.getElementById("passkey-list-container")
+  if (passkeyList) {
+    passkeyList.addEventListener("htmx:after:swap", () => {
+      if (!passkeyList.querySelector(".passkey-row") && passkeyList.querySelector(".result-info")) {
+        forgetPasskey()
+      }
+    })
+  }
+
   // Login-page only: remember the email across visits and auto-offer a passkey.
   const emailInput = document.getElementById("email")
   const loginForm = document.querySelector('form[hx-post="/api/user/login"]')
@@ -243,8 +285,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (last && last.email) {
       if (!emailInput.value) emailInput.value = last.email
       // If a passkey was used for this email on this device, offer it straight
-      // away. Cancel/failure surfaces in #passkey-result and the form remains.
-      if (last.usedPasskey && !justLoggedOut) authenticateWithPasskey()
+      // away. A failed auto-offer forgets the passkey and falls back to the
+      // form silently (see authenticateWithPasskey), so a removed passkey
+      // stops prompting instead of nagging on every visit.
+      if (last.usedPasskey && !justLoggedOut) authenticateWithPasskey(true)
     }
   }
 })
