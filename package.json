@@ -21,13 +21,13 @@
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
-    "@types/node": "^26.0.1",
+    "@types/node": "^26.1.2",
     "@types/pg": "^8.20.0",
     "@types/zxcvbn": "^4.4.5",
-    "@vitest/coverage-v8": "^4.1.9",
-    "prettier": "3.9.4",
+    "@vitest/coverage-v8": "^4.1.10",
+    "prettier": "3.9.6",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8",
-    "wrangler": "^4.114.0"
+    "wrangler": "^4.115.0"
   }
 }
