@@ -26,7 +26,7 @@
     "@types/zxcvbn": "^4.4.5",
     "@vitest/coverage-v8": "^4.1.10",
     "prettier": "3.9.6",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.8",
     "wrangler": "^4.115.0"
   }
