@@ -14,7 +14,7 @@
     "format:fix": "git ls-files -- '*.js' '*.ts' '*.mjs' '*.cjs' '*.mts' '*.cts' | xargs -r qlty fmt --filter=prettier"
   },
   "dependencies": {
-    "@simplewebauthn/server": "^13.3.3",
+    "@simplewebauthn/server": "^14.0.2",
     "otplib": "^13.5.0",
     "pg": "^8.23.0",
     "uqr": "^0.1.3",
