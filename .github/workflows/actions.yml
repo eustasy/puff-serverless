@@ -1,34 +1,32 @@
 # eustasy/.Normal 4.0beta16
-name: "Normal: CSS/SCSS"
+name: "Normal: Actions"
 on:
   workflow_dispatch:
   push:
     branches: [cf-pages]
     paths:
-      - "**.css"
-      - "**.scss"
-      - ".github/workflows/css.yml"
-      - ".qlty/configs/.stylelintrc.json"
+      - ".github/workflows/**"
+      - ".github/actionlint.yaml"
+      - ".github/zizmor.yml"
       - ".qlty/qlty.toml"
   pull_request:
     branches: [cf-pages]
     paths:
-      - "**.css"
-      - "**.scss"
-      - ".github/workflows/css.yml"
-      - ".qlty/configs/.stylelintrc.json"
+      - ".github/workflows/**"
+      - ".github/actionlint.yaml"
+      - ".github/zizmor.yml"
       - ".qlty/qlty.toml"
 
 permissions:
   contents: read
 
 jobs:
-  css:
-    name: Lint + format
+  actions:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: eustasy/.normal/css@v4
+      - uses: eustasy/.normal/actions@v4
