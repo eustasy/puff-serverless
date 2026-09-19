@@ -1,5 +1,5 @@
 import { generateAuthenticationOptions } from "@simplewebauthn/server"
-import type { AuthenticatorTransportFuture } from "@simplewebauthn/server"
+import type { AuthenticatorTransport } from "@simplewebauthn/server"
 import { generateChallenge, isoBase64URL } from "@simplewebauthn/server/helpers"
 import { listPasskeys, getRpConfig } from "../../../../src/passkeys.js"
 import { getUserByEmail } from "../../../../src/users.js"
@@ -39,7 +39,7 @@ export const onRequestPost: Handler = async (context) => {
 
   let allowCredentials: {
     id: string
-    transports?: AuthenticatorTransportFuture[]
+    transports?: AuthenticatorTransport[]
   }[] = []
 
   if (userResult.success) {
@@ -48,7 +48,7 @@ export const onRequestPost: Handler = async (context) => {
     if (passkeysResult.success && passkeysResult.passkeys.length > 0) {
       allowCredentials = passkeysResult.passkeys.map((pk: PasskeyRow) => ({
         id: pk.credential_id,
-        transports: (pk.transports ?? []) as AuthenticatorTransportFuture[],
+        transports: (pk.transports ?? []) as AuthenticatorTransport[],
       }))
     }
 
