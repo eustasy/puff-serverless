@@ -24,10 +24,10 @@
     "@types/node": "^26.6.1",
     "@types/pg": "^8.23.1",
     "@types/zxcvbn": "^4.4.5",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^5.0.1",
     "prettier": "3.9.7",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.8",
+    "vitest": "^5.0.1",
     "wrangler": "^4.132.0"
   }
 }
