@@ -68,12 +68,17 @@ async function stripeRequest(
   }
   if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey
 
-  const response = await fetch(`${STRIPE_API_BASE}${path}`, {
+  // body is attached only when set, so a GET never carries one. Passing
+  // `body: undefined` is harmless at runtime but oxlint cannot prove `method`
+  // is not "GET" at the call site.
+  const init: RequestInit = {
     method,
     headers,
-    body: encoded,
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  })
+  }
+  if (encoded !== undefined) init.body = encoded
+
+  const response = await fetch(`${STRIPE_API_BASE}${path}`, init)
 
   const json = (await response.json().catch(() => ({}))) as Record<string, unknown>
   if (!response.ok) {
