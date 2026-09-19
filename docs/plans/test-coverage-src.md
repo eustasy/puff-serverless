@@ -7,7 +7,7 @@ Plan to raise unit-test coverage of the `src/` domain layer from its current
 The deficit is **981 uncovered lines out of 2801**. The headline finding is that
 **roughly half the gap (486 lines) is in 20 modules that have no test file at
 all** — not in hard-to-reach branches. Every one of those modules is reachable
-with the *existing* plain-Node + `FakeDb` harness; none needs
+with the _existing_ plain-Node + `FakeDb` harness; none needs
 `@cloudflare/vitest-pool-workers`. So most of the work is mechanical: write the
 missing `*.test.ts` files using patterns this repo already uses elsewhere.
 

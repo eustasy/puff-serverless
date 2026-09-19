@@ -46,7 +46,7 @@ The policy is **fail-safe by default**: any `/api/*` path not listed in the `NO_
 
 Endpoints read `context.data.dbClient` / `context.data.user_uuid` directly — never re-connect or re-authenticate in a handler.
 
-The three resource-scoped middlewares under `functions/api/organisations/[org_uuid]/` (plus `.../apps/[app_uuid]/` and `.../teams/[team_uuid]/`) are **not** part of the tier model: they run *after* the policy middleware to resolve per-resource membership/roles for that subtree's authz, and are described in the backend instructions.
+The three resource-scoped middlewares under `functions/api/organisations/[org_uuid]/` (plus `.../apps/[app_uuid]/` and `.../teams/[team_uuid]/`) are **not** part of the tier model: they run _after_ the policy middleware to resolve per-resource membership/roles for that subtree's authz, and are described in the backend instructions.
 
 ### `src/` domain modules
 

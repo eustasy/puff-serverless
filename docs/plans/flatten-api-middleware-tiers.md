@@ -6,7 +6,7 @@ Plan to remove the `db` and `auth` segments from public API URLs (`/api/db/auth/
 
 This is a structural refactor, not a behaviour change: the same four request-handling
 tiers (cross-origin guard → DB → session auth → operator gate) run exactly as today;
-only their *selector* changes from folder position to a lookup.
+only their _selector_ changes from folder position to a lookup.
 
 ## Table of Contents
 
@@ -33,7 +33,7 @@ only their *selector* changes from folder position to a lookup.
 The `db` and `auth` path segments are **load-bearing**, not cosmetic. Cloudflare Pages
 Functions has exactly one mechanism for scoping middleware: directory nesting. A
 `_middleware.ts` runs for its folder and every descendant, and the chain composes by
-depth. The three tiers are therefore *encoded as path segments*:
+depth. The three tiers are therefore _encoded as path segments_:
 
 | Path | What the segment buys you | Source |
 | --- | --- | --- |
@@ -42,13 +42,13 @@ depth. The three tiers are therefore *encoded as path segments*:
 | `functions/api/db/auth/…` | + `user_uuid` from the session cookie | `functions/api/db/auth/_middleware.ts` |
 | `functions/api/db/auth/admin/…` | + operator-UUID gate | `functions/api/db/auth/admin/_middleware.ts` |
 
-The strength of this scheme is that it is *physically impossible* to put a handler in
+The strength of this scheme is that it is _physically impossible_ to put a handler in
 the auth tier without it being authed — placement **is** the policy. The costs are (1)
 the tier names leak into every public URL, and (2) the failure mode is **unsafe**: drop
 a file one level too shallow and it silently loses authentication.
 
 There is already a crack in the model: `functions/api/billing/` needed DB-but-not-auth,
-so it spun up a *parallel* branch using the `createDbMiddleware("/api/billing")` factory
+so it spun up a _parallel_ branch using the `createDbMiddleware("/api/billing")` factory
 (`src/utilities/db-middleware.ts`) rather than fitting the tree. That factory is proof
 the team is already comfortable parameterising middleware instead of relying purely on
 directory position.
@@ -56,7 +56,7 @@ directory position.
 ## The constraint
 
 You **cannot** keep the ugly tree behind a pretty URL via a rewrite. Pages resolves the
-route to a function module *around* the middleware chain; `context.next(newRequest)`
+route to a function module _around_ the middleware chain; `context.next(newRequest)`
 only changes the static-asset fallthrough, not which `.ts` handler is selected. The
 pretty URL has to be the real directory path. So the only way to drop the segments is to
 **stop using directory nesting as the middleware selector** — which is what this plan does.
@@ -73,7 +73,7 @@ Critically, the new file does **not** re-implement the tier logic. Each tier is 
 siblings extracted from today's middleware bodies — and the new `_middleware.ts`
 **composes those by reference**, conditionally per policy. Same functions the four
 middleware files run today; we relocate them, we do not merge their bodies into one blob.
-The one place we *add* behaviour is the cross-origin tier, which splits into an internal
+The one place we _add_ behaviour is the cross-origin tier, which splits into an internal
 (first-party, anti-CSRF) and an external (third-party CORS) guard — see
 [Internal vs external CORS](#internal-vs-external-cors).
 
@@ -99,7 +99,7 @@ functions/api/                                  functions/api/
 ### Fail-safe default
 
 The policy table's **default for any unlisted `/api/*` path is the most-protected tier**
-(`{ db: true, auth: true }`). The two enumerated sets are the *explicit opt-outs*; the
+(`{ db: true, auth: true }`). The two enumerated sets are the _explicit opt-outs_; the
 `admin/` prefix is the one stricter opt-in. Consequences:
 
 - A new endpoint someone forgets to register is **locked down**, not exposed — the
@@ -122,10 +122,10 @@ so it splits into two functions selected by the policy's `cors` field:
 - **`sameOriginWriteGuard`** (internal, the default — today's logic verbatim). First-party
   HTMX endpoints authenticated by the ambient `session_token` cookie. Because the
   credential is ambient, these are CSRF-able, so state-changing methods **must** be
-  same-origin (`Sec-Fetch-Site: same-origin`, `Origin` fallback). This is a *block*, not
+  same-origin (`Sec-Fetch-Site: same-origin`, `Origin` fallback). This is a _block_, not
   CORS proper — it adds no `Access-Control-*` headers.
 - **`externalCorsGuard`** (external, opt-in for `/api/billing/*`). Third-party callers
-  authenticated by a Stripe signature or app token *inside the handler*, never by the
+  authenticated by a Stripe signature or app token _inside the handler_, never by the
   session cookie. Same-origin enforcement is both **wrong** (they are legitimately
   cross-origin) and **unnecessary** (no ambient credential ⇒ no CSRF vector). Instead this
   is real CORS: it answers the `OPTIONS` preflight and echoes an allowlisted `Origin` onto
@@ -174,16 +174,16 @@ tier is an importable `Handler` with a single source of truth:
 
 | New utility | Lifted verbatim from | Exports |
 | --- | --- | --- |
-| `src/utilities/db-middleware.ts` *(exists)* | — | `createDbMiddleware(label): Handler` |
-| `src/utilities/cors.ts` *(new)* | `api/db/_middleware.ts` → `crossOriginWriteGuard` (renamed `sameOriginWriteGuard`); `externalCorsGuard` is **net-new** | `sameOriginWriteGuard: Handler`, `externalCorsGuard: Handler` |
-| `src/utilities/session-auth.ts` *(new)* | `api/db/auth/_middleware.ts` → `sessionAuthWithCookie` | `sessionAuthMiddleware: Handler` |
-| `src/utilities/operator-auth.ts` *(new)* | `api/db/auth/admin/_middleware.ts` → `operatorAuthorise` | `operatorAuthMiddleware: Handler` |
+| `src/utilities/db-middleware.ts` _(exists)_ | — | `createDbMiddleware(label): Handler` |
+| `src/utilities/cors.ts` _(new)_ | `api/db/_middleware.ts` → `crossOriginWriteGuard` (renamed `sameOriginWriteGuard`); `externalCorsGuard` is **net-new** | `sameOriginWriteGuard: Handler`, `externalCorsGuard: Handler` |
+| `src/utilities/session-auth.ts` _(new)_ | `api/db/auth/_middleware.ts` → `sessionAuthWithCookie` | `sessionAuthMiddleware: Handler` |
+| `src/utilities/operator-auth.ts` _(new)_ | `api/db/auth/admin/_middleware.ts` → `operatorAuthorise` | `operatorAuthMiddleware: Handler` |
 
 Every body except `externalCorsGuard` moves unchanged — they already use the shared leaf
 helpers (`getCookie`, `verifyTokenAndGetUser`, `unauthorizedResponse`,
 `parseOperatorUuids`, `resultNegative`). The lone new behaviour is `externalCorsGuard`
 (see [Internal vs external CORS](#internal-vs-external-cors)). A useful side effect:
-`api/db/_middleware.ts` currently carries its *own* inline `databaseConnectionMiddleware`,
+`api/db/_middleware.ts` currently carries its _own_ inline `databaseConnectionMiddleware`,
 a second copy of the DB-lifecycle logic that `createDbMiddleware` already implements;
 extraction collapses that duplicate, leaving exactly one DB-connection function in the
 codebase.
@@ -291,7 +291,7 @@ tier whose prerequisite was skipped (e.g. `sessionAuthMiddleware` always finds
 `context.data.dbClient`). `policyFor` is called up to four times per request — trivial;
 memoise on `context.data` if it ever shows up. The whole point is that the five imported
 functions are byte-for-byte (the external CORS guard, new) what runs today; this file
-only chooses *which* run.
+only chooses _which_ run.
 
 ## Migrated endpoint example
 
@@ -340,13 +340,13 @@ middleware, then move the files" reading misses.
 `functions/api/_middleware.ts` cascades to **every** descendant, including the
 still-nested `functions/api/db/**` handlers that exist until their leaves move. So the
 instant the composed middleware lands, a legacy request (`/api/db/auth/email/list`) runs
-**both** chains: the new `[corsGate, maybeDb, maybeAuth, maybeOperator]` and *then* the
+**both** chains: the new `[corsGate, maybeDb, maybeAuth, maybeOperator]` and _then_ the
 old `db/_middleware.ts` + `db/auth/_middleware.ts` beneath it. `policyFor` sends that
 path to the fail-safe default `{ db: true, auth: true }`, so the Hyperdrive client opens
 twice and session auth runs twice on every legacy route during the window. (An earlier
 draft called this stage "inert" — it is not.)
 
-The reverse order is worse: move handlers to flat paths *before* the new middleware
+The reverse order is worse: move handlers to flat paths _before_ the new middleware
 exists and they serve **unauthenticated** until it lands — a live hole, not just waste.
 
 The fix is a **temporary passthrough** at the top of `policyFor`, so the new file defers
@@ -366,14 +366,14 @@ passthrough line and the four old middleware files are deleted in the same stage
 ### Stages
 
 1. **Extract the tier functions** (`cors.ts`, `session-auth.ts`, `operator-auth.ts` into
-   `src/utilities/`, bodies lifted verbatim) and repoint the *existing* `_middleware.ts`
+   `src/utilities/`, bodies lifted verbatim) and repoint the _existing_ `_middleware.ts`
    files at them so they keep working unchanged. The DB-lifecycle dedup also lands here:
    `api/db/_middleware.ts` becomes `[sameOriginWriteGuard, createDbMiddleware("/api/db")]`,
    dropping its inline copy. The one net-new function, `externalCorsGuard`, ships with its
    own unit tests (preflight, allowlisted vs disallowed origin, no-Origin
    server-to-server). Pure no-behaviour-change refactor; `npm test` guards it alone.
 2. **Compose + policy table + TEMP passthrough.** Add `functions/api/_middleware.ts`
-   (above) importing the four tier functions, *with* the legacy-passthrough line. It now
+   (above) importing the four tier functions, _with_ the legacy-passthrough line. It now
    coexists with the old tree safely; `npm run typecheck` proves it compiles.
 3. **Per-subtree flip.** For each subtree (`email/`, `user/`, `password/`,
    `organisations/`, `2fa/`, `passkeys/`, `admin/`, …): move its leaves to the flat path,
@@ -421,7 +421,7 @@ passthrough line and the four old middleware files are deleted in the same stage
 6  full gate: npm run lint && npm test
 ```
 
-Hard edges: **1 → 2 → 3\* → 4 → 6.** What floats: the *new* tests (CORS boundary,
+Hard edges: **1 → 2 → 3\* → 4 → 6.** What floats: the _new_ tests (CORS boundary,
 fail-safe) can be written right after stage 1; the **docs** half of stage 5 anytime; the
 **functional** half of stage 5 is bound to the stage-3 commit that moves its paths.
 
@@ -449,15 +449,15 @@ the change.
   sync with the route files. Mitigated by the fail-safe default (a missed registration
   over-protects, never under-protects) — but it is a real cost the directory scheme did
   not have.
-- **Loss of the "impossible to misplace" guarantee.** Today, an authed endpoint *cannot*
+- **Loss of the "impossible to misplace" guarantee.** Today, an authed endpoint _cannot_
   be unauthed without moving its file out of the tree. After this change, auth is a table
   entry; correctness depends on the default being safe and on tests. Net security posture
-  is *better* (safe default) but the guarantee is now runtime/config, not structural.
+  is _better_ (safe default) but the guarantee is now runtime/config, not structural.
 - **Wide diff.** ~90 files touched. Risk is mechanical error (a missed URL rename surfaces
   as a 404/405 in testing, not a silent security issue). Staging + the lint/test gate
   contains it.
 - **A CORS guard now runs for the no-DB tier too.** Today `functions/api/*.ts` leaves
-  (e.g. `/api/csp-report`) sit *above* the cross-origin guard and never see it; under this
+  (e.g. `/api/csp-report`) sit _above_ the cross-origin guard and never see it; under this
   design every `/api/*` request passes through `corsGate` (element 0, ungated), which
   routes to the internal or external guard by policy. Confirm `/api/csp-report` (a `POST`
   from the browser, same-origin → internal guard) and any other no-DB POST still pass
@@ -472,8 +472,8 @@ the change.
 - **The extraction is the safety net, not free.** Three middleware bodies move to
   `src/utilities/` before anything reroutes (step 1). Done as a verbatim lift with the old
   files still importing them, it is a behaviour-preserving refactor that `npm test` can
-  guard on its own — so a bug in the *composition* (step 2+) can't be confused with a bug
-  in a *tier*. The cost is one extra reviewable stage.
+  guard on its own — so a bug in the _composition_ (step 2+) can't be confused with a bug
+  in a _tier_. The cost is one extra reviewable stage.
 
 ## Rejected alternatives
 
@@ -484,7 +484,7 @@ the change.
 - **Rewrite layer** (pretty URL in front, `db/auth` tree behind). Not possible in Pages
   Functions — see [The constraint](#the-constraint).
 - **Renaming the segments** to something less leaky. Does not satisfy the goal (the user
-  wants the segments *absent*, not nicer).
+  wants the segments _absent_, not nicer).
 
 ## Out of scope
 

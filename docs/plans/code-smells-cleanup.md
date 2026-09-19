@@ -27,7 +27,7 @@ is voluntary quality work, and "leave it" is a legitimate, documented outcome.
 model layer (`src/`).** Every "many returns" / "high complexity" / "deeply nested" /
 "high total complexity" finding is the codebase's deliberate **guard-clause +
 structured-envelope idiom**, which `CLAUDE.md` and `.github/instructions/backend.instructions.md`
-*mandate* ("Validate all input at the top of the handler, before any DB or
+_mandate_ ("Validate all input at the top of the handler, before any DB or
 business-logic call"). Collapsing those returns means re-nesting into `if/else`
 pyramids — strictly worse. We leave them.
 
@@ -52,7 +52,7 @@ Documented so we don't reconsider these every time the report is run.
 `Function with high complexity`, `High total complexity`, `Deeply nested control flow`.
 Root cause is the mandated idiom (top-of-handler validation returning
 `resultNegative(...)`; `src/` functions returning `{ success } | { error } | { exists }`
-envelopes rather than throwing). The branch count *is* the validation surface.
+envelopes rather than throwing). The branch count _is_ the validation surface.
 
 The scary-looking outliers (complexity ≥ 30), all **reviewed and accepted**:
 
@@ -68,7 +68,7 @@ The scary-looking outliers (complexity ≥ 30), all **reviewed and accepted**:
 - `src/utilities/oauth-token.ts` — `buildIdToken` 33
 - `functions/api/csp-report.ts` — 30
 
-> **Refinement (maintainer call):** controller complexity is *not* acceptable when the
+> **Refinement (maintainer call):** controller complexity is _not_ acceptable when the
 > function reasonably contains **extractable logic** — only the irreducible
 > validate-then-return guard surface is. `oauth/token.ts` (81) and `oauth/userinfo.ts`
 > (60) crossed that line, so they were decomposed — see [Tier D](#tier-d--controller-decomposition-done).
@@ -117,14 +117,14 @@ tangling. Left.
 ### "Complex binary expression" ×2 — LEAVE (or trivial)
 
 `functions/api/db/user/register.ts` and `src/oauth-keys.ts`. Each is a single boolean
-expression flagged for term count. Only worth a named-const extraction *if* we are
+expression flagged for term count. Only worth a named-const extraction _if_ we are
 editing those lines anyway for another reason.
 
 ## What we ARE doing — duplication, tiered by risk
 
 All 24 genuine duplication findings are in `src/`. Grouped by risk so we can stop after
 any tier with the tree green. **Invariant for every change: public function signatures
-and their JSDoc stay exactly as-is.** We only extract *private* helpers behind them, so
+and their JSDoc stay exactly as-is.** We only extract _private_ helpers behind them, so
 no caller and no test changes.
 
 ### Tier A — mechanical (within-file twins)
@@ -144,7 +144,7 @@ functions become thin one-liner delegates. Near-zero risk. ~14 findings.
   - **Bonus observed:** the wrappers' outer `try/catch` is effectively **dead** —
     `createToken` already swallows its own errors and returns an envelope, and the only
     other statement (`new Date().toISOString()`) cannot throw. So the wrappers' custom
-    "Server error while creating *X* token." messages never actually surface (the caller
+    "Server error while creating _X_ token." messages never actually surface (the caller
     gets `createToken`'s generic message). The shared helper can drop the dead `try/catch`;
     behaviour is unchanged because it was already unreachable.
 - **`src/apps.ts`** (dup ×4) — `readApp` / `readAppByClientId` differ only in the WHERE
@@ -157,7 +157,7 @@ functions become thin one-liner delegates. Near-zero risk. ~14 findings.
   → extract the shared read/validate step.
 - **`src/keyvalues-resolver.ts`** (dup ×2, 15 lines) — repeated resolution-step block
   inside `resolveKeyValue`. Extract the step helper. NOTE: the function's complexity (20)
-  / many-returns (9) is the **resolver-precedence chain** and is *inherent* — only the
+  / many-returns (9) is the **resolver-precedence chain** and is _inherent_ — only the
   duplicated block is addressed, not the branch count.
 - **`src/users.ts`** (dup ×2, 17 lines) — a within-file repeated block (candidates:
   `disableUser`/`enableUser` or the two `getUserBy*` lookups — confirm at execution).
@@ -259,7 +259,7 @@ and the full `src/` suite + `tsc` stay green.
   validation + user lookup, then one `buildUserInfoClaims` call.
 - **`token.ts`** — split the two ~60-line grant branches into `handleAuthorizationCodeGrant`
   / `handleRefreshTokenGrant`. **Placement note:** these first went into `oauth-token.ts`,
-  but that pushed *its* file-total complexity to 61 (a new smell) — relocating a smell, not
+  but that pushed _its_ file-total complexity to 61 (a new smell) — relocating a smell, not
   removing it. So grant orchestration lives in a **new `oauth-token-grants.ts`**, leaving
   `oauth-token.ts` as token primitives. The grant-branch divergences are preserved as
   explicit parameters, per the spec table:
@@ -278,7 +278,7 @@ and the full `src/` suite + `tsc` stay green.
   complex binary expressions.
 - Tuning `.qlty/qlty.toml` thresholds to mute the inherent-idiom findings. Considered;
   rejected for now — smells aren't a CI gate, so the dashboard noise is harmless, and a
-  blanket threshold bump would also hide *future* genuinely-bad complexity. Revisit only
+  blanket threshold bump would also hide _future_ genuinely-bad complexity. Revisit only
   if the dashboard signal-to-noise becomes a real nuisance.
 - ~~The optional `oauth/token.ts` / `userinfo.ts` controller decomposition~~ — **now done**, see [Tier D](#tier-d--controller-decomposition-done).
 - Unifying `buildIdToken` (ID-token claims) with `buildUserInfoClaims` (UserInfo claims) —

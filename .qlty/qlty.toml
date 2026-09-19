@@ -1,6 +1,6 @@
 config_version = "0"
 
-# Exclude patterns apply globally (linting, formatting, and smells).
+# Exclude patterns apply to all plugins (linting and formatting).
 # Sources: old .eslintignore, .stylelintignore, and .codeclimate.yml defaults.
 exclude_patterns = [
   # Minified / bundled / custom overrides
@@ -127,6 +127,22 @@ script = "sqlfluff lint ${target} --format json --nofail"
 [plugins.definitions.sqlfluff.drivers.fix]
 script = "sqlfluff fix --disable-progress-bar --quiet ${target}"
 
+# qlty's built-in shfmt driver runs `shfmt -w -s ${target}` with no indentation
+# flags. shfmt has no config file of its own, so with no flags it discovers
+# .editorconfig at format time — and falls back to its own default (TABS) when
+# it finds none. That is the tab/space flip: the same script came out tab- or
+# space-indented depending on whether .editorconfig was visible from where the
+# formatter ran (Windows checkout vs WSL vs CI), and extensionless scripts never
+# matched an .editorconfig glob at all. Passing `-i 2` pins the indent AND makes
+# shfmt ignore .editorconfig entirely (any formatting flag disables it), so
+# there is exactly one source of truth. `-w -s` are kept from the built-in
+# script; no other formatting flag is set, so shfmt's remaining defaults
+# (binary_next_line, switch_case_indent, space_redirects, keep_padding,
+# function_next_line all off) are unchanged. Keep `-i 2` in sync with the
+# [*.{sh,bash,ksh,zsh,bats}] block in .editorconfig, which is what editors read.
+[plugins.definitions.shfmt.drivers.format]
+script = "shfmt -w -s -i 2 ${target}"
+
 # ── Per-plugin file excludes ─────────────────────────────────────────────────
 # qlty has no plugin-level `exclude_patterns` key (it is silently ignored); scope
 # file skips to specific plugins with [[exclude]] blocks instead. These are NOT
@@ -173,9 +189,13 @@ file_patterns = [
 # 3. actionlint + zizmor already lint workflows with GitHub-aware rules, so
 #    yamllint's generic style checks (e.g. the YAML 1.1 truthy false-positive on
 #    `on:`) are just noise on the install.sh-deployed workflow + dependabot files.
+#    The zizmor and actionlint configs are deployed the same way and are read by
+#    those tools, not by a YAML style guide, so they are scoped out too.
 [[exclude]]
 plugins = ["yamllint"]
 file_patterns = [
   "**/.github/workflows/**",
   "**/.github/dependabot.yml",
+  "**/.github/zizmor.yml",
+  "**/.github/actionlint.yaml",
 ]

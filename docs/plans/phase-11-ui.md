@@ -79,7 +79,7 @@ Styling: one stylesheet, `public/assets/main.css` — Bootstrap-4-era palette (`
 
 The current frontend contains **one** ARIA attribute in total (an `aria-describedby` on the account page's password field). Concretely:
 
-- **A1 — HTMX swaps are silent to assistive technology.** Result messages (login errors, success confirmations) swap into plain `<div>`s. Fix: every message-area `.result-area` is a **pre-existing live region** — `role="status"` (polite) as the default, with error fragments announced via a `role="alert"` element *inside* the swapped fragment where immediate announcement matters. Because the target `div`s already exist in the DOM before the swap, `innerHTML` swaps into them announce correctly. The single place to standardise message markup is `src/utilities/responses.ts` (`resultPositive`/`resultNegative` helpers) plus the handful of endpoints that hand-roll message HTML.
+- **A1 — HTMX swaps are silent to assistive technology.** Result messages (login errors, success confirmations) swap into plain `<div>`s. Fix: every message-area `.result-area` is a **pre-existing live region** — `role="status"` (polite) as the default, with error fragments announced via a `role="alert"` element _inside_ the swapped fragment where immediate announcement matters. Because the target `div`s already exist in the DOM before the swap, `innerHTML` swaps into them announce correctly. The single place to standardise message markup is `src/utilities/responses.ts` (`resultPositive`/`resultNegative` helpers) plus the handful of endpoints that hand-roll message HTML.
 - **A2 — No landmarks on most pages.** Only `account.html` and the org shells have `<header>`/`<main>`; everything else is a bare `div.container`. Every page gets `<main>`, a `<header>` where there is a shell, and `<nav>` where navigation exists.
 - **A3 — No skip link.** Required once the shared header lands (WCAG 2.4.1).
 - **A4 — State is conveyed by colour alone** (WCAG 1.4.1). `.result-positive`/`.result-negative` differ only in green vs red text. Add a non-colour signal — an icon or a visible "Success:"/"Error:" prefix — emitted by the response helpers so all ~50 fragment files inherit it.
@@ -118,7 +118,7 @@ Signed in
 
 **Shared shell.** Signed-in pages (`/account`, org pages) share a slim header: product name (links to `/account`), and a Log Out button (`hx-post="/api/user/logout"` + `hx-confirm`). A skip link precedes it. Signed-out pages keep the centered-card layout with no header chrome. Showing "signed in as `<email>`" in the header requires a small identity fragment endpoint that does not exist today — see [Open questions](#open-questions--decisions-for-the-design-phase).
 
-**Account ⇄ organisation boundary.** `/account`'s Organisations section is a *directory*: each org the user belongs to, their roles, a "Create organisation" control, and links out to each org's page. All management (rename, teams, members, invitations, entitlements, lifecycle, billing) lives on the org's own pages.
+**Account ⇄ organisation boundary.** `/account`'s Organisations section is a _directory_: each org the user belongs to, their roles, a "Create organisation" control, and links out to each org's page. All management (rename, teams, members, invitations, entitlements, lifecycle, billing) lives on the org's own pages.
 
 ## Per-surface briefs
 
@@ -150,7 +150,7 @@ Same skeleton as reset/set with the explanatory paragraph. Tone matters: this in
 
 ### Logout (`/logout`)
 
-Becomes the *post-logout* page ("You're signed out" + sign-in link) and the no-JS/no-header fallback for triggering logout. The primary logout affordance moves to the shared header (F2).
+Becomes the _post-logout_ page ("You're signed out" + sign-in link) and the no-JS/no-header fallback for triggering logout. The primary logout affordance moves to the shared header (F2).
 
 ### Account Settings (`/account`)
 
@@ -180,7 +180,7 @@ Keep the three-section shape (subscriptions, payment methods portal, invoices). 
 
 ### Invite accept (`/invite`) and federated signup (`/federated-signup`)
 
-Both are "preview, then one affirmative action" pages — keep them that way. One card stating exactly what will happen ("Join *Acme* as *member*" / "Create an account for *name, email* from *GitHub*"), one primary button, one decline path. These pages are entered from emails/providers, so they must stand alone: full design-system styling, clear titles, no assumed context.
+Both are "preview, then one affirmative action" pages — keep them that way. One card stating exactly what will happen ("Join _Acme_ as _member_" / "Create an account for _name, email_ from _GitHub_"), one primary button, one decline path. These pages are entered from emails/providers, so they must stand alone: full design-system styling, clear titles, no assumed context.
 
 ### OAuth consent (`/oauth/authorize`)
 
@@ -230,7 +230,7 @@ The CSS classes are a contract between `main.css` and **~50 TypeScript files** t
 - **Keep existing class names working** (`.btn-*`, `.result-*`, `.container`, `.grid-container`, `.form-group`, `.spacer-*`, `.tfa-*`): restyle behind the names. New classes are **additive**.
 - A rename or removal is allowed only with a lockstep sweep of all emitters in the same stage, verified by grep (the HTMX-4 migration's lesson: fragments are easy to miss — its execution notes found 10 stragglers).
 - Centralise message markup in `src/utilities/responses.ts` so A1/A4 land in one place; hand-rolled `result-positive`/`result-negative` strings in endpoints migrate to the helpers as they're touched.
-- Fragment markup changes (captions, `aria-label`s, badges) count as UI work and belong to this phase; fragment *behaviour* (status codes, envelopes, auth) does not.
+- Fragment markup changes (captions, `aria-label`s, badges) count as UI work and belong to this phase; fragment _behaviour_ (status codes, envelopes, auth) does not.
 
 ## Staging (future execution phase)
 
