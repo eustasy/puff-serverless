@@ -1,5 +1,5 @@
 import { verifyAuthenticationResponse, type AuthenticationResponseJSON } from "@simplewebauthn/server"
-import type { AuthenticatorTransportFuture } from "@simplewebauthn/server"
+import type { AuthenticatorTransport } from "@simplewebauthn/server"
 import { isoBase64URL } from "@simplewebauthn/server/helpers"
 import { getPasskeyByCredentialId, updatePasskeyCounter, getRpConfig } from "../../../../src/passkeys.js"
 import { consumeToken } from "../../../../src/tokens.js"
@@ -72,7 +72,7 @@ export const onRequestPost: Handler = async (context) => {
         id: passkey.credential_id,
         publicKey: isoBase64URL.toBuffer(passkey.public_key),
         counter: passkey.counter,
-        transports: (passkey.transports ?? undefined) as AuthenticatorTransportFuture[] | undefined,
+        transports: (passkey.transports ?? undefined) as AuthenticatorTransport[] | undefined,
       },
       requireUserVerification: true,
     })
