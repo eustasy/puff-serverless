@@ -17,6 +17,7 @@ The frontend is driven **entirely** by HTMX: static HTML under `public/`, server
 - [Verification / test matrix](#verification--test-matrix)
 - [Rollback](#rollback)
 - [Execution notes (2026-06-10)](#execution-notes-2026-06-10)
+- [Stable 4.0.0 (2026-10-29)](#stable-400-2026-10-29)
 - [Open questions / VERIFY-on-stable](#open-questions--verify-on-stable)
 - [Sources](#sources)
 - [Out of scope](#out-of-scope)
@@ -173,10 +174,18 @@ What execution found beyond the plan:
 - **Residual `upgrade-check` findings are all false positives** (22 across 8 files on the migrated tree): 14× `[renamed-attr] hx-disable → hx-ignore` — the tool assumes any `hx-disable` is htmx 2's old skip-processing attribute, but ours are the _new_ v4 attribute (the tool's own message confirms "hx-disable now means 'disable during request'"); 8× `[inheritance]` over-flags where the descendant overrides with its own `hx-target`/`hx-include` (predicted by the plan).
 - Stage D doc updates landed in `.github/instructions/frontend.instructions.md` (response-handling section now documents the v4 default + a new explicit-inheritance convention; `hx-disable`; `hx-prompt` removal note; page skeleton; asset list), `.github/instructions/backend.instructions.md` (removed the `HX-Prompt` header-read example), and `.github/instructions/architecture.instructions.md` (asset name). `docs/Architecture.md` contained no version-specific references.
 
+## Stable 4.0.0 (2026-10-29)
+
+Moved from `4.0.0-beta4` to `4.0.0` stable: `public/assets/htmx_4.0.0.min.js` and `htmx_4.0.0.js` replace the beta4 builds, and every page, server-rendered function and instructions file now loads the new filename. The beta4 line numbers cited above refer to the deleted `htmx_4.0.0-beta4.js`.
+
+- **Source diff, beta4 → 4.0.0:** nothing this repo relies on changed. Config defaults are the same apart from three new keys (`morphSkip`, `morphSkipChildren`, `allowEmptySwapAfterOOB`). Attribute and trigger parsing moved to the shared `HCON` parser, which still `JSON.parse`s any value starting with `{` (our `hx-vals`) and splits `hx-trigger` on top-level commas. `hx-disable`, `hx-sync`, `hx-include`, `hx-confirm` and `hx-validate` read the same values. `htmx:after:request` still carries `ctx.response.raw`, so `webauthn.js` is unchanged.
+- **`upgrade-check` from the 4.0.0 package:** the same 22 findings as the beta4 run, all the false positives described in the execution notes above.
+- **Smoke test:** `login.html` with `webauthn.js` under jsdom and a mocked `fetch` behaves identically on beta4 and 4.0.0: load triggers, `hx-include`, disable-during-request, the 401 swap, and the `HX-Redirect` remember-me hook.
+
 ## Open questions / VERIFY-on-stable
 
-- All rows/items marked **VERIFY** — re-check against the _final_ 4.0 migration guide when 4.0 stable ships (the current guide self-describes as early/in-progress) and re-run `upgrade-check`.
-- Whether to keep pinning a specific beta or track the latest 4.0.x at execution time.
+- ~~All rows/items marked **VERIFY**~~ — resolved against 4.0.0 stable; see [above](#stable-400-2026-10-29).
+- ~~Whether to keep pinning a specific beta or track the latest 4.0.x~~ — pinned to `4.0.0`; bump the versioned filename for each 4.0.x.
 - Whether to take the optional CSP tightening (`script-src 'unsafe-inline'`) — only relevant if the `hx-prompt` replacement uses `js:`; the recommended input-field path keeps CSP out of scope.
 
 ## Sources

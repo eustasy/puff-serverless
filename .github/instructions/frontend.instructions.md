@@ -134,7 +134,7 @@ Every HTML page follows this structure:
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Page Title</title>
     <link rel="stylesheet" href="/assets/main.css" />
-    <script src="/assets/htmx_4.0.0-beta4.min.js"></script>
+    <script src="/assets/htmx_4.0.0.min.js"></script>
   </head>
   <body>
     <div class="container">
@@ -175,6 +175,6 @@ Pages-Function-rendered HTML follows the same head/CSS conventions as the static
 ### Assets
 
 - `assets/main.css` — global styles for every page.
-- `assets/htmx_4.0.0-beta4.min.js` — bundled HTMX client (the readable `htmx_4.0.0-beta4.js` is kept alongside for debugging).
+- `assets/htmx_4.0.0.min.js` — bundled HTMX client (the readable `htmx_4.0.0.js` is kept alongside for debugging).
 - `assets/webauthn.js` — small ES module wrapping `navigator.credentials` for passkey registration and login. Imported only on pages that need it (`login.html`, `account.html`).
 - `assets/bars.svg` — HTMX loading-indicator graphic.
