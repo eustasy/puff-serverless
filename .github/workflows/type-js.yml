@@ -1,4 +1,4 @@
-# eustasy/.Normal 4.0beta16
+# eustasy/.Normal 5.0
 name: "Type: TS"
 on:
   workflow_dispatch:
@@ -41,7 +41,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: eustasy/.normal/js/setup@v4
+      - uses: eustasy/.normal/js/setup@v5
 
       - name: Generate types
         # wrangler emits the Worker/binding types tsc needs; without this the
