@@ -21,7 +21,7 @@
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
     "@types/zxcvbn": "^4.4.5",
     "@vitest/coverage-v8": "^5.0.5",
