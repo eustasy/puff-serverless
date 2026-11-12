@@ -39,7 +39,7 @@ applyTo: "**"
 - Login with 2FA: initial password auth returns a short-lived `totp_verification_pending` token (15 min) set in a cookie, then the user submits the TOTP code with that token.
 - 2FA setup: secret is created with `is_enabled = FALSE`, enabled only after successful TOTP code verification.
 - **TOTP replay prevention**: `totp_used_codes` keyed on `(user_uuid, totp_code)` with `INSERT … ON CONFLICT DO NOTHING` — a code is accepted at most once within its acceptance window. Replays return failure. `verify()` uses `epochTolerance: 30` (±1 step for clock skew). Stale rows are reaped by a CockroachDB Row-Level TTL rule (`sql/schedules.sql`), scanned every 5 minutes.
-- **2FA QR code** is rendered inline as `<svg>` via `uqr` — the TOTP secret never leaves the origin (older versions sent it to a third-party QR-image service, which was a leak).
+- **2FA QR code** is rendered inline as `<svg>` via `uqr` — the TOTP secret never leaves the origin. Never send it to a third-party QR-image service.
 - **2FA bypass** (`/api/2fa/bypass/{request,verify}`) emails a single-use link to a verified address (primary if verified, otherwise oldest-verified secondary) when the user has lost their authenticator. Refuses to send when a `password_reset` token was consumed in the last 24h, so email alone cannot reset the password (factor 1) AND bypass 2FA (factor 2) in the same window.
 
 ## Passkeys (WebAuthn)
@@ -98,11 +98,11 @@ applyTo: "**"
 
 ## HTTP Security Headers
 
-Configured in `public/_headers` (honoured by Workers Static Assets):
+Configured in `public/_headers` for static assets, and mirrored by `securityHeadersMiddleware` (`src/utilities/security-headers.ts`, first in `functions/_middleware.ts`) for HTML the Worker renders itself — `_headers` does not reach function responses. Keep the two in step:
 
 - `Content-Security-Policy` — restricts script/style sources. Includes `report-uri /api/csp-report` and `report-to csp-endpoint`; violations land at `functions/api/csp-report.ts` and are logged via `console.warn`.
 - `Reporting-Endpoints: csp-endpoint="/api/csp-report"` — modern Reporting API.
-- `Strict-Transport-Security` — HSTS with `max-age=31536000; includeSubDomains`.
+- `Strict-Transport-Security` — HSTS with `max-age=31536000`.
 - `X-Frame-Options: DENY` — prevents clickjacking.
 - `Permissions-Policy` — disables camera, microphone, geolocation, etc.
 - `X-Robots-Tag: noindex` on `*.workers.dev` to prevent indexing of dev domains.

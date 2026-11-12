@@ -1,4 +1,4 @@
-// Membership — role grants that tie users to organisations and teams (Phase 6).
+// Membership — role grants that tie users to organisations and teams.
 //
 // Each (scope, user, role) is one row; a user may hold any number of roles in a
 // scope. Role grants are never gated on prior membership — an owner can grant a

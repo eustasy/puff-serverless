@@ -1,7 +1,6 @@
 // Requests a 2FA-bypass email for a login that is stuck at the TOTP step.
 //
-// This replaces the old "do a password reset" fallback (which never actually
-// bypassed 2FA). The user is identified by the `totp_verification_token`
+// The user is identified by the `totp_verification_token`
 // cookie set at password-login time; a one-time link is emailed to a verified
 // address on the account, and opening it (see bypass/verify.ts) completes the
 // login. The two factors remain: the password (already proven to reach this

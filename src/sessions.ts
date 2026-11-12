@@ -155,7 +155,7 @@ export async function createSession(
     await dbClient.query(query, params)
     const loginResult = await updateLastLogin(dbClient, user_uuid)
     if (loginResult.error) {
-      // Preserve prior behavior of failing session creation on a DB error here.
+      // A DB error here fails session creation.
       throw new Error(loginResult.message)
     }
     return {

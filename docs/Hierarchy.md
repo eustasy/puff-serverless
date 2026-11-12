@@ -93,14 +93,14 @@ Every app declares a **licensing mode** at registration (`app_licensing_mode`, C
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `none`     | No licensing checks. Any user with consent can use the app.                                                                                                                             |
 | `seat`     | A user is licensed iff `license:tier` resolves to a value via the KV resolver chain (so a tier set on the user, or inherited from a role / team / org). The value is the tier name.     |
-| `usage`    | Any org member is licensed; metering happens out of band (the app reports usage back to the operator for Phase 8 billing).                                                              |
+| `usage`    | Any org member is licensed; metering happens out of band (the app reports usage back to the operator for billing).                                                                      |
 | `floating` | A per-org pool of N concurrent seats. Pool size in `license:floating:max`. `app_floating_sessions` tracks current allocations; OAuth `/token` allocates on every code/refresh exchange. |
 
 The mode picks the gating semantics; the entitlement _values_ live in the KV store (see below). Org admins manage grants under `functions/api/organisations/[org_uuid]/apps/[app_uuid]/...`, gated by `org:entitlements:write`.
 
 ## The key-value store and the resolver chain
 
-Phase 6 introduced a unified key-value store. One table per **subject** type, each row carrying a first-class **owner** dimension — so org A's data about user U and app B's data about user U coexist as different rows.
+Puff has a unified key-value store. One table per **subject** type, each row carrying a first-class **owner** dimension — so org A's data about user U and app B's data about user U coexist as different rows.
 
 Six subject tables:
 

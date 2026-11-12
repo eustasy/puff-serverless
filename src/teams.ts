@@ -1,4 +1,4 @@
-// Teams — a subdivision of an organisation (Phase 6).
+// Teams — a subdivision of an organisation.
 //
 // A team always belongs to one organisation (FK `ON DELETE CASCADE`). Team
 // membership lives in `team_members` (see src/memberships.ts) and is

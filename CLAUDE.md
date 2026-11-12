@@ -10,14 +10,15 @@ npm run build             # wrangler pages functions build -> dist/worker/
 npm run deploy            # build, then wrangler deploy
 npm run typecheck         # tsc --noEmit (strict)
 npm run typecheck:strict  # tsc with every extra strictness flag on
-npm run lint              # prettier --check + typecheck
-npm run format            # prettier --write
+npm run lint              # format check + typecheck
+npm run format            # prettier check (via qlty) on tracked JS/TS
+npm run format:fix        # prettier write (via qlty)
 npm test                  # vitest run (unit tests)
 npm run test:watch        # vitest in watch mode
 npx wrangler types        # regenerate worker-configuration.d.ts (runs in prebuild)
 ```
 
-`npm run lint` is the gate before pushing; CI runs Prettier and the build.
+`npm run lint` is the gate before pushing; CI runs the build, typecheck, the Vitest suite with coverage, and the .Normal lint and security workflows.
 
 Unit tests live in `test/`, one `*.test.ts` file per `src/` module, run with [Vitest](https://vitest.dev). They run in plain Node and never open a real database: `src/` functions take `dbClient` as their first parameter, so tests pass a fake `pg` client (`test/helpers/fake-db.ts`) that scripts query responses by SQL match. `test/helpers/fake-env.ts` builds a minimal `Env`. `test/**/*.ts` is in the `tsconfig` `include`, so `npm run typecheck` covers tests too.
 
@@ -31,7 +32,7 @@ Node built-ins are marked `--external` in the build script (see `package.json`);
 
 ## Architecture
 
-A serverless SSO / access-control app. Stack: Cloudflare Workers + Pages Functions, CockroachDB (Postgres-compatible) via Cloudflare Hyperdrive, `pg` client, `otplib` for TOTP. The frontend is static HTML driven entirely by HTMX — there is no custom client-side JS, and **API endpoints return HTML fragments, not JSON**.
+A serverless SSO / access-control app. Stack: Cloudflare Workers + Pages Functions, CockroachDB (Postgres-compatible) via Cloudflare Hyperdrive, `pg` client, `otplib` for TOTP. The frontend is static HTML driven by HTMX — the only custom client-side JS is the passkey helper `public/assets/webauthn.js` — and **API endpoints return HTML fragments, not JSON**.
 
 ### Request layering
 
@@ -50,7 +51,7 @@ The three resource-scoped middlewares under `functions/api/organisations/[org_uu
 
 ### `src/` domain modules
 
-`src/` holds backend logic with no HTTP handling, one module per domain (`users`, `sessions`, `passwords`, `emails`, `tokens`, `2fa`, plus `src/utilities/`). Every `src/` function takes `dbClient` as its first parameter and returns a structured envelope (`{ success: true, ... }` / `{ error: true, ... }` / `{ exists: boolean }`) — they do not throw or return raw rows. The sole exception is `user_register`, which throws (wrap calls in try/catch).
+`src/` holds backend logic with no HTTP handling, one module per domain (`users`, `sessions`, `passwords`, `emails`, `tokens`, `2fa`, plus `src/utilities/`). Every `src/` function takes `dbClient` as its first parameter and returns a structured envelope (`{ success: true, ... }` / `{ error: true, ... }` / `{ exists: boolean }`) — they do not throw or return raw rows. The sole exception is `registerUser`, which throws (wrap calls in try/catch).
 
 `src/cron.ts` is a deliberate departure: it runs on a Cron Trigger with no `_middleware.ts` in front of it. Today it only carries work that has to stay in the Worker — OAuth signing-key rotation (`src/oauth-keys-rotation.ts`), on a daily cron that rotates the key once a week. Pure-SQL cleanup (session / token / TOTP / floating-session / audit purges) runs **in the database** via CockroachDB Row-Level TTL declared in `sql/schedules.sql`. `runScheduledCleanup` in `src/cron.ts` is retained as a manually-callable fallback.
 
@@ -82,7 +83,3 @@ This repo has detailed, scoped instruction docs — consult them before non-triv
 - Reflecting user input into HTML must go through `escapeHtml` from `src/utilities/escape.ts`.
 - Auth-cookie `Secure` / `SameSite` are driven by env vars (`SECURE_COOKIE`, `COOKIE_SAMESITE`) — never hardcode them.
 - Outbound `fetch()` to third-party APIs follows the patterns in `.github/instructions/backend.instructions.md → External API calls`: `cf.cacheTtl` for cacheable lookups (HIBP), `context.waitUntil` for fire-and-forget where the response is generic (most email sends), plain `await` only when the result shapes the user-facing reply.
-
-## Production blocker
-
-Verification and password-reset links are currently `console.log`'d server-side as a placeholder for email delivery. The two sites are marked `// SECURITY: remove before production` (in `src/users.ts` and `functions/api/password/request.ts`) and must be removed before any production deployment.

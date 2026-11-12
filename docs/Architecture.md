@@ -17,7 +17,7 @@ How the codebase is laid out, how a request flows through it, and the runtime pi
   - [Don't use queues](#dont-use-queues)
 - [OAuth 2.1 / OIDC endpoints (Puff as provider)](#oauth-21--oidc-endpoints-puff-as-provider)
 - [Federated login (Puff as client)](#federated-login-puff-as-client)
-- [Billing (Phase 9)](#billing-phase-9)
+- [Billing](#billing)
 - [Environment variables](#environment-variables)
 
 ## Build model
@@ -28,7 +28,7 @@ The project deploys as a **single Cloudflare Worker bundle**, but is authored wi
 
 Node built-ins are marked `--external` in the build script (see `package.json`); `nodejs_compat` provides them at runtime. `compatibility_date` lives in both `wrangler.jsonc` and the build script.
 
-Stack: Cloudflare Workers + Pages Functions, CockroachDB (Postgres-compatible) via Cloudflare Hyperdrive, `pg` client, `otplib` for TOTP, `@simplewebauthn/server` for passkeys, `zxcvbn` for password strength. The frontend is static HTML driven entirely by HTMX — there is no custom client-side JS, and **API endpoints return HTML fragments, not JSON**.
+Stack: Cloudflare Workers + Pages Functions, CockroachDB (Postgres-compatible) via Cloudflare Hyperdrive, `pg` client, `otplib` for TOTP, `@simplewebauthn/server` for passkeys, `zxcvbn` for password strength. The frontend is static HTML driven by HTMX — the only custom client-side JS is the passkey helper `public/assets/webauthn.js` — and **API endpoints return HTML fragments, not JSON**.
 
 ## Request layering
 
@@ -236,7 +236,7 @@ Unlinking is gated by `unlinkExternalIdentity`'s "another usable credential exis
 
 Domain modules: `src/oauth-providers.ts` (registry + per-provider userinfo extractors), `src/oauth-outbound.ts` (build authorize URL / exchange code / fetch userinfo), `src/external-identities.ts`, `src/federated-signup-tokens.ts`, `src/utilities/oauth-state-cookie.ts`. The per-provider setup procedure is in [Operations.md → Adding a federated login provider](Operations.md#adding-a-federated-login-provider).
 
-## Billing (Phase 9)
+## Billing
 
 Puff acts as a payment orchestrator: orgs subscribe to apps through a provider-hosted checkout flow, and Puff records entitlement state locally while treating the payment provider as the source of truth for billing fields.
 

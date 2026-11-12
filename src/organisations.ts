@@ -1,4 +1,4 @@
-// Organisations — the top-level multi-tenant entity (Phase 6).
+// Organisations — the top-level multi-tenant entity.
 //
 // Every function takes `dbClient` first and returns the standard Envelope. A
 // user's relationship to an organisation is the set of role grants in
@@ -157,7 +157,7 @@ export async function enableOrganisation(dbClient: DbClient, org_uuid: string): 
  *
  * Refuses (409) if the org has an outstanding balance — open or uncollectible
  * invoices. Because `invoices.org_uuid` is `ON DELETE CASCADE`, deleting the
- * org would otherwise destroy unsettled financial records (Phase 9 billing).
+ * org would otherwise destroy unsettled financial records.
  * @param {Client} dbClient - An active pg.Client instance.
  * @param {string} org_uuid - The organisation UUID.
  * @returns {Promise<Envelope>} `{ success: true, status: 200 }`, `{ success: false, status: 404|409 }`, or an error envelope.

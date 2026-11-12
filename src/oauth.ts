@@ -6,8 +6,7 @@
  * The scope set Puff supports at the OAuth/OIDC layer. OIDC requires
  * `openid`; `profile` and `email` map to standard userinfo claims;
  * `offline_access` triggers issuance of a refresh token alongside the access
- * token. App-defined entitlement scopes (Phase 7 → App entitlements) will
- * extend this set later.
+ * token.
  */
 export const SUPPORTED_SCOPES = [
   "openid",

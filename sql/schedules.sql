@@ -1,7 +1,7 @@
 -- Automated row cleanup via CockroachDB Row-Level TTL.
 --
--- Pure-data cleanup that used to run in `src/cron.ts` lives here instead:
--- each table carries a TTL storage parameter, and CockroachDB's built-in
+-- Pure-data cleanup runs in the database: each table carries a TTL storage
+-- parameter, and CockroachDB's built-in
 -- TTL job deletes expired rows on its own schedule. No Worker invocation,
 -- no Hyperdrive connection, no round-trip per DELETE. `src/cron.ts` keeps
 -- `runScheduledCleanup` as a manually callable fallback (development,

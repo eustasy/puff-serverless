@@ -21,11 +21,9 @@ export default {
       // gives a readable summary in the CI log and locally.
       reporter: ["text", "lcov"],
       include: ["src/**/*.ts"],
-      // Coverage ratchet (see docs/plans/test-coverage-src.md). Floors set just
-      // below the post-Tier-3 numbers so `vitest run --coverage` fails on a
-      // regression. Raise these as coverage improves so the floor only ever rises.
-      // Post-Tier-3 actuals: lines 99.78%, statements 99.56%, functions 98.68%,
-      // branches 90.04%.
+      // Coverage ratchet. Floors sit below the measured numbers so
+      // `vitest run --coverage` fails on a regression. Raise these as coverage
+      // improves so the floor only ever rises.
       thresholds: {
         lines: 95,
         statements: 95,

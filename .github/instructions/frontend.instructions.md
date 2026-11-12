@@ -4,13 +4,13 @@ applyTo: "public/**"
 
 # Frontend Instructions
 
-The frontend is static HTML served by the Cloudflare Worker via [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) — the `public/` directory is the assets root. All interactivity is driven by HTMX; there is no custom client-side JavaScript.
+The frontend is static HTML served by the Cloudflare Worker via [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) — the `public/` directory is the assets root. All interactivity is driven by HTMX; the only custom client-side JavaScript is the passkey helper `assets/webauthn.js`.
 
 ## HTMX Conventions
 
 ### Response Handling
 
-HTMX 4 swaps every response except `204`/`304` by default, which is exactly the behaviour this app wants (error fragments render like success fragments). Do **not** add an `htmx-config` meta tag for response handling — the old `responseHandling` config was removed in HTMX 4.
+HTMX 4 swaps every response except `204`/`304` by default, which is exactly the behaviour this app wants (error fragments render like success fragments). Do **not** add an `htmx-config` meta tag for response handling — HTMX 4 has no `responseHandling` config.
 
 ### Attribute Inheritance
 
@@ -75,7 +75,7 @@ Password and email fields use delayed keyup triggers for live feedback:
 
 - `hx-confirm="Are you sure?"` — browser confirm dialog before submission.
 
-(HTMX 4 removed `hx-prompt`; controls that need a typed value use a real `<input>` + submit button instead.)
+(HTMX 4 has no `hx-prompt`; controls that need a typed value use a real `<input>` + submit button.)
 
 ## CSS Classes
 

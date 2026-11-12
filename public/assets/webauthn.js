@@ -201,7 +201,7 @@ async function authenticateWithPasskey(auto = false) {
   } catch {
     // An auto-offer the device can't satisfy (passkey removed here or on
     // another device) must not keep prompting on every visit — forget it and
-    // fall back to the form. Manual attempts surface the failure as before.
+    // fall back to the form. Manual attempts surface the failure to the user.
     if (auto) {
       forgetPasskey()
       return

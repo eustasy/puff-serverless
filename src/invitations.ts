@@ -1,4 +1,4 @@
-// Organisation invitations (Phase 6).
+// Organisation invitations.
 //
 // An invitation is a single-use, expiring token that grants its holder the
 // offered organisation role(s) once accepted. Unlike a direct role grant it
