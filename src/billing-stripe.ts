@@ -1,4 +1,4 @@
-// Stripe adapter for the billing domain (Phase 9). Implements `BillingProvider`
+// Stripe adapter for the billing domain. Implements `BillingProvider`
 // from `billing.ts` against the Stripe REST API using the native `fetch`
 // (same rationale as `mailer.ts`: a plain HTTPS client bundles cleanly for
 // Workers with no Node-oriented SDK dependency). Configuration:

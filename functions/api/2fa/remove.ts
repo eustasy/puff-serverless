@@ -62,9 +62,8 @@ export const onRequestPost: Handler = async (context) => {
     const secretRecord = secretResult.twoFactor
 
     // Step 5: Verify TOTP Code
-    // Assuming secret_value is stored directly (not encrypted in this example based on original code's direct use)
-    // If it were encrypted, decryption would happen here or in read2fa.
-    // The original code had a "sim_encrypted::" prefix, which is handled here for now.
+    // secret_value is the base32 secret behind a "sim_encrypted::" marker prefix;
+    // it is not encrypted at rest.
     let storedSecret = secretRecord.secret_value
     if (storedSecret && storedSecret.startsWith("sim_encrypted::")) {
       storedSecret = storedSecret.replace("sim_encrypted::", "")

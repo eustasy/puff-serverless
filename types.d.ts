@@ -23,7 +23,7 @@ declare global {
     OAUTH_SIGNING_KEY_PREVIOUS_PUBLIC?: string
     OAUTH_KEY_ROTATION_INTERVAL_DAYS?: string
     OPERATOR_USER_UUIDS?: string
-    // Billing (Phase 9). Both are Wrangler secrets, declared optional so the
+    // Billing. Both are Wrangler secrets, declared optional so the
     // codebase typechecks whether or not the binding is present in a given
     // deployment (e.g. local dev without billing configured).
     STRIPE_SECRET_KEY?: string
@@ -63,8 +63,7 @@ declare global {
         status: number
       }
 
-  // Pre-status legacy variant used by src/tokens.ts helpers. No `status` field.
-  // Phase 2 annotates the existing shape; aligning these with Envelope is its own follow-up.
+  // Variant used by the src/tokens.ts helpers: same shape as Envelope, without a `status` field.
   type TokenEnvelope<T = {}> =
     | ({ success: true; error?: never } & T)
     | {
@@ -227,7 +226,7 @@ declare global {
     app_active: boolean
     app_licensing_mode: "none" | "seat" | "usage" | "floating"
     // Default trial length (days) applied when an org first subscribes to a
-    // billed app. NULL = no trial. Read by the subscribe flow (Phase 9).
+    // billed app. NULL = no trial. Read by the subscribe flow.
     app_default_trial_days: number | null
     app_created_at: Date
   }
@@ -287,7 +286,7 @@ declare global {
     granted_at: Date
   }
 
-  // Billing (Phase 9) — source of truth: sql/billing_*.sql, sql/subscriptions.sql,
+  // Billing — source of truth: sql/billing_*.sql, sql/subscriptions.sql,
   // sql/invoices.sql, sql/usage_*.sql. `pg` decodes DECIMAL as a string and INT
   // as a number, hence `quantity: string` but `amount_cents: number`.
 

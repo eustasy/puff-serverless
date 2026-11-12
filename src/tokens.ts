@@ -1,7 +1,7 @@
-// This module provides functions to manage tokens in a PostgreSQL database.
-// Tokens can be used for various purposes such as email verification, password resets, etc.
-// token_type can be 'email_verification' or 'password_reset' by default, but can be extended for other uses.
-// SQL schema for tokens table: sql/tokens.sql
+// Single-use, expiring tokens: email verification, password reset, the mid-login
+// 2FA and password-upgrade steps, 2FA bypass, WebAuthn challenges and sudo
+// elevation. Each has a typed `create*Token` wrapper below that sets its
+// token_type and lifetime. SQL schema: sql/tokens.sql
 //
 // createToken + consumeToken are the recommended pair for any single-use-token
 // flow: createToken issues the token, consumeToken atomically validates and
@@ -194,8 +194,7 @@ export async function deleteToken(
  * Shared body of the typed `create*Token` wrappers below: turns a relative TTL
  * into an absolute ISO expiry and delegates to {@link createToken}. No error
  * handling of its own — `createToken` already returns an error envelope rather
- * than throwing, and the expiry maths cannot throw, so the per-wrapper
- * try/catch this replaced was unreachable (its custom messages never surfaced).
+ * than throwing, and the expiry maths cannot throw.
  * @param {DbClient} dbClient - An active pg.Client instance.
  * @param {string} user_uuid - The UUID of the user.
  * @param {string} token_type - The token_type column value.

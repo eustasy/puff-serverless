@@ -11,9 +11,7 @@ export const onRequestPost: Handler = async (context) => {
     const formData = await context.request.formData()
     const email_address = formData.get("email_address")
 
-    // The email address comes from the form field only. (The previous prompt-header
-    // fallback was dropped: HTMX 4 removed the browser-prompt attribute, so the
-    // add-email control is now a real <input name="email_address"> form.)
+    // The email address comes from the <input name="email_address"> form field only.
     if (typeof email_address !== "string") {
       return new Response('<p class="result-negative">Email address is missing or submitted in an invalid format.</p>', {
         status: 400,

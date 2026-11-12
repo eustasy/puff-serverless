@@ -207,7 +207,7 @@ Both write an audit event (`oauth.signing_key.rotated` / `oauth.signing_key.reti
 
 ## Registering a new app
 
-"App" here means an OAuth client — a downstream service that logs its users in with Puff. Until the operator UI lands (Phase 7 follow-up), registration is direct DB access. Apps are **globally registered**, not org-owned — any org can grant its users entitlements for any registered app (see [Hierarchy.md → Apps & licensing](Hierarchy.md#apps--licensing)).
+"App" here means an OAuth client — a downstream service that logs its users in with Puff. There is no operator UI for this; registration is direct DB access. Apps are **globally registered**, not org-owned — any org can grant its users entitlements for any registered app (see [Hierarchy.md → Apps & licensing](Hierarchy.md#apps--licensing)).
 
 1. **Pick a client_id.** It must be unique across all apps. Convention: a short, hostname-like identifier (e.g. `my-app`).
 2. **Generate a client_secret.** Any high-entropy random string is fine — 32+ bytes base64-encoded works. Save the plaintext; you'll hand it to the app's operator and never see it again (Puff stores only the hash).

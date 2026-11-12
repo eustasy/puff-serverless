@@ -9,7 +9,7 @@ import { EVENTS } from "../../../../../src/hooks/events.js"
  * Adds an existing user to an organisation with a role (defaulting to
  * `member`). The user is identified by **email address** — `user_name` is a
  * display name, not a unique handle. Adding someone who has no account yet is
- * the separate email-invitation flow (Phase 6 "Member invitations").
+ * the separate email-invitation flow (`members/invite.ts`).
  */
 export const onRequestPost: Handler<"org_uuid"> = async (context) => {
   const orgRoles = context.data.orgRoles ?? []

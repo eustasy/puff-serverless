@@ -73,9 +73,9 @@ return {
 
 All `src/` functions return the envelope shape — none throw, none return raw rows or bare booleans. Predicates (`has2fa`, `verifyPassword`) expose their answer as a data field inside the success envelope (`enabled`, `verified`).
 
-`registerUser` is the one exception that still throws — registration is a multi-step compound operation; throwing aborts the whole flow cleanly. Wrap calls in `try/catch`.
+`registerUser` is the one exception: it throws — registration is a multi-step compound operation; throwing aborts the whole flow cleanly. Wrap calls in `try/catch`.
 
-`src/tokens.ts` uses a slightly older `TokenEnvelope` variant (no `status` field). Aligning it with `Envelope` is a tracked follow-up; keep that shape when extending `tokens.ts` until then.
+`src/tokens.ts` uses the `TokenEnvelope` variant (no `status` field); keep that shape when extending `tokens.ts`.
 
 ### Error Handling
 

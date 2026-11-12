@@ -1,4 +1,4 @@
-// Billing domain module (Phase 9). Provider-agnostic entry points over the
+// Billing domain module. Provider-agnostic entry points over the
 // `billing_customers`, `subscriptions`, `invoices` and `billing_pricing`
 // tables. Every function takes `dbClient` first and returns the canonical
 // envelope — none throw.

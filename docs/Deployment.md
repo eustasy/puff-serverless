@@ -90,9 +90,9 @@ $PSQL < sql/usage_rollups.sql
 $PSQL < sql/billing_pricing.sql
 $PSQL < sql/billing_webhook_events.sql
 
-# 11. Row-Level TTL cleanup rules (CockroachDB v23.1+). Replaces the bulk
-#     of what used to run in the Worker cron. Idempotent — re-applying is
-#     safe (ALTER TABLE … SET just re-applies the same parameters).
+# 11. Row-Level TTL cleanup rules (CockroachDB v23.1+). Idempotent —
+#     re-applying is safe (ALTER TABLE … SET just re-applies the same
+#     parameters).
 $PSQL < sql/schedules.sql
 ```
 

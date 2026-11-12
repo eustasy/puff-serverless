@@ -1,11 +1,10 @@
-// Role and capability model for organisations and teams (Phase 6).
+// Role and capability model for organisations and teams.
 //
 // Two scopes, each with its own role set: a user holds organisation-scoped
 // roles in `organisation_members.role` and team-scoped roles in
 // `team_members.role`, and may hold any number of either. Authorisation is by
 // *capability*, never by a raw role string — endpoints ask `can(roles, action)`
-// so the role-to-action mapping can change (Phase 7 moves it into a
-// `role_permissions` table) without touching call sites.
+// so the role-to-action mapping can change without touching call sites.
 //
 // This module is pure: no database, no I/O. The membership tables and the
 // guest / full-member distinction are handled in `src/memberships.ts`.

@@ -1,4 +1,4 @@
-// Billing webhook synchroniser (Phase 9). Processes inbound provider webhook
+// Billing webhook synchroniser. Processes inbound provider webhook
 // events and brings the local `subscriptions` / `invoices` rows in line with
 // the payment provider, which is the source of truth for billing state.
 //
