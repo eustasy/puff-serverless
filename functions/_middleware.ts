@@ -1,6 +1,7 @@
 import { getCookie } from "../src/utilities/headers.js"
 import { verifySessionToken } from "../src/sessions.js"
 import { setNextCookie } from "../src/utilities/next.js"
+import { securityHeadersMiddleware } from "../src/utilities/security-headers.js"
 
 // Group A — pages that need a specific cookie to be worth serving. Missing →
 // /login. Presence-only: the matching API endpoint does the real token check;
@@ -71,4 +72,6 @@ const htmlAuthGuard: Handler = async (context) => {
   return context.next()
 }
 
-export const onRequest = [htmlAuthGuard]
+// securityHeadersMiddleware is first so it sees every response this Worker
+// generates, including the redirects and error pages produced further down.
+export const onRequest = [securityHeadersMiddleware, htmlAuthGuard]
